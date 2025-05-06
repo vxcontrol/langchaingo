@@ -42,7 +42,7 @@ func setupAtlas(ctx context.Context) (*atlasContainer, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "mongodb/mongodb-atlas-local",
 		ExposedPorts: []string{"27017/tcp"},
-		WaitingFor:   wait.ForLog("Waiting for connections").WithStartupTimeout(1 * time.Second),
+		WaitingFor:   wait.ForLog("Waiting for connections").WithStartupTimeout(5 * time.Second),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -325,7 +325,7 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 	for _, w := range test.want {
 		got := got[w.PageContent]
 		if w.Score != 0 {
-			assert.InDelta(t, w.Score, got.Score, 1e-4, "score out of bounds for %w", w.PageContent)
+			assert.InDelta(t, w.Score, got.Score, 1e-4, "score out of bounds for %v", w.PageContent)
 		}
 
 		assert.Equal(t, w.PageContent, got.PageContent, "page contents differ")
@@ -563,7 +563,7 @@ func createVectorSearchIndex(
 		if name == searchName && queryable {
 			doc = cursor.Current
 		} else {
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}
 
@@ -593,7 +593,10 @@ func resetForE2E(ctx context.Context, client *mongo.Client, idx string, dim int,
 	// Create the vectorstore collection
 	err := client.Database(testDB).CreateCollection(ctx, testColl)
 	if err != nil {
-		return fmt.Errorf("failed to create vector store collection: %w", err)
+		// Ignore error if collection already exists
+		if !strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("failed to create vector store collection: %w", err)
+		}
 	}
 
 	coll := client.Database(testDB).Collection(testColl)
