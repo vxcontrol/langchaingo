@@ -595,7 +595,7 @@ func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.8)),
 		),
-		"What colors is each piece of furniture next to the desk and the desk itself?",
+		"What colors are all of the pieces of furniture next to the desk and the desk itself?",
 	)
 	require.NoError(t, err)
 

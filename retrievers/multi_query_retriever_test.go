@@ -88,7 +88,7 @@ func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 		require.NoError(t, store.RemoveCollection(ctx, tx))
 
 		require.NoError(t, tx.Commit(ctx))
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 	_, err = store.AddDocuments(ctx, docs)
 	require.NoError(t, err)
