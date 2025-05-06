@@ -20,8 +20,8 @@ func main() {
 	apiKey := os.Getenv("PERPLEXITY_API_KEY")
 
 	llm, err := openai.New(
-		// Supported models: https://docs.perplexity.ai/docs/model-cards
-		openai.WithModel("llama-3.1-sonar-large-128k-online"),
+		// Supported models: https://docs.perplexity.ai/models/model-cards
+		openai.WithModel("sonar"),
 		openai.WithBaseURL("https://api.perplexity.ai"),
 		openai.WithToken(apiKey),
 	)
