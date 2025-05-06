@@ -88,6 +88,8 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80
 	github.com/microcosm-cc/bluemonday v1.0.26
+	github.com/richardlehane/mscfb v1.0.4
+	github.com/tealeg/xlsx v1.0.5
 	gitlab.com/golang-commonmark/markdown v0.0.0-20211110145824-bf3e522c626a
 )
 
@@ -107,7 +109,7 @@ require (
 	github.com/nikolalohinski/gonja v1.5.3
 	github.com/zeebo/blake3 v0.2.4
 	golang.org/x/sync v0.15.0
-	golang.org/x/tools v0.33.0
+	golang.org/x/tools v0.34.0
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -313,3 +315,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+require github.com/richardlehane/msoleps v1.0.1 // indirect
