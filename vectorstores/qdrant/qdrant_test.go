@@ -27,7 +27,7 @@ func TestQdrantStore(t *testing.T) {
 	qdrantURL, apiKey, dimension, distance := getValues(t)
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -65,7 +65,7 @@ func TestQdrantStoreWithScoreThreshold(t *testing.T) {
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -120,7 +120,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -171,7 +171,7 @@ func TestQdrantAsRetriever(t *testing.T) {
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -219,7 +219,7 @@ func TestQdrantRetrieverScoreThreshold(t *testing.T) {
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -271,7 +271,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 	collectionName := setupCollection(t, qdrantURL, apiKey, dimension, distance)
 
 	opts := []openai.Option{
-		openai.WithModel("gpt-3.5-turbo-0125"),
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	}
 
@@ -338,7 +338,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 			{
 				"key": "location",
 				"match": map[string]interface{}{
-					"value": "patio",
+					"value": "office",
 				},
 			},
 		},
@@ -353,7 +353,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 		"What colors is the lamp?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, result, "orange", "expected orange in result")
 }
 
 func getValues(t *testing.T) (string, string, int, string) {
