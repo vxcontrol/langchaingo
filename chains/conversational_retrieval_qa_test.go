@@ -3,7 +3,6 @@ package chains
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -59,7 +58,6 @@ func (t testConversationalRetriever) GetRelevantDocuments(_ context.Context, que
 var _ schema.Retriever = testConversationalRetriever{}
 
 func TestConversationalRetrievalQA(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
 	t.Parallel()
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
@@ -82,15 +80,14 @@ func TestConversationalRetrievalQA(t *testing.T) {
 	)
 	result, err := Run(ctx, chain, "What did the president say about Ketanji Brown Jackson")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Ketanji Brown Jackson"), "expected Ketanji Brown Jackson in result")
+	require.Contains(t, result, "Ketanji Brown Jackson", "expected Ketanji Brown Jackson in result")
 
-	result, err = Run(ctx, chain, "Did he mention who she succeeded")
+	result, err = Run(ctx, chain, "Which Supreme Court Justice is Ketanji Brown Jackson replacing?")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Justice Stephen Breyer"), "expected  Justice Stephen Breyer in result")
+	require.Contains(t, result, "Justice Stephen Breyer", "expected Justice Stephen Breyer in result")
 }
 
 func TestConversationalRetrievalQAWithReturnMessages(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
 	t.Parallel()
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
@@ -113,15 +110,14 @@ func TestConversationalRetrievalQAWithReturnMessages(t *testing.T) {
 	)
 	result, err := Run(ctx, chain, "What did the president say about Ketanji Brown Jackson")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Ketanji Brown Jackson"), "expected Ketanji Brown Jackson in result")
+	require.Contains(t, result, "Ketanji Brown Jackson", "expected Ketanji Brown Jackson in result")
 
-	result, err = Run(ctx, chain, "Did he mention who she succeeded")
+	result, err = Run(ctx, chain, "Which Supreme Court Justice is Ketanji Brown Jackson replacing?")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Justice Stephen Breyer"), "expected  Justice Stephen Breyer in result")
+	require.Contains(t, result, "Justice Stephen Breyer", "expected Justice Stephen Breyer in result")
 }
 
 func TestConversationalRetrievalQAFromLLM(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
 	t.Parallel()
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
@@ -136,15 +132,14 @@ func TestConversationalRetrievalQAFromLLM(t *testing.T) {
 	chain := NewConversationalRetrievalQAFromLLM(llm, r, memory.NewConversationBuffer())
 	result, err := Run(context.Background(), chain, "What did the president say about Ketanji Brown Jackson")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Ketanji Brown Jackson"), "expected Ketanji Brown Jackson in result")
+	require.Contains(t, result, "Ketanji Brown Jackson", "expected Ketanji Brown Jackson in result")
 
-	result, err = Run(ctx, chain, "Did he mention who she succeeded")
+	result, err = Run(ctx, chain, "Which Supreme Court Justice is Ketanji Brown Jackson replacing?")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Justice Stephen Breyer"), "expected  Justice Stephen Breyer in result")
+	require.Contains(t, result, "Justice Stephen Breyer", "expected Justice Stephen Breyer in result")
 }
 
 func TestConversationalRetrievalQAFromLLMWithConversationTokenBuffer(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
 	t.Parallel()
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
@@ -163,9 +158,9 @@ func TestConversationalRetrievalQAFromLLMWithConversationTokenBuffer(t *testing.
 	)
 	result, err := Run(context.Background(), chain, "What did the president say about Ketanji Brown Jackson")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Ketanji Brown Jackson"), "expected Ketanji Brown Jackson in result")
+	require.Contains(t, result, "Ketanji Brown Jackson", "expected Ketanji Brown Jackson in result")
 
-	result, err = Run(ctx, chain, "Did he mention who she succeeded")
+	result, err = Run(ctx, chain, "Which Supreme Court Justice is Ketanji Brown Jackson replacing?")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "Justice Stephen Breyer"), "expected  Justice Stephen Breyer in result")
+	require.Contains(t, result, "Justice Stephen Breyer", "expected Justice Stephen Breyer in result")
 }

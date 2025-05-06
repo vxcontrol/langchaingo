@@ -116,21 +116,24 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			}
 		case llms.ChatMessageTypeTool:
 			msg.Role = RoleTool
+
 			// Here we extract tool calls from the message and populate the ToolCalls field.
-
-			// parse mc.Parts (which should have one entry of type ToolCallResponse) and populate msg.Content and msg.ToolCallID
-			if len(mc.Parts) != 1 {
-				return nil, fmt.Errorf("expected exactly one part for role %v, got %v", mc.Role, len(mc.Parts))
+			for _, p := range mc.Parts {
+				switch tr := p.(type) {
+				case llms.ToolCallResponse:
+					rep := &ChatMessage{}
+					rep.Role = RoleTool
+					rep.ToolCallID = tr.ToolCallID
+					rep.Name = tr.Name
+					rep.Content = tr.Content
+					chatMsgs = append(chatMsgs, rep)
+				default:
+					return nil, fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T", mc.Role, tr)
+				}
 			}
-			switch p := mc.Parts[0].(type) {
-			case llms.ToolCallResponse:
-				msg.ToolCallID = p.ToolCallID
-				msg.Name = p.Name
-				msg.Content = p.Content
-			default:
-				return nil, fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T", mc.Role, mc.Parts[0])
+			if len(mc.Parts) != 0 {
+				continue
 			}
-
 		default:
 			return nil, fmt.Errorf("role %v not supported", mc.Role)
 		}
@@ -201,9 +204,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	choices := make([]*llms.ContentChoice, len(result.Choices))
 	for i, c := range result.Choices {
 		choices[i] = &llms.ContentChoice{
-			Content:    		c.Message.Content,
-			ReasoningContent:	c.Message.ReasoningContent,
-			StopReason: 		fmt.Sprint(c.FinishReason),
+			Content:          c.Message.Content,
+			ReasoningContent: c.Message.ReasoningContent,
+			StopReason:       fmt.Sprint(c.FinishReason),
 			GenerationInfo: map[string]any{
 				"CompletionTokens": result.Usage.CompletionTokens,
 				"PromptTokens":     result.Usage.PromptTokens,
