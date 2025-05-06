@@ -826,7 +826,7 @@ func createVectorSearchIndex(
 		if name == searchName && queryable {
 			doc = cursor.Current
 		} else {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 		}
 	}
 

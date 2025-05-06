@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/pinecone-io/go-pinecone/pinecone"
+	"github.com/pinecone-io/go-pinecone/v4/pinecone"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores"
@@ -34,10 +35,11 @@ type Store struct {
 	embedder embeddings.Embedder
 	client   *pinecone.Client
 
-	host      string
-	apiKey    string
-	textKey   string
-	nameSpace string
+	host       string
+	apiKey     string
+	textKey    string
+	nameSpace  string
+	httpClient *http.Client
 }
 
 // New creates a new Store with options. Options for WithAPIKey, WithHost and WithEmbedder must be set.
@@ -47,7 +49,10 @@ func New(opts ...Option) (Store, error) {
 		return Store{}, err
 	}
 
-	s.client, err = pinecone.NewClient(pinecone.NewClientParams{ApiKey: s.apiKey})
+	s.client, err = pinecone.NewClient(pinecone.NewClientParams{
+		ApiKey:     s.apiKey,
+		RestClient: s.httpClient,
+	})
 	if err != nil {
 		return Store{}, err
 	}
@@ -63,9 +68,10 @@ func (s Store) AddDocuments(ctx context.Context,
 ) ([]string, error) {
 	opts := s.getOptions(options...)
 
-	nameSpace := s.getNameSpace(opts)
-
-	indexConn, err := s.client.IndexWithNamespace(s.host, nameSpace)
+	indexConn, err := s.client.Index(pinecone.NewIndexConnParams{
+		Host:      s.host,
+		Namespace: s.getNameSpace(opts),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -111,13 +117,13 @@ func (s Store) AddDocuments(ctx context.Context,
 			pineconeVectors,
 			&pinecone.Vector{
 				Id:       id,
-				Values:   vectors[i],
+				Values:   &vectors[i],
 				Metadata: metadataStruct,
 			},
 		)
 	}
 
-	_, err = indexConn.UpsertVectors(&ctx, pineconeVectors)
+	_, err = indexConn.UpsertVectors(ctx, pineconeVectors)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +136,10 @@ func (s Store) AddDocuments(ctx context.Context,
 func (s Store) SimilaritySearch(ctx context.Context, query string, numDocuments int, options ...vectorstores.Option) ([]schema.Document, error) { //nolint:lll
 	opts := s.getOptions(options...)
 
-	nameSpace := s.getNameSpace(opts)
-	indexConn, err := s.client.IndexWithNamespace(s.host, nameSpace)
+	indexConn, err := s.client.Index(pinecone.NewIndexConnParams{
+		Host:      s.host,
+		Namespace: s.getNameSpace(opts),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -157,11 +165,11 @@ func (s Store) SimilaritySearch(ctx context.Context, query string, numDocuments 
 	}
 
 	queryResult, err := indexConn.QueryByVectorValues(
-		&ctx,
+		ctx,
 		&pinecone.QueryByVectorValuesRequest{
 			Vector:          vector,
 			TopK:            uint32(numDocuments),
-			Filter:          protoFilterStruct,
+			MetadataFilter:  protoFilterStruct,
 			IncludeMetadata: true,
 			IncludeValues:   true,
 		},
@@ -232,13 +240,13 @@ func (s Store) getOptions(options ...vectorstores.Option) vectorstores.Options {
 	return opts
 }
 
-func (s Store) createProtoStructFilter(filter any) (*structpb.Struct, error) {
+func (s Store) createProtoStructFilter(filter any) (*pinecone.MetadataFilter, error) {
 	filterBytes, err := json.Marshal(filter)
 	if err != nil {
 		return nil, err
 	}
 
-	var filterStruct structpb.Struct
+	var filterStruct pinecone.MetadataFilter
 	err = json.Unmarshal(filterBytes, &filterStruct)
 	if err != nil {
 		return nil, err

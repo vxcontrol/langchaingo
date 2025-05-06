@@ -1,45 +1,45 @@
 httprr trace v1
-410 1688
+409 1557
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 207
+Content-Length: 206
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Name some countries"},{"role":"assistant","content":"Spain and Lesotho"},{"role":"user","content":"Which if these is larger?"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 966
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Name some countries"},{"role":"assistant","content":"Spain and Lesotho"},{"role":"user","content":"Which if these is larger?"}],"temperature":0}HTTP/2.0 200 OK
+Content-Length: 836
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 03 Jun 2025 08:46:57 GMT
+Date: Sat, 21 Jun 2025 13:49:01 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 648
+Openai-Processing-Ms: 141
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 651
+X-Envoy-Upstream-Service-Time: 145
 X-Ratelimit-Limit-Requests: 10000
-X-Ratelimit-Limit-Tokens: 50000000
+X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
-X-Ratelimit-Remaining-Tokens: 49999980
+X-Ratelimit-Remaining-Tokens: 9999980
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_9e6d6dfdfefd33af51eb98b8a2263465
+X-Request-Id: req_5579a49d3dccfd35985766b86771d320
 
 {
-  "id": "chatcmpl-BeHaKLFeH1X3w65EVYs8FbQIMOa8a",
+  "id": "chatcmpl-BkssXTSs8wqLznY5qVQIYE3YcE75c",
   "object": "chat.completion",
-  "created": 1748940416,
-  "model": "gpt-3.5-turbo-0125",
+  "created": 1750513741,
+  "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Spain is larger in terms of land area compared to Lesotho. Spain is the 52nd largest country in the world, while Lesotho is much smaller, ranking 141st in terms of land area.",
+        "content": "Spain is larger than Lesotho.",
         "refusal": null,
         "annotations": []
       },
@@ -48,9 +48,9 @@ X-Request-Id: req_9e6d6dfdfefd33af51eb98b8a2263465
     }
   ],
   "usage": {
-    "prompt_tokens": 29,
-    "completion_tokens": 44,
-    "total_tokens": 73,
+    "prompt_tokens": 28,
+    "completion_tokens": 7,
+    "total_tokens": 35,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -63,5 +63,5 @@ X-Request-Id: req_9e6d6dfdfefd33af51eb98b8a2263465
     }
   },
   "service_tier": "default",
-  "system_fingerprint": null
+  "system_fingerprint": "fp_38343a2f8f"
 }

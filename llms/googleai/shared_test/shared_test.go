@@ -284,7 +284,7 @@ func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 	rsp, err := llm.GenerateContent(
 		context.Background(),
 		content,
-		llms.WithModel("gemini-pro-vision"),
+		llms.WithModel("gemini-2.0-flash"),
 	)
 	require.NoError(t, err)
 
@@ -316,7 +316,7 @@ func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 	rsp, err := llm.GenerateContent(
 		context.Background(),
 		content,
-		llms.WithModel("gemini-pro-vision"),
+		llms.WithModel("gemini-2.0-flash"),
 	)
 	require.NoError(t, err)
 
@@ -469,8 +469,10 @@ func testTools(t *testing.T, llm llms.Model) {
 
 	c1 = resp.Choices[0]
 	checkMatch(t, c1.Content, "(64 and sunny|64 degrees)")
+	assert.Contains(t, resp.Choices[0].GenerationInfo, "input_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "output_tokens")
-	assert.NotZero(t, resp.Choices[0].GenerationInfo["output_tokens"])
+	assert.Contains(t, resp.Choices[0].GenerationInfo, "total_tokens")
+	assert.NotZero(t, resp.Choices[0].GenerationInfo["total_tokens"])
 }
 
 func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
@@ -554,8 +556,10 @@ func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 
 	c1 = resp.Choices[0]
 	checkMatch(t, c1.Content, "(64 and sunny|64 degrees)")
+	assert.Contains(t, resp.Choices[0].GenerationInfo, "input_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "output_tokens")
-	assert.NotZero(t, resp.Choices[0].GenerationInfo["output_tokens"])
+	assert.Contains(t, resp.Choices[0].GenerationInfo, "total_tokens")
+	assert.NotZero(t, resp.Choices[0].GenerationInfo["total_tokens"])
 }
 
 func testMaxTokensSetting(t *testing.T, llm llms.Model) {

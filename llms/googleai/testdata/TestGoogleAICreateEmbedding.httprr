@@ -5,16 +5,16 @@ Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
 Content-Length: 332
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.4 gccl/v0.15.1 genai-go/0.15.1 gapic/0.7.0 gax/2.14.1 rest/UNKNOWN
+x-goog-api-client: gl-go/1.24.3 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fembedding-001
 
 {"model":"models/embedding-001", "requests":[{"model":"models/embedding-001", "content":{"parts":[{"text":"hello world"}], "role":"user"}}, {"model":"models/embedding-001", "content":{"parts":[{"text":"goodbye world"}], "role":"user"}}, {"model":"models/embedding-001", "content":{"parts":[{"text":"hello world"}], "role":"user"}}]}HTTP/2.0 200 OK
 Content-Length: 49418
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 16 Jun 2025 13:08:00 GMT
+Date: Sat, 21 Jun 2025 13:41:21 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=549
+Server-Timing: gfet4t7; dur=375
 Vary: Origin
 Vary: X-Origin
 Vary: Referer

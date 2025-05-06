@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,9 @@ func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 		if err != nil {
 			t.Skipf("Failed to get weaviate container endpoint: %s", err)
 		}
+
+		// Wait for the container to be ready
+		time.Sleep(10 * time.Second)
 	}
 
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
@@ -479,7 +483,7 @@ func TestWeaviateAsRetrieverWithScoreThreshold(t *testing.T) {
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
 				nameSpace), vectorstores.WithScoreThreshold(0.8)),
 		),
-		"What colors is each piece of furniture next to the desk?",
+		"What colors are all the pieces of furniture next to the desk and the desk itself?",
 	)
 	require.NoError(t, err)
 

@@ -1,45 +1,45 @@
 httprr trace v1
-568 1575
+567 1592
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 365
+Content-Length: 364
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know.\n\nCurrent conversation:\n\nHuman: Hi! I'm Jim\nAI:"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 853
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know.\n\nCurrent conversation:\n\nHuman: Hi! I'm Jim\nAI:"}],"temperature":0}HTTP/2.0 200 OK
+Content-Length: 871
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 03 Jun 2025 08:46:53 GMT
+Date: Sat, 21 Jun 2025 12:28:36 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 295
+Openai-Processing-Ms: 152
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 299
+X-Envoy-Upstream-Service-Time: 156
 X-Ratelimit-Limit-Requests: 10000
-X-Ratelimit-Limit-Tokens: 50000000
+X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
-X-Ratelimit-Remaining-Tokens: 49999927
+X-Ratelimit-Remaining-Tokens: 9999928
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_90b02c402e49d0944f8b35b872b4ef7c
+X-Request-Id: req_e0ea482d0f0566579e650fdb4b12cc19
 
 {
-  "id": "chatcmpl-BeHaHP5eCT6Ynoo8GVBcosLeupzZJ",
+  "id": "chatcmpl-BkrciTS6XW3OMM8T7RnpcmkAZKcLv",
   "object": "chat.completion",
-  "created": 1748940413,
-  "model": "gpt-3.5-turbo-0125",
+  "created": 1750508916,
+  "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Hello Jim! It's nice to meet you. How can I assist you today?",
+        "content": "Hello, Jim! It's great to meet you. How can I assist you today?",
         "refusal": null,
         "annotations": []
       },
@@ -48,9 +48,9 @@ X-Request-Id: req_90b02c402e49d0944f8b35b872b4ef7c
     }
   ],
   "usage": {
-    "prompt_tokens": 69,
+    "prompt_tokens": 68,
     "completion_tokens": 17,
-    "total_tokens": 86,
+    "total_tokens": 85,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -63,49 +63,49 @@ X-Request-Id: req_90b02c402e49d0944f8b35b872b4ef7c
     }
   },
   "service_tier": "default",
-  "system_fingerprint": null
+  "system_fingerprint": "fp_38343a2f8f"
 }
-658 1531
+659 1597
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 455
+Content-Length: 456
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know.\n\nCurrent conversation:\nHuman: Hi! I'm Jim\nAI: Hello Jim! It's nice to meet you. How can I assist you today?\nHuman: What is my name?\nAI:"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 809
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know.\n\nCurrent conversation:\nHuman: Hi! I'm Jim\nAI: Hello, Jim! It's great to meet you. How can I assist you today?\nHuman: What is my name?\nAI:"}],"temperature":0}HTTP/2.0 200 OK
+Content-Length: 876
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 03 Jun 2025 08:46:54 GMT
+Date: Sat, 21 Jun 2025 12:28:37 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 214
+Openai-Processing-Ms: 174
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 221
+X-Envoy-Upstream-Service-Time: 179
 X-Ratelimit-Limit-Requests: 10000
-X-Ratelimit-Limit-Tokens: 50000000
+X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
-X-Ratelimit-Remaining-Tokens: 49999906
+X-Ratelimit-Remaining-Tokens: 9999906
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_be6e8d224391e0eb2b95a07e088a7ad4
+X-Request-Id: req_fc9545d9bd7115eb91fe63ab3e6df455
 
 {
-  "id": "chatcmpl-BeHaIrmP1l1fd0sV1GZ8UTfLVbKWH",
+  "id": "chatcmpl-BkrcjnLJadnYwvFlmPr43ITQ73nP6",
   "object": "chat.completion",
-  "created": 1748940414,
-  "model": "gpt-3.5-turbo-0125",
+  "created": 1750508917,
+  "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Your name is Jim.",
+        "content": "Your name is Jim. Nice to meet you again! How can I help you today?",
         "refusal": null,
         "annotations": []
       },
@@ -114,9 +114,9 @@ X-Request-Id: req_be6e8d224391e0eb2b95a07e088a7ad4
     }
   ],
   "usage": {
-    "prompt_tokens": 95,
-    "completion_tokens": 5,
-    "total_tokens": 100,
+    "prompt_tokens": 94,
+    "completion_tokens": 18,
+    "total_tokens": 112,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -129,5 +129,5 @@ X-Request-Id: req_be6e8d224391e0eb2b95a07e088a7ad4
     }
   },
   "service_tier": "default",
-  "system_fingerprint": null
+  "system_fingerprint": "fp_38343a2f8f"
 }

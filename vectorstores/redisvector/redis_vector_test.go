@@ -84,7 +84,7 @@ func TestCreateRedisVectorOptions(t *testing.T) {
 
 	ctx := context.Background()
 	redisURL, _ := getTestURIs(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 	index := "test_case1"
 
 	// Test invalid configurations
@@ -203,7 +203,7 @@ func TestAddDocuments(t *testing.T) {
 	ctx := context.Background()
 
 	redisURL, _ := getTestURIs(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 
 	index := "test_add_document"
 	prefix := "doc:"
@@ -297,7 +297,7 @@ func TestSimilaritySearch(t *testing.T) {
 	ctx := context.Background()
 
 	redisURL, _ := getTestURIs(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 
 	index := "test_similarity_search"
 
@@ -384,12 +384,7 @@ func TestSimilaritySearch(t *testing.T) {
 
 func TestRedisVectorAsRetriever(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
-
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
-	defer rr.Close()
-	if !rr.Recording() {
-		t.Parallel()
-	}
+	t.Parallel()
 
 	ctx := context.Background()
 
@@ -459,7 +454,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	ctx := context.Background()
 
 	redisURL, _ := getTestURIs(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 	index := "test_redis_vector_as_retriever_with_metadata_filters"
 
 	store, err := redisvector.New(ctx,
@@ -521,10 +516,8 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 }
 
 // createOpenAIEmbedder creates an OpenAI embedder with httprr support for testing.
-func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
+func createOpenAIEmbedder(t *testing.T, rr *httprr.RecordReplay) *embeddings.EmbedderImpl {
 	t.Helper()
-
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
 
 	openaiOpts := []openai.Option{
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -548,22 +541,10 @@ func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
 func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.EmbedderImpl) {
 	t.Helper()
 
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
-
-	llmOpts := []openai.Option{
-		openai.WithHTTPClient(rr.Client()),
-	}
+	llmOpts := []openai.Option{}
 	embeddingOpts := []openai.Option{
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
-		openai.WithHTTPClient(rr.Client()),
 	}
-
-	// Only add fake token when NOT recording (i.e., during replay)
-	if !rr.Recording() {
-		llmOpts = append(llmOpts, openai.WithToken("test-api-key"))
-		embeddingOpts = append(embeddingOpts, openai.WithToken("test-api-key"))
-	}
-	// When recording, openai.New() will read OPENAI_API_KEY from environment
 
 	llm, err := openai.New(llmOpts...)
 	require.NoError(t, err)

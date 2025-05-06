@@ -3,8 +3,10 @@ package chains
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/tmc/langchaingo/memory"
+	"github.com/tmc/langchaingo/prompts"
 	"github.com/tmc/langchaingo/schema"
 )
 
@@ -14,6 +16,19 @@ const (
 	_combineDocumentsDefaultDocumentVariableName = "context"
 	_stuffDocumentsDefaultSeparator              = "\n\n"
 )
+
+var _documentDescription = `
+<document>
+<content>{{.document}}</content>
+{{if .metadata}}
+<metadata>
+{{range $k, $v := .metadata}}
+<kv key="{{$k}}">{{$v}}</kv>
+{{end}}
+</metadata>
+{{end}}
+</document>
+`
 
 // StuffDocuments is a chain that combines documents with a separator and uses
 // the stuffed documents in an LLMChain. The input values to the llm chain
@@ -34,6 +49,9 @@ type StuffDocuments struct {
 
 	// Separator is the string used to join the documents.
 	Separator string
+
+	// Template is the prompt template used to format the documents.
+	Template prompts.PromptTemplate
 }
 
 var _ Chain = StuffDocuments{}
@@ -47,6 +65,8 @@ func NewStuffDocuments(llmChain *LLMChain) StuffDocuments {
 		InputKey:             _combineDocumentsDefaultInputKey,
 		DocumentVariableName: _combineDocumentsDefaultDocumentVariableName,
 		Separator:            _stuffDocumentsDefaultSeparator,
+
+		Template: prompts.NewPromptTemplate(_documentDescription, []string{"document", "metadata"}),
 	}
 }
 
@@ -87,11 +107,30 @@ func (c StuffDocuments) GetOutputKeys() []string {
 func (c StuffDocuments) joinDocuments(docs []schema.Document) string {
 	var text string
 	docLen := len(docs)
+
 	for k, doc := range docs {
-		text += doc.PageContent
+		formatted, err := c.Template.Format(map[string]any{
+			"document": doc.PageContent,
+			"metadata": filterMetadata(doc.Metadata),
+		})
+		if err != nil {
+			continue
+		}
+		text += formatted
 		if k != docLen-1 {
 			text += c.Separator
 		}
 	}
 	return text
+}
+
+func filterMetadata(metadata map[string]any) map[string]any {
+	filtered := make(map[string]any)
+	for k, v := range metadata {
+		if k == "nameSpace" || strings.HasPrefix(k, "_") {
+			continue
+		}
+		filtered[k] = v
+	}
+	return filtered
 }

@@ -3,6 +3,7 @@ package pinecone
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -48,6 +49,13 @@ func WithAPIKey(apiKey string) Option {
 func WithTextKey(textKey string) Option {
 	return func(p *Store) {
 		p.textKey = textKey
+	}
+}
+
+// WithHTTPClient is an option for setting the HTTP client of the pinecone server.
+func WithHTTPClient(httpClient *http.Client) Option {
+	return func(p *Store) {
+		p.httpClient = httpClient
 	}
 }
 

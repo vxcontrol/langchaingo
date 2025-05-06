@@ -48,10 +48,28 @@ var (
 
 func init() {
 	if testing.Testing() {
-		record = flag.String("httprecord", "", "re-record traces for files matching `regexp`")
-		debug = flag.Bool("httprecord-debug", false, "enable debug output for httprr recording details")
-		httpDebug = flag.Bool("httpdebug", false, "enable HTTP request/response logging")
-		recordDelay = flag.Duration("httprecord-delay", 0, "delay between HTTP requests during recording (helps avoid rate limits)")
+		var (
+			defaultRecord      = os.Getenv("HTTPRR_RECORD")
+			defaultDebug       = false
+			defaultHttpDebug   = false
+			defaultRecordDelay = 0 * time.Second
+		)
+
+		if debugBool, err := strconv.ParseBool(os.Getenv("HTTPRR_DEBUG")); err == nil {
+			defaultDebug = debugBool
+		}
+		if httpDebugBool, err := strconv.ParseBool(os.Getenv("HTTPRR_HTTPDEBUG")); err == nil {
+			defaultHttpDebug = httpDebugBool
+		}
+		if recordDelayDuration, err := time.ParseDuration(os.Getenv("HTTPRR_RECORD_DELAY")); err == nil {
+			defaultRecordDelay = recordDelayDuration
+		}
+
+		record = flag.String("httprecord", defaultRecord, "re-record traces for files matching `regexp`")
+		debug = flag.Bool("httprecord-debug", defaultDebug, "enable debug output for httprr recording details")
+		httpDebug = flag.Bool("httpdebug", defaultHttpDebug, "enable HTTP request/response logging")
+		recordDelay = flag.Duration("httprecord-delay", defaultRecordDelay,
+			"delay between HTTP requests during recording (helps avoid rate limits)")
 	}
 }
 
@@ -179,6 +197,13 @@ func setRecordForTesting(value string) func() {
 		defer recordMu.Unlock()
 		*record = old
 	}
+}
+
+// getRecordForTesting returns the value of the record flag for testing purposes.
+func getRecordForTesting() string {
+	recordMu.Lock()
+	defer recordMu.Unlock()
+	return *record
 }
 
 // creates a new record-mode RecordReplay in the file.
@@ -1032,11 +1057,11 @@ func formatJSONValue(v interface{}, indent int) string {
 		for _, item := range val {
 			switch item.(type) {
 			case float64, int, int64:
-				// continue
+				continue
 			default:
 				allNumbers = false
-				break
 			}
+			break
 		}
 
 		if allNumbers && len(val) > 0 {

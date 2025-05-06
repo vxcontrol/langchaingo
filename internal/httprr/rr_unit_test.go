@@ -519,15 +519,15 @@ func TestSetRecordForTesting(t *testing.T) {
 	t.Parallel()
 
 	// Get original value
-	originalValue := *record
+	originalValue := getRecordForTesting()
 
 	// Set test value
 	restore := setRecordForTesting("test-value")
-	assert.Equal(t, "test-value", *record)
+	assert.Equal(t, "test-value", getRecordForTesting())
 
 	// Restore original value
 	restore()
-	assert.Equal(t, originalValue, *record)
+	assert.Equal(t, originalValue, getRecordForTesting())
 }
 
 func TestRecordReplayClose(t *testing.T) {

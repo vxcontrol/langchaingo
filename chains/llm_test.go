@@ -2,6 +2,9 @@ package chains
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,6 +16,30 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 	"github.com/tmc/langchaingo/prompts"
 )
+
+type transportWithAPIKey struct {
+	Key       string
+	Transport http.RoundTripper
+}
+
+func (t *transportWithAPIKey) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt := t.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+		if rt == nil {
+			return nil, fmt.Errorf("no Transport specified or available")
+		}
+	}
+
+	newReq := *req
+	if t.Key != "" {
+		args := newReq.URL.Query()
+		args.Set("key", t.Key)
+		newReq.URL.RawQuery = args.Encode()
+	}
+
+	return rt.RoundTrip(&newReq)
+}
 
 func TestLLMChain(t *testing.T) {
 	ctx := context.Background()
@@ -76,7 +103,12 @@ func TestLLMChainWithGoogleAI(t *testing.T) {
 	ctx := context.Background()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
-	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
+	transport := &transportWithAPIKey{
+		Key:       os.Getenv("GOOGLE_API_KEY"),
+		Transport: httputil.DefaultTransport,
+	}
+	rr := httprr.OpenForTest(t, transport)
+	defer rr.Close()
 
 	// Configure client with httprr - use test credentials when replaying
 	var opts []googleai.Option
@@ -85,6 +117,8 @@ func TestLLMChainWithGoogleAI(t *testing.T) {
 	if rr.Replaying() {
 		// Use test credentials during replay
 		opts = append(opts, googleai.WithAPIKey("test-api-key"))
+		// It needs to be set here because the client goes through WithHTTPClient
+		transport.Key = "test-api-key"
 	}
 
 	model, err := googleai.New(ctx, opts...)

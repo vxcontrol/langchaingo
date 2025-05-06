@@ -68,12 +68,20 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			msg.Role = RoleUser
 		case llms.ChatMessageTypeFunction:
 			msg.Role = RoleFunction
-			// Extract name and content from ToolCallResponse for function messages
-			if len(mc.Parts) == 1 {
-				if p, ok := mc.Parts[0].(llms.ToolCallResponse); ok {
-					msg.Name = p.Name
-					msg.Content = p.Content
-				}
+
+			if len(mc.Parts) != 1 {
+				return nil, fmt.Errorf("expected exactly one part for role %v, got %v", mc.Role, len(mc.Parts))
+			}
+			switch p := mc.Parts[0].(type) {
+			case llms.ToolCallResponse:
+				msg.ToolCallID = p.ToolCallID
+				msg.Name = p.Name
+				msg.Content = p.Content
+			case llms.TextContent:
+				msg.Content = p.Text
+			default:
+				return nil, fmt.Errorf("expected part of type ToolCallResponse or TextContent for role %v, got %T",
+					mc.Role, mc.Parts[0])
 			}
 		case llms.ChatMessageTypeTool:
 			msg.Role = RoleTool
@@ -86,6 +94,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			switch p := mc.Parts[0].(type) {
 			case llms.ToolCallResponse:
 				msg.ToolCallID = p.ToolCallID
+				msg.Name = p.Name
 				msg.Content = p.Content
 			default:
 				return nil, fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T", mc.Role, mc.Parts[0])

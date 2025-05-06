@@ -156,6 +156,7 @@ func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
 		toolList,
 		agents.NewOpenAIOption().WithSystemMessage("you are a helpful assistant"),
 		agents.NewOpenAIOption().WithExtraMessages([]prompts.MessageFormatter{
+			prompts.NewHumanMessagePromptTemplate("current date is 2025-01-01", nil),
 			prompts.NewHumanMessagePromptTemplate("please be strict", nil),
 		}),
 	)

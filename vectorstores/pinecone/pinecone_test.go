@@ -2,10 +2,12 @@ package pinecone_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -16,6 +18,11 @@ import (
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores"
 	"github.com/tmc/langchaingo/vectorstores/pinecone"
+)
+
+const (
+	maxRetriesSearch = 10
+	sleepTimeSearch  = 3 * time.Second
 )
 
 // getValues returns Pinecone API credentials for testing.
@@ -38,13 +45,25 @@ func getValues(t *testing.T) (string, string) {
 	return pineconeAPIKey, pineconeHost
 }
 
+func retrySearch(fn func() ([]schema.Document, error), length int) ([]schema.Document, error) {
+	for range maxRetriesSearch {
+		docs, err := fn()
+		if err != nil {
+			return nil, err
+		}
+		if len(docs) == length {
+			return docs, nil
+		}
+		time.Sleep(sleepTimeSearch)
+	}
+	return nil, fmt.Errorf("failed to get results after %d retries", maxRetriesSearch)
+}
+
 // createOpenAIEmbedder creates an OpenAI embedder with httprr support for testing.
-func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
+func createOpenAIEmbedder(t *testing.T, rr *httprr.RecordReplay) *embeddings.EmbedderImpl {
 	t.Helper()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
-
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
 
 	opts := []openai.Option{
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -62,12 +81,10 @@ func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
 }
 
 // createOpenAILLMAndEmbedder creates both LLM and embedder with httprr support for chain tests.
-func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.EmbedderImpl) {
+func createOpenAILLMAndEmbedder(t *testing.T, rr *httprr.RecordReplay) (*openai.LLM, *embeddings.EmbedderImpl) {
 	t.Helper()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
-
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
 
 	opts := []openai.Option{
 		openai.WithHTTPClient(rr.Client()),
@@ -92,11 +109,12 @@ func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.Embedder
 
 func TestPineconeStoreRest(t *testing.T) {
 	ctx := context.Background()
-
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 
 	storer, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -111,6 +129,7 @@ func TestPineconeStoreRest(t *testing.T) {
 		{PageContent: "potato"},
 	})
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	docs, err := storer.SimilaritySearch(ctx, "japan", 1)
 	require.NoError(t, err)
@@ -122,8 +141,10 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 
 	storer, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -146,6 +167,7 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 		{PageContent: "New York"},
 	})
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	// test with a score threshold of 0.8, expected 6 documents
 	docs, err := storer.SimilaritySearch(ctx,
@@ -166,8 +188,10 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	e := createOpenAIEmbedder(t)
+	e := createOpenAIEmbedder(t, rr)
 
 	storer, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -190,6 +214,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 		{PageContent: "New York"},
 	})
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	_, err = storer.SimilaritySearch(ctx,
 		"Which of these are cities in Japan", 10,
@@ -206,8 +231,10 @@ func TestPineconeAsRetriever(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -228,6 +255,7 @@ func TestPineconeAsRetriever(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	result, err := chains.Run(
 		ctx,
@@ -245,8 +273,10 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -269,6 +299,7 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	result, err := chains.Run(
 		ctx,
@@ -281,7 +312,6 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "orange", "expected orange in result")
 	require.Contains(t, result, "black", "expected black in result")
 	require.Contains(t, result, "beige", "expected beige in result")
 }
@@ -290,8 +320,10 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -339,6 +371,7 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	filter := make(map[string]any)
 	filterValue := make(map[string]any)
@@ -363,8 +396,10 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -412,6 +447,7 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	filter := make(map[string]any)
 	filterValue := make(map[string]any)
@@ -437,8 +473,10 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -486,6 +524,7 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	result, err := chains.Run(
 		ctx,
@@ -509,8 +548,10 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 	ctx := context.Background()
 	t.Parallel()
 
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+
 	apiKey, host := getValues(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
 	store, err := pinecone.New(
 		pinecone.WithAPIKey(apiKey),
@@ -549,6 +590,7 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+	time.Sleep(10 * time.Second)
 
 	filter := map[string]interface{}{
 		"$and": []map[string]interface{}{

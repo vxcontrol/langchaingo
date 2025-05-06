@@ -80,7 +80,7 @@ func TestStuffDocuments_joinDocs(t *testing.T) {
 			docs: []schema.Document{
 				{PageContent: "foo"},
 			},
-			want: "foo",
+			want: "\n<document>\n<content>foo</content>\n\n</document>\n",
 		},
 		{
 			name: "multiple",
@@ -88,7 +88,8 @@ func TestStuffDocuments_joinDocs(t *testing.T) {
 				{PageContent: "foo"},
 				{PageContent: "bar"},
 			},
-			want: "foo\n\nbar",
+			want: "\n<document>\n<content>foo</content>\n\n</document>\n\n" +
+				"\n\n<document>\n<content>bar</content>\n\n</document>\n",
 		},
 		{
 			name: "multiple with separator",
@@ -96,7 +97,8 @@ func TestStuffDocuments_joinDocs(t *testing.T) {
 				{PageContent: "foo"},
 				{PageContent: "bar\n\n"},
 			},
-			want: "foo\n\nbar\n\n",
+			want: "\n<document>\n<content>foo</content>\n\n</document>\n\n" +
+				"\n\n<document>\n<content>bar\n\n</content>\n\n</document>\n",
 		},
 	}
 

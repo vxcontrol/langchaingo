@@ -1,20 +1,20 @@
 httprr trace v1
-798 11563
+798 12607
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
 Content-Length: 372
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.4 gccl/v0.15.1 genai-go/0.15.1 gapic/0.7.0 gax/2.14.1 rest/UNKNOWN
+x-goog-api-client: gl-go/1.24.3 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
 {"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"Tell me a short story about a cat"}], "role":"user"}], "safetySettings":[{"category":10, "threshold":3}, {"category":7, "threshold":3}, {"category":8, "threshold":3}, {"category":9, "threshold":3}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
-Content-Length: 11183
+Content-Length: 12227
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 16 Jun 2025 13:08:04 GMT
+Date: Sat, 21 Jun 2025 13:41:25 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=267
+Server-Timing: gfet4t7; dur=259
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -46,7 +46,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -55,7 +55,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "lementine wasn't your average tabby. Sure, she had the classic orange stripes"
+            "text": "lementine was a cat of discerning tastes. Not for her the mass-produced kib"
           }
         ],
         "role": "model"
@@ -91,7 +91,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -100,7 +100,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " and a perpetually grumpy face, but her heart held a secret yearning for adventure. While"
+            "text": "ble. Clementine demanded salmon, preferably poached in a delicate white wine sauce (which"
           }
         ],
         "role": "model"
@@ -136,7 +136,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -145,7 +145,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " the other cats of Willow Creek napped in sunbeams and chased dust bunnies, Clementine dreamt of mountains, forests, and the thrill of the unknown.\n\nOne"
+            "text": " she often got, thanks to a soft-hearted Mrs. Higgins next door). Her fur, the color of burnt caramel, was always meticulously groomed, and her"
           }
         ],
         "role": "model"
@@ -181,7 +181,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -190,7 +190,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " crisp autumn morning, Clementine decided she'd had enough of routine. She slipped out the slightly ajar back door, her tail held high, and ventured"
+            "text": " emerald eyes held a perpetual air of quiet superiority.\n\nOne blustery autumn afternoon, Clementine found herself locked out. Mrs. Higgins had popped to the shops, forgetting"
           }
         ],
         "role": "model"
@@ -226,7 +226,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -235,7 +235,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " beyond the familiar rose bushes. The world exploded with new smells: damp earth, decaying leaves, and the tantalizing scent of something wild.\n\nShe followed the scent, her paws padding softly on the fallen leaves. The journey led her to the"
+            "text": " her furry companion, and the wind howled like a banshee around the eaves. Clementine, initially unfazed, sat regally on the doorstep, expecting immediate re-entry. But the minutes ticked by, and the wind grew colder"
           }
         ],
         "role": "model"
@@ -271,7 +271,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -280,7 +280,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " edge of the woods, a place she'd only glimpsed from the safety of the porch. Hesitation flickered in her emerald eyes, but the call of adventure was too strong to resist.\n\nThe woods were a symphony of rustling leaves"
+            "text": ".\n\nPride, however, was a powerful motivator. Clementine refused to meow, to beg. Instead, she began a silent campaign of passive aggression. She sat, perfectly still, her tail twitching with barely suppressed fury. She fixed"
           }
         ],
         "role": "model"
@@ -316,7 +316,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -325,7 +325,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " and chirping birds. Clementine stalked through the undergrowth, her instincts sharpening with every step. She chased butterflies, startled squirrels, and even had a brief standoff with a grumpy robin.\n\nAs dusk began to settle, painting the sky in hues of orange and purple, Clementine found herself lost. Panic began to creep"
+            "text": " her gaze on the neighbor's prize-winning roses, as if contemplating their utter inadequacy.\n\nThen, a squirrel, emboldened by the wind, dared to scamper across the garden path. Clementine's carefully constructed facade crumbled. With a yowl that was both indignant and utterly terrifying, she launched herself"
           }
         ],
         "role": "model"
@@ -361,7 +361,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -370,7 +370,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " in. The woods, once enchanting, now seemed menacing. She called out, a plaintive meow that was swallowed by the rustling trees.\n\nJust as despair threatened to overwhelm her, she heard a faint sound. A familiar meow, closer this time. She followed the sound, her heart pounding with hope.\n\nEmer"
+            "text": " at the hapless creature. The squirrel, startled, darted up the nearest oak tree.\n\nBut Clementine wasn't finished. She began to scale the tree, her claws finding purchase in the rough bark. Higher and higher she climbed, driven by a primal urge to punish the squirrel for its audacity, for disrupting her carefully cultivated"
           }
         ],
         "role": "model"
@@ -406,7 +406,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -415,7 +415,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "ging from the trees, she saw him: Barnaby, the scruffy tomcat from next door, sitting patiently on the edge of the woods. He wasn't a mountain or a forest, but he was familiar, safe.\n\nBarnaby gave a short, almost imperceptible nod. Clementine, humbled"
+            "text": " image.\n\nReaching the squirrel's perch, she found it cowering amongst the leaves. Clementine, panting slightly, simply glared at it. The squirrel, understanding perfectly, scurried down the tree and disappeared into the undergrowth.\n\nVictorious, Clementine began her descent. But the wind,"
           }
         ],
         "role": "model"
@@ -451,7 +451,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -460,7 +460,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " and exhausted, rubbed against his leg. He led her back to Willow Creek, back to the familiar scent of home.\n\nThat night, curled up on her favorite cushion, Clementine dreamt not of grand adventures, but of the comfort of a warm lap and a bowl of tuna. She realized that adventure wasn't always"
+            "text": " now a gale, buffeted her. Her paws slipped. She tumbled, landing with a soft thud on a pile of fallen leaves.\n\nHumiliated and slightly bruised, Clementine finally succumbed. She let out a plaintive meow. Just then, Mrs. Higgins, laden with groceries, rounded the corner.\n\n"
           }
         ],
         "role": "model"
@@ -496,7 +496,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ,
 {
@@ -505,7 +505,52 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " about faraway places. Sometimes, it was about finding your way back home, and appreciating the familiar comfort waiting there. And maybe, just maybe, having a grumpy tomcat to guide you along the way.\n"
+            "text": "\"Oh, Clementine, you poor thing!\" she exclaimed, scooping the cat into her arms. \"Were you locked out? Come on, let's get you inside. I'll make you some salmon.\"\n\nClementine, nestled in Mrs. Higgins' arms, purred contentedly. Perhaps a"
+          }
+        ],
+        "role": "model"
+      },
+      "safetyRatings": [
+        {
+          "category": 8,
+          "probability": 1
+        },
+        {
+          "category": 10,
+          "probability": 1
+        },
+        {
+          "category": 7,
+          "probability": 1
+        },
+        {
+          "category": 9,
+          "probability": 1
+        }
+      ]
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 9,
+    "totalTokenCount": 9,
+    "promptTokensDetails": [
+      {
+        "modality": 1,
+        "tokenCount": 9
+      }
+    ]
+  },
+  "modelVersion": "gemini-2.0-flash",
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
+}
+,
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": " little public humiliation was worth it, after all, for a warm fire and a perfectly poached piece of salmon. And besides, she thought, no one needed to know about the squirrel. That was a secret she would take to her grave.\n"
           }
         ],
         "role": "model"
@@ -533,8 +578,8 @@ X-Xss-Protection: 0
   ],
   "usageMetadata": {
     "promptTokenCount": 8,
-    "candidatesTokenCount": 497,
-    "totalTokenCount": 505,
+    "candidatesTokenCount": 572,
+    "totalTokenCount": 580,
     "promptTokensDetails": [
       {
         "modality": 1,
@@ -544,11 +589,11 @@ X-Xss-Protection: 0
     "candidatesTokensDetails": [
       {
         "modality": 1,
-        "tokenCount": 497
+        "tokenCount": 572
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NBdQaPiAB4iugLUP2Pbb4A0"
+  "responseId": "hLZWaLqLNfOdnvgPrJbnoQg"
 }
 ]
