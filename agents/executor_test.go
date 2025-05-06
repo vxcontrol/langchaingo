@@ -3,7 +3,6 @@ package agents_test
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -101,7 +100,7 @@ func TestExecutorWithMRKLAgent(t *testing.T) {
 	result, err := chains.Run(context.Background(), a, "If a person lived three times as long as Jacklyn Zeman, how long would they live") //nolint:lll
 	require.NoError(t, err)
 
-	require.True(t, strings.Contains(result, "210"), "correct answer 210 not in response")
+	require.Contains(t, result, "210", "correct answer 210 not in response")
 }
 
 func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
@@ -128,7 +127,7 @@ func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
 		toolList,
 		agents.NewOpenAIOption().WithSystemMessage("you are a helpful assistant"),
 		agents.NewOpenAIOption().WithExtraMessages([]prompts.MessageFormatter{
-			prompts.NewHumanMessagePromptTemplate("current date is 2025-01-01", nil),
+			prompts.NewHumanMessagePromptTemplate("current date is 2024-12-31", nil),
 			prompts.NewHumanMessagePromptTemplate("please be strict", nil),
 		}),
 	)
@@ -136,8 +135,8 @@ func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
 	e := agents.NewExecutor(a)
 	require.NoError(t, err)
 
-	result, err := chains.Run(context.Background(), e, "what is HK singer Eason Chan's years old?") //nolint:lll
+	result, err := chains.Run(context.Background(), e, "what is HK singer Eason Chan's years old in 2024?") //nolint:lll
 	require.NoError(t, err)
 
-	require.Contains(t, result, "50", "correct answer 50 (2025.01.01 - 1974.07.27) not in response") //nolint:lll
+	require.Contains(t, result, "50", "correct answer 50 (2024-12-31 - 1974.07.27) not in response") //nolint:lll
 }
