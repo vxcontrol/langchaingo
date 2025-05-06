@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/v2"
 	"github.com/tmc/langchaingo/tools"
 )
 

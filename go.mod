@@ -85,8 +85,8 @@ require (
 
 // Document processing and web scraping
 require (
-	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/gocolly/colly v1.2.0
+	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/gocolly/colly/v2 v2.2.0
 	github.com/ledongthuc/pdf v0.0.0-20220302134840-0c2507a12d80
 	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/richardlehane/mscfb v1.0.4
@@ -186,10 +186,10 @@ require filippo.io/edwards25519 v1.1.0 // indirect
 
 // Document processing and web scraping - indirect
 require (
-	github.com/andybalholm/cascadia v1.3.2 // indirect
-	github.com/antchfx/htmlquery v1.3.0 // indirect
-	github.com/antchfx/xmlquery v1.3.17 // indirect
-	github.com/antchfx/xpath v1.2.4 // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
+	github.com/antchfx/htmlquery v1.3.4 // indirect
+	github.com/antchfx/xmlquery v1.4.4 // indirect
+	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
@@ -242,6 +242,7 @@ require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
+	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/chewxy/math32 v1.11.0 // indirect
 	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
@@ -263,7 +264,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.24.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
@@ -289,6 +290,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/nlnwa/whatwg-url v0.6.1 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
