@@ -16,7 +16,7 @@ const config = {
   tagline: "LangChainGo Docs",
   favicon: "img/favicon.ico",
   // Set the production url of your site here
-  url: "https://tmc.github.io",
+  url: "https://vxcontrol.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/langchaingo/",
@@ -68,7 +68,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
-          editUrl: "https://github.com/tmc/langchaingo/edit/main/docs/",
+          editUrl: "https://github.com/vxcontrol/langchaingo/edit/main/docs/",
           remarkPlugins: [
             [require("@docusaurus/remark-plugin-npm2yarn"), { sync: true }],
           ],
@@ -139,10 +139,30 @@ const config = {
         title: "🦜️🔗 LangChainGo",
         items: [
           {
+            href: "https://python.langchain.com/docs/concepts/",
+            label: "Concepts",
+            position: "left",
+          },
+          {
+            href: "https://python.langchain.com/docs/introduction/",
+            label: "Python Docs",
+            position: "left",
+          },
+          {
+            href: "https://js.langchain.com/docs/",
+            label: "JS/TS Docs",
+            position: "left",
+          },
+          {
             to: "/docs/",
             label: "Documentation",
             position: "left",
           },
+          {
+            href: "https://github.com/vxcontrol/langchaingo",
+            label: "GitHub",
+            position: "right",
+          }
           {
             type: "search",
             position: "right",
@@ -178,7 +198,7 @@ const config = {
               },
               {
                 label: "Go",
-                href: "https://github.com/tmc/langchaingo",
+                href: "https://github.com/vxcontrol/langchaingo",
               },
             ],
           },

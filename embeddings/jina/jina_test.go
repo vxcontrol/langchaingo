@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/internal/httprr"
 )
 
 func TestJina_EmbedDocuments(t *testing.T) {

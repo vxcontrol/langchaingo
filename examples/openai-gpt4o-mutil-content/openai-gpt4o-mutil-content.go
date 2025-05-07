@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/openai"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 		llms.TextParts(llms.ChatMessageTypeHuman, "which image is this?"),
 		{
 			Role:  llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{llms.ImageURLPart("https://github.com/tmc/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true")},
+			Parts: []llms.ContentPart{llms.ImageURLPart("https://langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true")},
 		},
 	}
 

@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/httputil"
-	"github.com/tmc/langchaingo/internal/httprr"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func TestNew(t *testing.T) {

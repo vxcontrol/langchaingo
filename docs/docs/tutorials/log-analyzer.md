@@ -23,7 +23,7 @@ A CLI tool that:
 mkdir log-analyzer
 cd log-analyzer
 go mod init log-analyzer
-go get github.com/tmc/langchaingo
+go get github.com/vxcontrol/langchaingo
 go get github.com/sirupsen/logrus  # For structured logging examples
 ```
 
@@ -47,9 +47,9 @@ import (
     "strings"
     "time"
 
-    "github.com/tmc/langchaingo/llms"
-    "github.com/tmc/langchaingo/llms/openai"
-    "github.com/tmc/langchaingo/prompts"
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/prompts"
 )
 
 type LogEntry struct {
@@ -540,8 +540,8 @@ import (
     "time"
 
     "github.com/fsnotify/fsnotify"
-    "github.com/tmc/langchaingo/llms"
-    "github.com/tmc/langchaingo/chains"
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/chains"
 )
 
 type LogMonitor struct {

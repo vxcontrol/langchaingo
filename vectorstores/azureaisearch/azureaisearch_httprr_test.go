@@ -6,10 +6,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/schema"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/internal/httprr"
-	"github.com/tmc/langchaingo/schema"
 )
 
 // MockEmbedder is a mock embedder for testing.

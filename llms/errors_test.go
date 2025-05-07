@@ -7,7 +7,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/tmc/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms"
 )
 
 func TestStandardError(t *testing.T) {

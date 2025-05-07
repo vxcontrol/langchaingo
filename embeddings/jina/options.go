@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/tmc/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/httputil"
 )
 
 const (

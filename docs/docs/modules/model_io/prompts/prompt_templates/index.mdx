@@ -10,14 +10,14 @@ import DocCardList from "@theme/DocCardList";
 # Prompt templates
 
 :::info
-[Conceptual Guide](https://python.langchain.com/docs/modules/model_io/prompts/quick_start#prompttemplate)
+[Conceptual Guide](https://python.langchain.com/docs/how_to/#prompt-templates)
 :::
 
 A fundamental part of working with language models is taking some input and formatting it in some way using a template. 
 Doing this is simple using LangChain. Here is a simple example: 
 
 ```go
-import "github.com/tmc/langchaingo/prompts"
+import "github.com/vxcontrol/langchaingo/prompts"
 
 func main() {
     prompt := prompts.NewPromptTemplate(
@@ -72,7 +72,7 @@ The model is supposed to follow instruction from system chat message more closel
 You are encouraged to use these chat related prompt templates instead of PromptTemplate when querying chat models to fully exploit the potential of underlying chat model.
 
 ```go
-import "github.com/tmc/langchaingo/prompts"
+import "github.com/vxcontrol/langchaingo/prompts"
 
 func main() {
    prompt := prompts.NewChatPromptTemplate([]prompts.MessageFormatter{

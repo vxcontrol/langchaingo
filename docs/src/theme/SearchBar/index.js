@@ -43,7 +43,7 @@ export default function SearchBar() {
           { title: 'Text Splitters', url: '/langchaingo/docs/modules/data_connection/text_splitters/', content: 'Document text splitting' },
           { title: 'Prompts', url: '/langchaingo/docs/modules/model_io/prompts/', content: 'Prompt templates and management' },
           { title: 'Memory', url: '/langchaingo/docs/modules/memory/', content: 'Conversation memory management' },
-          { title: 'API Reference', url: 'https://pkg.go.dev/github.com/tmc/langchaingo', content: 'Complete API documentation', external: true },
+          { title: 'API Reference', url: 'https://pkg.go.dev/github.com/vxcontrol/langchaingo', content: 'Complete API documentation', external: true },
         ]);
       }
     };

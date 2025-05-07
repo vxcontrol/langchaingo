@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/internal/httprr"
 )
 
 func requireErnieCredentialsOrHTTPRR(t *testing.T) *httprr.RecordReplay {

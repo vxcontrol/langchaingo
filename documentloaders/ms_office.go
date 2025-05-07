@@ -10,10 +10,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/textsplitter"
+
 	"github.com/richardlehane/mscfb"
 	"github.com/tealeg/xlsx"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/textsplitter"
 )
 
 const (

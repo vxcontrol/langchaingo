@@ -6,11 +6,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/llms/googleai/palm"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/httputil"
-	"github.com/tmc/langchaingo/internal/httprr"
-	"github.com/tmc/langchaingo/llms/googleai/palm"
 )
 
 func newVertexEmbedder(t *testing.T, rr *httprr.RecordReplay, opts ...Option) *EmbedderImpl {

@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func TestConvertToolSchemaType(t *testing.T) {

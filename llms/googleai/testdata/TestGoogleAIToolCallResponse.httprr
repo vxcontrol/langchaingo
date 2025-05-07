@@ -1,20 +1,20 @@
 httprr trace v1
-996 1472
+1017 1472
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 576
+Content-Length: 597
 Content-Type: application/json
 x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"}],"tools":[{"functionDeclarations":[{"name":"calculate","description":"Perform a calculation","parameters":{"type":6,"properties":{"expression":{"type":1,"description":"Mathematical expression to evaluate"}},"required":["expression"]}}]}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
+{"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"What is 15 * 7?"}], "role":"user"}], "tools":[{"functionDeclarations":[{"name":"calculate", "description":"Perform a calculation", "parameters":{"type":6, "properties":{"expression":{"type":1, "description":"Mathematical expression to evaluate"}}, "required":["expression"]}}]}], "safetySettings":[{"category":10, "threshold":3}, {"category":7, "threshold":3}, {"category":8, "threshold":3}, {"category":9, "threshold":3}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
 Content-Length: 1093
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Sat, 21 Jun 2025 19:22:08 GMT
+Date: Sat, 21 Jun 2025 22:26:55 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=531
+Server-Timing: gfet4t7; dur=590
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -78,24 +78,24 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "XwZXaN62KvH_2PgPh_z--AY"
+  "responseId": "rjFXaJyqNvOVsbQPxaKksAc"
 }
-1196 2067
+1223 1743
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 770
+Content-Length: 797
 Content-Type: application/json
 x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"},{"parts":[{"functionCall":{"name":"calculate","args":{"expression":"15 * 7"}}}],"role":"model"},{"parts":[{"functionResponse":{"name":"calculate","response":{"response":"105"}}}],"role":"user"}],"tools":[{"functionDeclarations":[{"name":"calculate","description":"Perform a calculation","parameters":{"type":6,"properties":{"expression":{"type":1,"description":"Mathematical expression to evaluate"}},"required":["expression"]}}]}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 1688
+{"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"What is 15 * 7?"}], "role":"user"}, {"parts":[{"functionCall":{"name":"calculate", "args":{"expression":"15 * 7"}}}], "role":"model"}, {"parts":[{"functionResponse":{"name":"calculate", "response":{"response":"105"}}}], "role":"user"}], "tools":[{"functionDeclarations":[{"name":"calculate", "description":"Perform a calculation", "parameters":{"type":6, "properties":{"expression":{"type":1, "description":"Mathematical expression to evaluate"}}, "required":["expression"]}}]}], "safetySettings":[{"category":10, "threshold":3}, {"category":7, "threshold":3}, {"category":8, "threshold":3}, {"category":9, "threshold":3}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
+Content-Length: 1364
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Sat, 21 Jun 2025 19:22:09 GMT
+Date: Sat, 21 Jun 2025 22:26:56 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=330
+Server-Timing: gfet4t7; dur=305
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -109,29 +109,11 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "15 * "
+            "text": "The"
           }
         ],
         "role": "model"
-      },
-      "safetyRatings": [
-        {
-          "category": 8,
-          "probability": 1
-        },
-        {
-          "category": 10,
-          "probability": 1
-        },
-        {
-          "category": 7,
-          "probability": 1
-        },
-        {
-          "category": 9,
-          "probability": 1
-        }
-      ]
+      }
     }
   ],
   "usageMetadata": {
@@ -145,7 +127,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "YQZXaKyeHcSenvgPh-vRiAY"
+  "responseId": "sDFXaP-AK8WV1dkPtfew-AU"
 }
 ,
 {
@@ -154,7 +136,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "7 is 105.\n"
+            "text": " answer is 105.\n"
           }
         ],
         "role": "model"
@@ -182,8 +164,8 @@ X-Xss-Protection: 0
   ],
   "usageMetadata": {
     "promptTokenCount": 33,
-    "candidatesTokenCount": 12,
-    "totalTokenCount": 45,
+    "candidatesTokenCount": 9,
+    "totalTokenCount": 42,
     "promptTokensDetails": [
       {
         "modality": 1,
@@ -193,11 +175,11 @@ X-Xss-Protection: 0
     "candidatesTokensDetails": [
       {
         "modality": 1,
-        "tokenCount": 12
+        "tokenCount": 9
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "YQZXaKyeHcSenvgPh-vRiAY"
+  "responseId": "sDFXaP-AK8WV1dkPtfew-AU"
 }
 ]

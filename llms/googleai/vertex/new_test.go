@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/tmc/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
+
 	"google.golang.org/api/option"
 )
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func TestChatMessageHistory(t *testing.T) {

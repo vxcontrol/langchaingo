@@ -6,9 +6,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/internal/httprr"
 )
 
 // setupTestClient creates a test client with httprr recording/replay support.

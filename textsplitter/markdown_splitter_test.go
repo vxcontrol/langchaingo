@@ -4,10 +4,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/schema"
+
 	"github.com/pkoukk/tiktoken-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/schema"
 )
 
 func TestMarkdownHeaderTextSplitter_SplitText(t *testing.T) {

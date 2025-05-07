@@ -3,11 +3,10 @@ name: CI
 on:
   push:
     branches:
-      - main
-      - 'test-*'
+      - main-vxcontrol
   pull_request:
     branches:
-      - main
+      - main-vxcontrol
 
 permissions:
   contents: read

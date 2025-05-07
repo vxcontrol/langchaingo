@@ -8,9 +8,10 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/vxcontrol/langchaingo/prompts/internal/fstring"
+
 	"github.com/Masterminds/sprig/v3"
 	"github.com/nikolalohinski/gonja"
-	"github.com/tmc/langchaingo/prompts/internal/fstring"
 )
 
 // ErrInvalidTemplateFormat is the error when the template format is invalid and

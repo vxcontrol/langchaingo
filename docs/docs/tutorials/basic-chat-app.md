@@ -21,7 +21,7 @@ go mod init chat-app
 Add LangChainGo as a dependency:
 
 ```bash
-go get github.com/tmc/langchaingo
+go get github.com/vxcontrol/langchaingo
 ```
 
 ## Step 2: Basic chat implementation
@@ -39,9 +39,9 @@ import (
     "os"
     "strings"
 
-    "github.com/tmc/langchaingo/llms"
-    "github.com/tmc/langchaingo/llms/openai"
-    "github.com/tmc/langchaingo/memory"
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/memory"
 )
 
 func main() {
@@ -127,9 +127,9 @@ import (
     "os"
     "strings"
 
-    "github.com/tmc/langchaingo/chains"
-    "github.com/tmc/langchaingo/llms/openai"
-    "github.com/tmc/langchaingo/memory"
+    "github.com/vxcontrol/langchaingo/chains"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/memory"
 )
 
 func main() {
@@ -188,10 +188,10 @@ import (
     "os"
     "strings"
 
-    "github.com/tmc/langchaingo/chains"
-    "github.com/tmc/langchaingo/llms/openai"
-    "github.com/tmc/langchaingo/memory"
-    "github.com/tmc/langchaingo/prompts"
+    "github.com/vxcontrol/langchaingo/chains"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/memory"
+    "github.com/vxcontrol/langchaingo/prompts"
 )
 
 func main() {

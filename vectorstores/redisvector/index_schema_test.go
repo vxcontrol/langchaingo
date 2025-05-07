@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/schema"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/schema"
 )
 
 func TestGenerateSchema(t *testing.T) {

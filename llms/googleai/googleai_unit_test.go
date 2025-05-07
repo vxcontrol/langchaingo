@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"github.com/stretchr/testify/assert"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func TestNew(t *testing.T) {

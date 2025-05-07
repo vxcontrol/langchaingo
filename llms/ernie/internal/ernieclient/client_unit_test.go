@@ -11,9 +11,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/llms"
 )
 
 // mockHTTPClient is a mock implementation of the Doer interface

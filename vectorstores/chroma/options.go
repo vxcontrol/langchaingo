@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/vxcontrol/langchaingo/embeddings"
+
 	chromatypes "github.com/amikos-tech/chroma-go/types"
-	"github.com/tmc/langchaingo/embeddings"
 )
 
 const (

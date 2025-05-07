@@ -1,12 +1,12 @@
-module github.com/tmc/langchaingo
+module github.com/vxcontrol/langchaingo
 
 go 1.24.0
 
 // Note: Thanks to Go's module graph pruning (https://go.dev/ref/mod#graph-pruning),
 // importing langchaingo does NOT pull in all dependencies listed below. You only
 // get dependencies for the specific packages you import. For example:
-//   - import "github.com/tmc/langchaingo/llms/openai" → only OpenAI-related deps
-//   - import "github.com/tmc/langchaingo/vectorstores/chroma" → only Chroma deps
+//   - import "github.com/vxcontrol/langchaingo/llms/openai" → only OpenAI-related deps
+//   - import "github.com/vxcontrol/langchaingo/vectorstores/chroma" → only Chroma deps
 // This keeps your builds lean despite this large go.mod file.
 
 // Core dependencies

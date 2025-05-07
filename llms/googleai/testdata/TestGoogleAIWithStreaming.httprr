@@ -1,20 +1,20 @@
 httprr trace v1
-783 11468
+798 11378
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 357
+Content-Length: 372
 Content-Type: application/json
 x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"Tell me a short story about a cat"}],"role":"user"}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 11088
+{"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"Tell me a short story about a cat"}], "role":"user"}], "safetySettings":[{"category":10, "threshold":3}, {"category":7, "threshold":3}, {"category":8, "threshold":3}, {"category":9, "threshold":3}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
+Content-Length: 10998
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Sat, 21 Jun 2025 19:21:49 GMT
+Date: Sat, 21 Jun 2025 22:26:34 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=250
+Server-Timing: gfet4t7; dur=457
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -46,7 +46,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -55,7 +55,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "lementine was a cat of discerning tastes and unwavering opinions. Her coat was the color of burnt"
+            "text": "lementine was no ordinary cat. She wasn't interested in chasing laser pointers or batting at dust"
           }
         ],
         "role": "model"
@@ -91,7 +91,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -100,7 +100,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " caramel, and her eyes, twin emeralds, held a perpetual air of judgment"
+            "text": " bunnies. Clementine had a mission: to understand the world, one sunbeam at a time"
           }
         ],
         "role": "model"
@@ -136,7 +136,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -145,7 +145,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": ". She ruled the small apartment with an iron paw, demanding head scratches precisely at 7:00 AM and a fresh bowl of salmon-flavored pate no"
+            "text": ". She was a creature of quiet observation, a furry philosopher with emerald eyes.\n\nHer human, a kindly old woman named Agnes, believed Clementine was simply"
           }
         ],
         "role": "model"
@@ -181,7 +181,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -190,7 +190,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " later than 5:00 PM.\n\nHer human, a perpetually flustered artist named Leo, was completely devoted. He tolerated her disdain for his"
+            "text": " lazy. \"Sleeps all day, that one,\" Agnes would chuckle, knitting needles clicking. But Agnes didn't see the subtle twitch of Clementine'"
           }
         ],
         "role": "model"
@@ -226,7 +226,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -235,7 +235,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " abstract paintings, her habit of shedding on his favorite armchair, and her relentless pursuit of dust bunnies under the sofa. He even learned to interpret her nuanced meows, deciphering the difference between \"I'm hungry\" and \"I require"
+            "text": "s ear as she listened to the wind whisper secrets through the windowpane. She didn't notice the way Clementine's gaze lingered on the shifting patterns of light on the wall, as if deciphering a complex code.\n\nOne bl"
           }
         ],
         "role": "model"
@@ -271,7 +271,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -280,7 +280,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " your immediate attention, peasant.\"\n\nOne blustery autumn evening, Leo was working late, the glow of his laptop illuminating his face. Clementine, curled up on a nearby cushion, watched him with a proprietary air. Suddenly, the"
+            "text": "ustery afternoon, Agnes was distraught. Her prize-winning rose bush, the one she'd nurtured for decades, had been snapped in half by the wind. Tears welled in her eyes as she surveyed the damage.\n\nClementine"
           }
         ],
         "role": "model"
@@ -316,7 +316,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -325,7 +325,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " apartment plunged into darkness. A power outage.\n\nLeo groaned, fumbling for his phone. Clementine, however, was unfazed. She stretched, yawned, and then, with a surprising burst of energy, began to explore. She padded through the darkened rooms, her whiskers twitching, her eyes gleaming in the faint"
+            "text": ", who had been observing the storm from the safety of the windowsill, jumped down and approached Agnes. She didn't rub against her legs or purr for comfort. Instead, she sat perfectly still, her gaze fixed on the broken rose. Then, she did something Agnes had never seen her do before.\n\nClementine gently nud"
           }
         ],
         "role": "model"
@@ -361,7 +361,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -370,7 +370,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " moonlight filtering through the window.\n\nLeo, using his phone as a flashlight, stumbled after her. He was surprised to find Clementine leading the way, navigating the familiar space with an uncanny confidence. She led him to the kitchen, where he kept a box of emergency candles.\n\nHe lit one, casting a warm, flickering"
+            "text": "ged a fallen petal with her nose, then another, arranging them in a small circle around the broken stem. It wasn't a perfect circle, but it was deliberate, a small act of order in the face of chaos.\n\nAgnes watched, mesmerized. She didn't know why, but the simple"
           }
         ],
         "role": "model"
@@ -406,7 +406,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -415,7 +415,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " glow across the room. Clementine, now perched on the counter, surveyed the scene with an air of satisfaction. Leo, relieved, chuckled. \"Guess I should have known you'd save the day, Clem.\"\n\nHe stroked her soft fur. Clementine purred, a low rumble that vibrated through his"
+            "text": " act of the cat arranging the petals brought her a sliver of peace. She knelt down and began to gather the remaining petals, arranging them alongside Clementine's small circle.\n\nTogether, in the quiet aftermath of the storm, they created a small, temporary memorial to the lost rose. Agnes didn't know if"
           }
         ],
         "role": "model"
@@ -451,7 +451,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -460,7 +460,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " hand. For once, she didn't seem judgmental. She seemed…proud.\n\nAs the candle burned, casting dancing shadows on the walls, Leo realized something. He might think he was taking care of Clementine, but in reality, she was taking care of him. She was his furry, judgmental, and surprisingly capable"
+            "text": " Clementine understood the significance of her actions, but in that moment, she knew one thing: Clementine wasn't just a lazy cat. She was a companion, a silent observer, and perhaps, just perhaps, a small, furry philosopher who understood the language of loss and the power of simple beauty. And that"
           }
         ],
         "role": "model"
@@ -496,7 +496,7 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ,
 {
@@ -505,7 +505,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": " guardian, a tiny queen ruling her kingdom in the dark. And for that, he was eternally grateful.\n"
+            "text": ", Agnes realized, was more than enough.\n"
           }
         ],
         "role": "model"
@@ -533,8 +533,8 @@ X-Xss-Protection: 0
   ],
   "usageMetadata": {
     "promptTokenCount": 8,
-    "candidatesTokenCount": 484,
-    "totalTokenCount": 492,
+    "candidatesTokenCount": 471,
+    "totalTokenCount": 479,
     "promptTokensDetails": [
       {
         "modality": 1,
@@ -544,11 +544,11 @@ X-Xss-Protection: 0
     "candidatesTokensDetails": [
       {
         "modality": 1,
-        "tokenCount": 484
+        "tokenCount": 471
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "TQZXaMGuEo_InvgPntbbqQc"
+  "responseId": "mjFXaPesLfOVsbQPxaKksAc"
 }
 ]

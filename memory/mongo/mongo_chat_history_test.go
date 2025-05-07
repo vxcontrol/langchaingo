@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/vxcontrol/langchaingo/internal/testutil/testctr"
+	"github.com/vxcontrol/langchaingo/llms"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
-	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/tmc/langchaingo/internal/testutil/testctr"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func runTestContainer(t *testing.T) string {

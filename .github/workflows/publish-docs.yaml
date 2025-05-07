@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main-vxcontrol
     paths:
       - 'docs/**'
       - '.github/workflows/publish-docs.yaml'
@@ -22,7 +24,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.ref == 'refs/heads/main' && 'github-pages' || 'preview' }}
+      name: ${{ github.ref == 'refs/heads/main-vxcontrol' && 'github-pages' || 'preview' }}
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
@@ -64,13 +66,13 @@ jobs:
       - name: Deploy
         id: deployment
         if: |
-          github.ref == 'refs/heads/main' ||
+          github.ref == 'refs/heads/main-vxcontrol' ||
           github.ref == 'refs/heads/docs-test' ||
           startsWith(github.ref, 'refs/heads/docs/')
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages
-          preview: ${{ github.ref != 'refs/heads/main' }}
+          preview: ${{ github.ref != 'refs/heads/main-vxcontrol' }}
 
       - name: Comment PR
         if: |

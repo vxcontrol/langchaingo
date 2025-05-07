@@ -7,11 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
-	"github.com/tmc/langchaingo/vectorstores/mongovector"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/mongovector"
+
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -40,7 +41,7 @@ func main() {
 
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		log.Fatalf("failed to connect to server: %w", err)
+		log.Fatalf("failed to connect to server: %v", err)
 	}
 
 	defer func() {
@@ -72,7 +73,7 @@ func main() {
 		// Create the vectorstore collection
 		err = client.Database(databaseName).CreateCollection(context.Background(), collectionName)
 		if err != nil {
-			log.Fatalf("failed to create vector store collection: %w", err)
+			log.Fatalf("failed to create vector store collection: %v", err)
 		}
 
 		_, err = createVectorSearchIndex(context.Background(), coll, indexDP1536, fields...)
@@ -90,7 +91,7 @@ func main() {
 
 	embedder, err := embeddings.NewEmbedder(llm)
 	if err != nil {
-		log.Fatal("failed to create an embedder: %v", err)
+		log.Fatalf("failed to create an embedder: %v", err)
 	}
 
 	// A Store is a wrapper for mongo.Collection, since adding and searching
@@ -150,16 +151,22 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatal("error adding documents: %v", err)
+		log.Fatalf("error adding documents: %v", err)
 	}
 
 	// Search for similar documents.
 	docs, err := store.SimilaritySearch(context.Background(), "japan", 1)
+	if err != nil {
+		log.Fatalf("error searching for similar documents: %v", err)
+	}
 	fmt.Println(docs)
 
 	// Search for similar documents using score threshold.
 	docs, err = store.SimilaritySearch(context.Background(), "South American cities", 4,
 		vectorstores.WithScoreThreshold(0.7))
+	if err != nil {
+		log.Fatalf("error searching for similar documents: %v", err)
+	}
 	fmt.Println(docs)
 
 	// Search for similar documents using score threshold and metadata filter.
@@ -181,6 +188,9 @@ func main() {
 	docs, err = store.SimilaritySearch(context.Background(), "South American cities", 2,
 		vectorstores.WithScoreThreshold(0.40),
 		vectorstores.WithFilters(filter))
+	if err != nil {
+		log.Fatalf("error searching for similar documents: %v", err)
+	}
 	fmt.Println(docs)
 }
 

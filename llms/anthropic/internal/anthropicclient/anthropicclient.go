@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tmc/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/httputil"
 )
 
 const (
