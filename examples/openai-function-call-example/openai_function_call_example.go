@@ -7,12 +7,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/openai"
 )
 
 func main() {
-	llm, err := openai.New(openai.WithModel("gpt-3.5-turbo-0125"))
+	llm, err := openai.New(openai.WithModel("gpt-4o"))
 	if err != nil {
 		log.Fatal(err)
 	}

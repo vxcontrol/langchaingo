@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

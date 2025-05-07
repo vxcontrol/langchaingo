@@ -5,15 +5,17 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vxcontrol/langchaingo/chains"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/pinecone"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
-	"github.com/tmc/langchaingo/vectorstores/pinecone"
 )
 
 func getValues(t *testing.T) (string, string) {
@@ -35,6 +37,14 @@ func getValues(t *testing.T) (string, string) {
 	}
 
 	return pineconeAPIKey, pineconeHost
+}
+
+func waitPineconeIndexing(t *testing.T) {
+	t.Helper()
+
+	// small delay for pinecone to index the documents
+	// it's a dirty hack, but sometimes the tests fail because of the pinecone indexing
+	time.Sleep(10 * time.Second)
 }
 
 func TestPineconeStoreRest(t *testing.T) {
@@ -60,6 +70,8 @@ func TestPineconeStoreRest(t *testing.T) {
 		{PageContent: "potato"},
 	})
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	docs, err := storer.SimilaritySearch(context.Background(), "japan", 1)
 	require.NoError(t, err)
@@ -98,6 +110,8 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 		{PageContent: "New York"},
 	})
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	// test with a score threshold of 0.8, expected 6 documents
 	docs, err := storer.SimilaritySearch(context.Background(),
@@ -146,6 +160,8 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	waitPineconeIndexing(t)
+
 	_, err = storer.SimilaritySearch(context.Background(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(-0.8))
@@ -186,6 +202,8 @@ func TestPineconeAsRetriever(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	result, err := chains.Run(
 		context.TODO(),
@@ -230,6 +248,8 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	result, err := chains.Run(
 		context.TODO(),
@@ -302,6 +322,8 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	filter := make(map[string]any)
 	filterValue := make(map[string]any)
@@ -378,6 +400,8 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	filter := make(map[string]any)
 	filterValue := make(map[string]any)
@@ -456,6 +480,8 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	waitPineconeIndexing(t)
+
 	result, err := chains.Run(
 		context.TODO(),
 		chains.NewRetrievalQAFromLLM(
@@ -521,6 +547,8 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 		vectorstores.WithNameSpace(id),
 	)
 	require.NoError(t, err)
+
+	waitPineconeIndexing(t)
 
 	filter := map[string]interface{}{
 		"$and": []map[string]interface{}{

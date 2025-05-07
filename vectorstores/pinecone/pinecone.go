@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+
 	"github.com/google/uuid"
 	"github.com/pinecone-io/go-pinecone/pinecone"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

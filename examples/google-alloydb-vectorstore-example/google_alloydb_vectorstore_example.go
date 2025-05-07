@@ -6,13 +6,13 @@ import (
 	"log"
 	"os"
 
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/googleai"
-	"github.com/tmc/langchaingo/llms/googleai/vertex"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/util/alloydbutil"
-	"github.com/tmc/langchaingo/vectorstores"
-	"github.com/tmc/langchaingo/vectorstores/alloydb"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/llms/googleai/vertex"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/util/alloydbutil"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/alloydb"
 )
 
 func getEnvVariables() (string, string, string, string, string, string, string, string, string) {

@@ -3,8 +3,8 @@ package vectorstores
 import (
 	"context"
 
-	"github.com/tmc/langchaingo/callbacks"
-	"github.com/tmc/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/schema"
 )
 
 // VectorStore is the interface for saving and querying documents in the

@@ -6,11 +6,12 @@ package vertex
 import (
 	"context"
 
+	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/llms/googleai/internal/palmclient"
+
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/tmc/langchaingo/callbacks"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/googleai"
-	"github.com/tmc/langchaingo/llms/googleai/internal/palmclient"
 )
 
 // Vertex is a type that represents a Vertex AI API client.

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores/pgvector"
-
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/pgvector"
 )
 
 func main() {
@@ -94,10 +93,16 @@ func main() {
 
 	// Search for similar documents.
 	docs, err := store.SimilaritySearch(ctx, "japan", 1)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(docs)
 
 	// Search for similar documents using score threshold.
 	docs, err = store.SimilaritySearch(ctx, "only cities in south america", 10, vectorstores.WithScoreThreshold(0.80))
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(docs)
 
 	// Search for similar documents using score threshold and metadata filter.
@@ -109,5 +114,8 @@ func main() {
 		vectorstores.WithScoreThreshold(0.80),
 		vectorstores.WithFilters(filter),
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(docs)
 }

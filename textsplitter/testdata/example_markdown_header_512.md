@@ -18,30 +18,32 @@ community looks forward to your contributions. 🎉
 ---
 
 ## Table of Contents
-- [Code of Conduct](#code-of-conduct)
-- [I Have a Question](#i-have-a-question)
+- [Contributing to langchaingo](#contributing-to-langchaingo)
+  - [Table of Contents](#table-of-contents)
+  - [Code of Conduct](#code-of-conduct)
+  - [I Have a Question](#i-have-a-question)
 
 ---
 
 ## Table of Contents
-- [I Want To Contribute](#i-want-to-contribute)
-  - [Reporting Bugs](#reporting-bugs)
-    - [Before Submitting a Bug Report](#before-submitting-a-bug-report)
-    - [How Do I Submit a Good Bug Report?](#how-do-i-submit-a-good-bug-report)
-  - [Suggesting Enhancements](#suggesting-enhancements)
-    - [Before Submitting an Enhancement](#before-submitting-an-enhancement)
-    - [How Do I Submit a Good Enhancement Suggestion?](#how-do-i-submit-a-good-enhancement-suggestion)
+  - [I Want To Contribute](#i-want-to-contribute)
+    - [Reporting Bugs](#reporting-bugs)
+      - [Before Submitting a Bug Report](#before-submitting-a-bug-report)
+      - [How Do I Submit a Good Bug Report?](#how-do-i-submit-a-good-bug-report)
+    - [Suggesting Enhancements](#suggesting-enhancements)
+      - [Before Submitting an Enhancement](#before-submitting-an-enhancement)
+      - [How Do I Submit a Good Enhancement Suggestion?](#how-do-i-submit-a-good-enhancement-suggestion)
 
 ---
 
 ## Table of Contents
-  - [Your First Code Contribution](#your-first-code-contribution)
-    - [Make Changes](#make-changes)
-      - [Make changes in the UI](#make-changes-in-the-ui)
-      - [Make changes locally](#make-changes-locally)
-    - [Commit your update](#commit-your-update)
-    - [Pull Request](#pull-request)
-    - [Your PR is merged!](#your-pr-is-merged)
+    - [Your First Code Contribution](#your-first-code-contribution)
+      - [Make Changes](#make-changes)
+        - [Make changes in the UI](#make-changes-in-the-ui)
+        - [Make changes locally](#make-changes-locally)
+      - [Commit your update](#commit-your-update)
+      - [Pull Request](#pull-request)
+      - [Your PR is merged!](#your-pr-is-merged)
 
 ---
 
@@ -55,16 +57,16 @@ to <travis.cline@gmail.com>.
 
 ## I Have a Question
 > If you want to ask a question, we assume that you have read the
-> available [Documentation](https://pkg.go.dev/github.com/tmc/langchaingo).
+> available [Documentation](https://pkg.go.dev/github.com/vxcontrol/langchaingo).
 
 ---
 
 ## I Have a Question
-Before you ask a question, it is best to search for existing [Issues](https://github.com/tmc/langchaingo/issues) that
+Before you ask a question, it is best to search for existing [Issues](https://github.com/vxcontrol/langchaingo/issues) that
 might help you. In case you have found a suitable issue and still need clarification, you can write your question in
 this issue. It is also advisable to search the internet for answers first.
 If you then still feel the need to ask a question and need clarification, we recommend the following:
-- Open an [Issue](https://github.com/tmc/langchaingo/issues/new).
+- Open an [Issue](https://github.com/vxcontrol/langchaingo/issues/new).
 
 ---
 
@@ -96,7 +98,7 @@ following steps in advance to help us fix any potential bug as fast as possible.
 
 #### Before Submitting a Bug Report
 - Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment
-components/versions (Make sure that you have read the [documentation](https://pkg.go.dev/github.com/tmc/langchaingo).
+components/versions (Make sure that you have read the [documentation](https://pkg.go.dev/github.com/vxcontrol/langchaingo).
 If you are looking for support, you might want to check [this section](#i-have-a-question)).
 
 ---
@@ -104,7 +106,7 @@ If you are looking for support, you might want to check [this section](#i-have-a
 #### Before Submitting a Bug Report
 - To see if other users have experienced (and potentially already solved) the same issue you are having, check if there
 is not already a bug report existing for your bug or error in
-the [bug tracker](https://github.com/tmc/langchaingo/issues?q=label%3Abug).
+the [bug tracker](https://github.com/vxcontrol/langchaingo/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have
 discussed the issue.
 
@@ -129,7 +131,7 @@ discussed the issue.
 
 #### How Do I Submit a Good Bug Report?
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
-- Open an [Issue](https://github.com/tmc/langchaingo/issues/new). (Since we can’t be sure at this point whether it is a
+- Open an [Issue](https://github.com/vxcontrol/langchaingo/issues/new). (Since we can’t be sure at this point whether it is a
 bug or not, we ask you not to talk about a bug yet and not to label the issue.)
 - Explain the behavior you would expect and the actual behavior.
 
@@ -168,9 +170,9 @@ community to understand your suggestion and find related suggestions.
 
 #### Before Submitting an Enhancement
 - Make sure that you are using the latest version.
-- Read the [documentation](https://pkg.go.dev/github.com/tmc/langchaingo) carefully and find out if the functionality is
+- Read the [documentation](https://pkg.go.dev/github.com/vxcontrol/langchaingo) carefully and find out if the functionality is
 already covered, maybe by an individual configuration.
-- Perform a [search](https://github.com/tmc/langchaingo/issues) to see if the enhancement has already been suggested. If
+- Perform a [search](https://github.com/vxcontrol/langchaingo/issues) to see if the enhancement has already been suggested. If
 it has, add a comment to the existing issue instead of opening a new one.
 
 ---
@@ -184,7 +186,7 @@ consider writing an add-on/plugin library.
 ---
 
 #### How Do I Submit a Good Enhancement Suggestion?
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/tmc/langchaingo/issues).
+Enhancement suggestions are tracked as [GitHub issues](https://github.com/vxcontrol/langchaingo/issues).
 - Use a **clear and descriptive title** for the issue to identify the suggestion.
 - Provide a **step-by-step description of the suggested enhancement** in as many details as possible.
 - **Describe the current behavior** and **explain which behavior you expected to see instead** and why. At this point

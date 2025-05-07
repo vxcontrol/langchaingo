@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/memory"
-	"github.com/tmc/langchaingo/prompts"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/tools/sqldatabase"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/memory"
+	"github.com/vxcontrol/langchaingo/prompts"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/tools/sqldatabase"
 )
 
 //nolint:lll

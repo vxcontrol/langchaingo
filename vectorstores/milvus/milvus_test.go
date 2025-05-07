@@ -7,16 +7,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/ollama"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcmilvus "github.com/testcontainers/testcontainers-go/modules/milvus"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/ollama"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
 )
 
 func getEmbedding(model string, connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {

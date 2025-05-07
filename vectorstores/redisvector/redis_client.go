@@ -8,9 +8,10 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/vxcontrol/langchaingo/schema"
+
 	"github.com/google/uuid"
 	"github.com/redis/rueidis"
-	"github.com/tmc/langchaingo/schema"
 	"golang.org/x/exp/maps"
 )
 

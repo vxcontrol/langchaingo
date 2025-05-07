@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/llms/openai"
-	"github.com/tmc/langchaingo/prompts"
+	"github.com/vxcontrol/langchaingo/chains"
+	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/prompts"
 )
 
 func main() {

@@ -7,21 +7,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/documentloaders"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/textsplitter"
+	"github.com/vxcontrol/langchaingo/tools/scraper"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/pgvector"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/tmc/langchaingo/documentloaders"
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/googleai"
-	"github.com/tmc/langchaingo/textsplitter"
-	"github.com/tmc/langchaingo/tools/scraper"
-	"github.com/tmc/langchaingo/vectorstores"
-	"github.com/tmc/langchaingo/vectorstores/pgvector"
 )
 
-// the test is similar to langchain python version in https://python.langchain.com/docs/modules/data_connection/retrievers/MultiQueryRetriever
+// the test is similar to langchain python version in https://python.langchain.com/docs/how_to/MultiQueryRetriever/
 func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 	t.Parallel()
 	genaiKey := os.Getenv("GENAI_API_KEY")

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/openai"
 )
 
 func main() {
 	// Initialize the OpenAI client with Deepseek model
-	// Per the official DeepSeek API documentation (https://api-docs.deepseek.com/), 
+	// Per the official DeepSeek API documentation (https://api-docs.deepseek.com/),
 	// please note that all API calls must be configured to use the DeepSeek base URL instead of the OpenAI endpoint.
 	llm, err := openai.New(
 		openai.WithModel("deepseek-reasoner"),

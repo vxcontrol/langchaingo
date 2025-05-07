@@ -3,8 +3,8 @@ package retrievers
 import (
 	"context"
 
-	"github.com/tmc/langchaingo/callbacks"
-	"github.com/tmc/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/schema"
 )
 
 var _ schema.Retriever = &MergerRetriever{}

@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/tools"
+
 	"github.com/gocolly/colly"
-	"github.com/tmc/langchaingo/tools"
 )
 
 const (

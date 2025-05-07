@@ -7,8 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/tools"
+
 	"github.com/metaphorsystems/metaphor-go"
-	"github.com/tmc/langchaingo/tools"
 )
 
 // Documents defines a tool implementation for the Metaphor Web scrapper.

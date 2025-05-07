@@ -9,8 +9,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/tools"
+
 	"github.com/metaphorsystems/metaphor-go"
-	"github.com/tmc/langchaingo/tools"
 )
 
 var _ tools.Tool = &API{}

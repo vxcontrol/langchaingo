@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/embeddings"
-
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/ollama"
-	"github.com/tmc/langchaingo/schema"
-	"github.com/tmc/langchaingo/vectorstores"
-	"github.com/tmc/langchaingo/vectorstores/redisvector"
+	"github.com/vxcontrol/langchaingo/chains"
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/ollama"
+	"github.com/vxcontrol/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/vectorstores"
+	"github.com/vxcontrol/langchaingo/vectorstores/redisvector"
 )
 
 func main() {
@@ -49,9 +48,16 @@ func main() {
 	}
 
 	_, err = store.AddDocuments(ctx, data)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	docs, err := store.SimilaritySearch(ctx, "Tokyo", 2,
 		vectorstores.WithScoreThreshold(0.5),
 	)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	fmt.Println(docs)
 
 	result, err := chains.Run(
@@ -62,6 +68,9 @@ func main() {
 		),
 		"What colors is each piece of furniture next to the desk?",
 	)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	fmt.Println(result)
 }
 

@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tmc/langchaingo/llms/ernie"
-
-	"github.com/tmc/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/ernie"
 )
 
 func main() {
@@ -37,20 +36,6 @@ func main() {
 	if choice1.FuncCall != nil {
 		fmt.Printf("Function call: %v\n", choice1.FuncCall)
 	}
-}
-
-func getCurrentWeather(location string, unit string) (string, error) {
-	weatherInfo := map[string]interface{}{
-		"location":    location,
-		"temperature": "72",
-		"unit":        unit,
-		"forecast":    []string{"sunny", "windy"},
-	}
-	b, err := json.Marshal(weatherInfo)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
 }
 
 var functions = []llms.FunctionDefinition{
