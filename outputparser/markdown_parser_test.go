@@ -3,7 +3,7 @@ package outputparser_test
 import (
 	"testing"
 
-	"github.com/tmc/langchaingo/outputparser"
+	"github.com/vxcontrol/langchaingo/outputparser"
 )
 
 func TestMarkdown(t *testing.T) {

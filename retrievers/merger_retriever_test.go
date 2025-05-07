@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/schema"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/schema"
 )
 
 var _ schema.Retriever = &Fakeretriever{}

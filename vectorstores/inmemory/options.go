@@ -1,6 +1,6 @@
 package inmemory
 
-import "github.com/tmc/langchaingo/embeddings"
+import "github.com/vxcontrol/langchaingo/embeddings"
 
 const (
 	defaultM              = 16

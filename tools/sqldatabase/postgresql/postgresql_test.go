@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/tools/sqldatabase"
+
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/tmc/langchaingo/tools/sqldatabase"
 )
 
 func Test(t *testing.T) {

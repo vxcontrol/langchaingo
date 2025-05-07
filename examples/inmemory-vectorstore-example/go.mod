@@ -1,8 +1,8 @@
-module github.com/tmc/langchaingo/examples/inmemory-vectorstore-example
+module github.com/vxcontrol/langchaingo/examples/inmemory-vectorstore-example
 
 go 1.24.0
 
-require github.com/tmc/langchaingo v0.1.4-alpha.0
+require github.com/vxcontrol/langchaingo v0.1.13-update.0
 
 require (
 	github.com/chewxy/math32 v1.11.0 // indirect
@@ -17,4 +17,4 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 )
 
-replace github.com/tmc/langchaingo => ../..
+replace github.com/vxcontrol/langchaingo => ../..

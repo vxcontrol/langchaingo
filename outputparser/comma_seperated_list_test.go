@@ -3,9 +3,10 @@ package outputparser_test
 import (
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/outputparser"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/outputparser"
 )
 
 func TestCommaSeparatedList(t *testing.T) {

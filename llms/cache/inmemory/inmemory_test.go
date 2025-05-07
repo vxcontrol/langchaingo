@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/llms"
+
 	cache "github.com/Code-Hex/go-generics-cache"
 	"github.com/Code-Hex/go-generics-cache/policy/fifo"
 	"github.com/stretchr/testify/require"
-	"github.com/tmc/langchaingo/llms"
 )
 
 func TestInMemory(t *testing.T) {

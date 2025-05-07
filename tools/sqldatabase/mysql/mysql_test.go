@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vxcontrol/langchaingo/tools/sqldatabase"
+	_ "github.com/vxcontrol/langchaingo/tools/sqldatabase/mysql"
+
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
-	"github.com/tmc/langchaingo/tools/sqldatabase"
-	_ "github.com/tmc/langchaingo/tools/sqldatabase/mysql"
 )
 
 func Test(t *testing.T) {

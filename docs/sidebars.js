@@ -39,7 +39,7 @@ module.exports = {
     {
       type: 'link',
       label: 'API reference',
-      href: 'https://pkg.go.dev/github.com/tmc/langchaingo',
+      href: 'https://pkg.go.dev/github.com/vxcontrol/langchaingo',
     },
   ],
 };

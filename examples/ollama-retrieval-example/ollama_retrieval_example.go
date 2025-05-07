@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tmc/langchaingo/chains"
-	"github.com/tmc/langchaingo/llms/ollama"
-	"github.com/tmc/langchaingo/prompts"
-	"github.com/tmc/langchaingo/schema"
+	"github.com/vxcontrol/langchaingo/chains"
+	"github.com/vxcontrol/langchaingo/llms/ollama"
+	"github.com/vxcontrol/langchaingo/prompts"
+	"github.com/vxcontrol/langchaingo/schema"
 )
 
 func main() {

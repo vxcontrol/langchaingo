@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/cache"
+	"github.com/vxcontrol/langchaingo/llms/cache/inmemory"
+	"github.com/vxcontrol/langchaingo/llms/ollama"
+
 	"github.com/mitchellh/go-wordwrap"
-	"github.com/tmc/langchaingo/llms"
-	"github.com/tmc/langchaingo/llms/cache"
-	"github.com/tmc/langchaingo/llms/cache/inmemory"
-	"github.com/tmc/langchaingo/llms/ollama"
 )
 
 const WIDTH = 80

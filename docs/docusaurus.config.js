@@ -19,7 +19,7 @@ const config = {
     mendableAnonKey: process.env.MENDABLE_ANON_KEY,
   },
   // Set the production url of your site here
-  url: "https://tmc.github.io",
+  url: "https://vxcontrol.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/langchaingo/",
@@ -70,7 +70,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
-          editUrl: "https://github.com/tmc/langchaingo/edit/main/docs/",
+          editUrl: "https://github.com/vxcontrol/langchaingo/edit/main/docs/",
           remarkPlugins: [
             [require("@docusaurus/remark-plugin-npm2yarn"), { sync: true }],
           ],
@@ -134,12 +134,12 @@ const config = {
         title: "🦜️🔗 LangChainGo",
         items: [
           {
-            href: "https://python.langchain.com/docs/get_started/introduction/",
+            href: "https://python.langchain.com/docs/concepts/",
             label: "Concepts",
             position: "left",
           },
           {
-            href: "https://python.langchain.com/en/latest/",
+            href: "https://python.langchain.com/docs/introduction/",
             label: "Python Docs",
             position: "left",
           },
@@ -155,7 +155,7 @@ const config = {
           },
           // Please keep GitHub link to the right for consistency.
           {
-            href: "https://github.com/tmc/langchaingo",
+            href: "https://github.com/vxcontrol/langchaingo",
             label: "GitHub",
             position: "right",
           },
@@ -190,7 +190,7 @@ const config = {
               },
               {
                 label: "Go",
-                href: "https://github.com/tmc/langchaingo",
+                href: "https://github.com/vxcontrol/langchaingo",
               },
             ],
           },
