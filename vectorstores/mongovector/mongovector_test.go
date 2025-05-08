@@ -3,7 +3,6 @@ package mongovector
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -34,51 +34,46 @@ const (
 	testIndexSize3            = 3
 )
 
-type atlasContainer struct {
-	testcontainers.Container
-	URI string
-}
+func runTestContainer(t *testing.T) (string, error) {
+	t.Helper()
 
-func setupAtlas(ctx context.Context) (*atlasContainer, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        "mongodb/mongodb-atlas-local",
-		ExposedPorts: []string{"27017/tcp"},
-		WaitingFor:   wait.ForLog("Waiting for connections").WithStartupTimeout(15 * time.Second),
+	ctx := t.Context()
+
+	mongoContainer, err := mongodb.Run(
+		ctx,
+		"mongodb/mongodb-atlas-local",
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("Waiting for connections").WithStartupTimeout(15*time.Second),
+		),
+	)
+	if err != nil {
+		return "", err
 	}
 
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
+	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
+		if err := mongoContainer.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
 	})
+
+	atlasURL, err := mongoContainer.ConnectionString(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	var atlasC *atlasContainer
-	if container != nil {
-		atlasC = &atlasContainer{Container: container}
-	}
-
-	ip, err := container.Host(ctx)
+	parsedUrl, err := url.Parse(atlasURL)
 	if err != nil {
-		return atlasC, err
+		return "", err
 	}
 
-	mappedPort, err := container.MappedPort(ctx, "27017")
-	if err != nil {
-		return atlasC, err
-	}
+	parsedUrl.Scheme = "mongodb"
+	parsedUrl.Path = "/"
+	query := parsedUrl.Query()
+	query.Set("directConnection", "true")
+	parsedUrl.RawQuery = query.Encode()
 
-	uri := &url.URL{
-		Scheme:   "mongodb",
-		Host:     net.JoinHostPort(ip, mappedPort.Port()),
-		Path:     "/",
-		RawQuery: "directConnection=true",
-	}
-
-	atlasC.URI = uri.String()
-
-	return atlasC, nil
+	return parsedUrl.String(), nil
 }
 
 // resetVectorStore will reset the vector space defined by the given collection.
@@ -98,14 +93,9 @@ func setupTest(t *testing.T, dim int, index string) Store {
 
 	uri := os.Getenv(testURI)
 	if uri == "" {
-		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
-		defer cancel()
-
-		container, err := setupAtlas(ctx)
+		var err error
+		uri, err = runTestContainer(t)
 		require.NoError(t, err)
-
-		uri = container.URI
-		t.Setenv(testURI, uri)
 	}
 
 	require.NotEmpty(t, uri, "URI required")
@@ -119,9 +109,14 @@ func setupTest(t *testing.T, dim int, index string) Store {
 	err = client.Ping(ctx, nil)
 	require.NoError(t, err, "failed to ping server")
 
-	time.Sleep(10 * time.Second) // Let the container warm up
+	// wait for the container to be ready
+	select {
+	case <-time.After(5 * time.Second):
+	case <-t.Context().Done():
+		t.Fatal("test timed out")
+	}
 
-	ctx, cancel = context.WithTimeout(t.Context(), 5*time.Minute)
+	ctx, cancel = context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	err = resetForE2E(ctx, client, testIndexDP1536, testIndexSize1536, nil)
@@ -206,6 +201,8 @@ func TestNew(t *testing.T) {
 
 //nolint:paralleltest
 func TestStore_AddDocuments(t *testing.T) {
+	t.Parallel()
+
 	store := setupTest(t, testIndexSize1536, testIndexDP1536)
 
 	tests := []struct {
@@ -336,6 +333,8 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 
 //nolint:paralleltest
 func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
+	t.Parallel()
+
 	store := setupTest(t, testIndexSize3, testIndexDP3)
 
 	seed := []schema.Document{
@@ -372,6 +371,8 @@ func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 
 //nolint:funlen,paralleltest
 func TestStore_SimilaritySearch_NonExactQuery(t *testing.T) {
+	t.Parallel()
+
 	store := setupTest(t, testIndexSize1536, testIndexDP1536)
 
 	seed := []schema.Document{
@@ -547,7 +548,7 @@ func createVectorSearchIndex(
 		return "", fmt.Errorf("failed to create the search index: %w", err)
 	}
 
-	// Await the creation of the index.
+	// await the creation of the index.
 	var doc bson.Raw
 	for doc == nil {
 		cursor, err := view.List(ctx, options.SearchIndexes().SetName(searchName))
@@ -564,7 +565,7 @@ func createVectorSearchIndex(
 		if name == searchName && queryable {
 			doc = cursor.Current
 		} else {
-			time.Sleep(2 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
