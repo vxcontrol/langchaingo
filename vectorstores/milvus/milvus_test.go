@@ -16,25 +16,28 @@ import (
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	tcmilvus "github.com/testcontainers/testcontainers-go/modules/milvus"
 )
 
-func getEmbedding(model string, connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
-	opts := []ollama.Option{ollama.WithModel(model)}
+const embeddingModel = "gemma:2b"
+
+func getEmbedding(connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
+	opts := []ollama.Option{ollama.WithModel(embeddingModel)}
 	if len(connectionStr) > 0 {
 		opts = append(opts, ollama.WithServerURL(connectionStr[0]))
 	}
-	llm, err := ollama.New(opts...)
+
+	ellm, err := ollama.New(opts...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	e, err := embeddings.NewEmbedder(llm)
+	e, err := embeddings.NewEmbedder(ellm)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return llms.Model(llm), e
+
+	return llms.Model(ellm), e
 }
 
 func getNewStore(t *testing.T, opts ...Option) (Store, error) {
@@ -45,12 +48,11 @@ func getNewStore(t *testing.T, opts ...Option) (Store, error) {
 		t.Skip("OLLAMA_HOST not set")
 	}
 
-	_, e := getEmbedding("gemma:2b")
+	_, e := getEmbedding()
 
 	url := os.Getenv("MILVUS_URL")
 	if url == "" {
-		image := "milvusdb/milvus:v2.4.0-rc.1-latest"
-		milvusContainer, err := tcmilvus.RunContainer(t.Context(), testcontainers.WithImage(image))
+		milvusContainer, err := tcmilvus.Run(t.Context(), "milvusdb/milvus:v2.4.0-rc.1-latest")
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}

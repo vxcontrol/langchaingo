@@ -13,7 +13,6 @@ import (
 	_ "github.com/vxcontrol/langchaingo/tools/sqldatabase/mysql"
 
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
@@ -23,9 +22,9 @@ func Test(t *testing.T) {
 	// export LANGCHAINGO_TEST_MYSQL=user:p@ssw0rd@tcp(localhost:3306)/test
 	mysqlURI := os.Getenv("LANGCHAINGO_TEST_MYSQL")
 	if mysqlURI == "" {
-		mysqlContainer, err := mysql.RunContainer(
+		mysqlContainer, err := mysql.Run(
 			t.Context(),
-			testcontainers.WithImage("mysql:8.3.0"),
+			"mysql:8.3.0",
 			mysql.WithDatabase("test"),
 			mysql.WithUsername("user"),
 			mysql.WithPassword("p@ssw0rd"),
