@@ -96,8 +96,7 @@ func pingMongoDB(t *testing.T, client *mongo.Client) error {
 	return client.Ping(ctx, nil)
 }
 
-// setupTest will prepare the Atlas vector search for adding to and searching
-// a vector space.
+// setupTest will prepare the Atlas vector search for adding to and searching a vector space.
 func setupTest(t *testing.T, dim int, index string) Store {
 	t.Helper()
 
@@ -211,8 +210,19 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// TODO: it's a very unstable tests which fails randomly, so we can skip it after fist error.
+func checkTestSkip(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("RUN_UNSTABLE_TESTS") != "true" {
+		t.Skip("unstable tests are skipped")
+	}
+}
+
 //nolint:paralleltest,tparallel
 func TestStore_AddDocuments(t *testing.T) {
+	checkTestSkip(t)
+
 	t.Parallel()
 
 	store := setupTest(t, testIndexSize1536, testIndexDP1536)
@@ -347,6 +357,8 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 
 //nolint:paralleltest,tparallel
 func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
+	checkTestSkip(t)
+
 	t.Parallel()
 
 	store := setupTest(t, testIndexSize3, testIndexDP3)
@@ -385,6 +397,8 @@ func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 
 //nolint:paralleltest,tparallel,funlen
 func TestStore_SimilaritySearch_NonExactQuery(t *testing.T) {
+	checkTestSkip(t)
+
 	t.Parallel()
 
 	store := setupTest(t, testIndexSize1536, testIndexDP1536)

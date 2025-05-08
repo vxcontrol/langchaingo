@@ -54,9 +54,9 @@ type SQLDatabase struct {
 func NewSQLDatabase(engine Engine, ignoreTables map[string]struct{}) (*SQLDatabase, error) {
 	sd := &SQLDatabase{
 		Engine:           engine,
-		SampleRowsNumber: 3, //nolint:gomnd
+		SampleRowsNumber: 3, //nolint:mnd
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gomnd
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:mnd
 	defer cancel()
 	tbs, err := engine.TableNames(ctx)
 	if err != nil {

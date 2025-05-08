@@ -202,7 +202,7 @@ func (c *Client) decodeError(resp *http.Response) error {
 
 	var errResp errorMessage
 	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-		return errors.New(msg) // nolint:goerr113
+		return errors.New(msg) // nolint:err113
 	}
-	return fmt.Errorf("%s: %s", msg, errResp.Error.Message) // nolint:goerr113
+	return fmt.Errorf("%s: %s", msg, errResp.Error.Message) // nolint:err113
 }
