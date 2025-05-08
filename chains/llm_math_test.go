@@ -1,9 +1,7 @@
 package chains
 
 import (
-	"context"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
@@ -13,7 +11,7 @@ import (
 )
 
 func TestLLMMath(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -40,5 +38,5 @@ func TestLLMMath(t *testing.T) {
 	q := "what is forty plus three? take that then multiply it by ten thousand divided by 7324.3"
 	result, err := Run(ctx, chain, q)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "58.708"), "expected 58.708 in result")
+	require.Contains(t, result, "58.708", "expected 58.708 in result")
 }

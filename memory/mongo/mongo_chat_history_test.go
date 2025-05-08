@@ -24,7 +24,7 @@ func runTestContainer(t *testing.T) string {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	mongoContainer, err := mongodb.Run(
 		ctx,
@@ -46,7 +46,8 @@ func runTestContainer(t *testing.T) string {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		if err := mongoContainer.Terminate(context.Background()); err != nil {
+		ctx := context.Background() //nolint:usetesting
+		if err := mongoContainer.Terminate(ctx); err != nil {
 			t.Logf("Failed to terminate mongo container: %v", err)
 		}
 	})
@@ -63,7 +64,7 @@ func runTestContainer(t *testing.T) string {
 func TestMongoDBChatMessageHistory(t *testing.T) {
 	t.Parallel()
 	testctr.SkipIfDockerNotAvailable(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	url := runTestContainer(t)
 	_, err := NewMongoDBChatMessageHistory(ctx, WithSessionID("test"))
@@ -90,7 +91,8 @@ func TestMongoDBChatMessageHistory(t *testing.T) {
 	assert.Equal(t, llms.ChatMessageTypeHuman, messages[1].GetType())
 	assert.Equal(t, "Hello", messages[1].GetContent())
 	t.Cleanup(func() {
-		if err := history.Clear(context.Background()); err != nil {
+		ctx := context.Background() //nolint:usetesting
+		if err := history.Clear(ctx); err != nil {
 			t.Logf("Failed to clear mongo history: %v", err)
 		}
 	})

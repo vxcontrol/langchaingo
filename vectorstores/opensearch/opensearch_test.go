@@ -41,16 +41,19 @@ func getEnvVariables(t *testing.T) (string, string, string) {
 		t.Skipf("Must set %s to run test", "OPENAI_API_KEY")
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opensearchEndpoint := os.Getenv("OPENSEARCH_ENDPOINT")
 	if opensearchEndpoint == "" {
-		openseachContainer, err := tcopensearch.Run(ctx, "opensearchproject/opensearch:2.11.1", testcontainers.WithLogger(log.TestLogger(t)))
+		image := "opensearchproject/opensearch:2.11.1"
+		openseachContainer, err := tcopensearch.Run(ctx, image, testcontainers.WithLogger(log.TestLogger(t)))
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			if err := openseachContainer.Terminate(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := openseachContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate opensearch container: %v", err)
 			}
 		})
@@ -86,7 +89,7 @@ func getEnvVariables(t *testing.T) (string, string, string) {
 
 func setIndex(t *testing.T, storer opensearch.Store, indexName string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := storer.CreateIndex(ctx, indexName)
 	if err != nil {
 		t.Fatalf("error creating index: %v\n", err)
@@ -95,7 +98,7 @@ func setIndex(t *testing.T, storer opensearch.Store, indexName string) {
 
 func removeIndex(t *testing.T, storer opensearch.Store, indexName string) {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err := storer.DeleteIndex(ctx, indexName)
 	if err != nil {
 		t.Fatalf("error deleting index: %v\n", err)
@@ -186,6 +189,7 @@ func setOpensearchClient(
 	opensearchPassword string,
 ) *opensearchgo.Client {
 	t.Helper()
+
 	client, err := opensearchgo.NewClient(opensearchgo.Config{
 		Addresses: []string{opensearchEndpoint},
 		Username:  opensearchUser,
@@ -194,11 +198,14 @@ func setOpensearchClient(
 	if err != nil {
 		t.Fatalf("cannot initialize opensearch client: %v\n", err)
 	}
+
 	return client
 }
 
 func TestOpensearchStoreRest(t *testing.T) {
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY")
+	httprr.SkipIfNoCredentialsAndRecordingMissing(
+		t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY",
+	)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -206,7 +213,7 @@ func TestOpensearchStoreRest(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opensearchEndpoint, opensearchUser, opensearchPassword := getEnvVariables(t)
 	indexName := uuid.New().String()
 	e := createOpenAIEmbedder(t)
@@ -233,7 +240,9 @@ func TestOpensearchStoreRest(t *testing.T) {
 }
 
 func TestOpensearchStoreRestWithScoreThreshold(t *testing.T) {
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY")
+	httprr.SkipIfNoCredentialsAndRecordingMissing(
+		t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY",
+	)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -241,7 +250,7 @@ func TestOpensearchStoreRestWithScoreThreshold(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opensearchEndpoint, opensearchUser, opensearchPassword := getEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -280,7 +289,9 @@ func TestOpensearchStoreRestWithScoreThreshold(t *testing.T) {
 }
 
 func TestOpensearchAsRetriever(t *testing.T) {
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY")
+	httprr.SkipIfNoCredentialsAndRecordingMissing(
+		t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY",
+	)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -288,7 +299,7 @@ func TestOpensearchAsRetriever(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opensearchEndpoint, opensearchUser, opensearchPassword := getEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -325,11 +336,13 @@ func TestOpensearchAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestOpensearchAsRetrieverWithScoreThreshold(t *testing.T) {
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY")
+	httprr.SkipIfNoCredentialsAndRecordingMissing(
+		t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY",
+	)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -337,7 +350,7 @@ func TestOpensearchAsRetrieverWithScoreThreshold(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	opensearchEndpoint, opensearchUser, opensearchPassword := getEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -377,6 +390,6 @@ func TestOpensearchAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }

@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -114,7 +113,7 @@ func TestClient_List(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	actions, err := client.List(ctx)
 	require.NoError(t, err)
 	assert.Len(t, actions, 2)
@@ -151,7 +150,7 @@ func TestClient_Execute(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	response, err := client.Execute(ctx, "test-action", "Send test email", map[string]string{
 		"param1": "value1",
 	})
@@ -177,7 +176,7 @@ func TestClient_ExecuteAsString(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := client.ExecuteAsString(ctx, "create-task", "Create a new task", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "Task created: #12345", result)
@@ -199,7 +198,7 @@ func TestClient_ExecuteWithError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = client.Execute(ctx, "test-action", "Do something", nil)
 	require.NoError(t, err) // The current implementation doesn't check HTTP status codes
 }

@@ -25,7 +25,7 @@ import (
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-func getTestURIs(t *testing.T) (string, string) {
+func getTestURIs(t *testing.T) (string, string) { //nolint:unparam
 	t.Helper()
 	testctr.SkipIfDockerNotAvailable(t)
 
@@ -41,7 +41,7 @@ func getTestURIs(t *testing.T) (string, string) {
 
 	uri := os.Getenv("REDIS_URL")
 	if uri == "" {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		redisContainer, err := tcredis.Run(ctx,
 			"docker.io/redis/redis-stack:7.2.0-v10",
@@ -53,7 +53,8 @@ func getTestURIs(t *testing.T) (string, string) {
 		require.NoError(t, err)
 
 		t.Cleanup(func() {
-			if err := redisContainer.Terminate(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := redisContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate redis container: %v", err)
 			}
 		})
@@ -83,7 +84,7 @@ func TestCreateRedisVectorOptions(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	redisURL, _ := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
 	index := "test_case1"
@@ -201,7 +202,7 @@ func TestAddDocuments(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	redisURL, _ := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
@@ -279,6 +280,7 @@ func TestAddDocuments(t *testing.T) {
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = vector.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 		err = vector.DropIndex(ctx, newIndex, true)
@@ -295,7 +297,7 @@ func TestSimilaritySearch(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	redisURL, _ := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
@@ -378,6 +380,7 @@ func TestSimilaritySearch(t *testing.T) {
 	assert.Len(t, docs[0].Metadata, 3)
 
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -387,7 +390,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	redisURL, _ := getTestURIs(t)
 	llm, e := createOpenAILLMAndEmbedder(t)
@@ -438,6 +441,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 	require.NotEmpty(t, result, "expected non-empty result from LLM for furniture question")
 
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -452,7 +456,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	redisURL, _ := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
@@ -501,7 +505,8 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	defer t.Cleanup(func() {
+	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -556,6 +561,7 @@ func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.Embedder
 	return llm, e
 }
 
+// nolint:unused
 /**
 func runOllamaTestContainer(model string) (*tcollama.OllamaContainer, string) {
 	ctx := context.Background()

@@ -1,4 +1,3 @@
-// nolint
 package cloudsql_test
 
 import (
@@ -87,7 +86,8 @@ func getEnvVariables(t *testing.T) EnvVariables {
 
 func setEngine(t *testing.T, envVariables EnvVariables) cloudsqlutil.PostgresEngine {
 	t.Helper()
-	ctx := context.Background()
+
+	ctx := t.Context()
 	pgEngine, err := cloudsqlutil.NewPostgresEngine(ctx,
 		cloudsqlutil.WithUser(envVariables.Username),
 		cloudsqlutil.WithPassword(envVariables.Password),
@@ -107,7 +107,7 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore,
 		t.Skip("skipping cloudsql tests in short mode")
 	}
 	pgEngine := setEngine(t, envVariables)
-	ctx := context.Background()
+	ctx := t.Context()
 	vectorstoreTableoptions := cloudsqlutil.VectorstoreTableOptions{
 		TableName:         envVariables.Table,
 		OverwriteExisting: true,
@@ -126,6 +126,7 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore,
 	}
 
 	cleanUpTableFn := func() error {
+		ctx := context.Background() //nolint:usetesting
 		_, err := pgEngine.Pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", envVariables.Table))
 		return err
 	}
@@ -134,10 +135,17 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore,
 
 func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 	t.Parallel()
+
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", cloudsql.CosineDistance{}, []string{}, cloudsql.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		cloudsql.CosineDistance{},
+		[]string{},
+		cloudsql.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -154,10 +162,17 @@ func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 
 func TestIsValidIndex(t *testing.T) {
 	t.Parallel()
+
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", cloudsql.CosineDistance{}, []string{}, cloudsql.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		cloudsql.CosineDistance{},
+		[]string{},
+		cloudsql.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -186,7 +201,7 @@ func TestAddDocuments(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
 

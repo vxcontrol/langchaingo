@@ -1,7 +1,6 @@
 package bedrock_test
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 )
 
 func TestEmbedQuery(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AWS_ACCESS_KEY_ID")
 
@@ -38,7 +37,7 @@ func TestEmbedQuery(t *testing.T) {
 }
 
 func TestEmbedDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AWS_ACCESS_KEY_ID")
 

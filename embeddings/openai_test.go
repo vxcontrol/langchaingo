@@ -1,7 +1,6 @@
 package embeddings
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -43,19 +42,23 @@ func newOpenAIEmbedder(t *testing.T, opts ...Option) *EmbedderImpl {
 }
 
 func TestOpenaiEmbeddings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := newOpenAIEmbedder(t)
 	_, err := e.EmbedQuery(ctx, "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := e.EmbedDocuments(ctx, []string{"Hello world", "The world is ending", "good bye"})
+	embeddings, err := e.EmbedDocuments(ctx, []string{
+		"Hello world",
+		"The world is ending",
+		"good bye",
+	})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 }
 
 func TestOpenaiEmbeddingsQueryVsDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	// Verifies that we get the same embedding for the same string, regardless
 	// of which method we call.
 
@@ -73,7 +76,7 @@ func TestOpenaiEmbeddingsQueryVsDocuments(t *testing.T) {
 }
 
 func TestOpenaiEmbeddingsWithOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := newOpenAIEmbedder(t, WithBatchSize(1), WithStripNewLines(false))
 
@@ -86,7 +89,7 @@ func TestOpenaiEmbeddingsWithOptions(t *testing.T) {
 }
 
 func TestOpenaiEmbeddingsWithAzureAPI(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	// Only run tests in parallel when not recording (to avoid rate limits)

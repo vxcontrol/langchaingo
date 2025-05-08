@@ -121,6 +121,8 @@ func TestNew(t *testing.T) {
 func TestStore_AddDocuments_Unit(t *testing.T) { //nolint:funlen // comprehensive test
 	t.Parallel()
 
+	ctx := t.Context()
+
 	tests := []struct {
 		name         string
 		docs         []schema.Document
@@ -245,7 +247,7 @@ func TestStore_AddDocuments_Unit(t *testing.T) { //nolint:funlen // comprehensiv
 			)
 			require.NoError(t, err)
 
-			ids, err := store.AddDocuments(context.Background(), tt.docs, tt.opts...)
+			ids, err := store.AddDocuments(ctx, tt.docs, tt.opts...)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -261,6 +263,8 @@ func TestStore_AddDocuments_Unit(t *testing.T) { //nolint:funlen // comprehensiv
 
 func TestStore_SimilaritySearch_Unit(t *testing.T) { //nolint:funlen // comprehensive test
 	t.Parallel()
+
+	ctx := t.Context()
 
 	tests := []struct {
 		name         string
@@ -467,7 +471,7 @@ func TestStore_SimilaritySearch_Unit(t *testing.T) { //nolint:funlen // comprehe
 			)
 			require.NoError(t, err)
 
-			docs, err := store.SimilaritySearch(context.Background(), tt.query, tt.numDocuments, tt.opts...)
+			docs, err := store.SimilaritySearch(ctx, tt.query, tt.numDocuments, tt.opts...)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {
@@ -684,6 +688,8 @@ func TestStoreImplementsVectorStore(t *testing.T) {
 func TestEdgeCases(t *testing.T) { //nolint:funlen // comprehensive test
 	t.Parallel()
 
+	ctx := t.Context()
+
 	t.Run("AddDocuments with nil metadata", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req upsertBody
@@ -710,7 +716,7 @@ func TestEdgeCases(t *testing.T) { //nolint:funlen // comprehensive test
 		docs := []schema.Document{
 			{PageContent: "test", Metadata: nil},
 		}
-		_, err = store.AddDocuments(context.Background(), docs)
+		_, err = store.AddDocuments(ctx, docs)
 		assert.NoError(t, err)
 	})
 
@@ -740,7 +746,7 @@ func TestEdgeCases(t *testing.T) { //nolint:funlen // comprehensive test
 		docs := []schema.Document{
 			{PageContent: "test content"},
 		}
-		_, err = store.AddDocuments(context.Background(), docs)
+		_, err = store.AddDocuments(ctx, docs)
 		assert.NoError(t, err)
 	})
 
@@ -771,7 +777,7 @@ func TestEdgeCases(t *testing.T) { //nolint:funlen // comprehensive test
 		)
 		require.NoError(t, err)
 
-		docs, err := store.SimilaritySearch(context.Background(), "query", 1)
+		docs, err := store.SimilaritySearch(ctx, "query", 1)
 		assert.NoError(t, err)
 		assert.Len(t, docs, 1)
 		assert.Equal(t, "Custom result", docs[0].PageContent)
@@ -783,6 +789,8 @@ func TestEdgeCases(t *testing.T) { //nolint:funlen // comprehensive test
 
 func TestDoRequest_Unit(t *testing.T) { //nolint:funlen // comprehensive test
 	t.Parallel()
+
+	ctx := t.Context()
 
 	tests := []struct {
 		name         string
@@ -858,7 +866,7 @@ func TestDoRequest_Unit(t *testing.T) { //nolint:funlen // comprehensive test
 
 			testURL, _ := url.Parse(server.URL + "/test")
 			body, status, err := DoRequest(
-				context.Background(),
+				ctx,
 				*testURL,
 				"test-key",
 				tt.method,

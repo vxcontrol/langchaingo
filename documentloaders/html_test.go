@@ -1,7 +1,6 @@
 package documentloaders
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func TestHTMLLoader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	file, err := os.Open("./testdata/test.html")
 	require.NoError(t, err)

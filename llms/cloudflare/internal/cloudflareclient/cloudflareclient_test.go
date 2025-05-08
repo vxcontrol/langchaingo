@@ -37,7 +37,7 @@ func requireCloudflareCredentialsOrHTTPRR(t *testing.T) *httprr.RecordReplay {
 }
 
 func TestClient_GenerateContentWithHTTPRR(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := requireCloudflareCredentialsOrHTTPRR(t)
@@ -74,7 +74,7 @@ func TestClient_GenerateContentWithHTTPRR(t *testing.T) {
 }
 
 func TestClient_GenerateContentStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := requireCloudflareCredentialsOrHTTPRR(t)
@@ -115,7 +115,7 @@ func TestClient_GenerateContentStream(t *testing.T) {
 }
 
 func TestClient_CreateEmbedding(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := requireCloudflareCredentialsOrHTTPRR(t)

@@ -35,7 +35,7 @@ func (m MockEmbedder) EmbedQuery(_ context.Context, text string) ([]float32, err
 }
 
 func TestStore_AddDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "QDRANT_URL")
 
@@ -94,7 +94,7 @@ func TestStore_AddDocuments(t *testing.T) {
 }
 
 func TestStore_SimilaritySearch(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "QDRANT_URL")
 
@@ -137,7 +137,7 @@ func TestStore_SimilaritySearch(t *testing.T) {
 }
 
 func TestStore_SimilaritySearchWithScore(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "QDRANT_URL")
 
@@ -182,7 +182,7 @@ func TestStore_SimilaritySearchWithScore(t *testing.T) {
 }
 
 func TestDoRequest(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "QDRANT_URL")
 

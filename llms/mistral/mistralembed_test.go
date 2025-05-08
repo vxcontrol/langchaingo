@@ -1,7 +1,6 @@
 package mistral
 
 import (
-	"context"
 	"math"
 	"net/http"
 	"testing"
@@ -15,6 +14,7 @@ import (
 // TestConvertFloat64ToFloat32 tests the ConvertFloat64ToFloat32 function using table-driven tests.
 func TestConvertFloat64ToFloat32(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []float64
@@ -102,7 +102,7 @@ func TestMistralEmbed(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Skip test during replay mode since Mistral SDK doesn't support HTTP client injection
 	if !rr.Recording() {

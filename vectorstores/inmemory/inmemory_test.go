@@ -16,10 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockEmbedder is a simple embedder that returns predictable embeddings for testing
+// mockEmbedder is a simple embedder that returns predictable embeddings for testing.
 type mockEmbedder struct{}
 
-func (m *mockEmbedder) EmbedDocuments(ctx context.Context, texts []string) ([][]float32, error) {
+func (m *mockEmbedder) EmbedDocuments(_ context.Context, texts []string) ([][]float32, error) {
 	embeddings := make([][]float32, len(texts))
 	for i, text := range texts {
 		switch text {
@@ -40,7 +40,7 @@ func (m *mockEmbedder) EmbedDocuments(ctx context.Context, texts []string) ([][]
 	return embeddings, nil
 }
 
-func (m *mockEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
+func (m *mockEmbedder) EmbedQuery(_ context.Context, text string) ([]float32, error) {
 	if text == "similar" {
 		return []float32{1.0, 0.9, 0.8}, nil
 	}
@@ -50,7 +50,7 @@ func (m *mockEmbedder) EmbedQuery(ctx context.Context, text string) ([]float32, 
 func TestMockSimilarityScoreCalculation(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	mockEmb := &mockEmbedder{}
 
 	store, err := inmemory.New(
@@ -116,8 +116,9 @@ func preCheckEnvSetting(t *testing.T) {
 
 func TestInMemoryStoreRest(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -148,8 +149,9 @@ func TestInMemoryStoreRest(t *testing.T) {
 
 func TestInMemoryStoreRestWithScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -163,7 +165,7 @@ func TestInMemoryStoreRestWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -199,8 +201,9 @@ func TestInMemoryStoreRestWithScoreThreshold(t *testing.T) {
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -247,8 +250,9 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 
 func TestInMemoryAsRetriever(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -281,13 +285,14 @@ func TestInMemoryAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestInMemoryAsRetrieverWithScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -302,7 +307,7 @@ func TestInMemoryAsRetrieverWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		ctx,
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -323,15 +328,16 @@ func TestInMemoryAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestInMemoryAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -392,17 +398,18 @@ func TestInMemoryAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestInMemoryAsRetrieverWithMetadataFilters(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -417,7 +424,7 @@ func TestInMemoryAsRetrieverWithMetadataFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		ctx,
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is orange.",
@@ -456,15 +463,16 @@ func TestInMemoryAsRetrieverWithMetadataFilters(t *testing.T) {
 		"What color is the lamp in each room?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.NotContains(t, result, "orange", "expected not orange in result")
-	require.NotContains(t, result, "yellow", "expected not yellow in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.NotContains(t, strings.ToLower(result), "orange", "expected not orange in result")
+	require.NotContains(t, strings.ToLower(result), "yellow", "expected not yellow in result")
 }
 
 func TestDeduplicater(t *testing.T) {
 	t.Parallel()
+
 	preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New()
 	require.NoError(t, err)
@@ -478,7 +486,7 @@ func TestDeduplicater(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(ctx, []schema.Document{
 		{PageContent: "tokyo", Metadata: map[string]any{
 			"type": "city",
 		}},
@@ -486,7 +494,7 @@ func TestDeduplicater(t *testing.T) {
 			"type": "vegetable",
 		}},
 	}, vectorstores.WithDeduplicater(
-		func(ctx context.Context, doc schema.Document) bool {
+		func(_ context.Context, doc schema.Document) bool {
 			return doc.PageContent == "tokyo"
 		},
 	))

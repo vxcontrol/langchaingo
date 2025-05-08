@@ -23,7 +23,7 @@ type testModel struct{}
 
 var _ llms.Model = testModel{}
 
-func (testModel) GenerateContent(_ context.Context, _ []llms.MessageContent, _ ...llms.CallOption) (*llms.ContentResponse, error) {
+func (testModel) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
 	return &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{
 			{Content: "orange"},
@@ -31,7 +31,7 @@ func (testModel) GenerateContent(_ context.Context, _ []llms.MessageContent, _ .
 	}, nil
 }
 
-func (testModel) Call(_ context.Context, _ string, _ ...llms.CallOption) (string, error) {
+func (testModel) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
 	return "orange", nil
 }
 
@@ -42,7 +42,7 @@ type testBedrockAgent struct {
 
 var _ bedrockAgentAPI = &testBedrockAgent{}
 
-func (t *testBedrockAgent) GetKnowledgeBase(_ context.Context, _ *bedrockagent.GetKnowledgeBaseInput, _ ...func(*bedrockagent.Options)) (*bedrockagent.GetKnowledgeBaseOutput, error) {
+func (t *testBedrockAgent) GetKnowledgeBase(ctx context.Context, params *bedrockagent.GetKnowledgeBaseInput, optFns ...func(*bedrockagent.Options)) (*bedrockagent.GetKnowledgeBaseOutput, error) {
 	t.calls++
 	return &bedrockagent.GetKnowledgeBaseOutput{
 		KnowledgeBase: &types.KnowledgeBase{
@@ -51,7 +51,7 @@ func (t *testBedrockAgent) GetKnowledgeBase(_ context.Context, _ *bedrockagent.G
 	}, nil
 }
 
-func (t *testBedrockAgent) ListDataSources(_ context.Context, params *bedrockagent.ListDataSourcesInput, _ ...func(*bedrockagent.Options)) (*bedrockagent.ListDataSourcesOutput, error) {
+func (t *testBedrockAgent) ListDataSources(ctx context.Context, params *bedrockagent.ListDataSourcesInput, optFns ...func(*bedrockagent.Options)) (*bedrockagent.ListDataSourcesOutput, error) {
 	t.calls++
 	switch aws.ToString(params.KnowledgeBaseId) {
 	case "testKbWithoutDatasources":
@@ -99,7 +99,7 @@ func (t *testBedrockAgent) ListDataSources(_ context.Context, params *bedrockage
 	}
 }
 
-func (t *testBedrockAgent) GetDataSource(_ context.Context, params *bedrockagent.GetDataSourceInput, _ ...func(*bedrockagent.Options)) (*bedrockagent.GetDataSourceOutput, error) {
+func (t *testBedrockAgent) GetDataSource(ctx context.Context, params *bedrockagent.GetDataSourceInput, optFns ...func(*bedrockagent.Options)) (*bedrockagent.GetDataSourceOutput, error) {
 	t.mu.Lock()
 	t.calls++
 	t.mu.Unlock()
@@ -185,13 +185,13 @@ func (t *testS3Client) PutObject(_ context.Context, _ *s3.PutObjectInput, _ ...f
 	return &s3.PutObjectOutput{}, nil
 }
 
-func (t *testS3Client) DeleteObject(_ context.Context, _ *s3.DeleteObjectInput, _ ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+func (t *testS3Client) DeleteObject(ctx context.Context, params *s3.DeleteObjectInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
 	t.calls++
 	return &s3.DeleteObjectOutput{}, nil
 }
 
 func TestKnowledgeBaseAddDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -206,7 +206,7 @@ func TestKnowledgeBaseAddDocuments(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddDocumentsWithoutDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -218,7 +218,7 @@ func TestKnowledgeBaseAddDocumentsWithoutDs(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddDocumentsWithWrongDsId(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -230,7 +230,7 @@ func TestKnowledgeBaseAddDocumentsWithWrongDsId(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddDocumentsWithMultipleDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -245,7 +245,7 @@ func TestKnowledgeBaseAddDocumentsWithMultipleDs(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddDocumentsWithMultipleMixedDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -260,7 +260,7 @@ func TestKnowledgeBaseAddDocumentsWithMultipleMixedDs(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddDocumentsWithMultipleS3DsAndWithoutDsID(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	kb := newFromClients("testKbWithTwoS3Datasource", &testBedrockAgent{}, &testBedrockAgentRuntime{}, &testS3Client{})
@@ -270,7 +270,7 @@ func TestKnowledgeBaseAddDocumentsWithMultipleS3DsAndWithoutDsID(t *testing.T) {
 }
 
 func TestKnowledgeBaseAddNamedDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgent := &testBedrockAgent{}
@@ -294,7 +294,7 @@ func TestKnowledgeBaseAddNamedDocuments(t *testing.T) {
 }
 
 func TestKnowledgeBaseSimilaritySearch(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	kb := newFromClients("testKbId", &testBedrockAgent{}, &testBedrockAgentRuntime{}, &testS3Client{})
@@ -308,7 +308,7 @@ func TestKnowledgeBaseSimilaritySearch(t *testing.T) {
 }
 
 func TestKnowledgeBaseSimilaritySearchWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	kb := newFromClients("testKbId", &testBedrockAgent{}, &testBedrockAgentRuntime{}, &testS3Client{})
@@ -321,7 +321,7 @@ func TestKnowledgeBaseSimilaritySearchWithScoreThreshold(t *testing.T) {
 }
 
 func TestKnowledgeBaseSimilaritySearchWithFilter(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	kb := newFromClients("testKbId", &testBedrockAgent{}, &testBedrockAgentRuntime{}, &testS3Client{})
@@ -331,7 +331,7 @@ func TestKnowledgeBaseSimilaritySearchWithFilter(t *testing.T) {
 }
 
 func TestKnowledgeBaseSimilaritySearchWrongWithFilter(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	kb := newFromClients("testKbId", &testBedrockAgent{}, &testBedrockAgentRuntime{}, &testS3Client{})
@@ -361,7 +361,7 @@ func (t *trackSearchResults) SimilaritySearch(ctx context.Context, query string,
 }
 
 func TestKnowledgeBaseAsRetriever(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgentRuntime := &testBedrockAgentRuntime{}
@@ -385,7 +385,7 @@ func TestKnowledgeBaseAsRetriever(t *testing.T) {
 }
 
 func TestKnowledgeBaseAsRetrieverWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testBedrockAgentRuntime := &testBedrockAgentRuntime{}

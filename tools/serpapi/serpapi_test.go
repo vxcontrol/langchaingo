@@ -1,7 +1,6 @@
 package serpapi
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -11,7 +10,6 @@ import (
 )
 
 func TestSerpAPITool(t *testing.T) {
-
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "SERPAPI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -40,7 +38,7 @@ func TestSerpAPITool(t *testing.T) {
 	}
 
 	// Test search functionality with a stable question
-	result, err := tool.Call(context.Background(), "What year was Unix first released at Bell Labs?")
+	result, err := tool.Call(t.Context(), "What year was Unix first released at Bell Labs?")
 	if err != nil {
 		t.Fatalf("Tool call failed: %v", err)
 	}
@@ -58,7 +56,6 @@ func TestSerpAPITool(t *testing.T) {
 }
 
 func TestSerpAPIToolError(t *testing.T) {
-
 	// Save original environment variable
 	originalKey := os.Getenv("SERPAPI_API_KEY")
 	// Temporarily unset the environment variable

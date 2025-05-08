@@ -13,7 +13,7 @@ A CLI tool that:
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.24+
 - LLM API key
 - A Go project to document
 

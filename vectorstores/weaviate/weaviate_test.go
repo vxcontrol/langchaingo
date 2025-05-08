@@ -29,7 +29,7 @@ import (
 func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 	t.Helper()
 	testctr.SkipIfDockerNotAvailable(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	scheme := os.Getenv("WEAVIATE_SCHEME")
 	host := os.Getenv("WEAVIATE_HOST")
@@ -43,9 +43,10 @@ func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
 			// Use a fresh context for cleanup to avoid cancellation issues
-			ctx := context.Background()
+			ctx := context.Background() //nolint:usetesting
 			if err := weaviateContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate weaviate container: %v", err)
 			}
@@ -57,7 +58,11 @@ func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 		}
 
 		// Wait for the container to be ready
-		time.Sleep(10 * time.Second)
+		select {
+		case <-time.After(10 * time.Second):
+		case <-t.Context().Done():
+			t.Fatal("test timed out")
+		}
 	}
 
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
@@ -165,7 +170,7 @@ func getLampDocuments() []schema.Document {
 }
 
 func TestWeaviateStoreRest(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -204,7 +209,7 @@ func TestWeaviateStoreRest(t *testing.T) {
 }
 
 func TestWeaviateStoreRestWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -256,7 +261,7 @@ func TestWeaviateStoreRestWithScoreThreshold(t *testing.T) {
 }
 
 func TestMetadataSearch(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -302,7 +307,7 @@ func TestMetadataSearch(t *testing.T) {
 }
 
 func TestDeduplicater(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -346,7 +351,7 @@ func TestDeduplicater(t *testing.T) {
 }
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -393,7 +398,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 }
 
 func TestWeaviateAsRetriever(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -437,11 +442,11 @@ func TestWeaviateAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestWeaviateAsRetrieverWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -498,7 +503,7 @@ func TestWeaviateAsRetrieverWithScoreThreshold(t *testing.T) {
 }
 
 func TestWeaviateAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -579,15 +584,15 @@ func TestWeaviateAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.NotContains(t, result, "black", "expected black not in result")
-	require.NotContains(t, result, "blue", "expected blue not in result")
-	require.NotContains(t, result, "orange", "expected orange not in result")
-	require.NotContains(t, result, "purple", "expected purple not in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.NotContains(t, strings.ToLower(result), "black", "expected black not in result")
+	require.NotContains(t, strings.ToLower(result), "blue", "expected blue not in result")
+	require.NotContains(t, strings.ToLower(result), "orange", "expected orange not in result")
+	require.NotContains(t, strings.ToLower(result), "purple", "expected purple not in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestWeaviateAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -647,7 +652,7 @@ func TestWeaviateAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 }
 
 func TestWeaviateAsRetrieverWithMetadataFilters(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -724,13 +729,13 @@ func TestWeaviateAsRetrieverWithMetadataFilters(t *testing.T) {
 		"What color is the lamp in each room?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.NotContains(t, result, "orange", "expected not orange in result")
-	require.NotContains(t, result, "yellow", "expected not yellow in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.NotContains(t, strings.ToLower(result), "orange", "expected not orange in result")
+	require.NotContains(t, strings.ToLower(result), "yellow", "expected not yellow in result")
 }
 
 func TestWeaviateStoreAdditionalFieldsDefaults(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -772,7 +777,7 @@ func TestWeaviateStoreAdditionalFieldsDefaults(t *testing.T) {
 }
 
 func TestWeaviateStoreAdditionalFieldsAdded(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")
@@ -820,7 +825,7 @@ func TestWeaviateStoreAdditionalFieldsAdded(t *testing.T) {
 // `AddDocuments` or `SimilaritySearch` takes precedence over the one provided when creating
 // the `Store`.
 func TestWeaviateWithOptionEmbedder(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping Weaviate tests in short mode")

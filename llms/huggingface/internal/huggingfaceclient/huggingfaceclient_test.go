@@ -1,7 +1,6 @@
 package huggingfaceclient
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -16,7 +15,7 @@ import (
 const testURL = "https://api-inference.huggingface.co"
 
 func TestClient_RunInference(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -62,7 +61,7 @@ func TestClient_RunInference(t *testing.T) {
 }
 
 func TestClient_RunInferenceText2Text(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -109,7 +108,7 @@ func TestClient_RunInferenceText2Text(t *testing.T) {
 
 func TestClient_CreateEmbedding(t *testing.T) {
 	t.Skip("temporary skip")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -149,13 +148,12 @@ func TestClient_CreateEmbedding(t *testing.T) {
 }
 
 func TestClient_InvalidToken(t *testing.T) {
-
 	_, err := New("", "model", testURL)
 	assert.ErrorIs(t, err, ErrInvalidToken)
 }
 
 func TestClient_RunInferenceWithProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -193,7 +191,7 @@ func TestClient_RunInferenceWithProvider(t *testing.T) {
 	resp, err := client.RunInference(ctx, req)
 
 	// Skip test if provider is not available (404/403 error) or recording is missing
-	if err != nil && (strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "cached HTTP response not found")) {
+	if err != nil && (strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "cached HTTP response not found")) { //nolint:lll
 		t.Skip("Provider not available or recording missing, skipping test")
 	}
 

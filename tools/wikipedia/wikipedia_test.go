@@ -1,7 +1,6 @@
 package wikipedia
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 const _userAgent = "langchaingo test (https://github.com/vxcontrol/langchaingo)"
 
 func TestWikipedia(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	// Setup httprr for HTTP requests

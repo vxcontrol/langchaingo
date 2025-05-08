@@ -204,8 +204,10 @@ func TestWithStreamingFunc(t *testing.T) {
 		t.Error("StreamingFunc was not set")
 	}
 
+	ctx := t.Context()
+
 	// Test that the function works
-	err := opts.StreamingFunc(context.Background(), []byte("test"))
+	err := opts.StreamingFunc(ctx, []byte("test"))
 	if err != nil {
 		t.Errorf("StreamingFunc returned error: %v", err)
 	}
@@ -231,10 +233,12 @@ func TestWithStreamingReasoningFunc(t *testing.T) {
 		t.Error("StreamingReasoningFunc was not set")
 	}
 
+	ctx := t.Context()
+
 	// Test that the function works
 	reasoning := []byte("reasoning")
 	chunk := []byte("chunk")
-	err := opts.StreamingReasoningFunc(context.Background(), reasoning, chunk)
+	err := opts.StreamingReasoningFunc(ctx, reasoning, chunk)
 	if err != nil {
 		t.Errorf("StreamingReasoningFunc returned error: %v", err)
 	}
@@ -463,8 +467,10 @@ func TestStreamingFuncError(t *testing.T) {
 	var opts llms.CallOptions
 	llms.WithStreamingFunc(testFunc)(&opts)
 
-	err := opts.StreamingFunc(context.Background(), []byte("test"))
-	if err != testErr {
+	ctx := t.Context()
+
+	err := opts.StreamingFunc(ctx, []byte("test"))
+	if !errors.Is(err, testErr) {
 		t.Errorf("StreamingFunc error = %v, want %v", err, testErr)
 	}
 }

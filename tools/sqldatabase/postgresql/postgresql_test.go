@@ -27,7 +27,7 @@ func Test(t *testing.T) {
 	}
 
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// export LANGCHAINGO_TEST_POSTGRESQL=postgres://db_user:mysecretpassword@localhost:5438/test?sslmode=disable
 	pgURI := os.Getenv("LANGCHAINGO_TEST_POSTGRESQL")
@@ -47,6 +47,7 @@ func Test(t *testing.T) {
 		}
 		require.NoError(t, err)
 		defer func() {
+			ctx := context.Background() //nolint:usetesting
 			require.NoError(t, pgContainer.Terminate(ctx))
 		}()
 

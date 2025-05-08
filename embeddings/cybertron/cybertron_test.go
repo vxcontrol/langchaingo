@@ -1,7 +1,6 @@
 package cybertron
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -9,7 +8,7 @@ import (
 )
 
 func TestCybertronEmbeddings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	_, err := os.Stat(_defaultModelsDir)

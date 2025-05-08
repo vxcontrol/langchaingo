@@ -1,7 +1,6 @@
 package cohereclient
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -30,7 +29,7 @@ func setupTestClient(t *testing.T, baseURL, model string) (*Client, *httprr.Reco
 }
 
 func TestClient_CreateGeneration(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	client, rr := setupTestClient(t, "", "command")
@@ -47,7 +46,7 @@ func TestClient_CreateGeneration(t *testing.T) {
 }
 
 func TestClient_CreateGenerationWithCustomModel(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	client, rr := setupTestClient(t, "https://api.cohere.ai", "command-light")

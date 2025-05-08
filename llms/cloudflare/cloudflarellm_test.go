@@ -1,7 +1,6 @@
 package cloudflare
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -152,7 +151,7 @@ func TestGenerateContentErrors(t *testing.T) {
 		WithModel("test-model"),
 	)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		name     string
@@ -214,7 +213,7 @@ func TestGenerateContentErrors(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	// Create a test server that returns a successful response
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		response := `{
 			"result": {
 				"response": "Hello! How can I help you today?"
@@ -238,7 +237,9 @@ func TestCall(t *testing.T) {
 		WithCloudflareServerURL(serverURL),
 	)
 
-	result, err := llm.Call(context.Background(), "Hello")
+	ctx := t.Context()
+
+	result, err := llm.Call(ctx, "Hello")
 	if err != nil {
 		t.Errorf("Call() error = %v", err)
 	}
@@ -248,6 +249,8 @@ func TestCall(t *testing.T) {
 }
 
 func TestCreateEmbedding(t *testing.T) {
+	ctx := t.Context()
+
 	tests := []struct {
 		name           string
 		serverResponse string
@@ -310,8 +313,7 @@ func TestCreateEmbedding(t *testing.T) {
 				WithCloudflareServerURL(serverURL),
 			)
 
-			embeddings, err := llm.CreateEmbedding(context.Background(), tt.inputTexts)
-
+			embeddings, err := llm.CreateEmbedding(ctx, tt.inputTexts)
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("CreateEmbedding() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -324,6 +326,8 @@ func TestCreateEmbedding(t *testing.T) {
 }
 
 func TestGenerateContentWithSystemPrompt(t *testing.T) {
+	ctx := t.Context()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := `{
 			"result": {
@@ -358,7 +362,7 @@ func TestGenerateContentWithSystemPrompt(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), messages)
+	resp, err := llm.GenerateContent(ctx, messages)
 	if err != nil {
 		t.Errorf("GenerateContent() error = %v", err)
 	}
@@ -368,6 +372,8 @@ func TestGenerateContentWithSystemPrompt(t *testing.T) {
 }
 
 func TestGenerateContentWithErrors(t *testing.T) {
+	ctx := t.Context()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := `{
 			"result": {
@@ -404,7 +410,7 @@ func TestGenerateContentWithErrors(t *testing.T) {
 		},
 	}
 
-	_, err := llm.GenerateContent(context.Background(), messages)
+	_, err := llm.GenerateContent(ctx, messages)
 	if err == nil {
 		t.Error("GenerateContent() expected error but got nil")
 	}

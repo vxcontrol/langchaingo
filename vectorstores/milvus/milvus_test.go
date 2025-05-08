@@ -53,16 +53,18 @@ func getNewStore(t *testing.T, opts ...Option) (Store, error) {
 	testctr.SkipIfDockerNotAvailable(t)
 
 	_, e := createOpenAIEmbedder(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	url := os.Getenv("MILVUS_URL")
 	if url == "" {
-		milvusContainer, err := tcmilvus.Run(ctx, "milvusdb/milvus:v2.4.0-rc.1-latest", testcontainers.WithLogger(tclog.TestLogger(t)))
+		image := "milvusdb/milvus:v2.4.0-rc.1-latest"
+		milvusContainer, err := tcmilvus.Run(ctx, image, testcontainers.WithLogger(tclog.TestLogger(t)))
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
 		t.Cleanup(func() {
-			if err := milvusContainer.Terminate(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := milvusContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate milvus container: %v", err)
 			}
 		})
@@ -91,7 +93,7 @@ func getNewStore(t *testing.T, opts ...Option) (Store, error) {
 }
 
 func TestMilvusConnection(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("Skipping Milvus connection test in short mode")

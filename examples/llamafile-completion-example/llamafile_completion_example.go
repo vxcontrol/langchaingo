@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	options := []llamafile.Option{
 		llamafile.WithEmbeddingSize(2048),
 		llamafile.WithTemperature(0.8),

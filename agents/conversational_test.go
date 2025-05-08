@@ -1,7 +1,7 @@
 package agents
 
 import (
-	"context"
+	"regexp"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/chains"
@@ -39,11 +39,13 @@ func TestConversationalWithMemory(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	ctx := context.Background()
-	res, err := chains.Run(ctx, executor, "Hi! my name is Bob and the year I was born is 1987")
+	_, err = chains.Run(t.Context(), executor, "Hi! my name is Bob and the year I was born is 1987")
 	require.NoError(t, err)
 
-	// Verify we got a reasonable response
-	require.Contains(t, res, "Bob")
-	t.Logf("Agent response: %s", res)
+	res, err := chains.Run(t.Context(), executor, "What is the year I was born times 34")
+	require.NoError(t, err)
+	expectedRe := "67,?558"
+	if !regexp.MustCompile(expectedRe).MatchString(res) {
+		t.Errorf("result does not contain the crrect answer '67558', got: %s", res)
+	}
 }

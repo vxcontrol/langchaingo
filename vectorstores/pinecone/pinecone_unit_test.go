@@ -38,8 +38,6 @@ func (m *testEmbedder) EmbedQuery(ctx context.Context, query string) ([]float32,
 }
 
 func TestApplyClientOptions(t *testing.T) { //nolint:funlen // comprehensive test
-	t.Parallel()
-
 	tests := []struct {
 		name        string
 		opts        []Option
@@ -437,8 +435,6 @@ func TestWithOptions(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name        string
 		opts        []Option
@@ -574,8 +570,6 @@ func TestEdgeCases(t *testing.T) {
 }
 
 func TestEnvironmentVariableHandling(t *testing.T) {
-	t.Parallel()
-
 	// Save original values
 	origKey := os.Getenv("PINECONE_API_KEY")
 	defer os.Setenv("PINECONE_API_KEY", origKey)

@@ -54,6 +54,9 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 
 	rr := httprr.OpenForTest(t, transport)
 
+	// Avoid issue with different view of request bodies for Google AI SDK
+	rr.ScrubReq(httprr.JsonCompactScrubBody)
+
 	// Scrub API key for security in recordings
 	rr.ScrubReq(func(req *http.Request) error {
 		q := req.URL.Query()
@@ -67,13 +70,12 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	// Configure client with httprr
 	opts = append(opts, WithRest(), WithHTTPClient(rr.Client()))
 
-	llm, err := New(context.Background(), opts...)
+	llm, err := New(t.Context(), opts...)
 	require.NoError(t, err)
 	return llm
 }
 
 func TestGoogleAIGenerateContent(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	content := []llms.MessageContent{
@@ -85,7 +87,7 @@ func TestGoogleAIGenerateContent(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -93,7 +95,6 @@ func TestGoogleAIGenerateContent(t *testing.T) {
 }
 
 func TestGoogleAIGenerateContentWithMultipleMessages(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	content := []llms.MessageContent{
@@ -117,7 +118,7 @@ func TestGoogleAIGenerateContentWithMultipleMessages(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -125,7 +126,6 @@ func TestGoogleAIGenerateContentWithMultipleMessages(t *testing.T) {
 }
 
 func TestGoogleAIGenerateContentWithSystemMessage(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	content := []llms.MessageContent{
@@ -143,29 +143,27 @@ func TestGoogleAIGenerateContentWithSystemMessage(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
 
 func TestGoogleAICall(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
-	output, err := llm.Call(context.Background(), "What is 2 + 2?")
+	output, err := llm.Call(t.Context(), "What is 2 + 2?")
 	require.NoError(t, err)
 	assert.NotEmpty(t, output)
 	assert.Contains(t, output, "4")
 }
 
 func TestGoogleAICreateEmbedding(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	texts := []string{"hello world", "goodbye world", "hello world"}
 
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 	assert.NotEmpty(t, embeddings[0])
@@ -176,7 +174,6 @@ func TestGoogleAICreateEmbedding(t *testing.T) {
 }
 
 func TestGoogleAIWithOptions(t *testing.T) {
-
 	llm := newHTTPRRClient(t,
 		WithDefaultModel("gemini-1.5-flash"),
 		WithDefaultMaxTokens(100),
@@ -192,14 +189,13 @@ func TestGoogleAIWithOptions(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
 
 func TestGoogleAIWithStreaming(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	content := []llms.MessageContent{
@@ -213,7 +209,7 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 
 	var streamedContent string
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			streamedContent += string(chunk)
@@ -234,7 +230,6 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 }
 
 func TestGoogleAIWithTools(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	tools := []llms.Tool{
@@ -267,7 +262,7 @@ func TestGoogleAIWithTools(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(tools),
 	)
@@ -285,7 +280,6 @@ func TestGoogleAIWithTools(t *testing.T) {
 }
 
 func TestGoogleAIWithJSONMode(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	content := []llms.MessageContent{
@@ -298,7 +292,7 @@ func TestGoogleAIWithJSONMode(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithJSONMode(),
 	)
@@ -312,7 +306,6 @@ func TestGoogleAIWithJSONMode(t *testing.T) {
 }
 
 func TestGoogleAIErrorHandling(t *testing.T) {
-
 	// Skip test if no credentials and recording is missing
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
@@ -329,7 +322,7 @@ func TestGoogleAIErrorHandling(t *testing.T) {
 	})
 
 	// Create client with invalid API key
-	llm, err := New(context.Background(),
+	llm, err := New(t.Context(),
 		WithRest(),
 		WithAPIKey("invalid-key"),
 		WithHTTPClient(rr.Client()),
@@ -345,12 +338,11 @@ func TestGoogleAIErrorHandling(t *testing.T) {
 		},
 	}
 
-	_, err = llm.GenerateContent(context.Background(), content)
+	_, err = llm.GenerateContent(t.Context(), content)
 	assert.Error(t, err)
 }
 
 func TestGoogleAIMultiModalContent(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	// Read the test image
@@ -368,7 +360,7 @@ func TestGoogleAIMultiModalContent(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithModel("gemini-1.5-flash"),
 	)
@@ -379,7 +371,6 @@ func TestGoogleAIMultiModalContent(t *testing.T) {
 }
 
 func TestGoogleAIBatchEmbedding(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	// Test with more than 100 texts to trigger batching
@@ -388,7 +379,7 @@ func TestGoogleAIBatchEmbedding(t *testing.T) {
 		texts[i] = "test text " + string(rune('a'+i%26))
 	}
 
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 105)
@@ -398,7 +389,6 @@ func TestGoogleAIBatchEmbedding(t *testing.T) {
 }
 
 func TestGoogleAIWithHarmThreshold(t *testing.T) {
-
 	llm := newHTTPRRClient(t,
 		WithHarmThreshold(HarmBlockNone),
 	)
@@ -412,14 +402,13 @@ func TestGoogleAIWithHarmThreshold(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
 
 func TestGoogleAIToolCallResponse(t *testing.T) {
-
 	llm := newHTTPRRClient(t)
 
 	tools := []llms.Tool{
@@ -453,7 +442,7 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 	}
 
 	resp1, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(tools),
 	)
@@ -481,7 +470,7 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 
 		// Get final response
 		resp2, err := llm.GenerateContent(
-			context.Background(),
+			t.Context(),
 			content,
 			llms.WithTools(tools),
 		)

@@ -422,7 +422,7 @@ func TestOptions(t *testing.T) {
 func TestStreamingResponse(t *testing.T) {
 	// Test the streaming response handling in GenerateContent
 	streamedChunks := []string{}
-	streamFunc := func(ctx context.Context, chunk []byte) error {
+	streamFunc := func(ctx context.Context, chunk []byte) error { //nolint:unparam
 		streamedChunks = append(streamedChunks, string(chunk))
 		return nil
 	}
@@ -440,7 +440,7 @@ func TestStreamingResponse(t *testing.T) {
 		case "message":
 			streamedResponse += resp.Text
 			if streamFunc != nil && resp.Text != "" {
-				_ = streamFunc(context.Background(), []byte(resp.Text))
+				_ = streamFunc(t.Context(), []byte(resp.Text))
 			}
 		case "end":
 			// Final response would have the accumulated text
@@ -484,7 +484,7 @@ func TestNonStreamingResponse(t *testing.T) {
 func TestStreamingError(t *testing.T) {
 	// Test error handling in streaming function
 	streamErr := errors.New("streaming error")
-	streamFunc := func(ctx context.Context, chunk []byte) error {
+	streamFunc := func(ctx context.Context, chunk []byte) error { //nolint:unparam
 		return streamErr
 	}
 
@@ -496,7 +496,7 @@ func TestStreamingError(t *testing.T) {
 	// Simulate the error handling in the streaming callback
 	err := func(response maritacaclient.ChatResponse) error {
 		if streamFunc != nil && response.Text != "" {
-			if err := streamFunc(context.Background(), []byte(response.Text)); err != nil {
+			if err := streamFunc(t.Context(), []byte(response.Text)); err != nil {
 				return err
 			}
 		}

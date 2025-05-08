@@ -1,7 +1,6 @@
 package bedrock_test
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,8 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 )
 
-func setUpTest() (*bedrockruntime.Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.Background())
+func setupTest(t *testing.T) (*bedrockruntime.Client, error) {
+	t.Helper()
+
+	cfg, err := config.LoadDefaultConfig(t.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +25,7 @@ func setUpTest() (*bedrockruntime.Client, error) {
 }
 
 func TestAmazonOutput(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AWS_ACCESS_KEY_ID")
 
@@ -41,7 +42,7 @@ func TestAmazonOutput(t *testing.T) {
 	httputil.DefaultClient = rr.Client()
 	defer func() { httputil.DefaultClient = oldClient }()
 
-	client, err := setUpTest()
+	client, err := setupTest(t)
 	if err != nil {
 		t.Fatal(err)
 	}

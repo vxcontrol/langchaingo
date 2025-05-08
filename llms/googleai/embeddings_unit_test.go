@@ -163,7 +163,7 @@ func TestCreateEmbedding_ErrorScenarios(t *testing.T) {
 
 	t.Run("context cancellation", func(t *testing.T) {
 		// Would test behavior when context is cancelled
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // Cancel immediately
 		_ = ctx
 		// The actual test would verify proper context handling

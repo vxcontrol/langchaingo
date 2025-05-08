@@ -207,7 +207,7 @@ func (m *mockHandlerHaver) GetCallbackHandler() callbacks.Handler {
 }
 
 func (m *mockHandlerHaver) Call(ctx context.Context, inputs map[string]any, options ...ChainCallOption) (map[string]any, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockHandlerHaver) GetMemory() schema.Memory {
@@ -236,7 +236,7 @@ func TestSendApplyInputJobs(t *testing.T) {
 	sendApplyInputJobs(inputJobs, inputValues)
 
 	// Collect all jobs from the channel
-	var receivedJobs []applyInputJob
+	receivedJobs := make([]applyInputJob, 0, len(inputValues))
 	for job := range inputJobs {
 		receivedJobs = append(receivedJobs, job)
 	}
@@ -345,7 +345,7 @@ func TestChainInterface(t *testing.T) {
 func TestRunErrors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("multiple inputs error", func(t *testing.T) {
 		chain := &mockChain{
@@ -406,7 +406,7 @@ func TestRunErrors(t *testing.T) {
 func TestPredictErrors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("multiple outputs error", func(t *testing.T) {
 		chain := &mockChain{
@@ -457,7 +457,7 @@ func TestPredictErrors(t *testing.T) {
 func TestCallChainWithValidationErrors(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("input validation error", func(t *testing.T) {
 		chain := &mockChain{
@@ -539,7 +539,7 @@ func TestApplyStructs(t *testing.T) {
 func TestApplyWithZeroMaxWorkers(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	inputs := []map[string]any{
 		{"input": "test"},
 	}
@@ -568,7 +568,7 @@ func TestApplyWithZeroMaxWorkers(t *testing.T) {
 func TestRunWithMemoryKeys(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	chain := &mockChain{
 		inputKeys:  []string{"input", "memory_key"},

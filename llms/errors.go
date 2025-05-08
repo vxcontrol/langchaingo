@@ -95,9 +95,9 @@ func (e *Error) Is(target error) bool {
 		return errors.Is(target, context.Canceled)
 	case ErrCodeTimeout:
 		return errors.Is(target, context.DeadlineExceeded)
+	default:
+		return false
 	}
-
-	return false
 }
 
 // NewError creates a new standardized error.

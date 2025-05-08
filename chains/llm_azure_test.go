@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestLLMChainAzure(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)

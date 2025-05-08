@@ -1,7 +1,6 @@
 package jina
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func TestJina_EmbedDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "JINA_API_KEY")
 
@@ -45,7 +44,7 @@ func TestJina_EmbedDocuments(t *testing.T) {
 }
 
 func TestJina_EmbedQuery(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "JINA_API_KEY")
 
@@ -71,7 +70,7 @@ func TestJina_EmbedQuery(t *testing.T) {
 }
 
 func TestJina_WithBatchSize(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "JINA_API_KEY")
 
@@ -108,7 +107,7 @@ func TestJina_WithBatchSize(t *testing.T) {
 }
 
 func TestJina_StripNewLines(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "JINA_API_KEY")
 

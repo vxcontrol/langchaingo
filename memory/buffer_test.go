@@ -12,7 +12,7 @@ import (
 )
 
 func TestBufferMemory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	m := NewConversationBuffer()
@@ -32,7 +32,7 @@ func TestBufferMemory(t *testing.T) {
 }
 
 func TestBufferMemoryReturnMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	m := NewConversationBuffer()
@@ -62,7 +62,7 @@ func TestBufferMemoryReturnMessage(t *testing.T) {
 }
 
 func TestBufferMemoryWithPreLoadedHistory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	m := NewConversationBuffer(WithChatHistory(NewChatMessageHistory(
@@ -110,7 +110,7 @@ func (t testChatMessageHistory) Messages(context.Context) ([]llms.ChatMessage, e
 }
 
 func TestBufferMemoryWithChatHistoryOption(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	chatMessageHistory := testChatMessageHistory{}

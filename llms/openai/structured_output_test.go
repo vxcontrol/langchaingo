@@ -1,7 +1,6 @@
 package openai
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestStructuredOutputObjectSchema(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	responseFormat := &ResponseFormat{
 		Type: "json_schema",
 		JSONSchema: &ResponseFormatJSONSchema{
@@ -58,7 +57,7 @@ func TestStructuredOutputObjectSchema(t *testing.T) {
 }
 
 func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	responseFormat := &ResponseFormat{
 		Type: "json_schema",
 		JSONSchema: &ResponseFormatJSONSchema{
@@ -108,7 +107,7 @@ func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
 }
 
 func TestStructuredOutputFunctionCalling(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
@@ -146,8 +145,12 @@ func TestStructuredOutputFunctionCalling(t *testing.T) {
 			Parts: []llms.ContentPart{llms.TextContent{Text: "You are a helpful assistant"}},
 		},
 		{
-			Role:  llms.ChatMessageTypeGeneric,
-			Parts: []llms.ContentPart{llms.TextContent{Text: "What is the age of Bob Odenkirk, a famous comedy screenwriter and an actor."}},
+			Role: llms.ChatMessageTypeGeneric,
+			Parts: []llms.ContentPart{
+				llms.TextContent{
+					Text: "What is the age of Bob Odenkirk, a famous comedy screenwriter and an actor.",
+				},
+			},
 		},
 	}
 

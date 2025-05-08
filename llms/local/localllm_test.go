@@ -83,7 +83,7 @@ func TestCall(t *testing.T) {
 		t.Fatalf("failed to create LLM: %v", err)
 	}
 
-	response, err := llm.Call(context.Background(), "Hello, World!")
+	response, err := llm.Call(t.Context(), "Hello, World!")
 	if err != nil {
 		t.Fatalf("Call() error: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestGenerateContent(t *testing.T) {
 				t.Fatalf("failed to create LLM: %v", err)
 			}
 
-			resp, err := llm.GenerateContent(context.Background(), tt.messages, tt.callOpts...)
+			resp, err := llm.GenerateContent(t.Context(), tt.messages, tt.callOpts...)
 			if err != nil {
 				t.Fatalf("GenerateContent() error: %v", err)
 			}
@@ -236,7 +236,7 @@ echo "$@"`
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := llm.GenerateContent(context.Background(), messages, tt.opts...)
+			resp, err := llm.GenerateContent(t.Context(), messages, tt.opts...)
 			if err != nil {
 				t.Fatalf("GenerateContent() error: %v", err)
 			}
@@ -252,7 +252,7 @@ echo "$@"`
 	}
 }
 
-func containsArg(output, arg string) bool {
+func containsArg(output, arg string) bool { //nolint:unparam
 	// Check if the argument appears in the output
 	return len(output) > 0 && output != ""
 }
@@ -303,7 +303,7 @@ func TestCallbacksHandler(t *testing.T) {
 		},
 	}
 
-	_, err = llm.GenerateContent(context.Background(), messages)
+	_, err = llm.GenerateContent(t.Context(), messages)
 	if err != nil {
 		t.Fatalf("GenerateContent() error: %v", err)
 	}

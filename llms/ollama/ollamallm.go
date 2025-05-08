@@ -193,11 +193,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
 		}
 
-		rs := false
-		if req.Stream != nil && *req.Stream {
-			rs = true
-		}
-		if !rs || response.Done {
+		if req.Stream == nil || !*req.Stream || response.Done {
 			resp = response
 			resp.Message = api.Message{
 				Role:      "assistant",

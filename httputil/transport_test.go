@@ -68,7 +68,7 @@ func TestTransport_RoundTrip(t *testing.T) {
 				req.Header.Set("User-Agent", tt.existingUA)
 			}
 
-			resp, err := transport.RoundTrip(req)
+			resp, err := transport.RoundTrip(req) //nolint:bodyclose
 			require.NoError(t, err)
 			assert.NotNil(t, resp)
 

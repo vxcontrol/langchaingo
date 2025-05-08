@@ -77,7 +77,11 @@ func sequentialChainExample() {
 	chain2 := chains.NewLLMChain(llm, prompts.NewPromptTemplate(template2, []string{"synopsis"}))
 	chain2.OutputKey = "review"
 
-	sequentialChain, err := chains.NewSequentialChain([]chains.Chain{chain1, chain2}, []string{"title", "era"}, []string{"review"})
+	sequentialChain, err := chains.NewSequentialChain(
+		[]chains.Chain{chain1, chain2},
+		[]string{"title", "era"},
+		[]string{"review"},
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

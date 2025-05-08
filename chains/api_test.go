@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -47,7 +46,7 @@ visibility	Instant	meters	Viewing distance in meters. Influenced by low clouds, 
 func TestAPI(t *testing.T) {
 	t.Skip("Temporarily skipping due to httprr format issue")
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 

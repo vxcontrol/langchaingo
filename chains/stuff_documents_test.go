@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -14,7 +13,7 @@ import (
 )
 
 func TestStuffDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 

@@ -43,7 +43,7 @@ func newHTTPRRClient(t *testing.T, opts ...googleai.Option) *Vertex {
 		googleai.WithCloudLocation("us-central1"),
 	)
 
-	llm, err := New(context.Background(), opts...)
+	llm, err := New(t.Context(), opts...)
 	require.NoError(t, err)
 	return llm
 }
@@ -71,7 +71,7 @@ func TestVertexGenerateContent(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -104,7 +104,7 @@ func TestVertexGenerateContentWithMultipleMessages(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -131,7 +131,7 @@ func TestVertexGenerateContentWithSystemMessage(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -142,7 +142,7 @@ func TestVertexCall(t *testing.T) {
 
 	llm := newHTTPRRClient(t)
 
-	output, err := llm.Call(context.Background(), "What is 3 + 3?")
+	output, err := llm.Call(t.Context(), "What is 3 + 3?")
 	require.NoError(t, err)
 	assert.NotEmpty(t, output)
 	assert.Contains(t, output, "6")
@@ -155,7 +155,7 @@ func TestVertexCreateEmbedding(t *testing.T) {
 
 	texts := []string{"hello vertex", "goodbye vertex", "hello vertex"}
 
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 	assert.NotEmpty(t, embeddings[0])
@@ -183,7 +183,7 @@ func TestVertexWithOptions(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -205,7 +205,7 @@ func TestVertexWithStreaming(t *testing.T) {
 
 	var streamedContent string
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			streamedContent += string(chunk)
@@ -260,7 +260,7 @@ func TestVertexWithTools(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(tools),
 	)
@@ -292,7 +292,7 @@ func TestVertexWithJSONMode(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithJSONMode(),
 	)
@@ -324,7 +324,7 @@ func TestVertexMultiModalContent(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithModel("gemini-pro-vision"),
 	)
@@ -345,7 +345,7 @@ func TestVertexBatchEmbedding(t *testing.T) {
 		texts[i] = "vertex text " + string(rune('a'+i%26))
 	}
 
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 105)
@@ -370,7 +370,7 @@ func TestVertexWithHarmThreshold(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -416,7 +416,7 @@ func TestVertexToolCallResponse(t *testing.T) {
 	}
 
 	resp1, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(tools),
 	)
@@ -444,7 +444,7 @@ func TestVertexToolCallResponse(t *testing.T) {
 
 		// Get final response
 		resp2, err := llm.GenerateContent(
-			context.Background(),
+			t.Context(),
 			content,
 			llms.WithTools(tools),
 		)
@@ -469,7 +469,7 @@ func TestVertexWithResponseMIMEType(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithResponseMIMEType("application/json"),
 	)
@@ -498,7 +498,7 @@ func TestVertexErrorOnConflictingOptions(t *testing.T) {
 
 	// Should error when both JSONMode and ResponseMIMEType are set
 	_, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithJSONMode(),
 		llms.WithResponseMIMEType("application/json"),

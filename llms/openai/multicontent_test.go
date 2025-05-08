@@ -45,7 +45,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 }
 
 func TestMultiContentText(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -68,7 +68,7 @@ func TestMultiContentText(t *testing.T) {
 }
 
 func TestMultiContentTextChatSequence(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	content := []llms.MessageContent{
@@ -95,12 +95,12 @@ func TestMultiContentTextChatSequence(t *testing.T) {
 }
 
 func TestMultiContentImage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestClient(t, WithModel("gpt-4o"))
 
 	parts := []llms.ContentPart{
-		llms.ImageURLPart("https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"),
+		llms.ImageURLPart("https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"), //nolint:lll
 		llms.TextPart("describe this image in detail"),
 	}
 	content := []llms.MessageContent{
@@ -119,7 +119,7 @@ func TestMultiContentImage(t *testing.T) {
 }
 
 func TestWithStreaming(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -150,7 +150,7 @@ func TestWithStreaming(t *testing.T) {
 
 //nolint:lll
 func TestFunctionCall(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -167,12 +167,11 @@ func TestFunctionCall(t *testing.T) {
 		{
 			Name:        "getCurrentWeather",
 			Description: "Get the current weather in a given location",
-			Parameters:  json.RawMessage(`{"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}}, "required": ["location"]}`),
+			Parameters:  json.RawMessage(`{"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}}, "required": ["location"]}`), //nolint:lll
 		},
 	}
 
-	rsp, err := llm.GenerateContent(ctx, content,
-		llms.WithFunctions(functions))
+	rsp, err := llm.GenerateContent(ctx, content, llms.WithFunctions(functions))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)

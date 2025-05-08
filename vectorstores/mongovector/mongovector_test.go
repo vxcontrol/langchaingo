@@ -75,7 +75,8 @@ func TestMain(m *testing.M) {
 	// Cleanup shared container if it was created
 	if sharedTestEnv != nil && sharedTestEnv.container != nil {
 		fmt.Printf("Cleaning up MongoDB container\n")
-		if err := sharedTestEnv.container.Terminate(context.Background()); err != nil {
+		ctx := context.Background() //nolint:usetesting
+		if err := sharedTestEnv.container.Terminate(ctx); err != nil {
 			fmt.Printf("Failed to terminate MongoDB container: %v\n", err)
 		}
 	}
@@ -105,7 +106,7 @@ func cleanName(name string) string {
 // This uses sync.Once to ensure the MongoDB Atlas Local container is only
 // created once and shared across all tests for efficiency.
 // The container includes both MongoDB and Atlas Search capabilities.
-func setupTestEnv(t *testing.T, httpClient ...*http.Client) *testEnv {
+func setupTestEnv(t *testing.T, _ ...*http.Client) *testEnv {
 	t.Helper()
 
 	if testing.Short() {
@@ -117,7 +118,7 @@ func setupTestEnv(t *testing.T, httpClient ...*http.Client) *testEnv {
 		if *mongoVectorVerbose {
 			fmt.Printf("Setting up shared MongoDB container\n")
 		}
-		ctx := context.Background()
+		ctx := t.Context()
 
 		container, err := mongodb.Run(ctx, "mongodb/mongodb-atlas-local:latest",
 			mongodb.WithUsername("admin"),
@@ -198,7 +199,7 @@ func createTestStore(t *testing.T, env *testEnv, dim int, index string) Store {
 	}
 
 	// Create the vectorstore collection
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := env.client.Database(dbName).CreateCollection(ctx, collName); err != nil {
 		// Collection might already exist in parallel tests, which is fine
 		if !mongo.IsDuplicateKeyError(err) {
@@ -220,7 +221,8 @@ func createTestStore(t *testing.T, env *testEnv, dim int, index string) Store {
 	// Clean up database after test (only for parent tests, not subtests)
 	if len(parts) == 1 {
 		t.Cleanup(func() {
-			if err := coll.Database().Drop(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := coll.Database().Drop(ctx); err != nil {
 				t.Logf("Failed to drop database %s: %v", dbName, err)
 			}
 		})
@@ -350,7 +352,8 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for tid := range tests {
+		test := tests[tid]
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -377,7 +380,7 @@ func TestStore_AddDocuments(t *testing.T) {
 
 	// Set up shared test environment for all subtests
 	env := setupTestEnv(t, rr.Client())
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		name    string
@@ -417,8 +420,8 @@ func TestStore_AddDocuments(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		test := test // capture range variable
+	for tid := range tests {
+		test := tests[tid]
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -461,7 +464,7 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 
 	emb, options := setupTestEmbedder(t, store, test)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := flushMockDocuments(ctx, store, emb)
 	if err != nil {
 		t.Fatalf("failed to flush mock documents: %v", err)
@@ -490,12 +493,12 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 
 		if test.wantErr != "" {
 			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
-				lastErr = fmt.Errorf("expected error containing %q, got: %v", test.wantErr, err)
+				lastErr = fmt.Errorf("expected error containing %q, got: %w", test.wantErr, err)
 				continue
 			}
 			return // Success - we got the expected error
 		} else if err != nil {
-			lastErr = fmt.Errorf("unexpected error: %v", err)
+			lastErr = fmt.Errorf("unexpected error: %w", err)
 			continue
 		}
 
@@ -589,7 +592,7 @@ func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 		{PageContent: "v0001", Score: 0.001},
 	}
 
-	cases := []struct {
+	tests := []struct {
 		name         string
 		numDocuments int
 		seed         []schema.Document
@@ -615,8 +618,8 @@ func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
-		tc := tc // capture range variable
+	for tid := range tests {
+		tc := tests[tid]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -736,8 +739,8 @@ func TestStore_SimilaritySearch_NonExactQuery(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt // capture range variable
+	for tid := range tests {
+		tt := tests[tid]
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

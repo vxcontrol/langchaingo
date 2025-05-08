@@ -1,7 +1,6 @@
 package bedrockclient
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -148,7 +147,9 @@ func TestGetMaxTokens(t *testing.T) {
 }
 
 func TestCreateCompletion_UnsupportedProvider(t *testing.T) {
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	ctx := t.Context()
+
+	cfg, err := config.LoadDefaultConfig(ctx)
 	require.NoError(t, err)
 
 	bedrockClient := bedrockruntime.NewFromConfig(cfg)
@@ -159,7 +160,7 @@ func TestCreateCompletion_UnsupportedProvider(t *testing.T) {
 	}
 	options := llms.CallOptions{}
 
-	_, err = client.CreateCompletion(context.Background(), "unsupported.model", messages, options)
+	_, err = client.CreateCompletion(ctx, "unsupported.model", messages, options)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unsupported provider")
 }

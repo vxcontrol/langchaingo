@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -40,7 +39,7 @@ func createOpenAILLMForQA(t *testing.T) *openai.LLM {
 }
 
 func TestRefineQA(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForQA(t)
 
@@ -62,7 +61,7 @@ func TestRefineQA(t *testing.T) {
 }
 
 func TestMapReduceQA(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForQA(t)
 
@@ -85,7 +84,7 @@ func TestMapReduceQA(t *testing.T) {
 func TestMapRerankQA(t *testing.T) {
 	t.Skip("Test currently fails; see #415")
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForQA(t)
 

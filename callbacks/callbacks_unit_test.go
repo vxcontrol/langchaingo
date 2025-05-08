@@ -95,7 +95,7 @@ func TestSimpleHandler(t *testing.T) {
 	// Test that SimpleHandler implements Handler interface
 	var _ Handler = SimpleHandler{}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	handler := SimpleHandler{}
 
 	// Test all methods run without error (they're all no-ops)
@@ -125,7 +125,7 @@ func TestCombiningHandler(t *testing.T) {
 	// Test that CombiningHandler implements Handler interface
 	var _ Handler = CombiningHandler{}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("empty callbacks", func(t *testing.T) {
 		handler := CombiningHandler{Callbacks: []Handler{}}
@@ -266,7 +266,7 @@ func TestHandlerHaverInterface(t *testing.T) {
 func TestComplexCombiningScenario(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a complex scenario with nested combining handlers
 	mock1 := &mockHandler{}
@@ -290,7 +290,7 @@ func TestComplexCombiningScenario(t *testing.T) {
 func TestCombiningHandlerWithMixedTypes(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test combining different handler types
 	mock := &mockHandler{}
@@ -311,7 +311,7 @@ func TestCombiningHandlerWithMixedTypes(t *testing.T) {
 func TestCallbackTypes(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		name     string

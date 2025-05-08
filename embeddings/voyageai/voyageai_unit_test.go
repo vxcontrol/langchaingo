@@ -1,7 +1,6 @@
 package voyageai
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -205,7 +204,7 @@ func TestVoyageAI_EmbedQuery_InvalidURL(t *testing.T) {
 		client:        httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := v.EmbedQuery(ctx, "test query")
 	require.Error(t, err)
@@ -222,7 +221,7 @@ func TestVoyageAI_EmbedDocuments_InvalidURL(t *testing.T) {
 		client:        httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := v.EmbedDocuments(ctx, []string{"doc1", "doc2"})
 	require.Error(t, err)

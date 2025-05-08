@@ -9,7 +9,7 @@ import (
 )
 
 func TestTransform(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	c := NewTransform(

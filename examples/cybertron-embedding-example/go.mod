@@ -1,4 +1,4 @@
-module github.com/tmc/langchaingo/examples/cybertron-embedding-example
+module github.com/vxcontrol/langchaingo/examples/cybertron-embedding-example
 
 go 1.24.0
 
@@ -24,7 +24,7 @@ require (
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/nlpodyssey/cybertron v0.2.1 // indirect

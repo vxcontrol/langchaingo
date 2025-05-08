@@ -29,7 +29,7 @@ func preCheckEnvSetting(t *testing.T) string {
 	t.Helper()
 	testctr.SkipIfDockerNotAvailable(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	if testing.Short() {
 		t.Skip("skipping alloydb vectorstore tests in short mode")
 	}
@@ -56,8 +56,10 @@ func preCheckEnvSetting(t *testing.T) string {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			if err := pgVectorContainer.Terminate(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := pgVectorContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate alloydb container: %v", err)
 			}
 		})
@@ -76,8 +78,9 @@ func preCheckEnvSetting(t *testing.T) string {
 
 func setEngineWithImage(t *testing.T) alloydbutil.PostgresEngine {
 	t.Helper()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	myPool, err := pgxpool.New(ctx, pgvectorURL)
 	if err != nil {
 		t.Fatal("Could not set Engine: ", err)
@@ -120,7 +123,7 @@ func initVectorStore(t *testing.T) (alloydb.VectorStore, func() error) {
 		t.Skip("Skipping alloydb vectorstore tests in short mode")
 	}
 	pgEngine := setEngineWithImage(t)
-	ctx := context.Background()
+	ctx := t.Context()
 	vectorstoreTableoptions := alloydbutil.VectorstoreTableOptions{
 		TableName:         "my_test_table",
 		OverwriteExisting: true,
@@ -139,15 +142,17 @@ func initVectorStore(t *testing.T) (alloydb.VectorStore, func() error) {
 	}
 
 	cleanUpTableFn := func() error {
-		_, err := pgEngine.Pool.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", "my_test_table"))
+		ctx := context.Background() //nolint:usetesting
+		_, err := pgEngine.Pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", "my_test_table"))
 		return err
 	}
 	return vs, cleanUpTableFn
 }
 
 func TestContainerPingToDB(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	engine := setEngineWithImage(t)
 
 	defer engine.Close()
@@ -158,10 +163,17 @@ func TestContainerPingToDB(t *testing.T) {
 }
 
 func TestContainerApplyVectorIndexAndDropIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	vs, cleanUpTableFn := initVectorStore(t)
-	idx := vs.NewBaseIndex("testindex", "hnsw", alloydb.CosineDistance{}, []string{}, alloydb.HNSWOptions{M: 4, EfConstruction: 16})
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		alloydb.CosineDistance{},
+		[]string{},
+		alloydb.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -177,10 +189,17 @@ func TestContainerApplyVectorIndexAndDropIndex(t *testing.T) {
 }
 
 func TestContainerIsValidIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	vs, cleanUpTableFn := initVectorStore(t)
-	idx := vs.NewBaseIndex("testindex", "hnsw", alloydb.CosineDistance{}, []string{}, alloydb.HNSWOptions{M: 4, EfConstruction: 16})
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		alloydb.CosineDistance{},
+		[]string{},
+		alloydb.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +220,7 @@ func TestContainerIsValidIndex(t *testing.T) {
 }
 
 func TestContainerAddDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
 	if !rr.Recording() {

@@ -1,7 +1,6 @@
 package perplexity
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func TestPerplexityTool(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "PERPLEXITY_API_KEY")
 

@@ -128,7 +128,7 @@ func TestMemoryVariables(t *testing.T) {
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session", WithMemoryKey("custom_key"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	variables := m.MemoryVariables(ctx)
 
 	expected := []string{"custom_key"}
@@ -143,7 +143,7 @@ func TestGetMemoryKey(t *testing.T) {
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session", WithMemoryKey("test_key"))
 
-	ctx := context.Background()
+	ctx := t.Context()
 	key := m.GetMemoryKey(ctx)
 
 	if key != "test_key" {
@@ -281,7 +281,7 @@ func TestMessagesToZepMessages(t *testing.T) {
 func TestLoadMemoryVariablesReturnMessages(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session", WithReturnMessages(true))
 
@@ -313,7 +313,7 @@ func TestLoadMemoryVariablesReturnMessages(t *testing.T) {
 func TestLoadMemoryVariablesBufferString(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session", WithReturnMessages(false))
 
@@ -345,7 +345,7 @@ func TestLoadMemoryVariablesBufferString(t *testing.T) {
 func TestLoadMemoryVariablesCustomKey(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session", WithMemoryKey("custom_history"))
 
@@ -368,7 +368,7 @@ func TestLoadMemoryVariablesCustomKey(t *testing.T) {
 func TestLoadMemoryVariablesError(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session")
 
@@ -387,7 +387,7 @@ func TestLoadMemoryVariablesError(t *testing.T) {
 func TestSaveContext(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("BasicSave", func(t *testing.T) {
 		client := createMockZepClient()
@@ -477,7 +477,7 @@ func TestSaveContext(t *testing.T) {
 func TestClear(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	client := createMockZepClient()
 	m := NewMemory(client, "test-session")
 
@@ -544,7 +544,7 @@ func TestChatMessageHistoryMethods(t *testing.T) {
 
 	t.Run("SetMessages", func(t *testing.T) {
 		h := &ChatMessageHistory{}
-		err := h.SetMessages(context.Background(), []llms.ChatMessage{})
+		err := h.SetMessages(t.Context(), []llms.ChatMessage{})
 		if err != nil {
 			t.Errorf("SetMessages should return nil, got %v", err)
 		}

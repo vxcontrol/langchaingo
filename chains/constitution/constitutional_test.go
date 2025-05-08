@@ -1,7 +1,6 @@
 package constitution
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,7 +15,6 @@ import (
 )
 
 func TestConstitutionCritiqueParsing(t *testing.T) {
-
 	textOne := ` This text is bad.
 
 	Revision request: Make it better.
@@ -40,7 +38,7 @@ func TestConstitutionCritiqueParsing(t *testing.T) {
 
 func TestConstitutionalChain(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)

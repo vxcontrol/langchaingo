@@ -51,7 +51,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewWithContext(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	llm, err := NewWithContext(ctx, WithClient(&bedrockruntime.Client{}))
 	if err != nil {
 		t.Fatalf("NewWithContext() error: %v", err)

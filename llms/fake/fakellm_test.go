@@ -10,8 +10,9 @@ import (
 )
 
 func TestFakeLLM_CallMethod(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
 
@@ -34,8 +35,9 @@ func TestFakeLLM_CallMethod(t *testing.T) {
 }
 
 func TestFakeLLM_GenerateContentMethod(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
 	msg := llms.MessageContent{
@@ -69,8 +71,9 @@ func TestFakeLLM_GenerateContentMethod(t *testing.T) {
 }
 
 func TestFakeLLM_ResetMethod(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
 
@@ -81,8 +84,9 @@ func TestFakeLLM_ResetMethod(t *testing.T) {
 }
 
 func TestFakeLLM_AddResponseMethod(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
 
@@ -107,14 +111,15 @@ func TestFakeLLM_AddResponseMethod(t *testing.T) {
 }
 
 func TestFakeLLM_WithChain(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
 
 	fakeLLM.AddResponse("My name is Alexandre")
 
-	NextToResponse(fakeLLM, 4)
+	NextToResponse(ctx, fakeLLM, 4)
 	llmChain := chains.NewConversation(fakeLLM, memory.NewConversationBuffer())
 	out, err := chains.Run(ctx, llmChain, "What's my name? How many times did I ask this?")
 	if err != nil {
@@ -134,9 +139,9 @@ func setupResponses() []string {
 	}
 }
 
-func NextToResponse(fakeLLM *LLM, n int) {
+func NextToResponse(ctx context.Context, fakeLLM *LLM, n int) {
 	for i := 1; i < n; i++ {
-		_, err := fakeLLM.Call(context.Background(), "Teste")
+		_, err := fakeLLM.Call(ctx, "Teste")
 		if err != nil {
 			panic(err)
 		}

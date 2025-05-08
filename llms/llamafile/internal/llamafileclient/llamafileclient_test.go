@@ -1,7 +1,6 @@
 package llamafileclient
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestClient_Generate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "LLAMAFILE_HOST")
 
@@ -54,7 +53,7 @@ func TestClient_Generate(t *testing.T) {
 }
 
 func TestClient_GenerateStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "LLAMAFILE_HOST")
 
@@ -93,7 +92,7 @@ func TestClient_GenerateStream(t *testing.T) {
 }
 
 func TestClient_GenerateChat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "LLAMAFILE_HOST")
 
@@ -137,7 +136,7 @@ func TestClient_GenerateChat(t *testing.T) {
 }
 
 func TestClient_CreateEmbedding(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "LLAMAFILE_HOST")
 
@@ -220,6 +219,9 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestNewClientWithEnvironmentVariables(t *testing.T) {
+	originalKey := os.Getenv("LLAMAFILE_HOST")
+	defer os.Setenv("LLAMAFILE_HOST", originalKey)
+
 	tests := []struct {
 		name    string
 		envHost string

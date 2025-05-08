@@ -267,7 +267,7 @@ func TestStore_AddDocuments(t *testing.T) { //nolint:funlen // comprehensive tes
 				client:                httputil.DefaultClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			ids, err := store.AddDocuments(ctx, tt.docs, tt.options...)
 
 			if tt.wantErr {
@@ -475,7 +475,7 @@ func TestStore_SimilaritySearch(t *testing.T) { //nolint:funlen // comprehensive
 				client:                httputil.DefaultClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			docs, err := store.SimilaritySearch(ctx, tt.query, tt.numDocuments, tt.options...)
 
 			if tt.wantErr {
@@ -550,7 +550,7 @@ func TestStore_CreateIndex(t *testing.T) {
 				client:                httputil.DefaultClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			err := store.CreateIndex(ctx, tt.indexName, tt.options...)
 
 			if tt.wantErr {
@@ -582,7 +582,7 @@ func TestStore_DeleteIndex(t *testing.T) {
 		client:                httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := store.DeleteIndex(ctx, "test-index")
 	require.NoError(t, err)
 }
@@ -611,7 +611,7 @@ func TestStore_ListIndexes(t *testing.T) {
 		client:                httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	var result map[string]interface{}
 	err := store.ListIndexes(ctx, &result)
 	require.NoError(t, err)
@@ -645,7 +645,7 @@ func TestStore_RetrieveIndex(t *testing.T) {
 		client:                httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	var result map[string]interface{}
 	err := store.RetrieveIndex(ctx, "test-index", &result)
 	require.NoError(t, err)
@@ -1151,7 +1151,7 @@ func TestDocumentUploadEdgeCases(t *testing.T) {
 				client:                httputil.DefaultClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			ids, err := store.AddDocuments(ctx, tt.docs)
 
 			if tt.wantErr {
@@ -1237,7 +1237,7 @@ func TestSearchWithComplexFilters(t *testing.T) {
 				client:                httputil.DefaultClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			_, err := store.SimilaritySearch(ctx, "query", 1, WithFilters(tt.filter))
 			require.NoError(t, err)
 
@@ -1286,7 +1286,7 @@ func TestConcurrentOperations(t *testing.T) {
 		client:                httputil.DefaultClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	const numGoroutines = 10
 
 	// Test concurrent similarity searches

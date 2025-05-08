@@ -162,7 +162,7 @@ const config = {
             href: "https://github.com/vxcontrol/langchaingo",
             label: "GitHub",
             position: "right",
-          }
+          },
           {
             type: "search",
             position: "right",

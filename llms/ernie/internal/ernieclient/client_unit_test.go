@@ -284,7 +284,7 @@ data: {"result":" Three","is_end":true,"usage":{"prompt_tokens":5,"total_tokens"
 			)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			resp, err := client.CreateCompletion(ctx, tt.modelPath, tt.request)
 
 			if tt.wantErr {
@@ -370,7 +370,7 @@ func TestClient_CreateEmbedding_Unit(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			resp, err := client.CreateEmbedding(ctx, tt.texts)
 
 			if tt.wantErr {
@@ -514,7 +514,7 @@ data: {"result":" Three","is_end":true}`,
 			// Set ModelPath for proper URL building
 			client.ModelPath = "completions"
 
-			ctx := context.Background()
+			ctx := t.Context()
 			resp, err := client.CreateChat(ctx, tt.request)
 
 			if tt.wantErr {
@@ -588,7 +588,7 @@ func TestClient_getAccessToken(t *testing.T) {
 				httpClient: mockClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			resp, err := client.getAccessToken(ctx)
 
 			if tt.wantErr {
@@ -699,7 +699,7 @@ data: {"result":" Three","is_end":true}`,
 				},
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			result, err := parseStreamingCompletionResponse(ctx, resp, req)
 
 			if tt.wantErr {
@@ -758,7 +758,7 @@ data: {"result":" Part 2","is_truncated":true,"is_end":true}`,
 				},
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			result, err := parseStreamingChatResponse(ctx, resp, req)
 
 			if tt.wantErr {
@@ -894,6 +894,8 @@ func TestCompletionRequestMarshaling(t *testing.T) {
 }
 
 func TestErrorScenarios(t *testing.T) {
+	ctx := t.Context()
+
 	tests := []struct {
 		name     string
 		testFunc func(t *testing.T)
@@ -922,7 +924,7 @@ func TestErrorScenarios(t *testing.T) {
 					}},
 				}
 
-				_, err = client.CreateCompletion(context.Background(), "", req)
+				_, err = client.CreateCompletion(ctx, "", req)
 				// JSON marshaling might not fail on invalid UTF-8 in newer Go versions
 				// so we just check that the function completes
 				_ = err
@@ -1001,6 +1003,8 @@ func TestConcurrentAccessTokenUpdate(t *testing.T) {
 }
 
 func TestRequestBodyReading(t *testing.T) {
+	ctx := t.Context()
+
 	// Test that request bodies can be read properly
 	mockClient := &mockHTTPClient{
 		responses: []mockResponse{
@@ -1018,7 +1022,7 @@ func TestRequestBodyReading(t *testing.T) {
 		Messages: []Message{{Role: "user", Content: "Test"}},
 	}
 
-	_, err = client.CreateCompletion(context.Background(), "", req)
+	_, err = client.CreateCompletion(ctx, "", req)
 	assert.NoError(t, err)
 
 	// Verify the request body was properly set
@@ -1036,6 +1040,8 @@ func TestRequestBodyReading(t *testing.T) {
 }
 
 func TestInvalidJSONResponse(t *testing.T) {
+	ctx := t.Context()
+
 	tests := []struct {
 		name     string
 		body     string
@@ -1045,7 +1051,7 @@ func TestInvalidJSONResponse(t *testing.T) {
 			name: "invalid JSON in completion",
 			body: `{invalid json}`,
 			testFunc: func(t *testing.T, client *Client) {
-				_, err := client.CreateCompletion(context.Background(), "", &CompletionRequest{
+				_, err := client.CreateCompletion(ctx, "", &CompletionRequest{
 					Messages: []Message{{Role: "user", Content: "Test"}},
 				})
 				assert.Error(t, err)
@@ -1055,7 +1061,7 @@ func TestInvalidJSONResponse(t *testing.T) {
 			name: "invalid JSON in embedding",
 			body: `{invalid json}`,
 			testFunc: func(t *testing.T, client *Client) {
-				_, err := client.CreateEmbedding(context.Background(), []string{"test"})
+				_, err := client.CreateEmbedding(ctx, []string{"test"})
 				assert.Error(t, err)
 			},
 		},
@@ -1064,7 +1070,7 @@ func TestInvalidJSONResponse(t *testing.T) {
 			body: `{invalid json}`,
 			testFunc: func(t *testing.T, client *Client) {
 				client.ModelPath = "test"
-				_, err := client.CreateChat(context.Background(), &ChatRequest{
+				_, err := client.CreateChat(ctx, &ChatRequest{
 					Messages: []*ChatMessage{{Role: "user", Content: "Test"}},
 				})
 				assert.Error(t, err)
@@ -1092,6 +1098,8 @@ func TestInvalidJSONResponse(t *testing.T) {
 }
 
 func TestResponseBodyClosure(t *testing.T) {
+	ctx := t.Context()
+
 	// Track if response body was closed
 	bodyClosed := false
 
@@ -1123,7 +1131,7 @@ func TestResponseBodyClosure(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make a request
-	_, err = client.CreateCompletion(context.Background(), "", &CompletionRequest{
+	_, err = client.CreateCompletion(ctx, "", &CompletionRequest{
 		Messages: []Message{{Role: "user", Content: "Test"}},
 	})
 	assert.NoError(t, err)
@@ -1158,6 +1166,8 @@ func TestEmptyModelPath(t *testing.T) {
 }
 
 func TestCreateChatWithoutFunctions(t *testing.T) {
+	ctx := t.Context()
+
 	mockClient := &mockHTTPClient{
 		responses: []mockResponse{
 			{
@@ -1179,7 +1189,7 @@ func TestCreateChatWithoutFunctions(t *testing.T) {
 		// No functions specified, so FunctionCallBehavior should remain empty
 	}
 
-	resp, err := client.CreateChat(context.Background(), req)
+	resp, err := client.CreateChat(ctx, req)
 	assert.NoError(t, err)
 	assert.Equal(t, "Response without functions", resp.Result)
 
@@ -1225,6 +1235,8 @@ func TestWithAKSKOption(t *testing.T) {
 }
 
 func TestResponseReaderError(t *testing.T) {
+	ctx := t.Context()
+
 	// Create a reader that fails
 	failingReader := &failingReader{
 		failAfter: 10,
@@ -1247,7 +1259,7 @@ func TestResponseReaderError(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = client.CreateCompletion(context.Background(), "", &CompletionRequest{
+	_, err = client.CreateCompletion(ctx, "", &CompletionRequest{
 		Messages: []Message{{Role: "user", Content: "Test"}},
 	})
 	// Should get an error from JSON decoding the failed read

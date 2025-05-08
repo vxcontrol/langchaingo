@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,7 +37,7 @@ func TestConstitutionCritiqueParsing(t *testing.T) {
 }
 
 func TestConstitutionalChainBasic(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)

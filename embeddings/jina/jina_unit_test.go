@@ -1,7 +1,6 @@
 package jina
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -246,7 +245,7 @@ func TestJina_EmbedQuery_Error(t *testing.T) {
 		client:        &http.Client{},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test with CreateEmbedding returning an error from the mock server
 	_, err := j.EmbedQuery(ctx, "test query")
@@ -270,7 +269,7 @@ func TestJina_EmbedDocuments_Error(t *testing.T) {
 		client:        &http.Client{},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test with CreateEmbedding returning an error from the mock server
 	_, err := j.EmbedDocuments(ctx, []string{"doc1", "doc2"})

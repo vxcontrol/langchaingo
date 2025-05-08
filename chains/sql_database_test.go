@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestSQLDatabaseChain_Call(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
@@ -65,7 +64,6 @@ func TestSQLDatabaseChain_Call(t *testing.T) {
 }
 
 func TestExtractSQLQuery(t *testing.T) {
-
 	cases := []struct {
 		inputStr string
 		expected string

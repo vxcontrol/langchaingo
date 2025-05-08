@@ -238,7 +238,7 @@ func (o *OpenAIFunctionsAgent) ParseOutput(contentResp *llms.ContentResponse) (
 		if err != nil {
 			// If it's not valid JSON, it might be a raw expression for the calculator
 			// Try to use it directly as tool input
-			return []schema.AgentAction{
+			return []schema.AgentAction{ //nolint:nilerr
 				{
 					Tool:      functionName,
 					ToolInput: toolInputStr,
@@ -281,7 +281,7 @@ func (o *OpenAIFunctionsAgent) ParseOutput(contentResp *llms.ContentResponse) (
 		if err != nil {
 			// If it's not valid JSON, it might be a raw expression for the calculator
 			// Try to use it directly as tool input
-			return []schema.AgentAction{
+			return []schema.AgentAction{ //nolint:nilerr
 				{
 					Tool:      functionName,
 					ToolInput: toolInputStr,

@@ -115,7 +115,7 @@ func preCheckEnvSetting(t *testing.T) string {
 
 	pgvectorURL := os.Getenv("PGVECTOR_CONNECTION_STRING")
 	if pgvectorURL == "" {
-		ctx := context.Background()
+		ctx := t.Context()
 		pgVectorContainer, err := tcpostgres.Run(
 			ctx,
 			"docker.io/pgvector/pgvector:pg16",
@@ -136,8 +136,10 @@ func preCheckEnvSetting(t *testing.T) string {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			if err := pgVectorContainer.Terminate(context.Background()); err != nil {
+			ctx := context.Background() //nolint:usetesting
+			if err := pgVectorContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate pgvector container: %v", err)
 			}
 		})
@@ -184,7 +186,7 @@ func TestPgvectorStoreRest(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 
@@ -229,7 +231,7 @@ func TestPgvectorStoreRestWithScoreThreshold(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 
@@ -293,7 +295,7 @@ func TestPgvectorStoreSimilarityScore(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 
@@ -342,7 +344,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 
@@ -393,7 +395,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 
 // note, we can also use same llm to show this test, but need imply
 // openai embedding [dimensions](https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions) args.
-func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
+func TestSimilaritySearchWithDifferentDimensions(t *testing.T) { //nolint:funlen
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
 	transport := &transportWithAPIKey{
@@ -403,6 +405,9 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 	rr := httprr.OpenForTest(t, transport)
 	defer rr.Close()
 	rr.ScrubResp(httprr.EmbeddingJSONFormatter())
+
+	// Avoid issue with different view of request bodies for Google AI SDK
+	rr.ScrubReq(httprr.JsonCompactScrubBody)
 
 	// Scrub Google AI API key for security in recordings
 	rr.ScrubReq(func(req *http.Request) error {
@@ -418,7 +423,7 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	pgvectorURL := preCheckEnvSetting(t)
 	collectionName := makeNewCollectionName()
 
@@ -508,7 +513,7 @@ func TestPgvectorAsRetriever(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
@@ -545,7 +550,7 @@ func TestPgvectorAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
@@ -560,7 +565,7 @@ func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
@@ -600,9 +605,9 @@ func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestPgvectorAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
@@ -617,7 +622,7 @@ func TestPgvectorAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
@@ -683,11 +688,11 @@ func TestPgvectorAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	require.NoError(t, err)
 	result = strings.ToLower(result)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
@@ -702,7 +707,7 @@ func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr)
 
@@ -760,9 +765,9 @@ func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		"What color is the lamp in each room?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.NotContains(t, result, "orange", "expected not orange in result")
-	require.NotContains(t, result, "yellow", "expected not yellow in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.NotContains(t, strings.ToLower(result), "orange", "expected not orange in result")
+	require.NotContains(t, strings.ToLower(result), "yellow", "expected not yellow in result")
 }
 
 func TestDeduplicater(t *testing.T) {
@@ -777,7 +782,7 @@ func TestDeduplicater(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 
@@ -828,7 +833,7 @@ func TestWithAllOptions(t *testing.T) {
 	}
 
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	e := createOpenAIEmbedder(t, rr)
 	conn, err := pgx.Connect(ctx, pgvectorURL)

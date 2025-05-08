@@ -1,7 +1,6 @@
 package palm
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -68,7 +67,7 @@ func TestPaLMCall(t *testing.T) {
 
 	llm := newPalmTestLLM(t)
 
-	output, err := llm.Call(context.Background(), "What is the capital of France?")
+	output, err := llm.Call(t.Context(), "What is the capital of France?")
 	require.NoError(t, err)
 	assert.NotEmpty(t, output)
 	assert.Contains(t, output, "Paris")
@@ -88,7 +87,7 @@ func TestPaLMGenerateContent(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -101,7 +100,7 @@ func TestPaLMCreateEmbedding(t *testing.T) {
 	llm := newPalmTestLLM(t)
 
 	texts := []string{"hello world", "goodbye world", "hello world"}
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 	assert.NotEmpty(t, embeddings[0])
@@ -126,7 +125,7 @@ func TestPaLMWithOptions(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithMaxTokens(100),
 		llms.WithTemperature(0.2),
@@ -156,7 +155,7 @@ func TestPaLMMultipleTexts(t *testing.T) {
 	llm := newPalmTestLLM(t)
 
 	// Test with empty input
-	_, err := llm.CreateEmbedding(context.Background(), []string{})
+	_, err := llm.CreateEmbedding(t.Context(), []string{})
 	assert.Error(t, err)
 	assert.Equal(t, ErrEmptyResponse, err)
 
@@ -166,7 +165,7 @@ func TestPaLMMultipleTexts(t *testing.T) {
 		"jumps over the lazy dog",
 		"Machine learning is fascinating",
 	}
-	embeddings, err := llm.CreateEmbedding(context.Background(), texts)
+	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 
@@ -190,7 +189,7 @@ func TestPaLMWithStopWords(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithStopWords([]string{"5"}),
 	)

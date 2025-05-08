@@ -47,6 +47,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestCreateCompletion(t *testing.T) {
+	ctx := t.Context()
+
 	tests := []struct {
 		name    string
 		binPath string
@@ -77,7 +79,7 @@ func TestCreateCompletion(t *testing.T) {
 				t.Fatalf("unexpected error creating client: %v", err)
 			}
 
-			completion, err := client.CreateCompletion(context.Background(), &CompletionRequest{
+			completion, err := client.CreateCompletion(ctx, &CompletionRequest{
 				Prompt: tt.prompt,
 			})
 			if err != nil {
@@ -98,7 +100,7 @@ func TestCreateCompletionError(t *testing.T) {
 		t.Fatalf("unexpected error creating client: %v", err)
 	}
 
-	_, err = client.CreateCompletion(context.Background(), &CompletionRequest{
+	_, err = client.CreateCompletion(t.Context(), &CompletionRequest{
 		Prompt: "test",
 	})
 	if err == nil {
@@ -107,7 +109,7 @@ func TestCreateCompletionError(t *testing.T) {
 }
 
 func TestCreateCompletionWithContext(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	client, err := New("sleep", false, "1") // Command that would take 1 second

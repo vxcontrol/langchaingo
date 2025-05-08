@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/prompts"
@@ -34,7 +33,7 @@ func TestMapReduceInputVariables(t *testing.T) {
 
 func TestMapReduce(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	c := NewMapReduceDocuments(
 		NewLLMChain(

@@ -1,7 +1,6 @@
 package pinecone_test
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -45,7 +44,11 @@ func waitPineconeIndexing(t *testing.T) {
 
 	// small delay for pinecone to index the documents
 	// it's a dirty hack, but sometimes the tests fail because of the pinecone indexing
-	time.Sleep(10 * time.Second)
+	select {
+	case <-time.After(12 * time.Second):
+	case <-t.Context().Done():
+		t.Fatal("test timed out")
+	}
 }
 
 // createOpenAIEmbedder creates an OpenAI embedder with httprr support for testing.
@@ -97,7 +100,7 @@ func createOpenAILLMAndEmbedder(t *testing.T, rr *httprr.RecordReplay) (*openai.
 }
 
 func TestPineconeStoreRest(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -128,7 +131,7 @@ func TestPineconeStoreRest(t *testing.T) {
 }
 
 func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -176,7 +179,7 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 }
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -220,7 +223,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 }
 
 func TestPineconeAsRetriever(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -259,11 +262,11 @@ func TestPineconeAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -306,12 +309,12 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -384,11 +387,11 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -461,12 +464,12 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -534,15 +537,15 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -616,5 +619,5 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "purple", "expected black in purple")
+	require.Contains(t, strings.ToLower(result), "purple", "expected black in purple")
 }

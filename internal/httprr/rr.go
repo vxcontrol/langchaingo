@@ -303,6 +303,35 @@ func open(file string, rt http.RoundTripper) (*RecordReplay, error) {
 	return rr, nil
 }
 
+// Compacting the body of the request to make it easier to match requests in the replay log.
+func JsonCompactScrubBody(req *http.Request) error {
+	var buf bytes.Buffer
+
+	if req.Body == nil {
+		return nil
+	}
+
+	if body, ok := req.Body.(*Body); ok && body != nil {
+		err := json.Compact(&buf, body.Data)
+		if err != nil {
+			return err
+		}
+		body.Data = buf.Bytes()
+	} else {
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return err
+		}
+		err = json.Compact(&buf, body)
+		if err != nil {
+			return err
+		}
+		req.Body = &Body{Data: buf.Bytes()}
+	}
+
+	return nil
+}
+
 // Client returns an http.Client using rr as its transport.
 // It is a shorthand for:
 //

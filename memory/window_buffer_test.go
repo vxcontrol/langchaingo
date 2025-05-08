@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestWindowBufferMemory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	m := NewConversationWindowBuffer(2)
@@ -50,8 +49,9 @@ func TestWindowBufferMemory(t *testing.T) {
 }
 
 func TestWindowBufferMemoryReturnMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	m := NewConversationWindowBuffer(2, WithReturnMessages(true))
 
 	err := m.SaveContext(ctx, map[string]any{"foo": "bar1"}, map[string]any{"bar": "foo1"})
@@ -82,7 +82,7 @@ func TestWindowBufferMemoryReturnMessage(t *testing.T) {
 }
 
 func TestWindowBufferMemoryWithPreLoadedHistory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	m := NewConversationWindowBuffer(2, WithChatHistory(NewChatMessageHistory(
@@ -104,6 +104,7 @@ func TestWindowBufferMemoryWithPreLoadedHistory(t *testing.T) {
 
 func TestConversationWindowBuffer_cutMessages(t *testing.T) {
 	t.Parallel()
+
 	type fields struct {
 		ConversationBuffer     ConversationBuffer
 		ConversationWindowSize int

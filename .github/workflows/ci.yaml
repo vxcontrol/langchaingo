@@ -63,7 +63,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GENAI_API_KEY: ${{ secrets.GENAI_API_KEY }}
         run: |
-          go test -v -json -coverprofile=coverage-${{ steps.go-version.outputs.version }}.out ./... | tee test-results-${{ steps.go-version.outputs.version }}.ndjson
+          go test -timeout=20m -race -v -json -coverprofile=coverage-${{ steps.go-version.outputs.version }}.out ./... | tee test-results-${{ steps.go-version.outputs.version }}.ndjson
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -72,28 +72,6 @@ jobs:
           path: |
             test-results-${{ steps.go-version.outputs.version }}.ndjson
             coverage-${{ steps.go-version.outputs.version }}.out
-  
-  test-race:
-    name: test -race
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-          cache: true
-          check-latest: false
-      - name: Test with Race Detector
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GENAI_API_KEY: ${{ secrets.GENAI_API_KEY }}
-        run: go test -v -json ./... -race | tee test-results-race-${{ steps.go-version.outputs.version }}.ndjson
-      - name: Upload race test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-race-go${{ steps.go-version.outputs.version }}.ndjson
-          path: test-results-race-${{ steps.go-version.outputs.version }}.ndjson
   
   coverage:
     name: coverage

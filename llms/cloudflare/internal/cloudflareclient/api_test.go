@@ -19,7 +19,7 @@ func TestClient_GenerateContent(t *testing.T) {
 		t.Parallel()
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Use test credentials when not recording
 	accountID := "test-account-id"

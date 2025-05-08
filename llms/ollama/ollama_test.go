@@ -105,7 +105,7 @@ func newStreamingTestClient(t *testing.T, opts ...Option) *LLM {
 }
 
 func TestGenerateContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestClient(t)
 
@@ -128,7 +128,6 @@ func TestGenerateContent(t *testing.T) {
 }
 
 func TestToolCall(t *testing.T) {
-	t.Parallel()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -154,7 +153,7 @@ func TestToolCall(t *testing.T) {
 		},
 	}})
 
-	rsp, err := llm.GenerateContent(context.Background(), content, toolOption)
+	rsp, err := llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
 
 	require.NotEmpty(t, rsp.Choices)
@@ -177,7 +176,7 @@ func TestToolCall(t *testing.T) {
 		},
 	})
 
-	rsp, err = llm.GenerateContent(context.Background(), content, toolOption)
+	rsp, err = llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
 	require.NotEmpty(t, rsp.Choices)
 	c1 = rsp.Choices[0]
@@ -186,7 +185,7 @@ func TestToolCall(t *testing.T) {
 }
 
 func TestWithFormat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestClient(t, WithFormat("json"))
 
@@ -215,7 +214,7 @@ func TestWithFormat(t *testing.T) {
 }
 
 func TestWithStreaming(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Use streaming-optimized client that avoids httprr interference
 	llm := newStreamingTestClient(t)
@@ -248,7 +247,7 @@ func TestWithStreaming(t *testing.T) {
 }
 
 func TestWithKeepAlive(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestClient(t, WithKeepAlive("1m"))
 
@@ -268,13 +267,10 @@ func TestWithKeepAlive(t *testing.T) {
 	assert.NotEmpty(t, resp.Choices)
 	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
-
-	// Note: gemma3:1b doesn't support embeddings
-	// Use TestCreateEmbedding for embedding tests
 }
 
 func TestWithPullModel(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// This test verifies the WithPullModel option works correctly.
 	// It uses a model that's likely already available locally (gemma3:1b)
@@ -303,7 +299,7 @@ func TestWithPullModel(t *testing.T) {
 }
 
 func TestCreateEmbedding(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Use the embedding-specific test client
 	llm := newEmbeddingTestClient(t)
@@ -339,7 +335,7 @@ func TestCreateEmbedding(t *testing.T) {
 }
 
 func TestWithPullTimeout(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if testing.Short() {
 		t.Skip("Skipping pull timeout test in short mode")

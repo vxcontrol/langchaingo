@@ -56,7 +56,7 @@ func (a *testAgent) GetTools() []tools.Tool {
 
 func TestExecutorWithErrorHandler(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	a := &testAgent{
 		err: agents.ErrUnableToParseOutput,
@@ -78,7 +78,7 @@ func TestExecutorWithErrorHandler(t *testing.T) {
 
 func TestExecutorWithMRKLAgent(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "SERPAPI_API_KEY")
@@ -123,7 +123,7 @@ func TestExecutorWithMRKLAgent(t *testing.T) {
 
 func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "SERPAPI_API_KEY")

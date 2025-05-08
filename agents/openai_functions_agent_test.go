@@ -1,7 +1,6 @@
 package agents_test
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -18,7 +17,7 @@ import (
 
 func TestOpenAIFunctionsAgentWithHTTPRR(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
@@ -67,7 +66,7 @@ func TestOpenAIFunctionsAgentWithHTTPRR(t *testing.T) {
 
 func TestOpenAIFunctionsAgentComplexCalculation(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 

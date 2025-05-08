@@ -77,7 +77,7 @@ var _ llms.Model = &testLanguageModel{}
 
 func TestApply(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	numInputs := 10
 	maxWorkers := 5
@@ -96,7 +96,7 @@ func TestApply(t *testing.T) {
 
 func TestApplyWithCanceledContext(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	numInputs := 10
 	maxWorkers := 5

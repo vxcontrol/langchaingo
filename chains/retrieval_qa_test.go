@@ -3,7 +3,6 @@ package chains
 import (
 	"context"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
@@ -53,7 +52,7 @@ func createOpenAILLMForRetrieval(t *testing.T) *openai.LLM {
 }
 
 func TestRetrievalQA(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForRetrieval(t)
 
@@ -69,11 +68,11 @@ func TestRetrievalQA(t *testing.T) {
 
 	result, err := Run(ctx, chain, "what is foo? ")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "34"), "expected 34 in result")
+	require.Contains(t, result, "34", "expected 34 in result")
 }
 
 func TestRetrievalQAFromLLM(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	r := testRetriever{}
 	llm := createOpenAILLMForRetrieval(t)
@@ -81,5 +80,5 @@ func TestRetrievalQAFromLLM(t *testing.T) {
 	chain := NewRetrievalQAFromLLM(llm, r)
 	result, err := Run(ctx, chain, "what is foo? ")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "34"), "expected 34 in result")
+	require.Contains(t, result, "34", "expected 34 in result")
 }

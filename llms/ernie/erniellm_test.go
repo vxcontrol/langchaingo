@@ -1,7 +1,6 @@
 package ernie
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -185,7 +184,7 @@ func hasExistingRecording(t *testing.T) bool {
 func TestLLM_Call(t *testing.T) {
 	llm := newErnieTestLLM(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	result, err := llm.Call(ctx, "Hello, how are you?")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
@@ -194,7 +193,7 @@ func TestLLM_Call(t *testing.T) {
 func TestLLM_GenerateContent(t *testing.T) {
 	llm := newErnieTestLLM(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	messages := []llms.MessageContent{
 		{
 			Role: llms.ChatMessageTypeHuman,
@@ -213,7 +212,7 @@ func TestLLM_GenerateContent(t *testing.T) {
 func TestLLM_CreateEmbedding(t *testing.T) {
 	llm := newErnieTestLLM(t)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	embeddings, err := llm.CreateEmbedding(ctx, []string{"hello world", "goodbye world"})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 2)

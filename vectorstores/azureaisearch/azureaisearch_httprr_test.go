@@ -31,7 +31,7 @@ func (m mockEmbedder) EmbedQuery(_ context.Context, text string) ([]float32, err
 }
 
 func TestStoreHTTPRR_CreateIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AZURE_AI_SEARCH_ENDPOINT", "AZURE_AI_SEARCH_API_KEY")
 
@@ -63,7 +63,7 @@ func TestStoreHTTPRR_CreateIndex(t *testing.T) {
 }
 
 func TestStoreHTTPRR_AddDocuments(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AZURE_AI_SEARCH_ENDPOINT", "AZURE_AI_SEARCH_API_KEY")
 
@@ -112,7 +112,7 @@ func TestStoreHTTPRR_AddDocuments(t *testing.T) {
 }
 
 func TestStoreHTTPRR_SimilaritySearch(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AZURE_AI_SEARCH_ENDPOINT", "AZURE_AI_SEARCH_API_KEY")
 
@@ -145,7 +145,7 @@ func TestStoreHTTPRR_SimilaritySearch(t *testing.T) {
 }
 
 func TestStoreHTTPRR_DeleteIndex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AZURE_AI_SEARCH_ENDPOINT", "AZURE_AI_SEARCH_API_KEY")
 
@@ -176,7 +176,7 @@ func TestStoreHTTPRR_DeleteIndex(t *testing.T) {
 }
 
 func TestStoreHTTPRR_ListIndexes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "AZURE_AI_SEARCH_ENDPOINT", "AZURE_AI_SEARCH_API_KEY")
 

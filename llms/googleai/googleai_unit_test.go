@@ -1,7 +1,6 @@
 package googleai
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -11,6 +10,7 @@ import (
 
 func TestNew(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tests := []struct {
 		name        string
@@ -67,7 +67,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := New(context.Background(), tt.opts...)
+			client, err := New(ctx, tt.opts...)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errContains != "" {

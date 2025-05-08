@@ -1,20 +1,20 @@
 httprr trace v1
-788 3932
+773 3449
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 368
+Content-Length: 353
 Content-Type: application/json
 x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
-{"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"Tell me about safety features"}], "role":"user"}], "safetySettings":[{"category":10, "threshold":4}, {"category":7, "threshold":4}, {"category":8, "threshold":4}, {"category":9, "threshold":4}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
-Content-Length: 3552
+{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"Tell me about safety features"}],"role":"user"}],"safetySettings":[{"category":10,"threshold":4},{"category":7,"threshold":4},{"category":8,"threshold":4},{"category":9,"threshold":4}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
+Content-Length: 3069
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Sat, 21 Jun 2025 22:26:53 GMT
+Date: Mon, 23 Jun 2025 09:54:02 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=3728
+Server-Timing: gfet4t7; dur=3098
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -28,7 +28,7 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "Okay, let's talk about safety features! To give you the most helpful information, I need a little more direction.  Safety features are relevant in many contexts.  To help me narrow it down, tell me:\n\n**1. What are you interested in safety features for?**\n\n*   **Cars/Vehicles:** (e.g., \"Tell me about safety features in modern cars,\" or \"What are the most important safety features to look for when buying a used car?\")\n*   **Home:** (e.g., \"What are some home safety features to prevent burglaries?\" or \"What fire safety features should I have in my home?\")\n*   **Workplace:** (e.g., \"What are common workplace safety features in a factory?\" or \"What safety features should I consider for an office environment?\")\n*   **Software/Online:** (e.g., \"What are the safety features of a social media platform?\" or \"What safety features should I look for in a password manager?\")\n*   **Products/Equipment:** (e.g., \"What are the safety features of a chainsaw?\" or \"What safety features does a baby stroller have?\")\n*   **Something else?** (Please specify!)\n\n**2. Are you interested in specific types of safety features?**\n\n*   **Prevention:** (e.g., features that prevent accidents or incidents from happening in the first place)\n*   **Protection:** (e.g., features that protect you during an accident or incident)\n*   **Detection/Warning:** (e.g., features that alert you to a potential hazard)\n*   **Response:** (e.g., features that help you respond to an accident or incident)\n\n**3. What level of detail are you looking for?**\n\n*   **General Overview:** (e.g., \"Just give me a basic understanding of common safety features.\")\n*   **More Detailed Explanation:** (e.g., \"Explain how specific safety features work.\")\n*   **Specific Examples:** (e.g., \"Give me examples of safety features in a particular product or situation.\")\n\nOnce I have this information, I can provide you with a much more relevant and helpful answer.\n\n**In the meantime, here are some *very general* examples of safety features across different areas:**\n\n*   **Cars:** Seatbelts, airbags, anti-lock brakes, electronic stability control, blind-spot monitoring.\n*   **Home:** Smoke detectors, carbon monoxide detectors, fire extinguishers, security systems, childproof locks.\n*   **Workplace:** Machine guards, safety glasses, hearing protection, ventilation systems, emergency exits.\n*   **Software:** Firewalls, antivirus software, encryption, two-factor authentication, privacy settings.\n\nLooking forward to your response so I can give you more specific information!\n"
+            "text": "Okay, let's talk about safety features. To give you the most relevant information, I need a little more direction.  Safety features can be found in many different contexts.  To help me narrow it down, tell me:\n\n**1. What are you interested in regarding safety features?**\n\nFor example, are you interested in:\n\n*   **Cars/Vehicles:** (e.g., airbags, ABS, lane departure warning, crash testing)\n*   **Home Safety:** (e.g., smoke detectors, fire extinguishers, security systems, childproofing)\n*   **Workplace Safety:** (e.g., safety training, personal protective equipment (PPE), hazard communication)\n*   **Product Safety:** (e.g., toy safety standards, electrical safety, food safety)\n*   **Online Safety:** (e.g., strong passwords, phishing awareness, malware protection, privacy settings)\n*   **General Safety/First Aid:** (e.g., CPR, Heimlich maneuver, basic wound care)\n*   **Something else entirely?**\n\n**2. What is your goal in learning about these safety features?**\n\n*   Are you trying to **purchase something** and want to know what features to look for?\n*   Are you trying to **improve safety** in a specific environment?\n*   Are you doing **research** for a project?\n*   Are you just **curious**?\n\nOnce I know what you're interested in, I can give you much more specific and helpful information.\n\nIn the meantime, here's a little general information about safety features:\n\n*   **Purpose:** Safety features are designed to reduce the risk of injury, damage, or loss. They can prevent accidents from happening in the first place, or they can minimize the harm caused by an accident.\n\n*   **Types:** Safety features can be active (requiring action, like wearing a seatbelt) or passive (automatically engaged, like airbags). They can be technological (sensors, alarms) or procedural (rules, training).\n\n*   **Importance:** Safety features are crucial for protecting individuals, property, and the environment. They can save lives, prevent injuries, and reduce costs associated with accidents.\n\nI look forward to your response so I can give you more specific information.\n"
           }
         ],
         "role": "model"
@@ -52,13 +52,13 @@ X-Xss-Protection: 0
           "probability": 1
         }
       ],
-      "avgLogprobs": -0.16506060205324732
+      "avgLogprobs": -0.19718632698059083
     }
   ],
   "usageMetadata": {
     "promptTokenCount": 5,
-    "candidatesTokenCount": 594,
-    "totalTokenCount": 599,
+    "candidatesTokenCount": 480,
+    "totalTokenCount": 485,
     "promptTokensDetails": [
       {
         "modality": 1,
@@ -68,10 +68,10 @@ X-Xss-Protection: 0
     "candidatesTokensDetails": [
       {
         "modality": 1,
-        "tokenCount": 594
+        "tokenCount": 480
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "qTFXaLiJMOmLqsMPwoPwiAk"
+  "responseId": "NyRZaOTvA_OVsbQPxaKksAc"
 }

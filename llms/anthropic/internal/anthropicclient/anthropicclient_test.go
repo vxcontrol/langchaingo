@@ -13,7 +13,7 @@ import (
 )
 
 func TestClient_CreateCompletion(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ANTHROPIC_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -43,7 +43,7 @@ func TestClient_CreateCompletion(t *testing.T) {
 }
 
 func TestClient_CreateMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -74,7 +74,7 @@ func TestClient_CreateMessage(t *testing.T) {
 }
 
 func TestClient_CreateMessageStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -111,7 +111,7 @@ func TestClient_CreateMessageStream(t *testing.T) {
 }
 
 func TestClient_WithAnthropicBetaHeader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()

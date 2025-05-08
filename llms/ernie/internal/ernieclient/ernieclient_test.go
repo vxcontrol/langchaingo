@@ -35,7 +35,7 @@ func requireErnieCredentialsOrHTTPRR(t *testing.T) *httprr.RecordReplay {
 }
 
 func TestClient_CreateCompletion(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := requireErnieCredentialsOrHTTPRR(t)
@@ -83,7 +83,7 @@ func TestClient_CreateCompletion(t *testing.T) {
 }
 
 func TestClient_CreateCompletionStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	rr := requireErnieCredentialsOrHTTPRR(t)
@@ -168,7 +168,7 @@ func newErnieTestClient(t *testing.T) *Client {
 }
 
 func TestClient_CreateChat(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	client := newErnieTestClient(t)
@@ -190,7 +190,7 @@ func TestClient_CreateChat(t *testing.T) {
 }
 
 func TestClient_CreateEmbedding(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	client := newErnieTestClient(t)

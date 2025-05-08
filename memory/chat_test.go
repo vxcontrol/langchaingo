@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestChatMessageHistory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	h := NewChatMessageHistory()

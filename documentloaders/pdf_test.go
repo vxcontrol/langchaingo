@@ -1,7 +1,6 @@
 package documentloaders
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -13,7 +12,7 @@ import (
 )
 
 func TestPDFLoader(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	page1Content := " A Simple PDF File  This is a small demonstration .pdf file -  " +
@@ -92,7 +91,7 @@ func TestPDFLoader(t *testing.T) {
 }
 
 func TestPDFTextSplit(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 	page1_1Content := "A Simple PDF File  This is a small demonstration .pdf file -  " +
 		"just for use in the Virtual Mechanics tutorials. More text. And more  text. And more " +

@@ -16,7 +16,7 @@ import (
 var errDummy = errors.New("boom")
 
 func TestSimpleSequential(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	// Build and execute a simple sequential chain with two LLMChains
@@ -42,7 +42,7 @@ func TestSimpleSequential(t *testing.T) {
 }
 
 func TestSimpleSequentialErrors(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testCases := []struct {
@@ -84,7 +84,7 @@ func TestSimpleSequentialErrors(t *testing.T) {
 }
 
 func TestSequentialChain(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	// Build and execute a sequential chain with three LLMChains
@@ -125,7 +125,7 @@ func TestSequentialChain(t *testing.T) {
 }
 
 func TestSequentialChainErrors(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	testCases := []struct {

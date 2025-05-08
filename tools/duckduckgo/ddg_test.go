@@ -1,7 +1,6 @@
 package duckduckgo
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func TestDuckDuckGoTool(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	// Setup httprr for HTTP requests

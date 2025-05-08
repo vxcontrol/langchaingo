@@ -1,7 +1,6 @@
 package huggingface
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -13,9 +12,8 @@ import (
 )
 
 func TestHuggingfaceEmbeddings(t *testing.T) {
-
 	t.Skip("temporary skip")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")
 
@@ -36,7 +34,11 @@ func TestHuggingfaceEmbeddings(t *testing.T) {
 	_, err = e.EmbedQuery(ctx, "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := e.EmbedDocuments(ctx, []string{"Hello world", "The world is ending", "good bye"})
+	embeddings, err := e.EmbedDocuments(ctx, []string{
+		"Hello world",
+		"The world is ending",
+		"good bye",
+	})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 }

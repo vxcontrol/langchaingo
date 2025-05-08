@@ -331,7 +331,7 @@ func TestClient_CreateCompletion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			var invokedModelID string
 			var invokedBody []byte
@@ -400,7 +400,7 @@ func testCreateCompletionWithMock(ctx context.Context, client *mockBedrockClient
 
 // Test streaming functionality for Anthropic
 func TestClient_CreateCompletion_Streaming(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a channel to capture streamed content
 	var streamedContent []string
@@ -552,7 +552,7 @@ func TestClient_CreateCompletion_StreamingErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			streamingFunc := func(ctx context.Context, chunk []byte) error {
 				return nil
@@ -699,7 +699,7 @@ func TestClient_CreateCompletion_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			mockClient := &mockBedrockClient{
 				invokeFunc: func(ctx context.Context, params *bedrockruntime.InvokeModelInput, optFns ...func(*bedrockruntime.Options)) (*bedrockruntime.InvokeModelOutput, error) {
@@ -737,7 +737,7 @@ func TestNewClient(t *testing.T) {
 
 // Test streaming cancellation
 func TestClient_CreateCompletion_StreamingCancellation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var streamedContent []string
 	streamingFunc := func(ctx context.Context, chunk []byte) error {

@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -17,7 +16,7 @@ import (
 
 func loadTestData(t *testing.T) []schema.Document {
 	t.Helper()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	file, err := os.Open("./testdata/mouse_story.txt")
 	require.NoError(t, err)
@@ -59,7 +58,7 @@ func createOpenAILLMForTest(t *testing.T) *openai.LLM {
 }
 
 func TestStuffSummarization(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForTest(t)
 
@@ -75,7 +74,7 @@ func TestStuffSummarization(t *testing.T) {
 }
 
 func TestRefineSummarization(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForTest(t)
 
@@ -91,7 +90,7 @@ func TestRefineSummarization(t *testing.T) {
 }
 
 func TestMapReduceSummarization(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := createOpenAILLMForTest(t)
 

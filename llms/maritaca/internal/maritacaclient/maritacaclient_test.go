@@ -1,7 +1,6 @@
 package maritacaclient
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestClient_Generate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MARITACA_API_KEY")
 
@@ -58,7 +57,7 @@ func TestClient_Generate(t *testing.T) {
 }
 
 func TestClient_GenerateStream(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MARITACA_API_KEY")
 

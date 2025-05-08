@@ -54,7 +54,7 @@ func (kb *KnowledgeBase) checkKnowledgeBase(ctx context.Context) error {
 }
 
 // listDataSources retrieves the list of data sources from Bedrock and returns the compatible and incompatible ones.
-func (kb *KnowledgeBase) listDataSources(ctx context.Context) (compatible, incompatible []dataSource, err error) {
+func (kb *KnowledgeBase) listDataSources(ctx context.Context) (compatible, incompatible []dataSource, err error) { //nolint:nonamedreturns
 	result, err := kb.bedrockAgent.ListDataSources(ctx, &bedrockagent.ListDataSourcesInput{
 		KnowledgeBaseId: aws.String(kb.knowledgeBaseID),
 	})

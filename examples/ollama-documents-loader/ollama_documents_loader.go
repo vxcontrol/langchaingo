@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-
 	ctx := context.Background()
 
 	//load data from PDF to add context on prompt

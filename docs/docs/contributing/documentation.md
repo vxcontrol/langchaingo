@@ -50,7 +50,7 @@ A [type of application] that:
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.24+
 - [Required API keys]
 - [Other requirements]
 

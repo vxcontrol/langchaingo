@@ -106,6 +106,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
+	ctx := t.Context()
+
 	// Create a mock HTTP client
 	mockClient := &mockHTTPClient{
 		response: &http.Response{
@@ -125,7 +127,7 @@ func TestCall(t *testing.T) {
 
 	llm := &LLM{client: client}
 
-	response, err := llm.Call(context.Background(), "Hello")
+	response, err := llm.Call(ctx, "Hello")
 	if err != nil {
 		t.Fatalf("Call() error: %v", err)
 	}
@@ -139,6 +141,7 @@ func TestGenerateContent(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "COHERE_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	ctx := t.Context()
 
 	// Only run parallel when not recording
 	if !rr.Recording() {
@@ -168,7 +171,7 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), messages)
+	resp, err := llm.GenerateContent(ctx, messages)
 	if err != nil {
 		t.Fatalf("GenerateContent() error: %v", err)
 	}
@@ -218,6 +221,7 @@ func TestCallbacksHandler(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "COHERE_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	ctx := t.Context()
 
 	// Only run parallel when not recording
 	if !rr.Recording() {
@@ -250,7 +254,7 @@ func TestCallbacksHandler(t *testing.T) {
 		},
 	}
 
-	_, err = llm.GenerateContent(context.Background(), messages)
+	_, err = llm.GenerateContent(ctx, messages)
 	// The callback handler should always be called for start
 	if !handler.generateStartCalled {
 		t.Error("Expected HandleLLMGenerateContentStart to be called")
@@ -274,7 +278,7 @@ type mockHTTPClient struct {
 	err      error
 }
 
-func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
+func (m *mockHTTPClient) Do(_ *http.Request) (*http.Response, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

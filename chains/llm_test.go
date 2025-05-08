@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -43,7 +42,7 @@ func (t *transportWithAPIKey) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func TestLLMChain(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
@@ -82,7 +81,7 @@ func TestLLMChain(t *testing.T) {
 }
 
 func TestLLMChainWithChatPromptTemplate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	c := NewLLMChain(
@@ -101,7 +100,7 @@ func TestLLMChainWithChatPromptTemplate(t *testing.T) {
 }
 
 func TestLLMChainWithGoogleAI(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
 	transport := &transportWithAPIKey{
@@ -114,6 +113,9 @@ func TestLLMChainWithGoogleAI(t *testing.T) {
 	// Configure client with httprr - use test credentials when replaying
 	var opts []googleai.Option
 	opts = append(opts, googleai.WithRest(), googleai.WithHTTPClient(rr.Client()))
+
+	// Avoid issue with different view of request bodies for Google AI SDK
+	rr.ScrubReq(httprr.JsonCompactScrubBody)
 
 	if rr.Replaying() {
 		// Use test credentials during replay

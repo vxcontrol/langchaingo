@@ -42,6 +42,7 @@ func (h *ChatMessageHistory) messagesFromZepMessages(zepMessages []*zep.Message)
 			chatMessages = append(chatMessages, llms.AIChatMessage{Content: *zepMessage.Content})
 		case zep.RoleTypeToolRole:
 		case zep.RoleTypeFunctionRole:
+			// TODO: add tool name and tool call id from _rawJSON inside the zepMessage
 			chatMessages = append(chatMessages, llms.ToolChatMessage{Content: *zepMessage.Content})
 		default:
 			log.Print(fmt.Errorf("unknown role: %s", *zepMessage.RoleType))

@@ -28,7 +28,7 @@ func Test(t *testing.T) {
 	}
 
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// export LANGCHAINGO_TEST_MYSQL=user:p@ssw0rd@tcp(localhost:3306)/test
 	mysqlURI := os.Getenv("LANGCHAINGO_TEST_MYSQL")
@@ -48,6 +48,7 @@ func Test(t *testing.T) {
 		}
 		require.NoError(t, err)
 		defer func() {
+			ctx := context.Background() //nolint:usetesting
 			if err := mysqlContainer.Terminate(ctx); err != nil {
 				t.Logf("Failed to terminate mysql container: %v", err)
 			}

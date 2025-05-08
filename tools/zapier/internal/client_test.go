@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -24,7 +23,7 @@ func scrubZapierData(req *http.Request) error {
 }
 
 func TestZapierClient_List(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Setup HTTP record/replay
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ZAPIER_NLA_API_KEY")
@@ -60,7 +59,7 @@ func TestZapierClient_List(t *testing.T) {
 }
 
 func TestZapierClient_Execute(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Setup HTTP record/replay
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ZAPIER_NLA_API_KEY")
@@ -104,7 +103,7 @@ func TestZapierClient_Execute(t *testing.T) {
 }
 
 func TestZapierClient_ExecuteAsString(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Setup HTTP record/replay
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ZAPIER_NLA_API_KEY")
@@ -149,7 +148,7 @@ func TestZapierClient_ExecuteAsString(t *testing.T) {
 }
 
 func TestZapierClient_WithAccessToken(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Setup HTTP record/replay
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ZAPIER_NLA_ACCESS_TOKEN")

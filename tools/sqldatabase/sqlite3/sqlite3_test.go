@@ -1,7 +1,6 @@
 package sqlite3_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -16,7 +15,7 @@ import (
 )
 
 func Test(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	const dsn = `test.sqlite`

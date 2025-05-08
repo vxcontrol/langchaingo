@@ -29,8 +29,9 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 }
 
 func TestGenerateContent(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -53,8 +54,9 @@ func TestGenerateContent(t *testing.T) {
 }
 
 func TestWithStreaming(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{

@@ -137,7 +137,7 @@ func TestClient_stream(t *testing.T) {
 				httpClient: httpClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			err := client.stream(ctx, tt.method, tt.path, tt.data, tt.fn)
 
 			if tt.wantErr {
@@ -217,7 +217,7 @@ func TestClient_Generate_Unit(t *testing.T) {
 				httpClient: httpClient,
 			}
 
-			ctx := context.Background()
+			ctx := t.Context()
 			var events []string
 			var texts []string
 
@@ -338,7 +338,7 @@ func TestClient_streamWithLargeResponse(t *testing.T) {
 		httpClient: httpClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	lineCount := 0
 	err := client.stream(ctx, http.MethodGet, "/test", nil, func(data []byte) error {
 		lineCount++
@@ -351,7 +351,7 @@ func TestClient_streamWithLargeResponse(t *testing.T) {
 
 func TestClient_streamContextCancellation(t *testing.T) {
 	// Create a context that we'll cancel during the request
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	httpClient := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
@@ -394,7 +394,7 @@ func TestClient_marshalError(t *testing.T) {
 		httpClient: httpClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := client.stream(ctx, http.MethodPost, "/test", unmarshallable{Ch: make(chan int)}, func(data []byte) error {
 		return nil
 	})
@@ -416,7 +416,7 @@ func TestClient_requestError(t *testing.T) {
 		httpClient: httpClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	err := client.stream(ctx, http.MethodGet, "/test", nil, func(data []byte) error {
 		return nil
 	})
@@ -440,7 +440,7 @@ func TestClient_callbackError(t *testing.T) {
 		httpClient: httpClient,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	callbackErr := assert.AnError
 	err := client.stream(ctx, http.MethodGet, "/test", nil, func(data []byte) error {
 		return callbackErr

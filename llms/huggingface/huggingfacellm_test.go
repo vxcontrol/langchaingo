@@ -1,7 +1,6 @@
 package huggingface
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -11,8 +10,7 @@ import (
 )
 
 func TestHuggingFaceLLMWithProvider(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Skip if no credentials and no recording - HuggingFace accepts either token
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -56,8 +54,7 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 }
 
 func TestHuggingFaceLLMStandardInference(t *testing.T) {
-
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Skip if no credentials and no recording - HuggingFace accepts either token
 	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
@@ -100,7 +97,7 @@ func TestHuggingFaceLLMStandardInference(t *testing.T) {
 func TestHuggingFaceLLMGenerateContent(t *testing.T) {
 	t.Skip("temporarily skip")
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Skip if no credentials and no recording
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN")

@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/prompts"
@@ -31,7 +30,7 @@ func TestMapRerankInputVariables(t *testing.T) {
 }
 
 func TestMapRerankDocumentsCall(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Parallel()
 
 	mapRerankLLMChain := NewLLMChain(

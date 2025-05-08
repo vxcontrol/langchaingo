@@ -322,7 +322,7 @@ func fixModuleName(dir, expectedModuleName string) error {
 // It finds all go.mod files and ensures they have a replace directive pointing to the root module.
 // This is critical for local development to ensure that changes in the root module are reflected
 // in the dependent modules without requiring publishing a new version.
-func checkMissingReplaceDirectives(fix bool) error {
+func checkMissingReplaceDirectives(fix bool) error { //nolint:unusedfunc
 	// Find all go.mod files
 	var goModPaths []string
 	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {

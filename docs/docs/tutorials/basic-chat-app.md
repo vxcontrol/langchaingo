@@ -4,7 +4,7 @@ In this tutorial, you'll build a basic chat application using LangChainGo. This 
 
 ## Prerequisites
 
-- Go 1.21+
+- Go 1.24+
 - OpenAI API key
 - Basic Go programming knowledge
 

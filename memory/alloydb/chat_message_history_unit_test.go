@@ -115,6 +115,8 @@ func TestChatMessageHistory_MessageMarshaling(t *testing.T) {
 				msg = llms.AIChatMessage{Content: tt.content}
 			case llms.ChatMessageTypeSystem:
 				msg = llms.SystemChatMessage{Content: tt.content}
+			default:
+				t.Fatalf("unknown message type: %s", tt.messageType)
 			}
 
 			assert.Equal(t, tt.content, msg.GetContent())
@@ -351,7 +353,7 @@ func TestChatMessageHistory_ClearAndSet(t *testing.T) {
 	}
 
 	// Simulate the SetMessages flow
-	clearCalled := false
+	clearCalled := false //nolint:wastedassign
 	addCalled := false
 
 	// Clear operation

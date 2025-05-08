@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -42,7 +41,7 @@ func newTestOpenAIClient(t *testing.T) *openai.LLM {
 }
 
 func TestTokenBufferMemory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestOpenAIClient(t)
 	m := NewConversationTokenBuffer(llm, 2000)
@@ -63,7 +62,7 @@ func TestTokenBufferMemory(t *testing.T) {
 }
 
 func TestTokenBufferMemoryReturnMessage(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestOpenAIClient(t)
 	m := NewConversationTokenBuffer(llm, 2000, WithReturnMessages(true))
@@ -93,7 +92,7 @@ func TestTokenBufferMemoryReturnMessage(t *testing.T) {
 }
 
 func TestTokenBufferMemoryWithPreLoadedHistory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm := newTestOpenAIClient(t)
 

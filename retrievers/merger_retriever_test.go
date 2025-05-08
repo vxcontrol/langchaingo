@@ -22,7 +22,8 @@ func (f *Fakeretriever) GetRelevantDocuments(_ context.Context, _ string) ([]sch
 
 func TestMergerRetriever(t *testing.T) { //nolint:funlen
 	t.Parallel()
-	ctx := context.Background()
+
+	ctx := t.Context()
 	content1 := schema.Document{PageContent: "fake doc 1"}
 	content2 := schema.Document{PageContent: "fake doc 2"}
 	content3 := schema.Document{PageContent: "fake doc 3"}

@@ -64,6 +64,7 @@ func isLlamafileAvailable() bool {
 
 func newTestClient(t *testing.T) *LLM {
 	t.Helper()
+
 	options := []Option{
 		WithEmbeddingSize(2048),
 		WithTemperature(0.8),
@@ -78,7 +79,7 @@ func TestGenerateContent(t *testing.T) {
 		t.Skip("llamafile is not available")
 	}
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -104,7 +105,7 @@ func TestWithStreaming(t *testing.T) {
 		t.Skip("llamafile is not available")
 	}
 	t.Parallel()
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -136,7 +137,7 @@ func TestCreateEmbedding(t *testing.T) {
 	if !isLlamafileAvailable() {
 		t.Skip("llamafile is not available")
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	llm := newTestClient(t)
 
 	embeddings, err := llm.CreateEmbedding(ctx, []string{"hello", "world"})
@@ -368,7 +369,7 @@ func TestMakeLlamaOptionsFromOptions(t *testing.T) { //nolint:funlen // comprehe
 }
 
 func TestGenerateContent_UnitValidation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := []struct {
 		name          string
@@ -438,7 +439,7 @@ func TestErrorConstants(t *testing.T) {
 	}
 }
 
-func TestLLMImplementsModel(t *testing.T) {
+func TestLLMImplementsModel(_ *testing.T) {
 	// This test verifies that LLM implements the llms.Model interface
 	var _ llms.Model = (*LLM)(nil)
 }

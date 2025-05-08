@@ -21,7 +21,7 @@ import (
 )
 
 func TestConversation(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
@@ -55,7 +55,7 @@ func TestConversation(t *testing.T) {
 }
 
 func TestConversationWithZepMemory(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
@@ -79,7 +79,7 @@ func TestConversationWithZepMemory(t *testing.T) {
 
 	sessionID := os.Getenv("ZEP_SESSION_ID")
 	if sessionID == "" {
-		sessionID = setupZepSession(t, ctx, zc)
+		sessionID = setupZepSession(t.Context(), t, zc)
 	}
 
 	c := NewConversation(
@@ -101,7 +101,7 @@ func TestConversationWithZepMemory(t *testing.T) {
 }
 
 func TestConversationWithChatLLM(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
@@ -139,7 +139,9 @@ func TestConversationWithChatLLM(t *testing.T) {
 	require.True(t, strings.Contains(res, "Jim"), `result does contain the keyword 'Jim'`)
 }
 
-func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) string {
+func setupZepSession(ctx context.Context, t *testing.T, zc *zClient.Client) string {
+	t.Helper()
+
 	var (
 		user    *z.User
 		session *z.Session
@@ -155,11 +157,11 @@ func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) stri
 		require.NotEqual(t, -1, idx, "user not found")
 		user = users.Users[idx]
 	} else {
-		userId := "langchaingo-test"
+		userID := "langchaingo-test"
 		email := "langchaingo@example.com"
 
 		user, err = zc.User.Add(ctx, &z.CreateUserRequest{
-			UserID:    &userId,
+			UserID:    &userID,
 			Email:     &email,
 			FirstName: &firstName,
 			LastName:  &lastName,
@@ -167,9 +169,9 @@ func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) stri
 		require.NoError(t, err)
 	}
 
-	sessionId := uuid.New().String()
+	sessionID := uuid.New().String()
 	session, err = zc.Memory.AddSession(ctx, &z.CreateSessionRequest{
-		SessionID: sessionId,
+		SessionID: sessionID,
 		UserID:    user.UserID,
 	})
 	require.NoError(t, err)

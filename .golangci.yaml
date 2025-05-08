@@ -11,6 +11,20 @@ linters:
     - funlen
     - gosec
     - misspell
+    - copyloopvar
+    - errorlint
+    - nilerr
+    - nilnil
+    - unconvert
+    - unparam
+    - prealloc
+    - makezero
+    - exhaustive
+    - importas
+    - bodyclose
+    - rowserrcheck
+    - wastedassign
+    - whitespace
   settings:
     cyclop:
       max-complexity: 12
@@ -22,6 +36,8 @@ linters:
     gosec:
       excludes:
         - G115
+    exhaustive:
+      default-signifies-exhaustive: true
   exclusions:
     generated: lax
     presets:

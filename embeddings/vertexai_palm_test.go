@@ -1,7 +1,6 @@
 package embeddings
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"testing"
@@ -41,7 +40,7 @@ func newVertexEmbedder(t *testing.T, rr *httprr.RecordReplay, opts ...Option) *E
 }
 
 func TestVertexAIPaLMEmbeddings(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_CLOUD_PROJECT")
 
@@ -58,13 +57,17 @@ func TestVertexAIPaLMEmbeddings(t *testing.T) {
 	_, err := e.EmbedQuery(ctx, "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := e.EmbedDocuments(ctx, []string{"Hello world", "The world is ending", "good bye"})
+	embeddings, err := e.EmbedDocuments(ctx, []string{
+		"Hello world",
+		"The world is ending",
+		"good bye",
+	})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 }
 
 func TestVertexAIPaLMEmbeddingsWithOptions(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_CLOUD_PROJECT")
 

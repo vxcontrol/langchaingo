@@ -1,7 +1,6 @@
 package metaphor
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -55,7 +54,7 @@ func TestNewClient_WithAPIKey(t *testing.T) {
 
 func TestAPI_Call_InvalidJSON(t *testing.T) {
 	api := &API{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	_, err := api.Call(ctx, "invalid json")
 	assert.Error(t, err)
@@ -63,7 +62,7 @@ func TestAPI_Call_InvalidJSON(t *testing.T) {
 
 func TestAPI_Call_ValidJSON(t *testing.T) {
 	api := &API{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test with valid JSON but no client (will fail at API call)
 	input := ToolInput{
@@ -92,7 +91,7 @@ func TestAPI_Call_ValidJSON(t *testing.T) {
 
 func TestAPI_Call_UnsupportedOperation(t *testing.T) {
 	api := &API{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	input := ToolInput{
 		Operation: "UnsupportedOp",
@@ -128,7 +127,7 @@ func TestToolInput_JSONMarshaling(t *testing.T) {
 
 func TestAPI_Call_JSONExtractionFromText(t *testing.T) {
 	api := &API{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test JSON extraction from text with surrounding content
 	text := `Here is some text {"operation": "Search", "input": "test"} and more text`
@@ -168,7 +167,7 @@ func TestFormatResults_Integration(t *testing.T) {
 
 func TestAPI_CallOperations(t *testing.T) {
 	api := &API{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	operations := []string{"Search", "FindSimilar", "GetContents"}
 
@@ -246,7 +245,7 @@ func TestSearch_SetOptions(t *testing.T) {
 
 func TestSearch_Call_NilClient(t *testing.T) {
 	search := &Search{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// This will panic due to nil client, catch the panic
 	defer func() {
@@ -309,7 +308,7 @@ func TestLinksSearch_SetOptions(t *testing.T) {
 
 func TestLinksSearch_Call_NilClient(t *testing.T) {
 	linksSearch := &LinksSearch{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// This will panic due to nil client, catch the panic
 	defer func() {
@@ -373,7 +372,7 @@ func TestDocuments_SetOptions(t *testing.T) {
 
 func TestDocuments_Call_NilClient(t *testing.T) {
 	documents := &Documents{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// This will panic due to nil client, catch the panic
 	defer func() {
@@ -392,7 +391,7 @@ func TestDocuments_Call_NilClient(t *testing.T) {
 
 func TestDocuments_Call_IDParsing(t *testing.T) {
 	documents := &Documents{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test ID parsing with spaces
 	input := "8U71IlQ5DUTdsherhhYA, 9segZCZGNjjQB2yD2uyK , 10test"
