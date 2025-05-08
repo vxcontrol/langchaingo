@@ -61,70 +61,133 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	// Override LLM model if set as llms.CallOption
-	model := o.options.model
-	if opts.Model != "" {
-		model = opts.Model
+	// override LLM model if set as llms.CallOption
+	model := o.getModel(opts)
+
+	// convert messages to Ollama format
+	chatMsgs, err := o.prepareMessages(messages)
+	if err != nil {
+		return nil, err
 	}
 
+	req, err := o.createChatRequest(model, chatMsgs, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := o.processTools(req, opts.Tools); err != nil {
+		return nil, err
+	}
+
+	resp, err := o.handleChat(ctx, req, opts)
+	if err != nil {
+		if o.CallbacksHandler != nil {
+			o.CallbacksHandler.HandleLLMError(ctx, err)
+		}
+		return nil, err
+	}
+
+	response := o.createContentResponse(resp)
+
+	if o.CallbacksHandler != nil {
+		o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, response)
+	}
+
+	return response, nil
+}
+
+// getModel determines which model to use based on options and defaults.
+func (o *LLM) getModel(opts llms.CallOptions) string {
+	if opts.Model != "" {
+		return opts.Model
+	}
+	return o.options.model
+}
+
+// prepareMessages converts LangChain message format to Ollama format.
+func (o *LLM) prepareMessages(messages []llms.MessageContent) ([]api.Message, error) {
+	chatMsgs := make([]api.Message, 0, len(messages))
+	for _, mc := range messages {
+		msg, err := o.convertMessageContent(mc)
+		if err != nil {
+			return nil, err
+		}
+		chatMsgs = append(chatMsgs, msg)
+	}
+	return chatMsgs, nil
+}
+
+// convertMessageContent converts a single message content to Ollama format.
+func (o *LLM) convertMessageContent(mc llms.MessageContent) (api.Message, error) {
 	// Our input is a sequence of MessageContent, each of which potentially has
 	// a sequence of Part that could be text, images etc.
 	// We have to convert it to a format Ollama undestands: ChatRequest, which
 	// has a sequence of Message, each of which has a role and content - single
 	// text + potential images.
-	chatMsgs := make([]api.Message, 0, len(messages))
-	for _, mc := range messages {
-		msg := api.Message{Role: typeToRole(mc.Role)}
+	msg := api.Message{Role: typeToRole(mc.Role)}
 
-		// Look at all the parts in mc; expect to find a single Text part and
-		// any number of binary parts.
-		var text string
-		foundText := false
-		var images []api.ImageData
-		var toolCalls []api.ToolCall
+	// Look at all the parts in mc; expect to find a single Text part and
+	// any number of binary parts.
+	var text string
+	foundText := false
+	var images []api.ImageData
+	var toolCalls []api.ToolCall
 
-		for _, p := range mc.Parts {
-			switch pt := p.(type) {
-			case llms.TextContent:
-				if foundText {
-					return nil, errors.New("expecting a single Text content")
-				}
+	for _, p := range mc.Parts {
+		switch pt := p.(type) {
+		case llms.TextContent:
+			if foundText {
+				text += "\n\nnext part of text\n\n" + pt.Text
+			} else {
 				foundText = true
 				text = pt.Text
-			case llms.BinaryContent:
-				images = append(images, pt.Data)
-			case llms.ToolCall:
-				tc := api.ToolCall{
-					Function: api.ToolCallFunction{
-						Name: pt.FunctionCall.Name,
-					},
-				}
-
-				var err error
-				tc.Function.Index, err = strconv.Atoi(pt.ID)
-				if err != nil {
-					return nil, fmt.Errorf("error converting tool call ID to int: %w", err)
-				}
-
-				err = json.Unmarshal([]byte(pt.FunctionCall.Arguments), &tc.Function.Arguments)
-				if err != nil {
-					return nil, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
-				}
-
-				toolCalls = append(toolCalls, tc)
-			case llms.ToolCallResponse:
-				text = pt.Content
-			default:
-				return nil, errors.New("only support Text and BinaryContent parts right now")
 			}
+		case llms.BinaryContent:
+			images = append(images, pt.Data)
+		case llms.ToolCall:
+			tc, err := o.convertToolCall(pt)
+			if err != nil {
+				return api.Message{}, err
+			}
+			toolCalls = append(toolCalls, tc)
+		case llms.ToolCallResponse:
+			text = pt.Content
+		default:
+			return api.Message{}, errors.New("only support Text and BinaryContent parts right now")
 		}
-
-		msg.Content = text
-		msg.Images = images
-		msg.ToolCalls = toolCalls
-		chatMsgs = append(chatMsgs, msg)
 	}
 
+	msg.Content = text
+	msg.Images = images
+	msg.ToolCalls = toolCalls
+	return msg, nil
+}
+
+// convertToolCall converts LangChain tool call to Ollama format.
+func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
+	tc := api.ToolCall{
+		Function: api.ToolCallFunction{
+			Name: toolCall.FunctionCall.Name,
+		},
+	}
+
+	var err error
+	// TODO: here need more stable way to convert tool call ID to int
+	tc.Function.Index, err = strconv.Atoi(toolCall.ID)
+	if err != nil {
+		return api.ToolCall{}, fmt.Errorf("error converting tool call ID to int: %w", err)
+	}
+
+	err = json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
+	if err != nil {
+		return api.ToolCall{}, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
+	}
+
+	return tc, nil
+}
+
+// createChatRequest creates a chat request with the given parameters.
+func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.CallOptions) (*api.ChatRequest, error) {
 	format := o.options.format
 	if opts.JSONMode {
 		format = "json"
@@ -141,25 +204,10 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	req := &api.ChatRequest{
 		Model:    model,
 		Format:   json.RawMessage(fmt.Sprintf(`"%s"`, format)),
-		Messages: chatMsgs,
+		Messages: messages,
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
-	}
-
-	for i := range opts.Tools {
-		jt, err := json.Marshal(opts.Tools[i])
-		if err != nil {
-			return nil, fmt.Errorf("error marshalling tool: %w", err)
-		}
-
-		var tool api.Tool
-		err = json.Unmarshal(jt, &tool)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling tool: %w", err)
-		}
-
-		req.Tools[i] = tool
 	}
 
 	keepAlive := o.options.keepAlive
@@ -167,12 +215,37 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		req.KeepAlive = &api.Duration{Duration: *keepAlive}
 	}
 
-	var fn api.ChatResponseFunc
+	return req, nil
+}
+
+// processTools adds tools to the chat request.
+func (o *LLM) processTools(req *api.ChatRequest, tools []llms.Tool) error {
+	for i := range tools {
+		jt, err := json.Marshal(tools[i])
+		if err != nil {
+			return fmt.Errorf("error marshalling tool: %w", err)
+		}
+
+		var tool api.Tool
+		err = json.Unmarshal(jt, &tool)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling tool: %w", err)
+		}
+
+		req.Tools[i] = tool
+	}
+
+	return nil
+}
+
+// handleChat sends the chat request and processes the streaming response.
+func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.CallOptions) (api.ChatResponse, error) {
 	streamedResponse := ""
 	var streamedToolCalls []api.ToolCall
 	var resp api.ChatResponse
 
-	fn = func(response api.ChatResponse) error {
+	fn := func(response api.ChatResponse) error {
+		// TODO: handle StreamingReasoningFunc too and sptit content to reasoning and text content
 		if opts.StreamingFunc != nil && response.Message.Content != "" {
 			if err := opts.StreamingFunc(ctx, []byte(response.Message.Content)); err != nil {
 				return err
@@ -181,14 +254,10 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		if response.Message.Content != "" {
 			streamedResponse += response.Message.Content
 		}
-		for _, tc := range response.Message.ToolCalls {
-			streamedToolCalls = append(streamedToolCalls, tc)
-		}
 
-		rs := false
-		if req.Stream != nil && *req.Stream {
-			rs = true
-		}
+		streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
+
+		rs := req.Stream != nil && *req.Stream
 		if !rs || response.Done {
 			resp = response
 			resp.Message = api.Message{
@@ -200,14 +269,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil
 	}
 
-	err = o.client.Chat(ctx, req, fn)
-	if err != nil {
-		if o.CallbacksHandler != nil {
-			o.CallbacksHandler.HandleLLMError(ctx, err)
-		}
-		return nil, err
-	}
+	err := o.client.Chat(ctx, req, fn)
+	return resp, err
+}
 
+// createContentResponse creates a LangChain content response from Ollama response.
+func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
 	choices := []*llms.ContentChoice{
 		{
 			Content:    resp.Message.Content,
@@ -219,6 +286,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			},
 		},
 	}
+
 	for _, tc := range resp.Message.ToolCalls {
 		choices[0].ToolCalls = append(choices[0].ToolCalls, llms.ToolCall{
 			ID:   fmt.Sprintf("%d", tc.Function.Index),
@@ -230,13 +298,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		})
 	}
 
-	response := &llms.ContentResponse{Choices: choices}
-
-	if o.CallbacksHandler != nil {
-		o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, response)
-	}
-
-	return response, nil
+	return &llms.ContentResponse{Choices: choices}
 }
 
 func (o *LLM) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]float32, error) {
@@ -260,7 +322,7 @@ func (o *LLM) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]flo
 			return nil, ErrEmptyResponse
 		}
 
-		embedding := make([]float32, len(eResp.Embedding))
+		embedding := make([]float32, 0, len(eResp.Embedding))
 		for i := range eResp.Embedding {
 			embedding = append(embedding, float32(eResp.Embedding[i]))
 		}
@@ -289,8 +351,9 @@ func typeToRole(typ llms.ChatMessageType) string {
 		return "function"
 	case llms.ChatMessageTypeTool:
 		return "tool"
+	default:
+		return ""
 	}
-	return ""
 }
 
 func makeOllamaOptionsFromOptions(ollamaOptions api.Options, opts llms.CallOptions) (map[string]any, error) {
