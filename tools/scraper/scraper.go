@@ -113,8 +113,15 @@ func (s Scraper) Call(ctx context.Context, input string) (string, error) {
 
 	var siteData strings.Builder
 	homePageLinks := make(map[string]bool)
-	scrapedLinks := make(map[string]bool)
-	scrapedLinksMutex := sync.RWMutex{}
+	scrapedLinks := sync.Map{}
+
+	writerMutex := sync.Mutex{}
+	writeToBuffer := func(data string) {
+		writerMutex.Lock()
+		defer writerMutex.Unlock()
+
+		siteData.WriteString(data)
+	}
 
 	c.OnRequest(func(r *colly.Request) {
 		if ctx.Err() != nil {
@@ -126,31 +133,27 @@ func (s Scraper) Call(ctx context.Context, input string) (string, error) {
 		currentURL := e.Request.URL.String()
 
 		// Only process the page if it hasn't been visited yet
-		scrapedLinksMutex.Lock()
-		if !scrapedLinks[currentURL] {
-			scrapedLinks[currentURL] = true
-			scrapedLinksMutex.Unlock()
-
-			siteData.WriteString("\n\nPage URL: " + currentURL)
+		if _, ok := scrapedLinks.LoadOrStore(currentURL, true); !ok {
+			writeToBuffer("\n\nPage URL: " + currentURL)
 
 			title := e.ChildText("title")
 			if title != "" {
-				siteData.WriteString("\nPage Title: " + title)
+				writeToBuffer("\nPage Title: " + title)
 			}
 
 			description := e.ChildAttr("meta[name=description]", "content")
 			if description != "" {
-				siteData.WriteString("\nPage Description: " + description)
+				writeToBuffer("\nPage Description: " + description)
 			}
 
-			siteData.WriteString("\nHeaders:")
+			writeToBuffer("\nHeaders:")
 			e.ForEach("h1, h2, h3, h4, h5, h6", func(_ int, el *colly.HTMLElement) {
-				siteData.WriteString("\n" + el.Text)
+				writeToBuffer("\n" + el.Text)
 			})
 
-			siteData.WriteString("\nContent:")
+			writeToBuffer("\nContent:")
 			e.ForEach("p", func(_ int, el *colly.HTMLElement) {
-				siteData.WriteString("\n" + el.Text)
+				writeToBuffer("\n" + el.Text)
 			})
 
 			if currentURL == input {
@@ -158,12 +161,10 @@ func (s Scraper) Call(ctx context.Context, input string) (string, error) {
 					link := el.Attr("href")
 					if link != "" && !homePageLinks[link] {
 						homePageLinks[link] = true
-						siteData.WriteString("\nLink: " + link)
+						writeToBuffer("\nLink: " + link)
 					}
 				})
 			}
-		} else {
-			scrapedLinksMutex.Unlock()
 		}
 	})
 
@@ -196,15 +197,11 @@ func (s Scraper) Call(ctx context.Context, input string) (string, error) {
 		}
 
 		// Only visit the page if it hasn't been visited yet
-		scrapedLinksMutex.RLock()
-		if !scrapedLinks[u.String()] {
-			scrapedLinksMutex.RUnlock()
+		if _, ok := scrapedLinks.LoadOrStore(u.String(), true); !ok {
 			err := c.Visit(u.String())
 			if err != nil {
-				siteData.WriteString(fmt.Sprintf("\nError following link %s: %v", link, err))
+				writeToBuffer(fmt.Sprintf("\nError following link %s: %v", link, err))
 			}
-		} else {
-			scrapedLinksMutex.RUnlock()
 		}
 	})
 
@@ -221,10 +218,16 @@ func (s Scraper) Call(ctx context.Context, input string) (string, error) {
 	}
 
 	// Append all scraped links
-	siteData.WriteString("\n\nScraped Links:")
-	for link := range scrapedLinks {
-		siteData.WriteString("\n" + link)
-	}
+	writeToBuffer("\n\nScraped Links:")
+	scrapedLinks.Range(func(key, value interface{}) bool {
+		if link, ok := key.(string); ok {
+			writeToBuffer("\n" + link)
+		}
+		return true
+	})
+
+	writerMutex.Lock()
+	defer writerMutex.Unlock()
 
 	return siteData.String(), nil
 }
