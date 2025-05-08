@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/prompts"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/tools"
+
+	"github.com/google/uuid"
 )
 
 // agentScratchpad "agent_scratchpad" for the agent to put its thoughts in.
@@ -108,6 +111,7 @@ func (o *OpenAIFunctionsAgent) Plan(
 				Role: role,
 				Parts: []llms.ContentPart{llms.ToolCallResponse{
 					ToolCallID: p.ID,
+					Name:       p.Name,
 					Content:    p.Content,
 				}},
 			}
@@ -206,6 +210,7 @@ func (o *OpenAIFunctionsAgent) constructScratchPad(steps []schema.AgentStep) []l
 		})
 		messages = append(messages, llms.ToolChatMessage{
 			ID:      step.Action.ToolID,
+			Name:    step.Action.Tool,
 			Content: step.Observation,
 		})
 	}
@@ -216,47 +221,78 @@ func (o *OpenAIFunctionsAgent) constructScratchPad(steps []schema.AgentStep) []l
 func (o *OpenAIFunctionsAgent) ParseOutput(contentResp *llms.ContentResponse) (
 	[]schema.AgentAction, *schema.AgentFinish, error,
 ) {
-	choice := contentResp.Choices[0]
+	var actions []schema.AgentAction
 
-	// finish
-	if choice.FuncCall == nil {
-		return nil, &schema.AgentFinish{
-			ReturnValues: map[string]any{
-				"output": choice.Content,
-			},
-			Log: choice.Content,
-		}, nil
-	}
+	for _, choice := range contentResp.Choices {
+		content := choice.Content
 
-	// action
-	functionCall := choice.FuncCall
-	functionName := functionCall.Name
-	toolInputStr := functionCall.Arguments
-	toolInputMap := make(map[string]any, 0)
-	err := json.Unmarshal([]byte(toolInputStr), &toolInputMap)
-	if err != nil {
-		return nil, nil, err
-	}
+		if len(choice.ToolCalls) == 0 && choice.FuncCall == nil {
+			return nil, &schema.AgentFinish{
+				ReturnValues: map[string]any{
+					"output": content,
+				},
+				Log: content,
+			}, nil
+		}
 
-	toolInput := toolInputStr
-	if arg1, ok := toolInputMap["__arg1"]; ok {
-		toolInputCheck, ok := arg1.(string)
-		if ok {
-			toolInput = toolInputCheck
+		if len(choice.ToolCalls) == 0 && choice.FuncCall != nil {
+			functionCall := choice.FuncCall
+			functionName := functionCall.Name
+			toolInputStr := functionCall.Arguments
+			action, err := o.parseToolCalls("", functionName, toolInputStr, content)
+			if err != nil {
+				return nil, nil, err
+			}
+			actions = append(actions, action)
+			continue
+		}
+
+		for _, toolCall := range choice.ToolCalls {
+			if toolCall.FunctionCall == nil {
+				continue
+			}
+
+			functionName := toolCall.FunctionCall.Name
+			toolInputStr := toolCall.FunctionCall.Arguments
+			action, err := o.parseToolCalls(toolCall.ID, functionName, toolInputStr, content)
+			if err != nil {
+				return nil, nil, err
+			}
+			actions = append(actions, action)
 		}
 	}
 
-	contentMsg := "\n"
-	if choice.Content != "" {
-		contentMsg = fmt.Sprintf("responded: %s\n", choice.Content)
+	return actions, nil, nil
+}
+
+func (o *OpenAIFunctionsAgent) parseToolCalls(id, name, args, content string) (schema.AgentAction, error) {
+	argsMap := make(map[string]any, 0)
+	err := json.Unmarshal([]byte(args), &argsMap)
+	if err != nil {
+		return schema.AgentAction{}, err
 	}
 
-	return []schema.AgentAction{
-		{
-			Tool:      functionName,
-			ToolInput: toolInput,
-			Log:       fmt.Sprintf("Invoking: %s with %s \n %s \n", functionName, toolInputStr, contentMsg),
-			ToolID:    choice.ToolCalls[0].ID,
-		},
-	}, nil, nil
+	// extract the first argument from the tool call if it exists
+	if arg1, ok := argsMap["__arg1"]; ok {
+		argCheck, ok := arg1.(string)
+		if ok {
+			args = argCheck
+		}
+	}
+
+	if id == "" {
+		id = strings.ReplaceAll(uuid.New().String(), "-", "")
+	}
+	if content != "" {
+		content = fmt.Sprintf("responded: %s\n", content)
+	} else {
+		content = "\n"
+	}
+
+	return schema.AgentAction{
+		Tool:      name,
+		ToolInput: args,
+		Log:       fmt.Sprintf("Invoking: %s with %s\n%s\n", name, args, content),
+		ToolID:    id,
+	}, nil
 }
