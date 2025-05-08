@@ -16,7 +16,7 @@ func TestTranscription(t *testing.T) {
 	}
 	t.Run("Test with local file", func(t *testing.T) {
 		t.Parallel()
-		audioFilePath := "./sample.mp3"
+		audioFilePath := "./testdata/sample.mp3"
 		_, err := os.Stat(audioFilePath)
 		require.NoError(t, err)
 		opts := []WhisperOpenAIOption{
