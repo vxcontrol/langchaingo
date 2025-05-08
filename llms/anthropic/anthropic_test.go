@@ -1,7 +1,6 @@
 package anthropic
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -14,6 +13,7 @@ import (
 
 func newTestClient(t *testing.T, opts ...Option) *LLM {
 	t.Helper()
+
 	var apiKey string
 
 	if apiKey = os.Getenv("ANTHROPIC_API_KEY"); apiKey == "" {
@@ -29,6 +29,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 
 func TestGenerateContent(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -41,7 +42,7 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -86,7 +87,7 @@ func TestGenerateContentWithTool(t *testing.T) {
 	}
 
 	// Ask a questions about the weather and let the model know that the tool is available
-	rsp, err := llm.GenerateContent(context.Background(), contents, llms.WithTools(availableTools))
+	rsp, err := llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
 	require.NoError(t, err)
 
 	// Expect a tool call in the response
@@ -128,7 +129,7 @@ func TestGenerateContentWithTool(t *testing.T) {
 	contents = append(contents, weatherCallResponse)
 
 	// Generate answer with the tool response
-	rsp, err = llm.GenerateContent(context.Background(), contents, llms.WithTools(availableTools))
+	rsp, err = llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
 	require.NoError(t, err)
 
 	require.NotEmpty(t, rsp.Choices)

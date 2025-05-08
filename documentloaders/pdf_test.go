@@ -1,7 +1,6 @@
 package documentloaders
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -45,7 +44,7 @@ func TestPDFLoader(t *testing.T) {
 		finfo, err := f.Stat()
 		require.NoError(t, err)
 		p := NewPDF(f, finfo.Size())
-		docs, err := p.Load(context.Background())
+		docs, err := p.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 2)
@@ -64,7 +63,7 @@ func TestPDFLoader(t *testing.T) {
 		finfo, err := f.Stat()
 		require.NoError(t, err)
 		p := NewPDF(f, finfo.Size(), WithPassword("password"))
-		docs, err := p.Load(context.Background())
+		docs, err := p.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 2)
@@ -83,7 +82,7 @@ func TestPDFLoader(t *testing.T) {
 		finfo, err := f.Stat()
 		require.NoError(t, err)
 		p := NewPDF(f, finfo.Size(), WithPassword("password1"))
-		docs, err := p.Load(context.Background())
+		docs, err := p.Load(t.Context())
 		require.Errorf(t, err, pdf.ErrInvalidPassword.Error())
 
 		assert.Empty(t, docs)
@@ -128,7 +127,7 @@ func TestPDFTextSplit(t *testing.T) {
 		split := textsplitter.NewRecursiveCharacter()
 		split.ChunkSize = 300
 		split.ChunkOverlap = 30
-		docs, err := p.LoadAndSplit(context.Background(), split)
+		docs, err := p.LoadAndSplit(t.Context(), split)
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 4)

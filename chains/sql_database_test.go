@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -37,7 +36,7 @@ func TestSQLDatabaseChain_Call(t *testing.T) {
 		"query":              "How many cards are there?",
 		"table_names_to_use": []string{"AllianceAuthority", "AllianceGift", "Card"},
 	}
-	result, err := chain.Call(context.Background(), input)
+	result, err := chain.Call(t.Context(), input)
 	require.NoError(t, err)
 
 	ret, ok := result["result"].(string)

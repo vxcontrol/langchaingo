@@ -58,6 +58,7 @@ func getEnvVariables(t *testing.T) (string, string, string, string, string, stri
 
 func setEngine(ctx context.Context, t *testing.T) (alloydbutil.PostgresEngine, error) {
 	t.Helper()
+
 	username, password, database, projectID, region, instance, cluster := getEnvVariables(t)
 
 	pgEngine, err := alloydbutil.NewPostgresEngine(ctx,
@@ -72,13 +73,14 @@ func setEngine(ctx context.Context, t *testing.T) (alloydbutil.PostgresEngine, e
 
 func TestValidateTable(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+
+	ctx := t.Context()
 	engine, err := setEngine(ctx, t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer engine.Close()
+	t.Cleanup(engine.Close)
+
 	tcs := []struct {
 		desc      string
 		tableName string
@@ -108,6 +110,7 @@ func TestValidateTable(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
+
 			chatMsgHistory, err := alloydb.NewChatMessageHistory(ctx, engine, tc.tableName, tc.sessionID)
 			if tc.err != "" && (err == nil || !strings.Contains(err.Error(), tc.err)) {
 				t.Fatalf("unexpected error: got %q, want %q", err, tc.err)

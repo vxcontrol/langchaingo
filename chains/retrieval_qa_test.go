@@ -3,7 +3,6 @@ package chains
 import (
 	"context"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms/openai"
@@ -26,6 +25,7 @@ func (r testRetriever) GetRelevantDocuments(_ context.Context, _ string) ([]sche
 
 func TestRetrievalQA(t *testing.T) {
 	t.Parallel()
+
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
@@ -44,13 +44,14 @@ func TestRetrievalQA(t *testing.T) {
 
 	chain := NewRetrievalQA(combineChain, r)
 
-	result, err := Run(context.Background(), chain, "what is foo? ")
+	result, err := Run(t.Context(), chain, "what is foo? ")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "34"), "expected 34 in result")
+	require.Contains(t, result, "34", "expected 34 in result")
 }
 
 func TestRetrievalQAFromLLM(t *testing.T) {
 	t.Parallel()
+
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
@@ -60,7 +61,7 @@ func TestRetrievalQAFromLLM(t *testing.T) {
 	require.NoError(t, err)
 
 	chain := NewRetrievalQAFromLLM(llm, r)
-	result, err := Run(context.Background(), chain, "what is foo? ")
+	result, err := Run(t.Context(), chain, "what is foo? ")
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "34"), "expected 34 in result")
+	require.Contains(t, result, "34", "expected 34 in result")
 }

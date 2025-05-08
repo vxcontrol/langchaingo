@@ -1,7 +1,6 @@
 package pinecone_test
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -44,7 +43,11 @@ func waitPineconeIndexing(t *testing.T) {
 
 	// small delay for pinecone to index the documents
 	// it's a dirty hack, but sometimes the tests fail because of the pinecone indexing
-	time.Sleep(10 * time.Second)
+	select {
+	case <-time.After(12 * time.Second):
+	case <-t.Context().Done():
+		t.Fatal("test timed out")
+	}
 }
 
 func TestPineconeStoreRest(t *testing.T) {
@@ -65,7 +68,7 @@ func TestPineconeStoreRest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = storer.AddDocuments(context.Background(), []schema.Document{
+	_, err = storer.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "tokyo"},
 		{PageContent: "potato"},
 	})
@@ -73,7 +76,7 @@ func TestPineconeStoreRest(t *testing.T) {
 
 	waitPineconeIndexing(t)
 
-	docs, err := storer.SimilaritySearch(context.Background(), "japan", 1)
+	docs, err := storer.SimilaritySearch(t.Context(), "japan", 1)
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
 	require.Equal(t, "tokyo", docs[0].PageContent)
@@ -97,7 +100,7 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = storer.AddDocuments(context.Background(), []schema.Document{
+	_, err = storer.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -114,14 +117,14 @@ func TestPineconeStoreRestWithScoreThreshold(t *testing.T) {
 	waitPineconeIndexing(t)
 
 	// test with a score threshold of 0.8, expected 6 documents
-	docs, err := storer.SimilaritySearch(context.Background(),
+	docs, err := storer.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0.8))
 	require.NoError(t, err)
 	require.Len(t, docs, 6)
 
 	// test with a score threshold of 0, expected all 10 documents
-	docs, err = storer.SimilaritySearch(context.Background(),
+	docs, err = storer.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0))
 	require.NoError(t, err)
@@ -146,7 +149,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = storer.AddDocuments(context.Background(), []schema.Document{
+	_, err = storer.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -162,12 +165,12 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 
 	waitPineconeIndexing(t)
 
-	_, err = storer.SimilaritySearch(context.Background(),
+	_, err = storer.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(-0.8))
 	require.Error(t, err)
 
-	_, err = storer.SimilaritySearch(context.Background(),
+	_, err = storer.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(1.8))
 	require.Error(t, err)
@@ -193,7 +196,7 @@ func TestPineconeAsRetriever(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -206,7 +209,7 @@ func TestPineconeAsRetriever(t *testing.T) {
 	waitPineconeIndexing(t)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 1, vectorstores.WithNameSpace(id)),
@@ -214,7 +217,7 @@ func TestPineconeAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
@@ -237,7 +240,7 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -252,7 +255,7 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	waitPineconeIndexing(t)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
@@ -262,8 +265,8 @@ func TestPineconeAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
@@ -286,7 +289,7 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -331,7 +334,7 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	filter["location"] = filterValue
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
@@ -341,7 +344,7 @@ func TestPineconeAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
@@ -364,7 +367,7 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -409,7 +412,7 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	filter["location"] = filterValue
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
@@ -419,8 +422,8 @@ func TestPineconeAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
@@ -443,7 +446,7 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -483,7 +486,7 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	waitPineconeIndexing(t)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
@@ -493,11 +496,11 @@ func TestPineconeAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
@@ -520,7 +523,7 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 	id := uuid.New().String()
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is orange.",
@@ -566,7 +569,7 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 	}
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithNameSpace(
@@ -576,5 +579,5 @@ func TestPineconeAsRetrieverWithMetadataFilters(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "purple", "expected black in purple")
+	require.Contains(t, strings.ToLower(result), "purple", "expected black in purple")
 }

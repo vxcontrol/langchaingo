@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"context"
 	"os"
 	"regexp"
 	"testing"
@@ -31,10 +30,10 @@ func TestConversationalWithMemory(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = chains.Run(context.Background(), executor, "Hi! my name is Bob and the year I was born is 1987")
+	_, err = chains.Run(t.Context(), executor, "Hi! my name is Bob and the year I was born is 1987")
 	require.NoError(t, err)
 
-	res, err := chains.Run(context.Background(), executor, "What is the year I was born times 34")
+	res, err := chains.Run(t.Context(), executor, "What is the year I was born times 34")
 	require.NoError(t, err)
 	expectedRe := "67,?558"
 	if !regexp.MustCompile(expectedRe).MatchString(res) {

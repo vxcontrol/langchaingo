@@ -85,12 +85,18 @@ func getEnvVariables(t *testing.T) EnvVariables {
 
 func setEngine(t *testing.T, envVariables EnvVariables) alloydbutil.PostgresEngine {
 	t.Helper()
-	ctx := context.Background()
+
+	ctx := t.Context()
 	pgEngine, err := alloydbutil.NewPostgresEngine(ctx,
 		alloydbutil.WithUser(envVariables.Username),
 		alloydbutil.WithPassword(envVariables.Password),
 		alloydbutil.WithDatabase(envVariables.Database),
-		alloydbutil.WithAlloyDBInstance(envVariables.ProjectID, envVariables.Region, envVariables.Cluster, envVariables.Instance),
+		alloydbutil.WithAlloyDBInstance(
+			envVariables.ProjectID,
+			envVariables.Region,
+			envVariables.Cluster,
+			envVariables.Instance,
+		),
 	)
 	if err != nil {
 		t.Fatal("Could not set Engine: ", err)
@@ -101,8 +107,9 @@ func setEngine(t *testing.T, envVariables EnvVariables) alloydbutil.PostgresEngi
 
 func vectorStore(t *testing.T, envVariables EnvVariables) (alloydb.VectorStore, func() error) {
 	t.Helper()
+
 	pgEngine := setEngine(t, envVariables)
-	ctx := context.Background()
+	ctx := t.Context()
 	vectorstoreTableoptions := alloydbutil.VectorstoreTableOptions{
 		TableName:         envVariables.Table,
 		OverwriteExisting: true,
@@ -133,6 +140,7 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (alloydb.VectorStore, 
 	}
 
 	cleanUpTableFn := func() error {
+		ctx := context.Background() //nolint:usetesting
 		_, err := pgEngine.Pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", envVariables.Table))
 		return err
 	}
@@ -145,7 +153,7 @@ func TestPingToDB(t *testing.T) {
 
 	defer engine.Close()
 
-	if err := engine.Pool.Ping(context.Background()); err != nil {
+	if err := engine.Pool.Ping(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -153,8 +161,14 @@ func TestPingToDB(t *testing.T) {
 func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", alloydb.CosineDistance{}, []string{}, alloydb.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		alloydb.CosineDistance{},
+		[]string{},
+		alloydb.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -172,8 +186,14 @@ func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 func TestIsValidIndex(t *testing.T) {
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", alloydb.CosineDistance{}, []string{}, alloydb.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		alloydb.CosineDistance{},
+		[]string{},
+		alloydb.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -194,7 +214,6 @@ func TestIsValidIndex(t *testing.T) {
 }
 
 func TestAddDocuments(t *testing.T) {
-	ctx := context.Background()
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
 	t.Cleanup(func() {
@@ -203,7 +222,7 @@ func TestAddDocuments(t *testing.T) {
 		}
 	})
 
-	_, err := vs.AddDocuments(ctx, []schema.Document{
+	_, err := vs.AddDocuments(t.Context(), []schema.Document{
 		{
 			PageContent: "Tokyo",
 			Metadata: map[string]any{

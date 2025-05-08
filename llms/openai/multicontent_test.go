@@ -15,6 +15,7 @@ import (
 
 func newTestClient(t *testing.T, opts ...Option) *LLM {
 	t.Helper()
+
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 		return nil
@@ -27,6 +28,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 
 func TestMultiContentText(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -40,7 +42,7 @@ func TestMultiContentText(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -50,6 +52,7 @@ func TestMultiContentText(t *testing.T) {
 
 func TestMultiContentTextChatSequence(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	content := []llms.MessageContent{
@@ -67,7 +70,7 @@ func TestMultiContentTextChatSequence(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -81,7 +84,7 @@ func TestMultiContentImage(t *testing.T) {
 	llm := newTestClient(t, WithModel("gpt-4o"))
 
 	parts := []llms.ContentPart{
-		llms.ImageURLPart("https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"),
+		llms.ImageURLPart("https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"), //nolint:lll
 		llms.TextPart("describe this image in detail"),
 	}
 	content := []llms.MessageContent{
@@ -91,7 +94,7 @@ func TestMultiContentImage(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content, llms.WithMaxTokens(300))
+	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(300))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -101,6 +104,7 @@ func TestMultiContentImage(t *testing.T) {
 
 func TestWithStreaming(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -115,7 +119,7 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(context.Background(), content,
+	rsp, err := llm.GenerateContent(t.Context(), content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
 			sb.Write(chunk)
 			return nil
@@ -132,6 +136,7 @@ func TestWithStreaming(t *testing.T) {
 //nolint:lll
 func TestFunctionCall(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -148,24 +153,15 @@ func TestFunctionCall(t *testing.T) {
 		{
 			Name:        "getCurrentWeather",
 			Description: "Get the current weather in a given location",
-			Parameters:  json.RawMessage(`{"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}}, "required": ["location"]}`),
+			Parameters:  json.RawMessage(`{"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}}, "required": ["location"]}`), //nolint:lll
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content,
-		llms.WithFunctions(functions))
+	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithFunctions(functions))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
 	c1 := rsp.Choices[0]
 	assert.Equal(t, "tool_calls", c1.StopReason)
 	assert.NotNil(t, c1.FuncCall)
-}
-
-func showResponse(rsp any) string { //nolint:golint,unused
-	b, err := json.MarshalIndent(rsp, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
 }

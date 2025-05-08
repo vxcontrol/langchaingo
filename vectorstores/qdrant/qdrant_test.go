@@ -47,13 +47,13 @@ func TestQdrantStore(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "tokyo"},
 		{PageContent: "potato"},
 	})
 	require.NoError(t, err)
 
-	docs, err := store.SimilaritySearch(context.Background(), "japan", 1)
+	docs, err := store.SimilaritySearch(t.Context(), "japan", 1)
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
 	require.Equal(t, "tokyo", docs[0].PageContent)
@@ -85,7 +85,7 @@ func TestQdrantStoreWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -100,14 +100,14 @@ func TestQdrantStoreWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	// test with a score threshold of 0.8, expected 6 documents
-	docs, err := store.SimilaritySearch(context.Background(),
+	docs, err := store.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0.8))
 	require.NoError(t, err)
 	require.Len(t, docs, 6)
 
 	// test with a score threshold of 0, expected all 10 documents
-	docs, err = store.SimilaritySearch(context.Background(),
+	docs, err = store.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0))
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -154,12 +154,12 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = store.SimilaritySearch(context.Background(),
+	_, err = store.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(-0.8))
 	require.Error(t, err)
 
-	_, err = store.SimilaritySearch(context.Background(),
+	_, err = store.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(1.8))
 	require.Error(t, err)
@@ -192,7 +192,7 @@ func TestQdrantAsRetriever(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -202,7 +202,7 @@ func TestQdrantAsRetriever(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 1),
@@ -210,7 +210,7 @@ func TestQdrantAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestQdrantRetrieverScoreThreshold(t *testing.T) {
@@ -240,7 +240,7 @@ func TestQdrantRetrieverScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -252,7 +252,7 @@ func TestQdrantRetrieverScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.8)),
@@ -261,8 +261,8 @@ func TestQdrantRetrieverScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestQdrantRetrieverFilter(t *testing.T) {
@@ -292,7 +292,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -304,7 +304,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -346,7 +346,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 	}
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithFilters(filter)),
@@ -354,7 +354,7 @@ func TestQdrantRetrieverFilter(t *testing.T) {
 		"What colors is the lamp?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func getValues(t *testing.T) (string, string, int, string) {
@@ -366,16 +366,19 @@ func getValues(t *testing.T) (string, string, int, string) {
 
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		qdrantContainer, err := tcqdrant.RunContainer(context.Background(), testcontainers.WithImage("qdrant/qdrant:v1.7.4"))
+		image := "qdrant/qdrant:v1.7.4"
+		qdrantContainer, err := tcqdrant.RunContainer(t.Context(), testcontainers.WithImage(image))
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			require.NoError(t, qdrantContainer.Terminate(context.Background()))
+			ctx := context.Background() //nolint:usetesting
+			require.NoError(t, qdrantContainer.Terminate(ctx))
 		})
 
-		qdrantURL, err = qdrantContainer.RESTEndpoint(context.Background())
+		qdrantURL, err = qdrantContainer.RESTEndpoint(t.Context())
 		if err != nil {
 			t.Skipf("Failed to get qdrant container endpoint: %s", err)
 		}
@@ -398,8 +401,8 @@ func getValues(t *testing.T) (string, string, int, string) {
 
 func setupCollection(t *testing.T, qdrantURL, apiKey string, dimension int, distance string) string {
 	t.Helper()
-	collectionName := uuid.NewString()
 
+	collectionName := uuid.NewString()
 	collectionConfig := map[string]interface{}{
 		"vectors": map[string]interface{}{
 			"size":     dimension,
@@ -411,13 +414,14 @@ func setupCollection(t *testing.T, qdrantURL, apiKey string, dimension int, dist
 	require.NoError(t, err)
 
 	url = url.JoinPath("collections", collectionName)
-	_, status, err := qdrant.DoRequest(context.TODO(), *url, apiKey, http.MethodPut, collectionConfig)
+	_, status, err := qdrant.DoRequest(t.Context(), *url, apiKey, http.MethodPut, collectionConfig)
 
 	require.Equal(t, http.StatusOK, status)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		_, status, err := qdrant.DoRequest(context.TODO(), *url, apiKey, http.MethodDelete, nil)
+		ctx := context.Background() //nolint:usetesting
+		_, status, err := qdrant.DoRequest(ctx, *url, apiKey, http.MethodDelete, nil)
 
 		require.Equal(t, http.StatusOK, status)
 		require.NoError(t, err)

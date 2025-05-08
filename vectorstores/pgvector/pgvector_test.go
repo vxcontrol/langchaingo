@@ -33,9 +33,9 @@ func preCheckEnvSetting(t *testing.T) string {
 
 	pgvectorURL := os.Getenv("PGVECTOR_CONNECTION_STRING")
 	if pgvectorURL == "" {
-		pgVectorContainer, err := tcpostgres.RunContainer(
-			context.Background(),
-			testcontainers.WithImage("docker.io/pgvector/pgvector:pg16"),
+		pgVectorContainer, err := tcpostgres.Run(
+			t.Context(),
+			"docker.io/pgvector/pgvector:pg16",
 			tcpostgres.WithDatabase("db_test"),
 			tcpostgres.WithUsername("user"),
 			tcpostgres.WithPassword("passw0rd!"),
@@ -48,11 +48,13 @@ func preCheckEnvSetting(t *testing.T) string {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			require.NoError(t, pgVectorContainer.Terminate(context.Background()))
+			ctx := context.Background() //nolint:usetesting
+			require.NoError(t, pgVectorContainer.Terminate(ctx))
 		})
 
-		str, err := pgVectorContainer.ConnectionString(context.Background(), "sslmode=disable")
+		str, err := pgVectorContainer.ConnectionString(t.Context(), "sslmode=disable")
 		require.NoError(t, err)
 
 		pgvectorURL = str
@@ -81,8 +83,9 @@ func cleanupTestArtifacts(ctx context.Context, t *testing.T, s pgvector.Store, p
 
 func TestPgvectorStoreRest(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -122,8 +125,9 @@ func TestPgvectorStoreRest(t *testing.T) {
 
 func TestPgvectorStoreRestWithScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -146,7 +150,7 @@ func TestPgvectorStoreRestWithScoreThreshold(t *testing.T) {
 
 	defer cleanupTestArtifacts(ctx, t, store, pgvectorURL)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -182,8 +186,9 @@ func TestPgvectorStoreRestWithScoreThreshold(t *testing.T) {
 
 func TestPgvectorStoreSimilarityScore(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -206,7 +211,7 @@ func TestPgvectorStoreSimilarityScore(t *testing.T) {
 
 	defer cleanupTestArtifacts(ctx, t, store, pgvectorURL)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo is the capital city of Japan."},
 		{PageContent: "Paris is the city of love."},
 		{PageContent: "I like to visit London."},
@@ -227,8 +232,9 @@ func TestPgvectorStoreSimilarityScore(t *testing.T) {
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -286,12 +292,14 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 // openai embedding [dimensions](https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions) args.
 func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	pgvectorURL := preCheckEnvSetting(t)
+
 	genaiKey := os.Getenv("GENAI_API_KEY")
 	if genaiKey == "" {
 		t.Skip("GENAI_API_KEY not set")
 	}
+
+	pgvectorURL := preCheckEnvSetting(t)
+	ctx := t.Context()
 	collectionName := makeNewCollectionName()
 
 	// use Google embedding (now default model is embedding-001, with dimensions:768) to add some data to collection
@@ -319,7 +327,8 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// use openai embedding (now default model is text-embedding-ada-002, with dimensions:1536) to add some data to same collection (same table)
+	// use openai embedding (now default model is text-embedding-ada-002, with dimensions:1536)
+	// to add some data to same collection (same table)
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	)
@@ -363,8 +372,9 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 
 func TestPgvectorAsRetriever(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -406,13 +416,14 @@ func TestPgvectorAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -436,7 +447,7 @@ func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 	defer cleanupTestArtifacts(ctx, t, store, pgvectorURL)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		ctx,
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -457,15 +468,16 @@ func TestPgvectorAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestPgvectorAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -536,17 +548,18 @@ func TestPgvectorAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	require.NoError(t, err)
 	result = strings.ToLower(result)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -570,7 +583,7 @@ func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	defer cleanupTestArtifacts(ctx, t, store, pgvectorURL)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		ctx,
 		[]schema.Document{
 			{
 				PageContent: "In office, the color of the lamp beside the desk is orange.",
@@ -609,15 +622,16 @@ func TestPgvectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		"What color is the lamp in each room?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.NotContains(t, result, "orange", "expected not orange in result")
-	require.NotContains(t, result, "yellow", "expected not yellow in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.NotContains(t, strings.ToLower(result), "orange", "expected not orange in result")
+	require.NotContains(t, strings.ToLower(result), "yellow", "expected not yellow in result")
 }
 
 func TestDeduplicater(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
@@ -640,7 +654,7 @@ func TestDeduplicater(t *testing.T) {
 
 	defer cleanupTestArtifacts(ctx, t, store, pgvectorURL)
 
-	_, err = store.AddDocuments(context.Background(), []schema.Document{
+	_, err = store.AddDocuments(ctx, []schema.Document{
 		{PageContent: "tokyo", Metadata: map[string]any{
 			"type": "city",
 		}},
@@ -663,8 +677,9 @@ func TestDeduplicater(t *testing.T) {
 
 func TestWithAllOptions(t *testing.T) {
 	t.Parallel()
+
 	pgvectorURL := preCheckEnvSetting(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),

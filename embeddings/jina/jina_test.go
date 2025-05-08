@@ -1,7 +1,6 @@
 package jina
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -15,13 +14,18 @@ func TestJinaEmbeddings(t *testing.T) {
 	if jinakey := os.Getenv("JINA_API_KEY"); jinakey == "" {
 		t.Skip("JINA_API_KEY not set")
 	}
+
 	j, err := NewJina()
 	require.NoError(t, err)
 
-	_, err = j.EmbedQuery(context.Background(), "Hello world!")
+	_, err = j.EmbedQuery(t.Context(), "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := j.EmbedDocuments(context.Background(), []string{"Hello world", "The world is ending", "good bye"})
+	embeddings, err := j.EmbedDocuments(t.Context(), []string{
+		"Hello world",
+		"The world is ending",
+		"good bye",
+	})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 }

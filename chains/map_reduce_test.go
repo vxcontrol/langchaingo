@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/prompts"
@@ -48,7 +47,7 @@ func TestMapReduce(t *testing.T) {
 		),
 	)
 
-	result, err := Run(context.Background(), c, []schema.Document{
+	result, err := Run(t.Context(), c, []schema.Document{
 		{PageContent: "foo"},
 		{PageContent: "boo"},
 		{PageContent: "zoo"},

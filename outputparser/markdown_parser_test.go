@@ -47,8 +47,11 @@ func TestMarkdown(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for idx := range testCases {
+		tc := testCases[idx]
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			parser := outputparser.NewMarkdown()
 
 			result, err := parser.Parse(tc.input)

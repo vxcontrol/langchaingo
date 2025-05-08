@@ -50,7 +50,7 @@ func TestChromaGoStoreRest(t *testing.T) {
 
 	defer cleanupTestArtifacts(t, s)
 
-	_, err = s.AddDocuments(context.Background(), []schema.Document{
+	_, err = s.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "tokyo", Metadata: map[string]any{
 			"country": "japan",
 		}},
@@ -58,7 +58,7 @@ func TestChromaGoStoreRest(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	docs, err := s.SimilaritySearch(context.Background(), "japan", 1)
+	docs, err := s.SimilaritySearch(t.Context(), "japan", 1)
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
 	require.Equal(t, "tokyo", docs[0].PageContent)
@@ -87,7 +87,7 @@ func TestChromaStoreRestWithScoreThreshold(t *testing.T) {
 
 	defer cleanupTestArtifacts(t, s)
 
-	_, err = s.AddDocuments(context.Background(), []schema.Document{
+	_, err = s.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -102,14 +102,14 @@ func TestChromaStoreRestWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	// test with a score threshold of 0.8, expected 6 documents
-	docs, err := s.SimilaritySearch(context.Background(),
+	docs, err := s.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0.8))
 	require.NoError(t, err)
 	require.Len(t, docs, 6)
 
 	// test with a score threshold of 0, expected all 10 documents
-	docs, err = s.SimilaritySearch(context.Background(),
+	docs, err = s.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0))
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 
 	defer cleanupTestArtifacts(t, s)
 
-	_, err = s.AddDocuments(context.Background(), []schema.Document{
+	_, err = s.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -149,12 +149,12 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = s.SimilaritySearch(context.Background(),
+	_, err = s.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(-0.8))
 	require.Error(t, err)
 
-	_, err = s.SimilaritySearch(context.Background(),
+	_, err = s.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(1.8))
 	require.Error(t, err)
@@ -181,7 +181,7 @@ func TestChromaAsRetriever(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, err = s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -191,7 +191,7 @@ func TestChromaAsRetriever(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 1),
@@ -199,7 +199,7 @@ func TestChromaAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestChromaAsRetrieverWithScoreThreshold(t *testing.T) {
@@ -224,7 +224,7 @@ func TestChromaAsRetrieverWithScoreThreshold(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, err = s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -236,7 +236,7 @@ func TestChromaAsRetrieverWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 5, vectorstores.WithScoreThreshold(0.8)),
@@ -245,11 +245,8 @@ func TestChromaAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// TODO (noodnik2): clarify - WHY should we see "orange" in the result,
-	//  as required by (expected in) the original "Pinecone" test??
-	//   require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }
 
 func TestChromaAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
@@ -273,7 +270,7 @@ func TestChromaAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, err = s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -315,7 +312,7 @@ func TestChromaAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	filter["location"] = filterValue
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 5, vectorstores.WithFilters(filter)),
@@ -324,7 +321,7 @@ func TestChromaAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestChromaAsRetrieverWithMetadataFilterInClause(t *testing.T) {
@@ -349,7 +346,7 @@ func TestChromaAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, addDocumentsErr := s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -395,7 +392,7 @@ func TestChromaAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	filter["location"] = filterValue
 
 	result, runChainErr := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 5, vectorstores.WithNameSpace(ns),
@@ -405,8 +402,8 @@ func TestChromaAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 	)
 	require.NoError(t, runChainErr)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestChromaAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
@@ -430,7 +427,7 @@ func TestChromaAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, err = s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -467,7 +464,7 @@ func TestChromaAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 5),
@@ -477,11 +474,11 @@ func TestChromaAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 	result = strings.ToLower(result)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "blue", "expected blue in result")
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "purple", "expected purple in result")
-	require.Contains(t, result, "yellow", "expected yellow in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "blue", "expected blue in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "purple", "expected purple in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected yellow in result")
 }
 
 func TestChromaAsRetrieverWithMetadataFilters(t *testing.T) {
@@ -505,7 +502,7 @@ func TestChromaAsRetrieverWithMetadataFilters(t *testing.T) {
 	defer cleanupTestArtifacts(t, s)
 
 	_, err = s.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is orange.",
@@ -548,7 +545,7 @@ func TestChromaAsRetrieverWithMetadataFilters(t *testing.T) {
 	}
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(s, 5, vectorstores.WithFilters(filter)),
@@ -570,16 +567,19 @@ func getValues(t *testing.T) (string, string) {
 
 	chromaURL := os.Getenv(chroma.ChromaURLKeyEnvVarName)
 	if chromaURL == "" {
-		chromaContainer, err := tcchroma.RunContainer(context.Background(), testcontainers.WithImage("chromadb/chroma:0.4.24"))
+		image := "chromadb/chroma:0.4.24"
+		chromaContainer, err := tcchroma.RunContainer(t.Context(), testcontainers.WithImage(image))
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			require.NoError(t, chromaContainer.Terminate(context.Background()))
+			ctx := context.Background() //nolint:usetesting
+			require.NoError(t, chromaContainer.Terminate(ctx))
 		})
 
-		chromaURL, err = chromaContainer.RESTEndpoint(context.Background())
+		chromaURL, err = chromaContainer.RESTEndpoint(t.Context())
 		if err != nil {
 			t.Skipf("Failed to get chroma container REST endpoint: %s", err)
 		}
@@ -590,6 +590,7 @@ func getValues(t *testing.T) (string, string) {
 
 func cleanupTestArtifacts(t *testing.T, s chroma.Store) {
 	t.Helper()
+
 	require.NoError(t, s.RemoveCollection())
 }
 

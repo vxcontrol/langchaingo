@@ -1,7 +1,6 @@
 package azureaisearch_test
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -38,20 +37,23 @@ func checkEnvVariables(t *testing.T) {
 
 func setIndex(t *testing.T, storer azureaisearch.Store, indexName string) {
 	t.Helper()
-	if err := storer.CreateIndex(context.TODO(), indexName); err != nil {
+
+	if err := storer.CreateIndex(t.Context(), indexName); err != nil {
 		t.Fatalf("error creating index: %v\n", err)
 	}
 }
 
 func removeIndex(t *testing.T, storer azureaisearch.Store, indexName string) {
 	t.Helper()
-	if err := storer.DeleteIndex(context.TODO(), indexName); err != nil {
+
+	if err := storer.DeleteIndex(t.Context(), indexName); err != nil {
 		t.Fatalf("error deleting index: %v\n", err)
 	}
 }
 
 func setLLM(t *testing.T) *openai.LLM {
 	t.Helper()
+
 	openaiOpts := []openai.Option{}
 
 	if openAIBaseURL := os.Getenv("OPENAI_BASE_URL"); openAIBaseURL != "" {
@@ -73,6 +75,7 @@ func setLLM(t *testing.T) *openai.LLM {
 
 func TestAzureaiSearchStoreRest(t *testing.T) {
 	t.Parallel()
+
 	checkEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -88,13 +91,13 @@ func TestAzureaiSearchStoreRest(t *testing.T) {
 	setIndex(t, storer, indexName)
 	defer removeIndex(t, storer, indexName)
 
-	_, err = storer.AddDocuments(context.Background(), []schema.Document{
+	_, err = storer.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "tokyo"},
 		{PageContent: "potato"},
 	}, vectorstores.WithNameSpace(indexName))
 	require.NoError(t, err)
 
-	docs, err := storer.SimilaritySearch(context.Background(), "japan", 1, vectorstores.WithNameSpace(indexName))
+	docs, err := storer.SimilaritySearch(t.Context(), "japan", 1, vectorstores.WithNameSpace(indexName))
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
 	require.Equal(t, "tokyo", docs[0].PageContent)
@@ -102,6 +105,7 @@ func TestAzureaiSearchStoreRest(t *testing.T) {
 
 func TestAzureaiSearchStoreRestWithScoreThreshold(t *testing.T) {
 	t.Parallel()
+
 	checkEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -117,7 +121,7 @@ func TestAzureaiSearchStoreRestWithScoreThreshold(t *testing.T) {
 	setIndex(t, storer, indexName)
 	defer removeIndex(t, storer, indexName)
 
-	_, err = storer.AddDocuments(context.Background(), []schema.Document{
+	_, err = storer.AddDocuments(t.Context(), []schema.Document{
 		{PageContent: "Tokyo"},
 		{PageContent: "Yokohama"},
 		{PageContent: "Osaka"},
@@ -132,7 +136,7 @@ func TestAzureaiSearchStoreRestWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 	// test with a score threshold of 0.84, expected 6 documents
-	docs, err := storer.SimilaritySearch(context.Background(),
+	docs, err := storer.SimilaritySearch(t.Context(),
 		"Which of these are cities in Japan", 10,
 		vectorstores.WithScoreThreshold(0.84),
 		vectorstores.WithNameSpace(indexName))
@@ -142,6 +146,7 @@ func TestAzureaiSearchStoreRestWithScoreThreshold(t *testing.T) {
 
 func TestAzureaiSearchAsRetriever(t *testing.T) {
 	t.Parallel()
+
 	checkEnvVariables(t)
 	indexName := uuid.New().String()
 
@@ -158,7 +163,7 @@ func TestAzureaiSearchAsRetriever(t *testing.T) {
 	defer removeIndex(t, storer, indexName)
 
 	_, err = storer.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -171,7 +176,7 @@ func TestAzureaiSearchAsRetriever(t *testing.T) {
 	time.Sleep(time.Second)
 
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(&storer, 1, vectorstores.WithNameSpace(indexName)),
@@ -179,7 +184,7 @@ func TestAzureaiSearchAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 }
 
 func TestAzureaiSearchAsRetrieverWithScoreThreshold(t *testing.T) {
@@ -200,7 +205,7 @@ func TestAzureaiSearchAsRetrieverWithScoreThreshold(t *testing.T) {
 	defer removeIndex(t, storer, indexName)
 
 	_, err = storer.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{PageContent: "The color of the house is blue."},
 			{PageContent: "The color of the car is red."},
@@ -213,7 +218,7 @@ func TestAzureaiSearchAsRetrieverWithScoreThreshold(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 	result, err := chains.Run(
-		context.TODO(),
+		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
 			vectorstores.ToRetriever(&storer, 5,
@@ -224,6 +229,6 @@ func TestAzureaiSearchAsRetrieverWithScoreThreshold(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 }

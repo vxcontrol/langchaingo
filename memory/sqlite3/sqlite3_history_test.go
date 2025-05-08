@@ -1,7 +1,6 @@
 package sqlite3_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -14,7 +13,7 @@ import (
 func TestSqliteChatMessageHistory(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	h := sqlite3.NewSqliteChatMessageHistory(sqlite3.WithContext(ctx))
 
 	err := h.AddAIMessage(ctx, "foo")

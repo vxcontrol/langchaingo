@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -20,7 +19,7 @@ func loadTestData(t *testing.T) []schema.Document {
 	require.NoError(t, err)
 
 	docs, err := documentloaders.NewText(file).LoadAndSplit(
-		context.Background(),
+		t.Context(),
 		textsplitter.NewRecursiveCharacter(),
 	)
 	require.NoError(t, err)
@@ -42,7 +41,7 @@ func TestStuffSummarization(t *testing.T) {
 
 	chain := LoadStuffSummarization(llm)
 	_, err = Call(
-		context.Background(),
+		t.Context(),
 		chain,
 		map[string]any{"input_documents": docs},
 	)
@@ -55,6 +54,7 @@ func TestRefineSummarization(t *testing.T) {
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
+
 	llm, err := openai.New()
 	require.NoError(t, err)
 
@@ -62,7 +62,7 @@ func TestRefineSummarization(t *testing.T) {
 
 	chain := LoadRefineSummarization(llm)
 	_, err = Call(
-		context.Background(),
+		t.Context(),
 		chain,
 		map[string]any{"input_documents": docs},
 	)
@@ -75,6 +75,7 @@ func TestMapReduceSummarization(t *testing.T) {
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
+
 	llm, err := openai.New()
 	require.NoError(t, err)
 
@@ -82,7 +83,7 @@ func TestMapReduceSummarization(t *testing.T) {
 
 	chain := LoadMapReduceSummarization(llm)
 	_, err = Run(
-		context.Background(),
+		t.Context(),
 		chain,
 		docs,
 	)

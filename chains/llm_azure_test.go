@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -40,7 +39,7 @@ func TestLLMChainAzure(t *testing.T) {
 
 	chain := NewLLMChain(model, prompt)
 
-	result, err := Predict(context.Background(), chain,
+	result, err := Predict(t.Context(), chain,
 		map[string]any{
 			"country": "France",
 		},

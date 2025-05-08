@@ -14,6 +14,7 @@ import (
 
 func newTestClient(t *testing.T, opts ...Option) *LLM {
 	t.Helper()
+
 	var token string
 	if token = os.Getenv("MARITACA_KEY"); token == "" {
 		t.Skip("MARITACA_KEY not set")
@@ -29,6 +30,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 
 func TestGenerateContent(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -41,7 +43,7 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 
 	require.NoError(t, err)
 
@@ -52,6 +54,7 @@ func TestGenerateContent(t *testing.T) {
 
 func TestWithStreaming(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -65,7 +68,7 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(context.Background(), content,
+	rsp, err := llm.GenerateContent(t.Context(), content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
 			sb.Write(chunk)
 			return nil

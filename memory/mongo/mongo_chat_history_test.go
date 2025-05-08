@@ -8,16 +8,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 )
 
-func runTestContainer() (string, error) {
-	ctx := context.Background()
+func runTestContainer(t *testing.T) (string, error) {
+	t.Helper()
 
-	mongoContainer, err := mongodb.RunContainer(
+	ctx := t.Context()
+
+	mongoContainer, err := mongodb.Run(
 		ctx,
-		testcontainers.WithImage("mongo:7.0.8"),
+		"mongo:7.0.8",
 		mongodb.WithUsername("test"),
 		mongodb.WithPassword("test"),
 	)
@@ -25,20 +26,28 @@ func runTestContainer() (string, error) {
 		return "", err
 	}
 
+	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
+		if err := mongoContainer.Terminate(ctx); err != nil {
+			t.Fatalf("failed to terminate container: %s", err)
+		}
+	})
+
 	url, err := mongoContainer.ConnectionString(ctx)
 	if err != nil {
 		return "", err
 	}
+
 	return url, nil
 }
 
 func TestMongoDBChatMessageHistory(t *testing.T) {
 	t.Parallel()
 
-	url, err := runTestContainer()
+	url, err := runTestContainer(t)
 	require.NoError(t, err)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	_, err = NewMongoDBChatMessageHistory(ctx, WithSessionID("test"))
 	assert.Equal(t, errMongoInvalidURL, err)
 
@@ -63,6 +72,7 @@ func TestMongoDBChatMessageHistory(t *testing.T) {
 	assert.Equal(t, llms.ChatMessageTypeHuman, messages[1].GetType())
 	assert.Equal(t, "Hello", messages[1].GetContent())
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		require.NoError(t, history.Clear(ctx))
 	})
 }
