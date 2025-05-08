@@ -1,5 +1,7 @@
 package scraper
 
+import "time"
+
 type Options func(*Scraper)
 
 // WithMaxDepth sets the maximum depth for the Scraper.
@@ -32,11 +34,11 @@ func WithParallelsNum(parallels int) Options {
 // The delay parameter specifies the amount of time in milliseconds that
 // the Scraper should wait between requests.
 //
-// Default value: 3
+// Default value: 1000 milliseconds
 //
 // delay: the delay to set.
 // Returns: an Options function.
-func WithDelay(delay int64) Options {
+func WithDelay(delay time.Duration) Options {
 	return func(o *Scraper) {
 		o.Delay = delay
 	}
