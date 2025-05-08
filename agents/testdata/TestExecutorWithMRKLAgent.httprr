@@ -13,26 +13,26 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 12:19:46 GMT
+Date: Mon, 23 Jun 2025 10:46:04 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 1489
+Openai-Processing-Ms: 2435
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 1494
+X-Envoy-Upstream-Service-Time: 2439
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 300000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 299764
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 47ms
-X-Request-Id: req_536a47f703c0da45fc8772769e4bf459
+X-Request-Id: req_9022a0c99d6ac03ad0862b781ea86f1d
 
 {
-  "id": "chatcmpl-BkrU9gqdy3GqK11wOUHjD4OgzqMME",
+  "id": "chatcmpl-BlYyX9UQsOGUv3ihsslYkkHSF9CLe",
   "object": "chat.completion",
-  "created": 1750508385,
+  "created": 1750675561,
   "model": "gpt-4-0613",
   "choices": [
     {
@@ -79,26 +79,26 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 12:19:49 GMT
+Date: Mon, 23 Jun 2025 10:46:07 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 1108
+Openai-Processing-Ms: 1264
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 1113
+X-Envoy-Upstream-Service-Time: 1268
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 300000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 299728
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 54ms
-X-Request-Id: req_39bb79758a44e4e78933eb196aba6433
+X-Request-Id: req_2a88b3a1428efcd079bd3a3293aa921b
 
 {
-  "id": "chatcmpl-BkrUCp3W6dOEng5F80gPO1d95M0cu",
+  "id": "chatcmpl-BlYycneqp9eoUqX3XmgJJdAcrRv4A",
   "object": "chat.completion",
-  "created": 1750508388,
+  "created": 1750675566,
   "model": "gpt-4-0613",
   "choices": [
     {
