@@ -115,13 +115,16 @@ func (m FunctionChatMessage) GetName() string          { return m.Name }
 // ToolChatMessage is a chat message representing the result of a tool call.
 type ToolChatMessage struct {
 	// ID is the ID of the tool call.
-	ID string `json:"tool_call_id"`
+	ID string `json:"tool_call_id,omitempty"`
+	// Name is the name of the tool.
+	Name string `json:"tool_name,omitempty"`
 	// Content is the content of the tool message.
 	Content string `json:"content"`
 }
 
 func (m ToolChatMessage) GetType() ChatMessageType { return ChatMessageTypeTool }
 func (m ToolChatMessage) GetContent() string       { return m.Content }
+func (m ToolChatMessage) GetName() string          { return m.Name }
 func (m ToolChatMessage) GetID() string            { return m.ID }
 
 // GetBufferString gets the buffer string of messages.
