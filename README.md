@@ -10,6 +10,14 @@
 
 ⚡ Building applications with LLMs through composability, with Go! ⚡
 
+## 🚀 Important Announcement 🚀
+
+> **Starting from release [v0.1.13-update.1](https://github.com/vxcontrol/langchaingo/releases/tag/v0.1.13-update.1)**, this fork is now a full-fledged library that **does not require** any `replace` directives in your go.mod file. You can simply add it to your project with:
+>
+> ```bash
+> go get github.com/vxcontrol/langchaingo@latest
+> ```
+
 ## Why this fork?
 
 This fork was created to incorporate functionality from open Pull Requests that haven't been merged into the original repository yet. You can view the list of accepted PRs in our [v0.1.13-update.0 release](https://github.com/vxcontrol/langchaingo/releases/tag/v0.1.13-update.0) and in the [main-pull-requests branch](https://github.com/vxcontrol/langchaingo/commits/main-pull-requests/).
