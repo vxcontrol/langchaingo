@@ -98,9 +98,12 @@ func flushMockDocuments(ctx context.Context, store Store, emb *mockEmbedder) err
 		return err
 	}
 
-	// Consistency on indexes is not synchronous.
-	// nolint:mnd
-	time.Sleep(10 * time.Second)
+	// consistency on indexes is not synchronous.
+	select {
+	case <-time.After(3 * time.Second):
+	case <-ctx.Done():
+		return fmt.Errorf("context done: %w", ctx.Err())
+	}
 
 	return nil
 }
