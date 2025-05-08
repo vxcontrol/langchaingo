@@ -62,18 +62,18 @@ func runTestContainer(t *testing.T) (string, error) {
 		return "", err
 	}
 
-	parsedUrl, err := url.Parse(atlasURL)
+	parsedURL, err := url.Parse(atlasURL)
 	if err != nil {
 		return "", err
 	}
 
-	parsedUrl.Scheme = "mongodb"
-	parsedUrl.Path = "/"
-	query := parsedUrl.Query()
+	parsedURL.Scheme = "mongodb"
+	parsedURL.Path = "/"
+	query := parsedURL.Query()
 	query.Set("directConnection", "true")
-	parsedUrl.RawQuery = query.Encode()
+	parsedURL.RawQuery = query.Encode()
 
-	return parsedUrl.String(), nil
+	return parsedURL.String(), nil
 }
 
 // resetVectorStore will reset the vector space defined by the given collection.
@@ -84,6 +84,16 @@ func resetVectorStore(t *testing.T, coll *mongo.Collection) {
 
 	_, err := coll.DeleteMany(t.Context(), filter)
 	assert.NoError(t, err, "failed to reset vector store")
+}
+
+// pingMongoDB will ping the MongoDB server and return an error if the connection fails.
+func pingMongoDB(t *testing.T, client *mongo.Client) error {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	return client.Ping(ctx, nil)
 }
 
 // setupTest will prepare the Atlas vector search for adding to and searching
@@ -103,20 +113,20 @@ func setupTest(t *testing.T, dim int, index string) Store {
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	require.NoError(t, err, "failed to connect to MongoDB server")
 
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-
-	err = client.Ping(ctx, nil)
-	require.NoError(t, err, "failed to ping server")
+	// skip error check, because it's not critical
+	_ = pingMongoDB(t, client)
 
 	// wait for the container to be ready
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 	case <-t.Context().Done():
 		t.Fatal("test timed out")
 	}
 
-	ctx, cancel = context.WithTimeout(t.Context(), 2*time.Minute)
+	err = pingMongoDB(t, client)
+	require.NoError(t, err, "failed to ping server")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
 	err = resetForE2E(ctx, client, testIndexDP1536, testIndexSize1536, nil)
@@ -184,7 +194,9 @@ func TestNew(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for idx := range tests {
+		test := tests[idx]
+
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -199,7 +211,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-//nolint:paralleltest
+//nolint:paralleltest,tparallel
 func TestStore_AddDocuments(t *testing.T) {
 	t.Parallel()
 
@@ -243,7 +255,9 @@ func TestStore_AddDocuments(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for idx := range tests {
+		test := tests[idx]
+
 		t.Run(test.name, func(t *testing.T) {
 			resetVectorStore(t, store.coll)
 
@@ -331,7 +345,7 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 	}
 }
 
-//nolint:paralleltest
+//nolint:paralleltest,tparallel
 func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 	t.Parallel()
 
@@ -369,7 +383,7 @@ func TestStore_SimilaritySearch_ExactQuery(t *testing.T) {
 	})
 }
 
-//nolint:funlen,paralleltest
+//nolint:paralleltest,tparallel,funlen
 func TestStore_SimilaritySearch_NonExactQuery(t *testing.T) {
 	t.Parallel()
 
