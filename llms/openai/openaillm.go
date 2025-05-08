@@ -85,63 +85,127 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
+	chatMsgs, err := o.convertMessages(messages)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := o.createChatRequest(chatMsgs, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := o.client.CreateChat(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(result.Choices) == 0 {
+		return nil, ErrEmptyResponse
+	}
+
+	response := o.processResponse(result)
+
+	if o.CallbacksHandler != nil {
+		o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, response)
+	}
+	return response, nil
+}
+
+// convertMessages converts LangChain messages to OpenAI chat messages.
+func (o *LLM) convertMessages(messages []llms.MessageContent) ([]*ChatMessage, error) {
 	chatMsgs := make([]*ChatMessage, 0, len(messages))
 	for _, mc := range messages {
 		msg := &ChatMessage{MultiContent: mc.Parts}
-		switch mc.Role {
-		case llms.ChatMessageTypeSystem:
-			msg.Role = RoleSystem
-		case llms.ChatMessageTypeAI:
-			msg.Role = RoleAssistant
-		case llms.ChatMessageTypeHuman:
-			msg.Role = RoleUser
-		case llms.ChatMessageTypeGeneric:
-			msg.Role = RoleUser
-		case llms.ChatMessageTypeFunction:
-			msg.Role = RoleFunction
 
-			if len(mc.Parts) != 1 {
-				return nil, fmt.Errorf("expected exactly one part for role %v, got %v", mc.Role, len(mc.Parts))
-			}
-			switch p := mc.Parts[0].(type) {
-			case llms.ToolCallResponse:
-				msg.ToolCallID = p.ToolCallID
-				msg.Name = p.Name
-				msg.Content = p.Content
-			case llms.TextContent:
-				msg.Content = p.Text
-			default:
-				return nil, fmt.Errorf("expected part of type ToolCallResponse or TextContent for role %v, got %T",
-					mc.Role, mc.Parts[0])
-			}
-		case llms.ChatMessageTypeTool:
-			// Here we extract tool calls from the message and populate the ToolCalls field.
-			for _, p := range mc.Parts {
-				switch p.(type) {
-				case llms.ToolCallResponse:
-					tr := p.(llms.ToolCallResponse)
-					rep := &ChatMessage{}
-					rep.Role = RoleTool
-					rep.ToolCallID = tr.ToolCallID
-					rep.Name = tr.Name
-					rep.Content = tr.Content
-					chatMsgs = append(chatMsgs, rep)
-				default:
-					return nil, fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T", mc.Role, mc.Parts[0])
-				}
-			}
-			continue
-		default:
-			return nil, fmt.Errorf("role %v not supported", mc.Role)
+		if err := o.setMessageRole(msg, mc); err != nil {
+			return nil, err
 		}
 
-		// Here we extract tool calls from the message and populate the ToolCalls field.
-		newParts, toolCalls := ExtractToolParts(msg)
+		newParts, toolCalls, toolCallResponses := ExtractToolParts(msg)
 		msg.MultiContent = newParts
 		msg.ToolCalls = toolCallsFromToolCalls(toolCalls)
+		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {
+			if msg.Role == RoleTool {
+				msg.Role = RoleAssistant
+			}
+			chatMsgs = append(chatMsgs, msg)
+		}
 
-		chatMsgs = append(chatMsgs, msg)
+		for _, toolCallResponse := range toolCallResponses {
+			chatMsgs = append(chatMsgs, &ChatMessage{
+				Role:       RoleTool,
+				Content:    toolCallResponse.Content,
+				Name:       toolCallResponse.Name,
+				ToolCallID: toolCallResponse.ToolCallID,
+			})
+		}
 	}
+
+	return chatMsgs, nil
+}
+
+// setMessageRole sets the appropriate role for a message and handles special cases.
+func (o *LLM) setMessageRole(msg *ChatMessage, mc llms.MessageContent) error {
+	switch mc.Role {
+	case llms.ChatMessageTypeSystem:
+		msg.Role = RoleSystem
+	case llms.ChatMessageTypeAI:
+		msg.Role = RoleAssistant
+	case llms.ChatMessageTypeHuman:
+		msg.Role = RoleUser
+	case llms.ChatMessageTypeGeneric:
+		msg.Role = RoleUser
+	case llms.ChatMessageTypeFunction:
+		msg.Role = RoleFunction
+		return o.handleFunctionMessage(msg, mc)
+	case llms.ChatMessageTypeTool:
+		msg.Role = RoleTool
+		return o.handleToolMessage(mc)
+	default:
+		return fmt.Errorf("role %v not supported", mc.Role)
+	}
+	return nil
+}
+
+// handleFunctionMessage handles function messages.
+func (o *LLM) handleFunctionMessage(msg *ChatMessage, mc llms.MessageContent) error {
+	if len(mc.Parts) != 1 {
+		return fmt.Errorf("expected exactly one part for role %v, got %v", mc.Role, len(mc.Parts))
+	}
+
+	switch p := mc.Parts[0].(type) {
+	case llms.ToolCallResponse:
+		msg.ToolCallID = p.ToolCallID
+		msg.Name = p.Name
+		msg.Content = p.Content
+	default:
+		return fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T",
+			mc.Role, mc.Parts[0])
+	}
+
+	return nil
+}
+
+// handleToolMessage handles tool messages and returns complete tool response messages.
+func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
+	for _, p := range mc.Parts {
+		switch tr := p.(type) {
+		case llms.ToolCallResponse:
+			if tr.ToolCallID == "" || tr.Name == "" {
+				return fmt.Errorf("tool call ID or name is empty for part %v", tr)
+			}
+		case llms.TextContent:
+			// ignore text content, it should be handled on ExtractToolParts call
+		default:
+			return fmt.Errorf("expected part of type ToolCallResponse for role %v, got %T", mc.Role, tr)
+		}
+	}
+
+	return nil
+}
+
+// createChatRequest creates an OpenAI chat request with the given parameters.
+func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
 		Model:                  opts.Model,
 		StopWords:              opts.StopWords,
@@ -152,19 +216,33 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		N:                      opts.N,
 		FrequencyPenalty:       opts.FrequencyPenalty,
 		PresencePenalty:        opts.PresencePenalty,
-
-		MaxCompletionTokens: opts.MaxTokens,
-
-		ToolChoice:           opts.ToolChoice,
-		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
-		Seed:                 opts.Seed,
-		Metadata:             opts.Metadata,
+		MaxCompletionTokens:    opts.MaxTokens,
+		ToolChoice:             opts.ToolChoice,
+		FunctionCallBehavior:   openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
+		Seed:                   opts.Seed,
+		Metadata:               opts.Metadata,
 	}
+
 	if opts.JSONMode {
 		req.ResponseFormat = ResponseFormatJSON
 	}
 
-	// since req.Functions is deprecated, we need to use the new Tools API.
+	// add tools from functions and tool definitions
+	if err := o.addToolsToRequest(req, opts); err != nil {
+		return nil, err
+	}
+
+	// set response format from client if available
+	if o.client.ResponseFormat != nil {
+		req.ResponseFormat = o.client.ResponseFormat
+	}
+
+	return req, nil
+}
+
+// addToolsToRequest adds tools to the request from functions and tool definitions.
+func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+	// add function-based tools (deprecated approach)
 	for _, fn := range opts.Functions {
 		req.Tools = append(req.Tools, openaiclient.Tool{
 			Type: "function",
@@ -176,29 +254,23 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			},
 		})
 	}
+
 	// if opts.Tools is not empty, append them to req.Tools
 	for _, tool := range opts.Tools {
 		t, err := toolFromTool(tool)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert llms tool to openai tool: %w", err)
+			return fmt.Errorf("failed to convert llms tool to openai tool: %w", err)
 		}
 		req.Tools = append(req.Tools, t)
 	}
 
-	// if o.client.ResponseFormat is set, use it for the request
-	if o.client.ResponseFormat != nil {
-		req.ResponseFormat = o.client.ResponseFormat
-	}
+	return nil
+}
 
-	result, err := o.client.CreateChat(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	if len(result.Choices) == 0 {
-		return nil, ErrEmptyResponse
-	}
-
+// processResponse processes the OpenAI API response into a ContentResponse.
+func (o *LLM) processResponse(result *openaiclient.ChatCompletionResponse) *llms.ContentResponse {
 	choices := make([]*llms.ContentChoice, len(result.Choices))
+
 	for i, c := range result.Choices {
 		choices[i] = &llms.ContentChoice{
 			Content:          c.Message.Content,
@@ -212,33 +284,37 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			},
 		}
 
-		// Legacy function call handling
-		if c.FinishReason == "function_call" {
-			choices[i].FuncCall = &llms.FunctionCall{
-				Name:      c.Message.FunctionCall.Name,
-				Arguments: c.Message.FunctionCall.Arguments,
-			}
-		}
-		for _, tool := range c.Message.ToolCalls {
-			choices[i].ToolCalls = append(choices[i].ToolCalls, llms.ToolCall{
-				ID:   tool.ID,
-				Type: string(tool.Type),
-				FunctionCall: &llms.FunctionCall{
-					Name:      tool.Function.Name,
-					Arguments: tool.Function.Arguments,
-				},
-			})
-		}
-		// populate legacy single-function call field for backwards compatibility
-		if len(choices[i].ToolCalls) > 0 {
-			choices[i].FuncCall = choices[i].ToolCalls[0].FunctionCall
+		o.processToolCalls(choices[i], c)
+	}
+
+	return &llms.ContentResponse{Choices: choices}
+}
+
+// processToolCalls processes tool calls in the response.
+func (o *LLM) processToolCalls(choice *llms.ContentChoice, c *openaiclient.ChatCompletionChoice) {
+	// legacy function call handling
+	if c.FinishReason == "function_call" {
+		choice.FuncCall = &llms.FunctionCall{
+			Name:      c.Message.FunctionCall.Name,
+			Arguments: c.Message.FunctionCall.Arguments,
 		}
 	}
-	response := &llms.ContentResponse{Choices: choices}
-	if o.CallbacksHandler != nil {
-		o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, response)
+
+	for _, tool := range c.Message.ToolCalls {
+		choice.ToolCalls = append(choice.ToolCalls, llms.ToolCall{
+			ID:   tool.ID,
+			Type: string(tool.Type),
+			FunctionCall: &llms.FunctionCall{
+				Name:      tool.Function.Name,
+				Arguments: tool.Function.Arguments,
+			},
+		})
 	}
-	return response, nil
+
+	// populate legacy single-function call field for backwards compatibility
+	if len(choice.ToolCalls) > 0 {
+		choice.FuncCall = choice.ToolCalls[0].FunctionCall
+	}
 }
 
 // CreateEmbedding creates embeddings for the given input texts.
@@ -260,22 +336,23 @@ func (o *LLM) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]flo
 }
 
 // ExtractToolParts extracts the tool parts from a message.
-func ExtractToolParts(msg *ChatMessage) ([]llms.ContentPart, []llms.ToolCall) {
+func ExtractToolParts(msg *ChatMessage) ([]llms.ContentPart, []llms.ToolCall, []llms.ToolCallResponse) {
 	var content []llms.ContentPart
 	var toolCalls []llms.ToolCall
+	var toolCallResponses []llms.ToolCallResponse
 	for _, part := range msg.MultiContent {
 		switch p := part.(type) {
-		case llms.TextContent:
-			content = append(content, p)
-		case llms.ImageURLContent:
-			content = append(content, p)
-		case llms.BinaryContent:
-			content = append(content, p)
 		case llms.ToolCall:
 			toolCalls = append(toolCalls, p)
+		case llms.ToolCallResponse:
+			toolCallResponses = append(toolCallResponses, p)
+		case llms.TextContent, llms.ImageURLContent, llms.BinaryContent:
+			content = append(content, p)
+		default:
+			// ignore other parts
 		}
 	}
-	return content, toolCalls
+	return content, toolCalls, toolCallResponses
 }
 
 // toolFromTool converts an llms.Tool to a Tool.
