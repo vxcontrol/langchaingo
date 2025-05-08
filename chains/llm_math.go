@@ -78,7 +78,7 @@ func (c LLMMathChain) processLLMResult(llmOutput string) (string, error) {
 	if strings.Contains(llmOutput, "Answer:") {
 		return strings.TrimSpace(strings.Split(llmOutput, "Answer:")[1]), nil
 	}
-	return "", fmt.Errorf("unknown format from LLM: %s", llmOutput) //nolint:goerr113
+	return "", fmt.Errorf("unknown format from LLM: %s", llmOutput) //nolint:err113
 }
 
 func (c LLMMathChain) evaluateExpression(expression string) (string, error) {

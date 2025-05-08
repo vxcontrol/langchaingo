@@ -116,11 +116,11 @@ func (p PostgreSQL) TableInfo(ctx context.Context, table string) (string, error)
 	if len(result) == 0 {
 		return "", sqldatabase.ErrTableNotFound
 	}
-	if len(result[0]) < 2 { //nolint:gomnd
+	if len(result[0]) < 2 { //nolint:mnd
 		return "", sqldatabase.ErrInvalidResult
 	}
 
-	return result[0][1], nil //nolint:gomnd
+	return result[0][1], nil //nolint:mnd
 }
 
 // Close closes the connection to the PostgreSQL database.

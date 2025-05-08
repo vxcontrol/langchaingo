@@ -42,7 +42,7 @@ func (c *Client) createEmbedding(ctx context.Context, model string, task string,
 	if r.StatusCode != http.StatusOK {
 		msg := fmt.Sprintf("API returned unexpected status code: %d", r.StatusCode)
 
-		return nil, fmt.Errorf("%s: %s", msg, "unable to create embeddings") // nolint:goerr113
+		return nil, fmt.Errorf("%s: %s", msg, "unable to create embeddings") // nolint:err113
 	}
 
 	var response [][]float32
