@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -24,7 +23,7 @@ func TestRefineQA(t *testing.T) {
 	qaChain := LoadRefineQA(llm)
 
 	results, err := Call(
-		context.Background(),
+		t.Context(),
 		qaChain,
 		map[string]any{
 			"input_documents": docs,
@@ -50,7 +49,7 @@ func TestMapReduceQA(t *testing.T) {
 	qaChain := LoadMapReduceQA(llm)
 
 	result, err := Predict(
-		context.Background(),
+		t.Context(),
 		qaChain,
 		map[string]any{
 			"input_documents": docs,
@@ -76,7 +75,7 @@ func TestMapRerankQA(t *testing.T) {
 	mapRerankChain := LoadMapRerankQA(llm)
 
 	results, err := Call(
-		context.Background(),
+		t.Context(),
 		mapRerankChain,
 		map[string]any{
 			"input_documents": docs,

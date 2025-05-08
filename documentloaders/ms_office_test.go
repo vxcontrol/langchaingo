@@ -1,7 +1,6 @@
 package documentloaders
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ func TestMSOfficeLoader(test *testing.T) {
 		require.NoError(t, err)
 
 		loader := NewOffice(file, fileInfo.Name(), fileInfo.Size())
-		docs, err := loader.Load(context.Background())
+		docs, err := loader.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 1)
@@ -47,7 +46,7 @@ func TestMSOfficeLoader(test *testing.T) {
 		require.NoError(t, err)
 
 		loader := NewOffice(file, fileInfo.Name(), fileInfo.Size())
-		docs, err := loader.Load(context.Background())
+		docs, err := loader.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 1)
@@ -65,7 +64,7 @@ func TestMSOfficeLoader(test *testing.T) {
 		require.NoError(t, err)
 
 		loader := NewOffice(file, fileInfo.Name(), fileInfo.Size())
-		docs, err := loader.Load(context.Background())
+		docs, err := loader.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 1)
@@ -83,7 +82,7 @@ func TestMSOfficeLoader(test *testing.T) {
 		require.NoError(t, err)
 
 		loader := NewOffice(file, fileInfo.Name(), fileInfo.Size())
-		docs, err := loader.Load(context.Background())
+		docs, err := loader.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.Len(t, docs, 1)

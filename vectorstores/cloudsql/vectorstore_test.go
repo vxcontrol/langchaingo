@@ -1,8 +1,6 @@
-// nolint
 package cloudsql_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -84,7 +82,8 @@ func getEnvVariables(t *testing.T) EnvVariables {
 
 func setEngine(t *testing.T, envVariables EnvVariables) cloudsqlutil.PostgresEngine {
 	t.Helper()
-	ctx := context.Background()
+
+	ctx := t.Context()
 	pgEngine, err := cloudsqlutil.NewPostgresEngine(ctx,
 		cloudsqlutil.WithUser(envVariables.Username),
 		cloudsqlutil.WithPassword(envVariables.Password),
@@ -100,8 +99,9 @@ func setEngine(t *testing.T, envVariables EnvVariables) cloudsqlutil.PostgresEng
 
 func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore, func() error) {
 	t.Helper()
+
 	pgEngine := setEngine(t, envVariables)
-	ctx := context.Background()
+	ctx := t.Context()
 	vectorstoreTableoptions := cloudsqlutil.VectorstoreTableOptions{
 		TableName:         envVariables.Table,
 		OverwriteExisting: true,
@@ -116,7 +116,6 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore,
 	llm, err := openai.New(
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 	)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,10 +137,17 @@ func vectorStore(t *testing.T, envVariables EnvVariables) (cloudsql.VectorStore,
 
 func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 	t.Parallel()
+
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", cloudsql.CosineDistance{}, []string{}, cloudsql.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		cloudsql.CosineDistance{},
+		[]string{},
+		cloudsql.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -158,10 +164,17 @@ func TestApplyVectorIndexAndDropIndex(t *testing.T) {
 
 func TestIsValidIndex(t *testing.T) {
 	t.Parallel()
+
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
-	ctx := context.Background()
-	idx := vs.NewBaseIndex("testindex", "hnsw", cloudsql.CosineDistance{}, []string{}, cloudsql.HNSWOptions{M: 4, EfConstruction: 16})
+	ctx := t.Context()
+	idx := vs.NewBaseIndex(
+		"testindex",
+		"hnsw",
+		cloudsql.CosineDistance{},
+		[]string{},
+		cloudsql.HNSWOptions{M: 4, EfConstruction: 16},
+	)
 	err := vs.ApplyVectorIndex(ctx, idx, "testindex", false)
 	if err != nil {
 		t.Fatal(err)
@@ -184,11 +197,11 @@ func TestIsValidIndex(t *testing.T) {
 
 func TestAddDocuments(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
+
 	envVariables := getEnvVariables(t)
 	vs, cleanUpTableFn := vectorStore(t, envVariables)
 
-	_, err := vs.AddDocuments(ctx, []schema.Document{
+	_, err := vs.AddDocuments(t.Context(), []schema.Document{
 		{
 			PageContent: "Tokyo",
 			Metadata: map[string]any{

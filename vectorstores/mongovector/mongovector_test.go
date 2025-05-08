@@ -87,7 +87,7 @@ func resetVectorStore(t *testing.T, coll *mongo.Collection) {
 
 	filter := bson.D{{Key: pageContentName, Value: bson.D{{Key: "$exists", Value: true}}}}
 
-	_, err := coll.DeleteMany(context.Background(), filter)
+	_, err := coll.DeleteMany(t.Context(), filter)
 	assert.NoError(t, err, "failed to reset vector store")
 }
 
@@ -98,7 +98,7 @@ func setupTest(t *testing.T, dim int, index string) Store {
 
 	uri := os.Getenv(testURI)
 	if uri == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 		defer cancel()
 
 		container, err := setupAtlas(ctx)
@@ -113,7 +113,7 @@ func setupTest(t *testing.T, dim int, index string) Store {
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	require.NoError(t, err, "failed to connect to MongoDB server")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	err = client.Ping(ctx, nil)
@@ -121,7 +121,7 @@ func setupTest(t *testing.T, dim int, index string) Store {
 
 	time.Sleep(10 * time.Second) // Let the container warm up
 
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel = context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 
 	err = resetForE2E(ctx, client, testIndexDP1536, testIndexSize1536, nil)
@@ -135,7 +135,7 @@ func setupTest(t *testing.T, dim int, index string) Store {
 	require.NoError(t, err)
 
 	// Create the vectorstore collection
-	err = client.Database(testDB).CreateCollection(context.Background(), testColl)
+	err = client.Database(testDB).CreateCollection(t.Context(), testColl)
 	require.NoError(t, err, "failed to create collection")
 
 	coll := client.Database(testDB).Collection(testColl)
@@ -250,7 +250,7 @@ func TestStore_AddDocuments(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			resetVectorStore(t, store.coll)
 
-			ids, err := store.AddDocuments(context.Background(), test.docs, test.options...)
+			ids, err := store.AddDocuments(t.Context(), test.docs, test.options...)
 			if len(test.wantErr) > 0 {
 				require.Error(t, err)
 				for _, want := range test.wantErr {
@@ -305,7 +305,7 @@ func runSimilaritySearchTest(t *testing.T, store Store, test simSearchTest) {
 		test.options = append(test.options, vectorstores.WithEmbedder(emb))
 	}
 
-	err := flushMockDocuments(context.Background(), store, emb)
+	err := flushMockDocuments(t.Context(), store, emb)
 	require.NoError(t, err, "failed to flush mock embedder")
 
 	raw, err := store.SimilaritySearch(test.ctx, "", test.numDocuments, test.options...)

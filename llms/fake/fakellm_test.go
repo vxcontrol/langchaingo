@@ -11,9 +11,10 @@ import (
 
 func TestFakeLLM_CallMethod(t *testing.T) {
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	if output, _ := fakeLLM.Call(ctx, "Teste"); output != responses[0] {
 		t.Errorf("Expected 'Resposta 1', got '%s'", output)
@@ -35,9 +36,10 @@ func TestFakeLLM_CallMethod(t *testing.T) {
 
 func TestFakeLLM_GenerateContentMethod(t *testing.T) {
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
-	ctx := context.Background()
+	ctx := t.Context()
 	msg := llms.MessageContent{
 		Role:  llms.ChatMessageTypeHuman,
 		Parts: []llms.ContentPart{llms.TextContent{Text: "Teste"}},
@@ -70,9 +72,10 @@ func TestFakeLLM_GenerateContentMethod(t *testing.T) {
 
 func TestFakeLLM_ResetMethod(t *testing.T) {
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fakeLLM.Reset()
 	if output, _ := fakeLLM.Call(ctx, "Teste"); output != responses[0] {
@@ -82,9 +85,10 @@ func TestFakeLLM_ResetMethod(t *testing.T) {
 
 func TestFakeLLM_AddResponseMethod(t *testing.T) {
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fakeLLM.AddResponse("Resposta 4")
 	fakeLLM.Reset()
@@ -108,13 +112,14 @@ func TestFakeLLM_AddResponseMethod(t *testing.T) {
 
 func TestFakeLLM_WithChain(t *testing.T) {
 	t.Parallel()
+
 	responses := setupResponses()
 	fakeLLM := NewFakeLLM(responses)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	fakeLLM.AddResponse("My name is Alexandre")
 
-	NextToResponse(fakeLLM, 4)
+	NextToResponse(ctx, fakeLLM, 4)
 	llmChain := chains.NewConversation(fakeLLM, memory.NewConversationBuffer())
 	out, err := chains.Run(ctx, llmChain, "What's my name? How many times did I ask this?")
 	if err != nil {
@@ -134,9 +139,9 @@ func setupResponses() []string {
 	}
 }
 
-func NextToResponse(fakeLLM *LLM, n int) {
+func NextToResponse(ctx context.Context, fakeLLM *LLM, n int) {
 	for i := 1; i < n; i++ {
-		_, err := fakeLLM.Call(context.Background(), "Teste")
+		_, err := fakeLLM.Call(ctx, "Teste")
 		if err != nil {
 			panic(err)
 		}

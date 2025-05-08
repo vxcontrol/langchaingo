@@ -40,9 +40,9 @@ func getEnvVariables(t *testing.T) (string, string, string, string, string, stri
 
 func TestNewPostgresEngine(t *testing.T) {
 	t.Parallel()
+
 	username, password, database, projectID, region, instance := getEnvVariables(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := t.Context()
 	tcs := []struct {
 		desc string
 		in   []Option
@@ -93,6 +93,7 @@ func TestNewPostgresEngine(t *testing.T) {
 	for _, tc := range tcs {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := NewPostgresEngine(ctx, tc.in...)
 			if err == nil && tc.err != "" {
 				t.Fatalf("unexpected error: got %q, want %q", err, tc.err)
@@ -108,6 +109,7 @@ func TestNewPostgresEngine(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	t.Parallel()
+
 	testServiceAccount := "test-service-account-email@test.com"
 	// Mock EmailRetriever function for testing.
 	mockEmailRetrevier := func(_ context.Context) (string, error) {
@@ -158,7 +160,8 @@ func TestGetUser(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			username, usingIAMAuth, err := getUser(context.Background(), tc.engineConfig)
+
+			username, usingIAMAuth, err := getUser(t.Context(), tc.engineConfig)
 
 			// Check if the error matches the expected error
 			if err != nil && err.Error() != tc.expectedErr {

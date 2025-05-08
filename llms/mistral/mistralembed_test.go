@@ -1,7 +1,6 @@
 package mistral
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 // TestConvertFloat64ToFloat32 tests the ConvertFloat64ToFloat32 function using table-driven tests.
 func TestConvertFloat64ToFloat32(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []float64
@@ -55,6 +55,7 @@ func TestConvertFloat64ToFloat32(t *testing.T) {
 
 func TestMistralEmbed(t *testing.T) {
 	t.Parallel()
+
 	envVar := "MISTRAL_API_KEY"
 
 	// Get the value of the environment variable
@@ -72,9 +73,9 @@ func TestMistralEmbed(t *testing.T) {
 	e, err := embeddings.NewEmbedder(model)
 	require.NoError(t, err)
 
-	_, err = e.EmbedDocuments(context.Background(), []string{"Hello world"})
+	_, err = e.EmbedDocuments(t.Context(), []string{"Hello world"})
 	require.NoError(t, err)
 
-	_, err = e.EmbedQuery(context.Background(), "Hello world")
+	_, err = e.EmbedQuery(t.Context(), "Hello world")
 	require.NoError(t, err)
 }

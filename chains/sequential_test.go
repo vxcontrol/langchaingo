@@ -29,7 +29,7 @@ func TestSimpleSequential(t *testing.T) {
 	simpleSeqChain, err := NewSimpleSequentialChain(chains)
 	require.NoError(t, err)
 
-	res, err := Run(context.Background(), simpleSeqChain, "What did the chicken do?")
+	res, err := Run(t.Context(), simpleSeqChain, "What did the chicken do?")
 	require.NoError(t, err)
 
 	// Assert that the second LLMChain received the output of the first LLMChain
@@ -74,7 +74,7 @@ func TestSimpleSequentialErrors(t *testing.T) {
 				require.ErrorIs(t, err, tc.initErr)
 			} else {
 				require.NoError(t, err)
-				_, err := Run(context.Background(), c, "Do something")
+				_, err := Run(t.Context(), c, "Do something")
 				require.ErrorIs(t, err, tc.execErr)
 			}
 		})
@@ -106,7 +106,7 @@ func TestSequentialChain(t *testing.T) {
 	seqChain, err := NewSequentialChain(chains, []string{"title", "year"}, []string{_llmChainDefaultOutputKey})
 	require.NoError(t, err)
 
-	res, err := Call(context.Background(), seqChain, map[string]any{"title": "Chicken Takeover", "year": 3000})
+	res, err := Call(t.Context(), seqChain, map[string]any{"title": "Chicken Takeover", "year": 3000})
 	require.NoError(t, err)
 
 	// Assert that the second LLMChain received the output of the first LLMChain
@@ -186,7 +186,7 @@ func TestSequentialChainErrors(t *testing.T) {
 				require.ErrorIs(t, err, tc.initErr)
 			} else {
 				require.NoError(t, err)
-				_, err := Call(context.Background(), c, map[string]any{"input1": "foo", "input2": "bar"})
+				_, err := Call(t.Context(), c, map[string]any{"input1": "foo", "input2": "bar"})
 				require.ErrorIs(t, err, tc.execErr)
 			}
 		})

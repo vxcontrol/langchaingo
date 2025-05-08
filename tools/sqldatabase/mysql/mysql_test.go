@@ -1,7 +1,6 @@
 package mysql_test
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -25,7 +24,7 @@ func Test(t *testing.T) {
 	mysqlURI := os.Getenv("LANGCHAINGO_TEST_MYSQL")
 	if mysqlURI == "" {
 		mysqlContainer, err := mysql.RunContainer(
-			context.Background(),
+			t.Context(),
 			testcontainers.WithImage("mysql:8.3.0"),
 			mysql.WithDatabase("test"),
 			mysql.WithUsername("user"),
@@ -38,10 +37,10 @@ func Test(t *testing.T) {
 		}
 		require.NoError(t, err)
 		defer func() {
-			require.NoError(t, mysqlContainer.Terminate(context.Background()))
+			require.NoError(t, mysqlContainer.Terminate(t.Context()))
 		}()
 
-		mysqlURI, err = mysqlContainer.ConnectionString(context.Background())
+		mysqlURI, err = mysqlContainer.ConnectionString(t.Context())
 		require.NoError(t, err)
 	}
 
@@ -51,13 +50,13 @@ func Test(t *testing.T) {
 	tbs := db.TableNames()
 	require.NotEmpty(t, tbs)
 
-	desc, err := db.TableInfo(context.Background(), tbs)
+	desc, err := db.TableInfo(t.Context(), tbs)
 	require.NoError(t, err)
 
 	t.Log(desc)
 
 	for _, tableName := range tbs {
-		_, err = db.Query(context.Background(), fmt.Sprintf("SELECT * from %s LIMIT 1", tableName))
+		_, err = db.Query(t.Context(), fmt.Sprintf("SELECT * from %s LIMIT 1", tableName))
 		/* exclude no row error,
 		since we only need to check if db.Query function can perform query correctly*/
 		if errors.Is(err, sql.ErrNoRows) {

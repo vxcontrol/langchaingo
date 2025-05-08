@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -36,7 +35,7 @@ func TestStuffDocuments(t *testing.T) {
 		{PageContent: "baz"},
 	}
 
-	result, err := Call(context.Background(), chain, map[string]any{
+	result, err := Call(t.Context(), chain, map[string]any{
 		"input_documents": docs,
 	})
 	require.NoError(t, err)

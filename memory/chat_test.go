@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -14,12 +13,12 @@ func TestChatMessageHistory(t *testing.T) {
 	t.Parallel()
 
 	h := NewChatMessageHistory()
-	err := h.AddAIMessage(context.Background(), "foo")
+	err := h.AddAIMessage(t.Context(), "foo")
 	require.NoError(t, err)
-	err = h.AddUserMessage(context.Background(), "bar")
+	err = h.AddUserMessage(t.Context(), "bar")
 	require.NoError(t, err)
 
-	messages, err := h.Messages(context.Background())
+	messages, err := h.Messages(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, []llms.ChatMessage{
@@ -33,10 +32,10 @@ func TestChatMessageHistory(t *testing.T) {
 			llms.SystemChatMessage{Content: "bar"},
 		}),
 	)
-	err = h.AddUserMessage(context.Background(), "zoo")
+	err = h.AddUserMessage(t.Context(), "zoo")
 	require.NoError(t, err)
 
-	messages, err = h.Messages(context.Background())
+	messages, err = h.Messages(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, []llms.ChatMessage{

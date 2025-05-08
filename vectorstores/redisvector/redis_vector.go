@@ -3,12 +3,12 @@ package redisvector
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
-
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -136,7 +136,10 @@ func (s *Store) SimilaritySearch(ctx context.Context, query string, numDocuments
 
 	searchOpts := []SearchOption{WithScoreThreshold(scoreThreshold), WithOffsetLimit(0, numDocuments), WithPreFilters(filter)}
 	if s.indexSchema != nil {
-		searchOpts = append(searchOpts, WithReturns(maps.Keys(s.indexSchema.MetadataKeys())))
+		metadata := s.indexSchema.MetadataKeys()
+		keysIter := maps.Keys(metadata)
+		metadataKeys := slices.AppendSeq(make([]string, 0, len(metadata)), keysIter)
+		searchOpts = append(searchOpts, WithReturns(metadataKeys))
 	}
 
 	search, err := NewIndexVectorSearch(

@@ -1,7 +1,6 @@
 package constitution
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -62,6 +61,6 @@ func Test(t *testing.T) {
 			"Give a better answer.",
 		),
 	}, nil)
-	_, err = c.Call(context.Background(), map[string]any{"question": "What is the meaning of life?"})
+	_, err = c.Call(t.Context(), map[string]any{"question": "What is the meaning of life?"})
 	require.NoError(t, err)
 }

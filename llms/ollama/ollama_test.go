@@ -15,6 +15,7 @@ import (
 
 func newTestClient(t *testing.T, opts ...Option) *LLM {
 	t.Helper()
+
 	var ollamaModel string
 	if ollamaModel = os.Getenv("OLLAMA_TEST_MODEL"); ollamaModel == "" {
 		t.Skip("OLLAMA_TEST_MODEL not set")
@@ -30,6 +31,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 
 func TestGenerateContent(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -42,7 +44,7 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -52,6 +54,7 @@ func TestGenerateContent(t *testing.T) {
 
 func TestToolCall(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -77,7 +80,7 @@ func TestToolCall(t *testing.T) {
 		},
 	}})
 
-	rsp, err := llm.GenerateContent(context.Background(), content, toolOption)
+	rsp, err := llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
 
 	require.NotEmpty(t, rsp.Choices)
@@ -100,7 +103,7 @@ func TestToolCall(t *testing.T) {
 		},
 	})
 
-	rsp, err = llm.GenerateContent(context.Background(), content, toolOption)
+	rsp, err = llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
 	require.NotEmpty(t, rsp.Choices)
 	c1 = rsp.Choices[0]
@@ -110,6 +113,7 @@ func TestToolCall(t *testing.T) {
 
 func TestWithFormat(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t, WithFormat("json"))
 
 	parts := []llms.ContentPart{
@@ -122,7 +126,7 @@ func TestWithFormat(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -137,6 +141,7 @@ func TestWithFormat(t *testing.T) {
 
 func TestWithStreaming(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -150,7 +155,7 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(context.Background(), content,
+	rsp, err := llm.GenerateContent(t.Context(), content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
 			sb.Write(chunk)
 			return nil
@@ -165,6 +170,7 @@ func TestWithStreaming(t *testing.T) {
 
 func TestWithKeepAlive(t *testing.T) {
 	t.Parallel()
+
 	llm := newTestClient(t, WithKeepAlive("1m"))
 
 	parts := []llms.ContentPart{
@@ -177,14 +183,14 @@ func TestWithKeepAlive(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(context.Background(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, resp.Choices)
 	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 
-	vector, err := llm.CreateEmbedding(context.Background(), []string{"test embedding with keep_alive"})
+	vector, err := llm.CreateEmbedding(t.Context(), []string{"test embedding with keep_alive"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, vector)
 }

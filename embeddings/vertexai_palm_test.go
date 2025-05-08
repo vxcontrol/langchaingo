@@ -1,7 +1,6 @@
 package embeddings
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 
 func newVertexEmbedder(t *testing.T, opts ...Option) *EmbedderImpl {
 	t.Helper()
+
 	if gcpProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); gcpProjectID == "" {
 		t.Skip("GOOGLE_CLOUD_PROJECT not set")
 		return nil
@@ -29,24 +29,30 @@ func newVertexEmbedder(t *testing.T, opts ...Option) *EmbedderImpl {
 
 func TestVertexAIPaLMEmbeddings(t *testing.T) {
 	t.Parallel()
+
 	e := newVertexEmbedder(t)
 
-	_, err := e.EmbedQuery(context.Background(), "Hello world!")
+	_, err := e.EmbedQuery(t.Context(), "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := e.EmbedDocuments(context.Background(), []string{"Hello world", "The world is ending", "good bye"})
+	embeddings, err := e.EmbedDocuments(t.Context(), []string{
+		"Hello world",
+		"The world is ending",
+		"good bye",
+	})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 }
 
 func TestVertexAIPaLMEmbeddingsWithOptions(t *testing.T) {
 	t.Parallel()
+
 	e := newVertexEmbedder(t, WithBatchSize(5), WithStripNewLines(false))
 
-	_, err := e.EmbedQuery(context.Background(), "Hello world!")
+	_, err := e.EmbedQuery(t.Context(), "Hello world!")
 	require.NoError(t, err)
 
-	embeddings, err := e.EmbedDocuments(context.Background(), []string{"Hello world"})
+	embeddings, err := e.EmbedDocuments(t.Context(), []string{"Hello world"})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 1)
 }

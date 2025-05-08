@@ -28,10 +28,10 @@ func TestConversation(t *testing.T) {
 	require.NoError(t, err)
 
 	c := NewConversation(llm, memory.NewConversationBuffer())
-	_, err = Run(context.Background(), c, "Hi! I'm Jim")
+	_, err = Run(t.Context(), c, "Hi! I'm Jim")
 	require.NoError(t, err)
 
-	res, err := Run(context.Background(), c, "What is my name?")
+	res, err := Run(t.Context(), c, "What is my name?")
 	require.NoError(t, err)
 	require.True(t, strings.Contains(res, "Jim"), `result does not contain the keyword 'Jim'`)
 }
@@ -39,19 +39,21 @@ func TestConversation(t *testing.T) {
 func TestConversationWithZepMemory(t *testing.T) {
 	t.Parallel()
 
+	if zepKey := os.Getenv("ZEP_API_KEY"); zepKey == "" {
+		t.Skip("ZEP_API_KEY not set")
+	}
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
 	llm, err := openai.New()
 	require.NoError(t, err)
 
-	ctx := context.Background()
 	zc := zClient.NewClient(
 		zOption.WithAPIKey(os.Getenv("ZEP_API_KEY")),
 	)
 	sessionID := os.Getenv("ZEP_SESSION_ID")
 	if sessionID == "" {
-		sessionID = setupZepSession(t, ctx, zc)
+		sessionID = setupZepSession(t.Context(), t, zc)
 	}
 
 	c := NewConversation(
@@ -64,10 +66,10 @@ func TestConversationWithZepMemory(t *testing.T) {
 			zep.WithAIPrefix("Robot"),
 		),
 	)
-	_, err = Run(ctx, c, "Hi! I'm Jim")
+	_, err = Run(t.Context(), c, "Hi! I'm Jim")
 	require.NoError(t, err)
 
-	res, err := Run(ctx, c, "What is my name?")
+	res, err := Run(t.Context(), c, "What is my name?")
 	require.NoError(t, err)
 	require.True(t, strings.Contains(res, "Jim"), `result does not contain the keyword 'Jim'`)
 }
@@ -83,20 +85,22 @@ func TestConversationWithChatLLM(t *testing.T) {
 	require.NoError(t, err)
 
 	c := NewConversation(llm, memory.NewConversationTokenBuffer(llm, 2000))
-	_, err = Run(context.Background(), c, "Hi! I'm Jim")
+	_, err = Run(t.Context(), c, "Hi! I'm Jim")
 	require.NoError(t, err)
 
-	res, err := Run(context.Background(), c, "What is my name?")
+	res, err := Run(t.Context(), c, "What is my name?")
 	require.NoError(t, err)
 	require.True(t, strings.Contains(res, "Jim"), `result does contain the keyword 'Jim'`)
 
 	// this message will hit the maxTokenLimit and will initiate the prune of the messages to fit the context
-	res, err = Run(context.Background(), c, "Are you sure that my name is Jim?")
+	res, err = Run(t.Context(), c, "Are you sure that my name is Jim?")
 	require.NoError(t, err)
 	require.True(t, strings.Contains(res, "Jim"), `result does contain the keyword 'Jim'`)
 }
 
-func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) string {
+func setupZepSession(ctx context.Context, t *testing.T, zc *zClient.Client) string {
+	t.Helper()
+
 	var (
 		user    *z.User
 		session *z.Session
@@ -112,11 +116,11 @@ func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) stri
 		require.NotEqual(t, -1, idx, "user not found")
 		user = users.Users[idx]
 	} else {
-		userId := "langchaingo-test"
+		userID := "langchaingo-test"
 		email := "langchaingo@example.com"
 
 		user, err = zc.User.Add(ctx, &z.CreateUserRequest{
-			UserID:    &userId,
+			UserID:    &userID,
 			Email:     &email,
 			FirstName: &firstName,
 			LastName:  &lastName,
@@ -124,9 +128,9 @@ func setupZepSession(t *testing.T, ctx context.Context, zc *zClient.Client) stri
 		require.NoError(t, err)
 	}
 
-	sessionId := uuid.New().String()
+	sessionID := uuid.New().String()
 	session, err = zc.Memory.AddSession(ctx, &z.CreateSessionRequest{
-		SessionID: sessionId,
+		SessionID: sessionID,
 		UserID:    user.UserID,
 	})
 	require.NoError(t, err)

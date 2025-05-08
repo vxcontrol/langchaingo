@@ -25,15 +25,18 @@ import (
 // the test is similar to langchain python version in https://python.langchain.com/docs/how_to/MultiQueryRetriever/
 func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 	t.Parallel()
+
 	genaiKey := os.Getenv("GENAI_API_KEY")
 	if genaiKey == "" {
 		t.Skip("must set GENAI_API_KEY to run test")
 	}
-	ctx := context.Background()
+
+	ctx := t.Context()
 	pgvectorURL := os.Getenv("PGVECTOR_CONNECTION_STRING")
 	if pgvectorURL == "" {
-		postgresContainer, err := postgres.RunContainer(ctx,
-			testcontainers.WithImage("docker.io/pgvector/pgvector:pg16"),
+		postgresContainer, err := postgres.Run(
+			ctx,
+			"docker.io/pgvector/pgvector:pg16",
 			postgres.WithDatabase("db_test"),
 			postgres.WithUsername("user"),
 			postgres.WithPassword("passw0rd!"),
@@ -46,9 +49,12 @@ func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
+
 		t.Cleanup(func() {
-			require.NoError(t, postgresContainer.Terminate(context.Background()))
+			ctx := context.Background() //nolint:usetesting
+			require.NoError(t, postgresContainer.Terminate(ctx))
 		})
+
 		pgvectorURL, err = postgresContainer.ConnectionString(ctx, "sslmode=disable")
 		require.NoError(t, err)
 	}
@@ -89,7 +95,7 @@ func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 		require.NoError(t, store.RemoveCollection(ctx, tx))
 
 		require.NoError(t, tx.Commit(ctx))
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 	_, err = store.AddDocuments(ctx, docs)
 	require.NoError(t, err)

@@ -36,7 +36,7 @@ func getValues(t *testing.T) (string, string) {
 
 	uri := os.Getenv("REDIS_URL")
 	if uri == "" {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		genericContainerReq := testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
@@ -55,7 +55,8 @@ func getValues(t *testing.T) (string, string) {
 
 		redisContainer := &tcredis.RedisContainer{Container: container}
 		t.Cleanup(func() {
-			require.NoError(t, redisContainer.Terminate(context.Background()))
+			ctx := context.Background() //nolint:usetesting
+			require.NoError(t, redisContainer.Terminate(ctx))
 		})
 
 		url, err := redisContainer.ConnectionString(ctx)
@@ -79,7 +80,7 @@ func TestCreateRedisVectorOptions(t *testing.T) {
 
 	redisURL, ollamaURL := getValues(t)
 	_, e := getEmbedding(ollamaModel, ollamaURL)
-	ctx := context.Background()
+	ctx := t.Context()
 	index := "test_case1"
 
 	_, err := redisvector.New(ctx,
@@ -171,7 +172,7 @@ func TestAddDocuments(t *testing.T) {
 	redisURL, ollamaURL := getValues(t)
 	_, e := getEmbedding(ollamaModel, ollamaURL)
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	index := "test_add_document"
 	prefix := "doc:"
@@ -246,6 +247,7 @@ func TestAddDocuments(t *testing.T) {
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = vector.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 		err = vector.DropIndex(ctx, newIndex, true)
@@ -258,7 +260,7 @@ func TestSimilaritySearch(t *testing.T) {
 
 	redisURL, ollamaURL := getValues(t)
 	_, e := getEmbedding(ollamaModel, ollamaURL)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	index := "test_similarity_search"
 
@@ -337,6 +339,7 @@ func TestSimilaritySearch(t *testing.T) {
 	assert.Len(t, docs[0].Metadata, 3)
 
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -347,7 +350,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 
 	redisURL, ollamaURL := getValues(t)
 	llm, e := getEmbedding(ollamaModel, ollamaURL)
-	ctx := context.Background()
+	ctx := t.Context()
 	index := "test_redis_vector_as_retriever"
 
 	store, err := redisvector.New(ctx,
@@ -378,7 +381,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 		"What color is the desk?",
 	)
 	require.NoError(t, err)
-	require.True(t, strings.Contains(result, "orange"), "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
 
 	result, err = chains.Run(
 		ctx,
@@ -390,11 +393,12 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.Contains(t, result, "orange", "expected orange in result")
-	require.Contains(t, result, "black", "expected black in result")
-	require.Contains(t, result, "beige", "expected beige in result")
+	require.Contains(t, strings.ToLower(result), "orange", "expected orange in result")
+	require.Contains(t, strings.ToLower(result), "black", "expected black in result")
+	require.Contains(t, strings.ToLower(result), "beige", "expected beige in result")
 
 	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -405,7 +409,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 
 	redisURL, ollamaURL := getValues(t)
 	llm, e := getEmbedding(ollamaModel, ollamaURL)
-	ctx := context.Background()
+	ctx := t.Context()
 	index := "test_redis_vector_as_retriever_with_metadata_filters"
 
 	store, err := redisvector.New(ctx,
@@ -416,7 +420,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.AddDocuments(
-		context.Background(),
+		t.Context(),
 		[]schema.Document{
 			{
 				PageContent: "The color of the lamp beside the desk is black.",
@@ -451,7 +455,8 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	defer t.Cleanup(func() {
+	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
 		err = store.DropIndex(ctx, index, true)
 		require.NoError(t, err)
 	})
@@ -467,10 +472,10 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		"What colors is the lamp?",
 	)
 	require.NoError(t, err)
-	require.Contains(t, result, "yellow", "expected not yellow in result")
+	require.Contains(t, strings.ToLower(result), "yellow", "expected not yellow in result")
 }
 
-// nolint: unparam
+// nolint:unparam
 func getEmbedding(model string, connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
 	opts := []ollama.Option{ollama.WithModel(model)}
 	if len(connectionStr) > 0 {
@@ -488,6 +493,7 @@ func getEmbedding(model string, connectionStr ...string) (llms.Model, *embedding
 	return llms.Model(llm), e
 }
 
+// nolint:unused
 /**
 func runOllamaTestContainer(model string) (*tcollama.OllamaContainer, string) {
 	ctx := context.Background()

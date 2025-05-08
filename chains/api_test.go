@@ -1,7 +1,6 @@
 package chains
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"strings"
@@ -60,7 +59,7 @@ func TestAPI(t *testing.T) {
 		"api_docs": MeteoDocs,
 		"input":    "What is the weather like right now in Munich, Germany in degrees Fahrenheit?",
 	}
-	result, err := Call(context.Background(), chain, q)
+	result, err := Call(t.Context(), chain, q)
 	require.NoError(t, err)
 
 	answer, ok := result["answer"].(string)

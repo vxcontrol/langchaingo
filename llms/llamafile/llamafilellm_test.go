@@ -13,6 +13,7 @@ import (
 
 func newTestClient(t *testing.T) *LLM {
 	t.Helper()
+
 	options := []Option{
 		WithEmbeddingSize(2048),
 		WithTemperature(0.8),
@@ -25,6 +26,7 @@ func newTestClient(t *testing.T) *LLM {
 func TestGenerateContent(t *testing.T) {
 	t.Skip("llamafile is not available")
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -37,7 +39,7 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -48,6 +50,7 @@ func TestGenerateContent(t *testing.T) {
 func TestWithStreaming(t *testing.T) {
 	t.Skip("llamafile is not available")
 	t.Parallel()
+
 	llm := newTestClient(t)
 
 	parts := []llms.ContentPart{
@@ -61,7 +64,7 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(context.Background(), content,
+	rsp, err := llm.GenerateContent(t.Context(), content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
 			sb.Write(chunk)
 			return nil
@@ -75,11 +78,12 @@ func TestWithStreaming(t *testing.T) {
 }
 
 func TestCreateEmbedding(t *testing.T) {
-	t.Parallel()
 	t.Skip("llamafile is not available")
+	t.Parallel()
+
 	llm := newTestClient(t)
 
-	embeddings, err := llm.CreateEmbedding(context.Background(), []string{"hello", "world"})
+	embeddings, err := llm.CreateEmbedding(t.Context(), []string{"hello", "world"})
 	require.NoError(t, err)
 	assert.Len(t, embeddings, 2)
 }

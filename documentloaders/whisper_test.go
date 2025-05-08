@@ -1,7 +1,6 @@
 package documentloaders
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 
 func TestTranscription(t *testing.T) {
 	t.Parallel()
+
 	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
 		t.Skip("OPENAI_API_KEY not set")
 	}
@@ -24,7 +24,7 @@ func TestTranscription(t *testing.T) {
 		}
 		whisper := NewWhisperOpenAI(os.Getenv("OPENAI_API_KEY"), opts...)
 
-		rsp, err := whisper.Load(context.Background())
+		rsp, err := whisper.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, rsp)
@@ -32,6 +32,7 @@ func TestTranscription(t *testing.T) {
 
 	t.Run("Test from url", func(t *testing.T) {
 		t.Parallel()
+
 		audioURL := "https://github.com/AssemblyAI-Examples/audio-examples/raw/main/20230607_me_canadian_wildfires.mp3"
 
 		opts := []WhisperOpenAIOption{
@@ -39,7 +40,7 @@ func TestTranscription(t *testing.T) {
 		}
 		whisper := NewWhisperOpenAI(os.Getenv("OPENAI_API_KEY"), opts...)
 
-		rsp, err := whisper.Load(context.Background())
+		rsp, err := whisper.Load(t.Context())
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, rsp)

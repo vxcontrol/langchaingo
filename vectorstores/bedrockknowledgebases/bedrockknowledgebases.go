@@ -98,36 +98,38 @@ func (kb *KnowledgeBase) AddNamedDocuments(ctx context.Context, docs []NamedDocu
 
 func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) {
 	for i, doc := range docs {
-		if doc.Document.Metadata != nil {
-			for k, v := range doc.Document.Metadata {
-				if v == nil {
-					delete(doc.Document.Metadata, k)
-					continue
-				}
-
-				rv := reflect.ValueOf(v)
-				switch rv.Kind() {
-				case reflect.Map:
-					if rv.Len() == 0 {
-						delete(doc.Document.Metadata, k)
-					}
-				case reflect.Slice:
-					if rv.Len() == 0 {
-						delete(doc.Document.Metadata, k)
-					}
-				case reflect.String:
-					if v == "" {
-						delete(doc.Document.Metadata, k)
-					}
-				}
-			}
-
-			if len(doc.Document.Metadata) == 0 {
-				doc.Document.Metadata = nil
-			}
-
-			docs[i] = doc
+		if doc.Document.Metadata == nil {
+			continue
 		}
+
+		for k, v := range doc.Document.Metadata {
+			if v == nil {
+				delete(doc.Document.Metadata, k)
+				continue
+			}
+
+			rv := reflect.ValueOf(v)
+			switch rv.Kind() {
+			case reflect.Map:
+				if rv.Len() == 0 {
+					delete(doc.Document.Metadata, k)
+				}
+			case reflect.Slice:
+				if rv.Len() == 0 {
+					delete(doc.Document.Metadata, k)
+				}
+			case reflect.String:
+				if v == "" {
+					delete(doc.Document.Metadata, k)
+				}
+			}
+		}
+
+		if len(doc.Document.Metadata) == 0 {
+			doc.Document.Metadata = nil
+		}
+
+		docs[i] = doc
 	}
 }
 
@@ -145,12 +147,14 @@ func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument,
 	if len(compatibleDs) == 0 {
 		if len(incompatibleDs) > 0 {
 			return nil, fmt.Errorf(
-				"found data sources but none with S3 type, please create a data source with S3 type for the knowledge base with id: %s in the AWS console",
+				"found data sources but none with S3 type, please create a data source "+
+					"with S3 type for the knowledge base with id: %s in the AWS console",
 				kb.knowledgeBaseID,
 			)
 		} else {
 			return nil, fmt.Errorf(
-				"no data sources with S3 type found, please create a data source with S3 type for the knowledge base with id: %s in the AWS console",
+				"no data sources with S3 type found, please create a data source "+
+					"with S3 type for the knowledge base with id: %s in the AWS console",
 				kb.knowledgeBaseID,
 			)
 		}
@@ -158,7 +162,7 @@ func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument,
 
 	var datasourceID string
 	var bucketARN string
-	if opts.NameSpace != "" {
+	if opts.NameSpace != "" { //nolint:gocritic
 		for _, ds := range compatibleDs {
 			if ds.Id == opts.NameSpace {
 				datasourceID = ds.Id
@@ -173,7 +177,8 @@ func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument,
 		datasourceID = compatibleDs[0].Id
 		bucketARN = compatibleDs[0].BucketARN
 	} else {
-		return nil, fmt.Errorf("multiple data sources with S3 type found, please specify which one you want to use by passing its id with the `vectorstores.WithNameSpace` option")
+		return nil, fmt.Errorf("multiple data sources with S3 type found, please specify " +
+			"which one you want to use by passing its id with the `vectorstores.WithNameSpace` option")
 	}
 
 	if err := kb.addToS3(ctx, bucketARN, docs); err != nil {
@@ -263,6 +268,7 @@ func (kb *KnowledgeBase) SimilaritySearch(ctx context.Context, query string, num
 	return docs, nil
 }
 
+//nolint:gocognit
 func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) {
 	if filters != nil {
 		switch filters := filters.(type) {
@@ -294,7 +300,7 @@ func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) 
 				if err != nil {
 					return nil, fmt.Errorf("failed to get filter: %w", err)
 				}
-				if f != nil {
+				if f != nil { //nolint:nilnil
 					filtersList = append(filtersList, f)
 				}
 			}
@@ -315,13 +321,13 @@ func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) 
 				if err != nil {
 					return nil, fmt.Errorf("failed to get filter: %w", err)
 				}
-				if f != nil {
+				if f != nil { //nolint:nilnil
 					filtersList = append(filtersList, f)
 				}
 			}
 			switch len(filtersList) {
 			case 0:
-				return nil, nil
+				return nil, nil //nolint:nilnil
 			case 1:
 				return filtersList[0], nil
 			default:
@@ -334,7 +340,7 @@ func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) 
 		}
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (kb *KnowledgeBase) parseMetadata(retrievalResult types.KnowledgeBaseRetrievalResult) (map[string]any, error) {
@@ -366,7 +372,7 @@ func (kb *KnowledgeBase) unmarshalMetadataValue(value document.Interface) (any, 
 	if err := value.UnmarshalSmithyDocument(&v); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal metadata value: %w", err)
 	}
-	switch value := v.(type) {
+	switch value := v.(type) { //nolint:gocritic
 	// convert to float 32 for easier handling by the user
 	case smithyDocument.Number:
 		floatValue, err := value.Float32()

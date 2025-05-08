@@ -1,7 +1,6 @@
 package bedrock_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -12,8 +11,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 )
 
-func setUpTest() (*bedrockruntime.Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.Background())
+func setupTest(t *testing.T) (*bedrockruntime.Client, error) {
+	t.Helper()
+
+	cfg, err := config.LoadDefaultConfig(t.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func TestAmazonOutput(t *testing.T) {
 		t.Skip("Skipping test, requires AWS access")
 	}
 
-	client, err := setUpTest()
+	client, err := setupTest(t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func TestAmazonOutput(t *testing.T) {
 		bedrock.ModelMetaLlama370bInstructV1,
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, model := range models {
 		t.Logf("Model output for %s:-", model)

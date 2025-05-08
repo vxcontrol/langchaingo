@@ -1,7 +1,6 @@
 package huggingfaceclient
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,10 +36,11 @@ func TestRunInference(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			client, err := New("token", "model", server.URL)
 			require.NoError(t, err)
 
-			resp, err := client.RunInference(context.TODO(), tc.req)
+			resp, err := client.RunInference(t.Context(), tc.req)
 			assert.Equal(t, tc.expected, resp)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)

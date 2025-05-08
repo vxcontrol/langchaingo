@@ -1,4 +1,3 @@
-// nolint
 package shared_test
 
 import (
@@ -35,8 +34,9 @@ func newGoogleAIClient(t *testing.T, opts ...googleai.Option) *googleai.GoogleAI
 	}
 
 	opts = append(opts, googleai.WithAPIKey(genaiKey))
-	llm, err := googleai.New(context.Background(), opts...)
+	llm, err := googleai.New(t.Context(), opts...)
 	require.NoError(t, err)
+
 	return llm
 }
 
@@ -63,8 +63,9 @@ func newVertexClient(t *testing.T, opts ...googleai.Option) *vertex.Vertex {
 		)
 	}
 
-	llm, err := vertex.New(context.Background(), opts...)
+	llm, err := vertex.New(t.Context(), opts...)
 	require.NoError(t, err)
+
 	return llm
 }
 
@@ -83,47 +84,62 @@ type testConfig struct {
 	opts     []googleai.Option
 }
 
-var testConfigs = []testConfig{
-	{testMultiContentText, nil},
-	{testGenerateFromSinglePrompt, nil},
-	{testMultiContentTextChatSequence, nil},
-	{testMultiContentWithSystemMessage, nil},
-	{testMultiContentImageLink, nil},
-	{testMultiContentImageBinary, nil},
-	{testEmbeddings, nil},
-	{testCandidateCountSetting, nil},
-	{testMaxTokensSetting, nil},
-	{testTools, nil},
-	{testToolsWithInterfaceRequired, nil},
-	{
-		testMultiContentText,
-		[]googleai.Option{googleai.WithHarmThreshold(googleai.HarmBlockMediumAndAbove)},
-	},
-	{testWithStreaming, nil},
-	{testWithHTTPClient, getHTTPTestClientOptions()},
+func getTestConfigs() []testConfig {
+	return []testConfig{
+		{testMultiContentText, nil},
+		{testGenerateFromSinglePrompt, nil},
+		{testMultiContentTextChatSequence, nil},
+		{testMultiContentWithSystemMessage, nil},
+		{testMultiContentImageLink, nil},
+		{testMultiContentImageBinary, nil},
+		{testEmbeddings, nil},
+		{testCandidateCountSetting, nil},
+		{testMaxTokensSetting, nil},
+		{testTools, nil},
+		{testToolsWithInterfaceRequired, nil},
+		{
+			testMultiContentText,
+			[]googleai.Option{googleai.WithHarmThreshold(googleai.HarmBlockMediumAndAbove)},
+		},
+		{
+			testMultiContentTextUsingTextParts,
+			[]googleai.Option{googleai.WithHarmThreshold(googleai.HarmBlockMediumAndAbove)},
+		},
+		{testWithStreaming, nil},
+		{testWithHTTPClient, getHTTPTestClientOptions()},
+	}
 }
 
 func TestGoogleAIShared(t *testing.T) {
-	for _, c := range testConfigs {
+	t.Parallel()
+
+	testConfigs := getTestConfigs()
+	for idx := range testConfigs {
+		c := testConfigs[idx]
 		t.Run(fmt.Sprintf("%s-googleai", funcName(c.testFunc)), func(t *testing.T) {
-			llm := newGoogleAIClient(t, c.opts...)
-			c.testFunc(t, llm)
+			t.Parallel()
+
+			c.testFunc(t, newGoogleAIClient(t, c.opts...))
 		})
 	}
 }
 
 func TestVertexShared(t *testing.T) {
-	for _, c := range testConfigs {
+	t.Parallel()
+
+	testConfigs := getTestConfigs()
+	for idx := range testConfigs {
+		c := testConfigs[idx]
 		t.Run(fmt.Sprintf("%s-vertex", funcName(c.testFunc)), func(t *testing.T) {
-			llm := newVertexClient(t, c.opts...)
-			c.testFunc(t, llm)
+			t.Parallel()
+
+			c.testFunc(t, newVertexClient(t, c.opts...))
 		})
 	}
 }
 
 func testMultiContentText(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	parts := []llms.ContentPart{
 		llms.TextPart("I'm a pomeranian"),
@@ -136,7 +152,7 @@ func testMultiContentText(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content)
+	rsp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -148,7 +164,6 @@ func testMultiContentText(t *testing.T, llm llms.Model) {
 
 func testMultiContentTextUsingTextParts(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	content := llms.TextParts(
 		llms.ChatMessageTypeHuman,
@@ -156,7 +171,7 @@ func testMultiContentTextUsingTextParts(t *testing.T, llm llms.Model) {
 		"What kind of mammal am I?",
 	)
 
-	rsp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{content})
+	rsp, err := llm.GenerateContent(t.Context(), []llms.MessageContent{content})
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -166,10 +181,9 @@ func testMultiContentTextUsingTextParts(t *testing.T, llm llms.Model) {
 
 func testGenerateFromSinglePrompt(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	prompt := "name all the planets in the solar system"
-	rsp, err := llms.GenerateFromSinglePrompt(context.Background(), llm, prompt)
+	rsp, err := llms.GenerateFromSinglePrompt(t.Context(), llm, prompt)
 	require.NoError(t, err)
 
 	assert.Regexp(t, "(?i)jupiter", rsp)
@@ -177,7 +191,6 @@ func testGenerateFromSinglePrompt(t *testing.T, llm llms.Model) {
 
 func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	content := []llms.MessageContent{
 		{
@@ -194,7 +207,7 @@ func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -204,7 +217,6 @@ func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
 
 func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	content := []llms.MessageContent{
 		{
@@ -217,7 +229,7 @@ func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(context.Background(), content, llms.WithModel("gemini-1.5-flash"))
+	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, rsp.Choices)
@@ -227,7 +239,6 @@ func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 
 func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	parts := []llms.ContentPart{
 		llms.ImageURLPart(
@@ -243,7 +254,7 @@ func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 	}
 
 	rsp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithModel("gemini-2.0-flash"),
 	)
@@ -256,7 +267,6 @@ func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 
 func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	b, err := os.ReadFile(filepath.Join("testdata", "parrot-icon.png"))
 	if err != nil {
@@ -275,7 +285,7 @@ func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 	}
 
 	rsp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithModel("gemini-2.0-flash"),
 	)
@@ -288,11 +298,10 @@ func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 
 func testEmbeddings(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	texts := []string{"foo", "parrot", "foo"}
 	emb := llm.(embeddings.EmbedderClient)
-	res, err := emb.CreateEmbedding(context.Background(), texts)
+	res, err := emb.CreateEmbedding(t.Context(), texts)
 	require.NoError(t, err)
 
 	assert.Equal(t, len(texts), len(res))
@@ -315,7 +324,7 @@ func testCandidateCountSetting(t *testing.T, llm llms.Model) {
 	}
 
 	{
-		rsp, err := llm.GenerateContent(context.Background(), content,
+		rsp, err := llm.GenerateContent(t.Context(), content,
 			llms.WithCandidateCount(1), llms.WithTemperature(1))
 		require.NoError(t, err)
 
@@ -327,7 +336,6 @@ func testCandidateCountSetting(t *testing.T, llm llms.Model) {
 
 func testWithStreaming(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	content := llms.TextParts(
 		llms.ChatMessageTypeHuman,
@@ -337,9 +345,9 @@ func testWithStreaming(t *testing.T, llm llms.Model) {
 
 	var sb strings.Builder
 	rsp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		[]llms.MessageContent{content},
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
 			sb.Write(chunk)
 			return nil
 		}))
@@ -354,7 +362,6 @@ func testWithStreaming(t *testing.T, llm llms.Model) {
 
 func testTools(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	availableTools := []llms.Tool{
 		{
@@ -380,7 +387,7 @@ func testTools(t *testing.T, llm llms.Model) {
 		llms.TextParts(llms.ChatMessageTypeHuman, "What is the weather like in Chicago?"),
 	}
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(availableTools))
 	require.NoError(t, err)
@@ -424,7 +431,7 @@ func testTools(t *testing.T, llm llms.Model) {
 		}
 	}
 
-	resp, err = llm.GenerateContent(context.Background(), content, llms.WithTools(availableTools))
+	resp, err = llm.GenerateContent(t.Context(), content, llms.WithTools(availableTools))
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Choices)
 
@@ -438,7 +445,6 @@ func testTools(t *testing.T, llm llms.Model) {
 
 func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	availableTools := []llms.Tool{
 		{
@@ -465,7 +471,7 @@ func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 		llms.TextParts(llms.ChatMessageTypeHuman, "What is the weather like in Chicago?"),
 	}
 	resp, err := llm.GenerateContent(
-		context.Background(),
+		t.Context(),
 		content,
 		llms.WithTools(availableTools))
 	require.NoError(t, err)
@@ -511,7 +517,7 @@ func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 		}
 	}
 
-	resp, err = llm.GenerateContent(context.Background(), content, llms.WithTools(availableTools))
+	resp, err = llm.GenerateContent(t.Context(), content, llms.WithTools(availableTools))
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Choices)
 
@@ -525,7 +531,6 @@ func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 
 func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	parts := []llms.ContentPart{
 		llms.TextPart("I'm a pomeranian"),
@@ -541,8 +546,7 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 	// First, try this with a very low MaxTokens setting for such a query; expect
 	// a stop reason that max of tokens was reached.
 	{
-		rsp, err := llm.GenerateContent(context.Background(), content,
-			llms.WithMaxTokens(24))
+		rsp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(24))
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, rsp.Choices)
@@ -554,8 +558,7 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 	// Now, try it again with a much larger MaxTokens setting and expect to
 	// finish successfully and generate a response.
 	{
-		rsp, err := llm.GenerateContent(context.Background(), content,
-			llms.WithMaxTokens(2048))
+		rsp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(2048))
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, rsp.Choices)
@@ -567,10 +570,9 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 
 func testWithHTTPClient(t *testing.T, llm llms.Model) {
 	t.Helper()
-	t.Parallel()
 
 	resp, err := llm.GenerateContent(
-		context.TODO(),
+		t.Context(),
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "testing")},
 	)
 	require.NoError(t, err)
@@ -587,18 +589,18 @@ type testRequestInterceptor struct{}
 func (i *testRequestInterceptor) RoundTrip(req *http.Request) (*http.Response, error) {
 	defer req.Body.Close()
 	content := `{
-					"candidates": [{
-						"content": {
-							"parts": [{"text": "test-ok"}]
-						},
-						"finishReason": "STOP"
-					}],
-					"usageMetadata": {
-						"promptTokenCount": 7,
-						"candidatesTokenCount": 7,
-						"totalTokenCount": 14
-					}
-				}`
+	"candidates": [{
+		"content": {
+			"parts": [{"text": "test-ok"}]
+		},
+		"finishReason": "STOP"
+	}],
+	"usageMetadata": {
+		"promptTokenCount": 7,
+		"candidatesTokenCount": 7,
+		"totalTokenCount": 14
+	}
+}`
 
 	resp := &http.Response{
 		StatusCode: http.StatusOK, Request: req,
@@ -609,18 +611,11 @@ func (i *testRequestInterceptor) RoundTrip(req *http.Request) (*http.Response, e
 	return resp, nil
 }
 
-func showJSON(v any) string {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
-}
-
 // checkMatch is a testing helper that checks `got` for regexp matches vs.
 // `wants`. Each of `wants` has to match.
 func checkMatch(t *testing.T, got string, wants ...string) {
 	t.Helper()
+
 	for _, want := range wants {
 		re, err := regexp.Compile("(?i:" + want + ")")
 		if err != nil {

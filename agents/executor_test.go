@@ -65,7 +65,7 @@ func TestExecutorWithErrorHandler(t *testing.T) {
 		agents.WithParserErrorHandler(agents.NewParserErrorHandler(nil)),
 	)
 
-	_, err := chains.Call(context.Background(), executor, nil)
+	_, err := chains.Call(t.Context(), executor, nil)
 	require.ErrorIs(t, err, agents.ErrNotFinished)
 	require.Equal(t, 3, a.numPlanCalls)
 	require.Equal(t, []schema.AgentStep{
@@ -99,7 +99,7 @@ func TestExecutorWithMRKLAgent(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	result, err := chains.Run(context.Background(), a, "If a person lived three times as long as Jacklyn Zeman, how long would they live") //nolint:lll
+	result, err := chains.Run(t.Context(), a, "If a person lived three times as long as Jacklyn Zeman, how long would they live") //nolint:lll
 	require.NoError(t, err)
 
 	require.True(t, strings.Contains(result, "210"), "correct answer 210 not in response")
@@ -137,7 +137,7 @@ func TestExecutorWithOpenAIFunctionAgent(t *testing.T) {
 	e := agents.NewExecutor(a)
 	require.NoError(t, err)
 
-	result, err := chains.Run(context.Background(), e, "what is HK singer Eason Chan's years old?") //nolint:lll
+	result, err := chains.Run(t.Context(), e, "what is HK singer Eason Chan's years old in 2024?") //nolint:lll
 	require.NoError(t, err)
 
 	require.Contains(t, result, "50", "correct answer 50 (2025.01.01 - 1974.07.27) not in response") //nolint:lll

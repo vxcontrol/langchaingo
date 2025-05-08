@@ -17,7 +17,7 @@ const (
 	_stuffDocumentsDefaultSeparator              = "\n\n"
 )
 
-var _documentDescription = `
+const _documentDescription = `
 <document>
 <content>{{.document}}</content>
 {{if .metadata}}
