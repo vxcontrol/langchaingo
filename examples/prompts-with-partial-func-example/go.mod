@@ -2,7 +2,7 @@ module github.com/vxcontrol/langchaingo/examples/prompts-with-partial-func-examp
 
 go 1.24.0
 
-require github.com/vxcontrol/langchaingo v0.1.13-update.0
+require github.com/vxcontrol/langchaingo v0.1.13-update.1
 
 require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -27,9 +27,9 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

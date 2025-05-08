@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/amikos-tech/chroma-go v0.1.2
 	github.com/google/uuid v1.6.0
-	github.com/vxcontrol/langchaingo v0.1.13-update.0
+	github.com/vxcontrol/langchaingo v0.1.13-update.1
 )
 
 require (
