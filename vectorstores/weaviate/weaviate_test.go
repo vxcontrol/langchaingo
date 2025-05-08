@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcweaviate "github.com/testcontainers/testcontainers-go/modules/weaviate"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/weaviate/weaviate/entities/models"
 )
@@ -28,8 +29,13 @@ func getValues(t *testing.T) (string, string) {
 	scheme := os.Getenv("WEAVIATE_SCHEME")
 	host := os.Getenv("WEAVIATE_HOST")
 	if scheme == "" || host == "" {
-		image := "semitechnologies/weaviate:1.25.4"
-		weaviateContainer, err := tcweaviate.RunContainer(t.Context(), testcontainers.WithImage(image))
+		weaviateContainer, err := tcweaviate.Run(
+			t.Context(),
+			"semitechnologies/weaviate:1.25.4",
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("node reporting ready"),
+			),
+		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
@@ -45,9 +51,9 @@ func getValues(t *testing.T) (string, string) {
 			t.Skipf("Failed to get weaviate container endpoint: %s", err)
 		}
 
-		// Wait for the container to be ready
+		// wait for the container to be ready
 		select {
-		case <-time.After(10 * time.Second):
+		case <-time.After(5 * time.Second):
 		case <-t.Context().Done():
 			t.Fatal("test timed out")
 		}

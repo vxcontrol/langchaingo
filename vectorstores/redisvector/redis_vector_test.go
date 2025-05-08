@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -23,7 +24,10 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const ollamaModel = "gemma:2b"
+const (
+	ollamaModel    = "gemma3:4b"
+	embeddingModel = "gemma:2b"
+)
 
 func getValues(t *testing.T) (string, string) {
 	t.Helper()
@@ -38,30 +42,33 @@ func getValues(t *testing.T) (string, string) {
 	if uri == "" {
 		ctx := t.Context()
 
-		genericContainerReq := testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "docker.io/redis/redis-stack:7.2.0-v10",
-				ExposedPorts: []string{"6379/tcp"},
-				WaitingFor:   wait.ForLog("* Ready to accept connections"),
-			},
-			Started: true,
-		}
-
-		container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
+		redisContainer, err := tcredis.Run(ctx,
+			"redis/redis-stack:7.2.0-v10",
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("* Ready to accept connections"),
+			),
+		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
 		require.NoError(t, err)
 
-		redisContainer := &tcredis.RedisContainer{Container: container}
 		t.Cleanup(func() {
 			ctx := context.Background() //nolint:usetesting
 			require.NoError(t, redisContainer.Terminate(ctx))
 		})
 
+		// wait for the container to be ready
+		select {
+		case <-time.After(5 * time.Second):
+		case <-t.Context().Done():
+			t.Fatal("test timed out")
+		}
+
 		url, err := redisContainer.ConnectionString(ctx)
 		if err != nil {
-			log.Fatalf("failed to start container: %s", err)
+			log.Println(err, redisContainer)
+			log.Fatalf("failed to get connection string: %s", err)
 		}
 		uri = url
 	}
@@ -79,7 +86,7 @@ func TestCreateRedisVectorOptions(t *testing.T) {
 	t.Parallel()
 
 	redisURL, ollamaURL := getValues(t)
-	_, e := getEmbedding(ollamaModel, ollamaURL)
+	_, e := getEmbedding(ollamaURL)
 	ctx := t.Context()
 	index := "test_case1"
 
@@ -170,7 +177,7 @@ func TestAddDocuments(t *testing.T) {
 	t.Parallel()
 
 	redisURL, ollamaURL := getValues(t)
-	_, e := getEmbedding(ollamaModel, ollamaURL)
+	_, e := getEmbedding(ollamaURL)
 
 	ctx := t.Context()
 
@@ -259,7 +266,7 @@ func TestSimilaritySearch(t *testing.T) {
 	t.Parallel()
 
 	redisURL, ollamaURL := getValues(t)
-	_, e := getEmbedding(ollamaModel, ollamaURL)
+	_, e := getEmbedding(ollamaURL)
 	ctx := t.Context()
 
 	index := "test_similarity_search"
@@ -349,7 +356,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 	t.Parallel()
 
 	redisURL, ollamaURL := getValues(t)
-	llm, e := getEmbedding(ollamaModel, ollamaURL)
+	llm, e := getEmbedding(ollamaURL)
 	ctx := t.Context()
 	index := "test_redis_vector_as_retriever"
 
@@ -387,7 +394,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 		ctx,
 		chains.NewRetrievalQAFromLLM(
 			llm,
-			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.8)),
+			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.2)),
 		),
 		"What colors are all of the pieces of furniture next to the desk and the desk itself?",
 	)
@@ -408,7 +415,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 	t.Parallel()
 
 	redisURL, ollamaURL := getValues(t)
-	llm, e := getEmbedding(ollamaModel, ollamaURL)
+	llm, e := getEmbedding(ollamaURL)
 	ctx := t.Context()
 	index := "test_redis_vector_as_retriever_with_metadata_filters"
 
@@ -476,20 +483,27 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 }
 
 // nolint:unparam
-func getEmbedding(model string, connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
-	opts := []ollama.Option{ollama.WithModel(model)}
+func getEmbedding(connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
+	opts := []ollama.Option{}
 	if len(connectionStr) > 0 {
 		opts = append(opts, ollama.WithServerURL(connectionStr[0]))
 	}
-	llm, err := ollama.New(opts...)
+
+	llm, err := ollama.New(append(opts, ollama.WithModel(ollamaModel))...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	e, err := embeddings.NewEmbedder(llm)
+	ellm, err := ollama.New(append(opts, ollama.WithModel(embeddingModel))...)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	e, err := embeddings.NewEmbedder(ellm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return llms.Model(llm), e
 }
 

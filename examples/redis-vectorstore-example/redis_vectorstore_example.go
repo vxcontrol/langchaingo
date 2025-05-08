@@ -15,11 +15,16 @@ import (
 	"github.com/vxcontrol/langchaingo/vectorstores/redisvector"
 )
 
+const (
+	ollamaModel    = "gemma3:4b"
+	embeddingModel = "gemma:2b"
+)
+
 func main() {
 	redisURL := "redis://127.0.0.1:6379"
 	index := "test_redis_vectorstore"
 
-	llm, e := getEmbedding("gemma:2b", "http://127.0.0.1:11434")
+	llm, e := getEmbedding("http://127.0.0.1:11434")
 	ctx := context.Background()
 
 	store, err := redisvector.New(ctx,
@@ -74,17 +79,23 @@ func main() {
 	fmt.Println(result)
 }
 
-func getEmbedding(model string, connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
-	opts := []ollama.Option{ollama.WithModel(model)}
+func getEmbedding(connectionStr ...string) (llms.Model, *embeddings.EmbedderImpl) {
+	opts := []ollama.Option{}
 	if len(connectionStr) > 0 {
 		opts = append(opts, ollama.WithServerURL(connectionStr[0]))
 	}
-	llm, err := ollama.New(opts...)
+
+	llm, err := ollama.New(append(opts, ollama.WithModel(ollamaModel))...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	e, err := embeddings.NewEmbedder(llm)
+	ellm, err := ollama.New(append(opts, ollama.WithModel(embeddingModel))...)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	e, err := embeddings.NewEmbedder(ellm)
 	if err != nil {
 		log.Fatal(err)
 	}

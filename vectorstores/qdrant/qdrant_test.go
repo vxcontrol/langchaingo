@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	tcqdrant "github.com/testcontainers/testcontainers-go/modules/qdrant"
 )
 
@@ -366,8 +365,7 @@ func getValues(t *testing.T) (string, string, int, string) {
 
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		image := "qdrant/qdrant:v1.7.4"
-		qdrantContainer, err := tcqdrant.RunContainer(t.Context(), testcontainers.WithImage(image))
+		qdrantContainer, err := tcqdrant.Run(t.Context(), "qdrant/qdrant:v1.7.4")
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}

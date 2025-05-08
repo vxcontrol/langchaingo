@@ -42,7 +42,8 @@ func preCheckEnvSetting(t *testing.T) string {
 			testcontainers.WithWaitStrategy(
 				wait.ForLog("database system is ready to accept connections").
 					WithOccurrence(2).
-					WithStartupTimeout(30*time.Second)),
+					WithStartupTimeout(30*time.Second),
+			),
 		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
