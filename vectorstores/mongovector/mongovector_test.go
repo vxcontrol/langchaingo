@@ -43,7 +43,7 @@ func setupAtlas(ctx context.Context) (*atlasContainer, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "mongodb/mongodb-atlas-local",
 		ExposedPorts: []string{"27017/tcp"},
-		WaitingFor:   wait.ForLog("Waiting for connections").WithStartupTimeout(5 * time.Second),
+		WaitingFor:   wait.ForLog("Waiting for connections").WithStartupTimeout(15 * time.Second),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
