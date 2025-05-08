@@ -2,7 +2,7 @@ module github.com/vxcontrol/langchaingo/examples/openai-streaming-short-term-mem
 
 go 1.24.0
 
-require github.com/vxcontrol/langchaingo v0.1.13-update.0
+require github.com/vxcontrol/langchaingo v0.1.13-update.1
 
 require (
 	github.com/dlclark/regexp2 v1.11.4 // indirect

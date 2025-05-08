@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/mitchellh/go-wordwrap v1.0.1
-	github.com/vxcontrol/langchaingo v0.1.13-update.0
+	github.com/vxcontrol/langchaingo v0.1.13-update.1
 )
 
 require (

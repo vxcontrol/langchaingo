@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	tcweaviate "github.com/testcontainers/testcontainers-go/modules/weaviate"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate/filters"
+	"github.com/weaviate/weaviate-go-client/v5/weaviate/filters"
 	"github.com/weaviate/weaviate/entities/models"
 )
 

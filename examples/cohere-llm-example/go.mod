@@ -2,7 +2,7 @@ module github.com/vxcontrol/langchaingo/examples/cohere-llm-example
 
 go 1.24.0
 
-require github.com/vxcontrol/langchaingo v0.1.13-update.0
+require github.com/vxcontrol/langchaingo v0.1.13-update.1
 
 require (
 	github.com/cohere-ai/tokenizer v1.1.2 // indirect
