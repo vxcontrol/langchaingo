@@ -1,45 +1,45 @@
 httprr trace v1
-377 1717
+393 1557
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 174
+Content-Length: 190
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"What kind of mammal am I?","type":"text"}]}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 996
+{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"Name some countries"},{"role":"assistant","content":"Spain and Lesotho"},{"role":"user","content":"Which if these is larger?"}]}HTTP/2.0 200 OK
+Content-Length: 836
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:48:59 GMT
+Date: Mon, 23 Jun 2025 15:14:16 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 286
+Openai-Processing-Ms: 424
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 290
+X-Envoy-Upstream-Service-Time: 430
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
-X-Ratelimit-Remaining-Tokens: 9999986
+X-Ratelimit-Remaining-Tokens: 9999979
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_c5bcb81608f8c3998222087adcf24e4b
+X-Request-Id: req_69b5ba84793dc23205615bb2363e2b4e
 
 {
-  "id": "chatcmpl-BkssVGNNHFkXuvo6F7LKwxcTkCyCF",
+  "id": "chatcmpl-BldA8vudU5Jxv7eA4BOyD6HTv8qtk",
   "object": "chat.completion",
-  "created": 1750513739,
-  "model": "gpt-4.1-nano-2025-04-14",
+  "created": 1750691656,
+  "model": "gpt-4.1-mini-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "As a Pomeranian, you are a small mammal belonging to the species *Canis lupus familiaris*, which is the domestic dog. You are a toy breed known for your fluffy coat and lively personality.",
+        "content": "Spain is larger than Lesotho.",
         "refusal": null,
         "annotations": []
       },
@@ -48,9 +48,9 @@ X-Request-Id: req_c5bcb81608f8c3998222087adcf24e4b
     }
   ],
   "usage": {
-    "prompt_tokens": 20,
-    "completion_tokens": 43,
-    "total_tokens": 63,
+    "prompt_tokens": 28,
+    "completion_tokens": 7,
+    "total_tokens": 35,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -63,5 +63,5 @@ X-Request-Id: req_c5bcb81608f8c3998222087adcf24e4b
     }
   },
   "service_tier": "default",
-  "system_fingerprint": "fp_38343a2f8f"
+  "system_fingerprint": "fp_658b958c37"
 }

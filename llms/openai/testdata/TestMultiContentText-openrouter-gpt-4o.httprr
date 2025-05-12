@@ -1,0 +1,31 @@
+httprr trace v1
+364 1360
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 159
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/gpt-4o","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"What kind of mammal am I?","type":"text"}]}]}HTTP/2.0 200 OK
+Content-Length: 972
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:13:31 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691610-BHVO6izPFUC2YafQvzEz","provider":"OpenAI","model":"openai/gpt-4o","object":"chat.completion","created":1750691611,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"As a Pomeranian, you are a domestic dog. Dogs are mammals that belong to the family Canidae, which also includes wolves, foxes, and other similar animals. Specifically, Pomeranians are a breed of dog known for their small size, fluffy double coat, and lively personality. They are part of the Spitz group of breeds, which is characterized by features such as a thick fur coat, pointed ears, and a curled tail.","refusal":null,"reasoning":null}}],"system_fingerprint":"fp_a288987b44","usage":{"prompt_tokens":20,"completion_tokens":90,"total_tokens":110,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}

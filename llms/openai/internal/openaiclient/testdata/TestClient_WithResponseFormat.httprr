@@ -1,45 +1,45 @@
 httprr trace v1
-414 1544
+398 1546
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 211
+Content-Length: 195
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Return a JSON object with a 'greeting' field that says hello"}],"temperature":0,"max_completion_tokens":50,"response_format":{"type":"json_object"}}HTTP/2.0 200 OK
-Content-Length: 823
+{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"Return a JSON object with a 'greeting' field that says hello"}],"max_completion_tokens":50,"response_format":{"type":"json_object"}}HTTP/2.0 200 OK
+Content-Length: 825
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:49:31 GMT
+Date: Mon, 23 Jun 2025 15:16:52 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 265
+Openai-Processing-Ms: 277
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 267
+X-Envoy-Upstream-Service-Time: 281
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999982
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_3d9d61a4f08955f9c408b6255004eb03
+X-Request-Id: req_a4e5dc3404994f6452487fbb79559371
 
 {
-  "id": "chatcmpl-Bkst1li5NGvKNZLEQyD1jqPqWuR4l",
+  "id": "chatcmpl-BldCdCbXhkYPDywUu1yjrzrU5m93H",
   "object": "chat.completion",
-  "created": 1750513771,
+  "created": 1750691811,
   "model": "gpt-3.5-turbo-0125",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "{\n  \"greeting\": \"hello\"\n}",
+        "content": "{\n    \"greeting\": \"hello\"\n}",
         "refusal": null,
         "annotations": []
       },

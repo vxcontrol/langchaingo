@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 
 	sdk "github.com/gage-technologies/mistral-go"
@@ -468,7 +469,7 @@ func (h *testCallbackHandler) HandleAgentFinish(ctx context.Context, finish sche
 func (h *testCallbackHandler) HandleRetrieverStart(ctx context.Context, query string)           {}
 func (h *testCallbackHandler) HandleRetrieverEnd(ctx context.Context, query string, documents []schema.Document) {
 }
-func (h *testCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk []byte) {}
+func (h *testCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {}
 
 func TestCall(t *testing.T) {
 	// This test requires mocking the Mistral SDK client

@@ -14,23 +14,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 14:02:59 GMT
+Date: Mon, 23 Jun 2025 14:35:28 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 200
+Openai-Processing-Ms: 165
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-5db75cfb77-hj8rp
+Via: envoy-router-5db75cfb77-82wxj
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 203
+X-Envoy-Upstream-Service-Time: 167
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999978
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_0990979235518b639e98014036c6fc2a
+X-Request-Id: req_1a1550feb5b60bbc96fc7879ee552bfe
 
 {
   "object": "list",
@@ -4668,7 +4668,7 @@ X-Request-Id: req_0990979235518b639e98014036c6fc2a
     "total_tokens": 24
   }
 }
-266 34337
+266 34334
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -4683,23 +4683,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 14:03:02 GMT
+Date: Mon, 23 Jun 2025 14:35:30 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 35
+Openai-Processing-Ms: 81
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-67f8f57655-496d9
+Via: envoy-router-bf875f9-9stz2
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 38
+X-Envoy-Upstream-Service-Time: 85
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999994
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_28762a719e13959e5231d1cfd3c6e748
+X-Request-Id: req_6ffc125209c0ee5e6ba422603fbc8588
 
 {
   "object": "list",
@@ -6253,40 +6253,40 @@ X-Request-Id: req_28762a719e13959e5231d1cfd3c6e748
     "total_tokens": 6
   }
 }
-627 1560
+611 1560
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 424
+Content-Length: 408
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color is the desk?\nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color is the desk?\nHelpful Answer:"}]}HTTP/2.0 200 OK
 Content-Length: 839
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 14:03:03 GMT
+Date: Mon, 23 Jun 2025 14:35:32 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 128
+Openai-Processing-Ms: 145
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 131
+X-Envoy-Upstream-Service-Time: 152
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999925
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_e9a2180a5ea2b29e2bbde4154e2e8f4f
+X-Request-Id: req_b3b95e0b99d2a1e5ed5c58da280a85e8
 
 {
-  "id": "chatcmpl-Bkt67zWqUm9eS6FyODALOmWB5SXDk",
+  "id": "chatcmpl-BlcYeEpMYiIMkvBkrg1nPcMhXDnyP",
   "object": "chat.completion",
-  "created": 1750514583,
+  "created": 1750689332,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {

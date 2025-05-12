@@ -1,0 +1,97 @@
+httprr trace v1
+370 2081
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 165
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o3-mini-high","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"What kind of mammal am I?","type":"text"}]}]}HTTP/2.0 200 OK
+Content-Length: 1692
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:13:31 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691610-XHBScwcTWgIZ1LpscaJN","provider":"OpenAI","model":"openai/o3-mini-high","object":"chat.completion","created":1750691611,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"As a Pomeranian, you're a dog—a domesticated canine, which is a type of mammal. Dogs are warm-blooded, have fur, and nurse their young with milk from mammary glands, all of which are classic mammalian traits. More specifically, dogs belong to the species Canis lupus familiaris, within the family Canidae, which also includes wolves, foxes, and similar animals.","refusal":null,"reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWW8o30Nj2Ho285IwxyJEPQZ_UDYCh3UJDb4HyqRo5LXKLzptc_OIkfHhvj_oa3Xke3rvloVVXRvWHW3QWrnZhIIsDzoj_kHUiC7WBfx9uYV_960JC-KknbJmKPuuO9WRQl8aDHnsdDL7fp0y651yUfP6kQk1otUuVsk8_cqjakOuNe0kNu8Pxtv2C1tu_DqB4yW1xeY1SvC5p4vH4bccseqoFuw4zXO56lDuRH1Bm-UeFuaLBXnez1apvEh1fbo0Qd4ORi7oP737pTwUEzYe1Bh5ksRo5017FXmG_MfoYtBbnNPlq030v105NIpIuBFWDnyPVLtFdc8ibV2bBi6yJJPegjReJ0t_wti_199izSi3-NBGXdleymng0hsgOoElEKcXt1gmNSiY2q7zs4zjPyIV_g==","id":"rs_68596f238e848190a1ce4adfb9cb92f6"}]}}],"usage":{"prompt_tokens":19,"completion_tokens":1237,"total_tokens":1256}}

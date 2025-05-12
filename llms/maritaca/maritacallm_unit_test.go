@@ -9,6 +9,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/maritaca/internal/maritacaclient"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -97,7 +98,7 @@ func TestMakemaritacaOptionsFromOptions(t *testing.T) {
 		TopP:              0.9,
 		RepetitionPenalty: 1.2,
 		StopWords:         []string{"END", "STOP"},
-		StreamingFunc:     func(ctx context.Context, chunk []byte) error { return nil },
+		StreamingFunc:     func(ctx context.Context, chunk streaming.Chunk) error { return nil },
 	}
 
 	result := makemaritacaOptionsFromOptions(maritacaOpts, callOpts)
@@ -273,7 +274,7 @@ func TestLLM_GenerateContent_CallOptions(t *testing.T) {
 		TopP:              0.8,
 		RepetitionPenalty: 1.1,
 		StopWords:         []string{"STOP"},
-		StreamingFunc:     func(ctx context.Context, chunk []byte) error { return nil },
+		StreamingFunc:     func(ctx context.Context, chunk streaming.Chunk) error { return nil },
 	}
 
 	// Test that options are properly merged
@@ -345,7 +346,7 @@ func (h *mockCallbackHandler) HandleAgentFinish(ctx context.Context, finish sche
 func (h *mockCallbackHandler) HandleRetrieverStart(ctx context.Context, query string)           {}
 func (h *mockCallbackHandler) HandleRetrieverEnd(ctx context.Context, query string, documents []schema.Document) {
 }
-func (h *mockCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk []byte) {}
+func (h *mockCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {}
 
 func TestOptions(t *testing.T) {
 	var opts options

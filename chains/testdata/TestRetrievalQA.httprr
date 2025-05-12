@@ -1,45 +1,45 @@
 httprr trace v1
-539 1574
+523 1592
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 336
+Content-Length: 320
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"answer this question what is foo?  with this context \n\u003cdocument\u003e\n\u003ccontent\u003efoo is 34\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003ebar is 1\u003c/content\u003e\n\n\u003c/document\u003e\n"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 853
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"answer this question what is foo?  with this context \n\u003cdocument\u003e\n\u003ccontent\u003efoo is 34\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003ebar is 1\u003c/content\u003e\n\n\u003c/document\u003e\n"}]}HTTP/2.0 200 OK
+Content-Length: 871
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 12:29:20 GMT
+Date: Mon, 23 Jun 2025 15:34:34 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 219
+Openai-Processing-Ms: 249
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 222
+X-Envoy-Upstream-Service-Time: 252
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999956
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_d593b371f75e219cf60a46c76dd7e9d3
+X-Request-Id: req_eb048774adb9ea014877b3585db45a4c
 
 {
-  "id": "chatcmpl-BkrdQhue2dCx8iV8Qf2mRByocB4Mi",
+  "id": "chatcmpl-BldTmrh7S0hYvCO9yHRUv57Xi91VD",
   "object": "chat.completion",
-  "created": 1750508960,
+  "created": 1750692874,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "Based on the provided context, \"foo\" is 34.",
+        "content": "Based on the provided context, \"foo\" refers to the number 34.",
         "refusal": null,
         "annotations": []
       },
@@ -49,8 +49,8 @@ X-Request-Id: req_d593b371f75e219cf60a46c76dd7e9d3
   ],
   "usage": {
     "prompt_tokens": 51,
-    "completion_tokens": 13,
-    "total_tokens": 64,
+    "completion_tokens": 16,
+    "total_tokens": 67,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0

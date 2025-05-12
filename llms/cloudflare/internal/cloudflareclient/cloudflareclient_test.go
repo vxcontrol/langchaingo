@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,8 +103,10 @@ func TestClient_GenerateContentStream(t *testing.T) {
 			},
 		},
 		Stream: true,
-		StreamingFunc: func(ctx context.Context, chunk []byte) error {
-			chunks = append(chunks, string(chunk))
+		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				chunks = append(chunks, chunk.Content)
+			}
 			return nil
 		},
 	}

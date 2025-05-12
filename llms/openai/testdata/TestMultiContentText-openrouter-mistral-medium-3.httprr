@@ -1,0 +1,29 @@
+httprr trace v1
+377 1267
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 172
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"mistralai/mistral-medium-3","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"What kind of mammal am I?","type":"text"}]}]}HTTP/2.0 200 OK
+Content-Length: 879
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:13:36 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691616-DdhLPVVCuFSVIWQ3bcEL","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion","created":1750691616,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"You are a **canine** (specifically a domestic dog), which makes you a **carnivorous mammal**! Pomeranians are a small breed of dog (*Canis lupus familiaris*) that belong to the family **Canidae**, along with wolves, foxes, and other dogs.\n\nSince you're a mammal, you share traits like having fur, being warm-blooded, and (in most cases) giving live birth. You’re also a social and intelligent companion animal—just like all dogs! 🐾🐶","refusal":null,"reasoning":null}}],"usage":{"prompt_tokens":17,"completion_tokens":116,"total_tokens":133}}

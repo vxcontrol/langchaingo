@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -252,7 +253,7 @@ func TestClient_CreateCompletion_Unit(t *testing.T) {
 			request: &CompletionRequest{
 				Messages: []Message{{Role: "user", Content: "Count to 3"}},
 				Stream:   true,
-				StreamingFunc: func(ctx context.Context, chunk []byte) error {
+				StreamingFunc: func(_ context.Context, _ streaming.Chunk) error {
 					return nil
 				},
 			},
@@ -481,7 +482,7 @@ func TestClient_CreateChat_Unit(t *testing.T) {
 			name: "streaming chat",
 			request: &ChatRequest{
 				Messages: []*ChatMessage{{Role: "user", Content: "Count"}},
-				StreamingFunc: func(ctx context.Context, chunk []byte) error {
+				StreamingFunc: func(_ context.Context, _ streaming.Chunk) error {
 					return nil
 				},
 			},
@@ -690,11 +691,13 @@ data: {"result":" Three","is_end":true}`,
 
 			var chunks []string
 			req := &CompletionRequest{
-				StreamingFunc: func(ctx context.Context, chunk []byte) error {
+				StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
 					if tt.streamErr != nil {
 						return tt.streamErr
 					}
-					chunks = append(chunks, string(chunk))
+					if chunk.Type == streaming.ChunkTypeText {
+						chunks = append(chunks, chunk.Content)
+					}
 					return nil
 				},
 			}
@@ -753,7 +756,7 @@ data: {"result":" Part 2","is_truncated":true,"is_end":true}`,
 			}
 
 			req := &ChatRequest{
-				StreamingFunc: func(ctx context.Context, chunk []byte) error {
+				StreamingFunc: func(_ context.Context, _ streaming.Chunk) error {
 					return nil
 				},
 			}

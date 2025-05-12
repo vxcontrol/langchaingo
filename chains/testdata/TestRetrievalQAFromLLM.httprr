@@ -1,38 +1,38 @@
 httprr trace v1
-696 1538
+680 1538
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 493
+Content-Length: 477
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003efoo is 34\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003ebar is 1\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: what is foo? \nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003efoo is 34\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003ebar is 1\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: what is foo? \nHelpful Answer:"}]}HTTP/2.0 200 OK
 Content-Length: 817
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 12:29:22 GMT
+Date: Mon, 23 Jun 2025 15:34:36 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 102
+Openai-Processing-Ms: 108
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 106
+X-Envoy-Upstream-Service-Time: 112
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999918
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_c02eade91e4ce6b4d0d440c6d218234f
+X-Request-Id: req_5c8a8b4930bbbd064fcb88ad6aeb4388
 
 {
-  "id": "chatcmpl-BkrdSz7eNeVYdm7Dv5UEooxwg4RD4",
+  "id": "chatcmpl-BldTo5SXiBnkPRLYPPY5a5xgX2uXs",
   "object": "chat.completion",
-  "created": 1750508962,
+  "created": 1750692876,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {

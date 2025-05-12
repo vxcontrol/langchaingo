@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // === Mock for llms.Model
@@ -34,7 +35,7 @@ func (m *mockLLM) GenerateContent(ctx context.Context, _ []llms.MessageContent, 
 	}
 
 	if opts.StreamingFunc != nil && len(m.response.Choices) > 0 {
-		if err := opts.StreamingFunc(ctx, []byte(m.response.Choices[0].Content)); err != nil {
+		if err := streaming.CallWithText(ctx, opts.StreamingFunc, m.response.Choices[0].Content); err != nil {
 			return nil, err
 		}
 	}

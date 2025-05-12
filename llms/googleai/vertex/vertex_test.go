@@ -11,6 +11,7 @@ import (
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -203,12 +204,14 @@ func TestVertexWithStreaming(t *testing.T) {
 		},
 	}
 
-	var streamedContent string
+	var streamedContent strings.Builder
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			streamedContent += string(chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				streamedContent.WriteString(chunk.Content)
+			}
 			return nil
 		}),
 	)
@@ -216,8 +219,8 @@ func TestVertexWithStreaming(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
-	assert.NotEmpty(t, streamedContent)
-	assert.Contains(t, streamedContent, "robot")
+	assert.NotEmpty(t, streamedContent.String())
+	assert.Contains(t, streamedContent.String(), "robot")
 }
 
 func TestVertexWithTools(t *testing.T) {

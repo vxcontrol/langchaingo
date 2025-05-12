@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -404,8 +405,10 @@ func TestClient_CreateCompletion_Streaming(t *testing.T) {
 
 	// Create a channel to capture streamed content
 	var streamedContent []string
-	streamingFunc := func(ctx context.Context, chunk []byte) error {
-		streamedContent = append(streamedContent, string(chunk))
+	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
+		if chunk.Type == streaming.ChunkTypeText {
+			streamedContent = append(streamedContent, chunk.Content)
+		}
 		return nil
 	}
 
@@ -554,7 +557,7 @@ func TestClient_CreateCompletion_StreamingErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := t.Context()
 
-			streamingFunc := func(ctx context.Context, chunk []byte) error {
+			streamingFunc := func(_ context.Context, _ streaming.Chunk) error {
 				return nil
 			}
 
@@ -740,18 +743,18 @@ func TestClient_CreateCompletion_StreamingCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
 	var streamedContent []string
-	streamingFunc := func(ctx context.Context, chunk []byte) error {
+	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 		// Cancel after first chunk
 		if len(streamedContent) == 0 {
 			cancel()
-			streamedContent = append(streamedContent, string(chunk))
+			streamedContent = append(streamedContent, chunk.Content)
 			return nil // Allow first chunk to be processed
 		}
 		// After cancellation, ctx.Err() should return context.Canceled
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		streamedContent = append(streamedContent, string(chunk))
+		streamedContent = append(streamedContent, chunk.Content)
 		return nil
 	}
 
@@ -1118,7 +1121,7 @@ func testParseStreamingCompletionResponse(ctx context.Context, stream *mockEvent
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.Message.Usage.InputTokens
 			case "content_block_delta":
 				if options.StreamingFunc != nil {
-					_ = options.StreamingFunc(ctx, []byte(resp.Delta.Text))
+					_ = options.StreamingFunc(ctx, streaming.NewTextChunk(resp.Delta.Text))
 				}
 				contentchoices[0].Content += resp.Delta.Text
 			case "message_delta":

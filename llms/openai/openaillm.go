@@ -75,7 +75,7 @@ func (o *LLM) GenerateTTS(ctx context.Context, input string, options ...llms.Cal
 }
 
 // GenerateContent implements the Model interface.
-func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) { //nolint: lll, cyclop, funlen
+func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) { //nolint:lll
 	if o.CallbacksHandler != nil {
 		o.CallbacksHandler.HandleLLMGenerateContentStart(ctx, messages)
 	}
@@ -207,20 +207,19 @@ func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
 // createChatRequest creates an OpenAI chat request with the given parameters.
 func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
-		Model:                  opts.Model,
-		StopWords:              opts.StopWords,
-		Messages:               chatMsgs,
-		StreamingFunc:          opts.StreamingFunc,
-		StreamingReasoningFunc: opts.StreamingReasoningFunc,
-		Temperature:            opts.Temperature,
-		N:                      opts.N,
-		FrequencyPenalty:       opts.FrequencyPenalty,
-		PresencePenalty:        opts.PresencePenalty,
-		MaxCompletionTokens:    opts.MaxTokens,
-		ToolChoice:             opts.ToolChoice,
-		FunctionCallBehavior:   openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
-		Seed:                   opts.Seed,
-		Metadata:               opts.Metadata,
+		Model:                opts.Model,
+		StopWords:            opts.StopWords,
+		Messages:             chatMsgs,
+		StreamingFunc:        opts.StreamingFunc,
+		Temperature:          opts.Temperature,
+		N:                    opts.N,
+		FrequencyPenalty:     opts.FrequencyPenalty,
+		PresencePenalty:      opts.PresencePenalty,
+		MaxCompletionTokens:  opts.MaxTokens,
+		ToolChoice:           opts.ToolChoice,
+		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
+		Seed:                 opts.Seed,
+		Metadata:             opts.Metadata,
 	}
 
 	if opts.JSONMode {
@@ -235,6 +234,15 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 	// set response format from client if available
 	if o.client.ResponseFormat != nil {
 		req.ResponseFormat = o.client.ResponseFormat
+	}
+
+	if opts.Reasoning.IsEnabled() {
+		reasoningEffort := opts.Reasoning.GetEffort(opts.MaxTokens)
+		if reasoningEffort != llms.ReasoningNone {
+			req.ReasoningEffort = &reasoningEffort
+			// must of all reasoning models can't use temperature and top_p with reasoning at the same time
+			req.Temperature, req.TopP = 0.0, 0.0
+		}
 	}
 
 	return req, nil
@@ -377,8 +385,8 @@ func toolFromTool(t llms.Tool) (openaiclient.Tool, error) {
 // toolCallsFromToolCalls converts a slice of llms.ToolCall to a slice of ToolCall.
 func toolCallsFromToolCalls(tcs []llms.ToolCall) []openaiclient.ToolCall {
 	toolCalls := make([]openaiclient.ToolCall, len(tcs))
-	for i, tc := range tcs {
-		toolCalls[i] = toolCallFromToolCall(tc)
+	for idx, tc := range tcs {
+		toolCalls[idx] = toolCallFromToolCall(tc)
 	}
 	return toolCalls
 }

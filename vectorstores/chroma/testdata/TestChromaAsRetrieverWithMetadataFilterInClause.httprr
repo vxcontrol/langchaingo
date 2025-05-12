@@ -1,5 +1,5 @@
 httprr trace v1
-493 167906
+493 167908
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -14,23 +14,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:10 GMT
+Date: Mon, 23 Jun 2025 14:36:29 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 78
+Openai-Processing-Ms: 124
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-69465869d5-rmf2v
+Via: envoy-router-67f8f57655-j42r6
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 80
+X-Envoy-Upstream-Service-Time: 127
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999940
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_6f168341255b53c7e3036e69fae8690a
+X-Request-Id: req_d1d487b8b48c2dff7e12929b7257e30c
 
 {
   "object": "list",
@@ -7752,7 +7752,7 @@ X-Request-Id: req_6f168341255b53c7e3036e69fae8690a
     "total_tokens": 55
   }
 }
-308 34345
+308 34343
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -7767,23 +7767,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:12 GMT
+Date: Mon, 23 Jun 2025 14:36:30 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 46
+Openai-Processing-Ms: 43
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-5f5d5b84f-95szv
+Via: envoy-router-bf875f9-k5v6b
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 52
+X-Envoy-Upstream-Service-Time: 46
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999984
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_6f108615949452b2aaa2ca243f71ce63
+X-Request-Id: req_355cfb421a33bc51f8e4b2b8e48eccb0
 
 {
   "object": "list",
@@ -9337,40 +9337,40 @@ X-Request-Id: req_6f108615949452b2aaa2ca243f71ce63
     "total_tokens": 17
   }
 }
-1036 1593
+1020 1593
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 833
+Content-Length: 817
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003ekitchen\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is orange.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003eoffice\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color(s) was/were the lamp(s) beside the desk described as?\nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003ekitchen\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is orange.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003eoffice\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color(s) was/were the lamp(s) beside the desk described as?\nHelpful Answer:"}]}HTTP/2.0 200 OK
 Content-Length: 872
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:14 GMT
+Date: Mon, 23 Jun 2025 14:36:32 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 116
+Openai-Processing-Ms: 155
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 120
+X-Envoy-Upstream-Service-Time: 159
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999857
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_69a2dda8773fbb654510464d1630a65a
+X-Request-Id: req_500630e8b3daee3185e42f8484991ab8
 
 {
-  "id": "chatcmpl-Bkt2QmmZpzwm6iiSVgzXCoz8r9Q3a",
+  "id": "chatcmpl-BlcZcsqAtFx7TQWf03bYOsVukNUvi",
   "object": "chat.completion",
-  "created": 1750514354,
+  "created": 1750689392,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {

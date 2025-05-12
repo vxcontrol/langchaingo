@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -258,7 +259,7 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 			case "message_start":
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.Message.Usage.InputTokens
 			case "content_block_delta":
-				if err = options.StreamingFunc(ctx, []byte(resp.Delta.Text)); err != nil {
+				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.Delta.Text); err != nil {
 					return nil, err
 				}
 				contentchoices[0].Content += resp.Delta.Text

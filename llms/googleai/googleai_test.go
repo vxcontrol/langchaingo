@@ -10,6 +10,7 @@ import (
 	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -211,8 +212,10 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			streamedContent += string(chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				streamedContent += chunk.Content
+			}
 			return nil
 		}),
 	)

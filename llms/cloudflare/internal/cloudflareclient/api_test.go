@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func TestClient_GenerateContent(t *testing.T) {
@@ -72,8 +73,10 @@ func TestClient_GenerateContent(t *testing.T) {
 				{Role: "user", Content: "Count from 1 to 3"},
 			},
 			Stream: true,
-			StreamingFunc: func(_ context.Context, chunk []byte) error {
-				chunks = append(chunks, string(chunk))
+			StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+				if chunk.Type == streaming.ChunkTypeText {
+					chunks = append(chunks, chunk.Content)
+				}
 				return nil
 			},
 		}

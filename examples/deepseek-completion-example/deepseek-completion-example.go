@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -35,12 +36,12 @@ func main() {
 		content,
 		llms.WithMaxTokens(2000),
 		llms.WithTemperature(0.7),
-		llms.WithStreamingReasoningFunc(func(_ context.Context, reasoningChunk []byte, chunk []byte) error {
-			if len(reasoningChunk) > 0 {
-				fmt.Printf("Streaming Reasoning: %s\n", string(reasoningChunk))
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeReasoning {
+				fmt.Printf("Streaming Reasoning: %s\n", chunk.ReasoningContent)
 			}
-			if len(chunk) > 0 {
-				fmt.Printf("Streaming Content: %s\n", string(chunk))
+			if chunk.Type == streaming.ChunkTypeText {
+				fmt.Printf("Streaming Content: %s\n", chunk.Content)
 			}
 			return nil
 		}),

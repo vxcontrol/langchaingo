@@ -13,6 +13,8 @@ import (
 )
 
 func TestStructuredOutputObjectSchema(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	responseFormat := &ResponseFormat{
 		Type: "json_schema",
@@ -31,7 +33,7 @@ func TestStructuredOutputObjectSchema(t *testing.T) {
 			},
 		},
 	}
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 		WithResponseFormat(responseFormat),
@@ -48,15 +50,17 @@ func TestStructuredOutputObjectSchema(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(ctx, content)
+	resp, err := llm.GenerateContent(ctx, content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "\"final_answer\":", strings.ToLower(c1.Content))
 }
 
 func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 	responseFormat := &ResponseFormat{
 		Type: "json_schema",
@@ -81,7 +85,7 @@ func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
 			},
 		},
 	}
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 		WithResponseFormat(responseFormat),
@@ -98,17 +102,19 @@ func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(ctx, content)
+	resp, err := llm.GenerateContent(ctx, content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "\"steps\":", strings.ToLower(c1.Content))
 }
 
 func TestStructuredOutputFunctionCalling(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 	)
@@ -154,15 +160,15 @@ func TestStructuredOutputFunctionCalling(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(
+	resp, err := llm.GenerateContent(
 		ctx,
 		content,
 		llms.WithTools(toolList),
 	)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "\"search_engine\":", c1.ToolCalls[0].FunctionCall.Arguments)
 	assert.Regexp(t, "\"search_query\":", c1.ToolCalls[0].FunctionCall.Arguments)
 }

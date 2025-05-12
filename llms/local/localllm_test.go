@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
@@ -284,7 +285,7 @@ func (h *testCallbackHandler) HandleAgentFinish(ctx context.Context, finish sche
 func (h *testCallbackHandler) HandleRetrieverStart(ctx context.Context, query string)           {}
 func (h *testCallbackHandler) HandleRetrieverEnd(ctx context.Context, query string, documents []schema.Document) {
 }
-func (h *testCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk []byte) {}
+func (h *testCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {}
 
 func TestCallbacksHandler(t *testing.T) {
 	llm, err := New(WithBin("echo"), WithArgs("-n"))

@@ -8,6 +8,7 @@ import (
 	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/maritaca/internal/maritacaclient"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 var (
@@ -119,7 +120,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	fn = func(response maritacaclient.ChatResponse) error {
 		if opts.StreamingFunc != nil && response.Text != "" {
-			if err := opts.StreamingFunc(ctx, []byte(response.Text)); err != nil {
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Text); err != nil {
 				return err
 			}
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/iterator"
@@ -361,7 +362,7 @@ DoStream:
 
 		for _, part := range respCandidate.Content.Parts {
 			if text, ok := part.(genai.Text); ok {
-				if opts.StreamingFunc(ctx, []byte(text)) != nil {
+				if err := streaming.CallWithText(ctx, opts.StreamingFunc, string(text)); err != nil {
 					break DoStream
 				}
 			}

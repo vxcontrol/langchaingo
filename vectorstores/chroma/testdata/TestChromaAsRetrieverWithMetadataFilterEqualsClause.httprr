@@ -1,5 +1,5 @@
 httprr trace v1
-493 167906
+493 167903
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -14,23 +14,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:04 GMT
+Date: Mon, 23 Jun 2025 14:36:22 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 67
+Openai-Processing-Ms: 57
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-69465869d5-7hq4b
+Via: envoy-router-bf875f9-d6rhd
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 69
+X-Envoy-Upstream-Service-Time: 61
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999940
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_21b82593c6394c98ff60601d716fdbff
+X-Request-Id: req_14c1e8d9772b5b2189ab35eeae49e382
 
 {
   "object": "list",
@@ -7752,7 +7752,7 @@ X-Request-Id: req_21b82593c6394c98ff60601d716fdbff
     "total_tokens": 55
   }
 }
-267 34341
+267 34343
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -7767,23 +7767,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:05 GMT
+Date: Mon, 23 Jun 2025 14:36:24 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 39
+Openai-Processing-Ms: 101
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-67f8f57655-km4kd
+Via: envoy-router-678d5cbb58-p8f5c
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 43
+X-Envoy-Upstream-Service-Time: 102
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999993
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_90028ff72a1b0795125b140c988c648a
+X-Request-Id: req_a5482aad71bb8cb81d6cbdd1bffdf8f6
 
 {
   "object": "list",
@@ -9337,47 +9337,47 @@ X-Request-Id: req_90028ff72a1b0795125b140c988c648a
     "total_tokens": 6
   }
 }
-748 1547
+732 1564
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 545
+Content-Length: 529
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is yellow.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003epatio\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is the lamp?\nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 826
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is yellow.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003epatio\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is the lamp?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 843
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:59:07 GMT
+Date: Mon, 23 Jun 2025 14:36:25 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 169
+Openai-Processing-Ms: 235
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 173
+X-Envoy-Upstream-Service-Time: 242
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999906
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_9d6267b1bf24a2648c78dfc72232d119
+X-Request-Id: req_d2d466ebe4d8e8a42c32572e50331c8d
 
 {
-  "id": "chatcmpl-Bkt2J9ulhDgSg3nnFvhC7wVRUxbth",
+  "id": "chatcmpl-BlcZVDilLj1blEqaihxumXvQ7NrfS",
   "object": "chat.completion",
-  "created": 1750514347,
+  "created": 1750689385,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "The lamp is yellow.",
+        "content": "The lamp beside the desk is yellow.",
         "refusal": null,
         "annotations": []
       },
@@ -9387,8 +9387,8 @@ X-Request-Id: req_9d6267b1bf24a2648c78dfc72232d119
   ],
   "usage": {
     "prompt_tokens": 92,
-    "completion_tokens": 5,
-    "total_tokens": 97,
+    "completion_tokens": 8,
+    "total_tokens": 100,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0

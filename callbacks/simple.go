@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
@@ -27,4 +28,4 @@ func (SimpleHandler) HandleAgentAction(context.Context, schema.AgentAction)     
 func (SimpleHandler) HandleAgentFinish(context.Context, schema.AgentFinish)                {}
 func (SimpleHandler) HandleRetrieverStart(context.Context, string)                         {}
 func (SimpleHandler) HandleRetrieverEnd(context.Context, string, []schema.Document)        {}
-func (SimpleHandler) HandleStreamingFunc(context.Context, []byte)                          {}
+func (SimpleHandler) HandleStreamingFunc(context.Context, streaming.Chunk)                 {}

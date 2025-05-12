@@ -8,6 +8,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,12 +45,12 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(ctx, content)
+	resp, err := llm.GenerateContent(ctx, content)
 
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 }
 
@@ -70,15 +71,17 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(ctx, content,
-		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
-			sb.Write(chunk)
+	resp, err := llm.GenerateContent(ctx, content,
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				sb.WriteString(chunk.Content)
+			}
 			return nil
 		}))
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 	assert.Regexp(t, "feet", strings.ToLower(sb.String()))
 }

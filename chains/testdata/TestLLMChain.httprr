@@ -1,38 +1,38 @@
 httprr trace v1
-314 1559
+297 1559
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 111
+Content-Length: 95
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"What is the capital of France"}],"temperature":0}HTTP/2.0 200 OK
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"What is the capital of France"}]}HTTP/2.0 200 OK
 Content-Length: 838
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 12:28:52 GMT
+Date: Mon, 23 Jun 2025 15:34:03 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 145
+Openai-Processing-Ms: 163
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 148
+X-Envoy-Upstream-Service-Time: 168
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999989
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_e0368971422cbd3eacb8d696ce94a70b
+X-Request-Id: req_2f59891e566b6ced45fec5e73d1f8413
 
 {
-  "id": "chatcmpl-Bkrcx8YbC9XDWxy1turBXHidi8tmU",
+  "id": "chatcmpl-BldTG6elQo6i8gLPa0oNE14OG8kyB",
   "object": "chat.completion",
-  "created": 1750508931,
+  "created": 1750692842,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {

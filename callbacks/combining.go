@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
@@ -86,7 +87,7 @@ func (l CombiningHandler) HandleRetrieverEnd(ctx context.Context, query string, 
 	}
 }
 
-func (l CombiningHandler) HandleStreamingFunc(ctx context.Context, chunk []byte) {
+func (l CombiningHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {
 	for _, handle := range l.Callbacks {
 		handle.HandleStreamingFunc(ctx, chunk)
 	}

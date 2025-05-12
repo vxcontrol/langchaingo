@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 var (
@@ -60,13 +61,13 @@ type Message struct {
 
 // CompletionRequest is a request to create a completion.
 type CompletionRequest struct {
-	Messages      []Message                                     `json:"messages"`
-	Temperature   float64                                       `json:"temperature"`
-	TopP          float64                                       `json:"top_p,omitempty"`
-	PenaltyScore  float64                                       `json:"penalty_score,omitempty"`
-	Stream        bool                                          `json:"stream,omitempty"`
-	UserID        string                                        `json:"user_id,omitempty"`
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	Messages      []Message          `json:"messages"`
+	Temperature   float64            `json:"temperature"`
+	TopP          float64            `json:"top_p,omitempty"`
+	PenaltyScore  float64            `json:"penalty_score,omitempty"`
+	Stream        bool               `json:"stream,omitempty"`
+	UserID        string             `json:"user_id,omitempty"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 // Completion is a completion.
@@ -338,11 +339,8 @@ func parseStreamingCompletionResponse(ctx context.Context, resp *http.Response, 
 	var lastResponse *Completion
 	for streamResponse := range responseChan {
 		response.Result += streamResponse.Result
-		if req.StreamingFunc != nil {
-			err := req.StreamingFunc(ctx, []byte(streamResponse.Result))
-			if err != nil {
-				return nil, fmt.Errorf("streaming func returned an error: %w", err)
-			}
+		if err := streaming.CallWithText(ctx, req.StreamingFunc, streamResponse.Result); err != nil {
+			return nil, fmt.Errorf("streaming func returned an error: %w", err)
 		}
 		lastResponse = streamResponse
 	}

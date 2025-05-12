@@ -1,5 +1,5 @@
 httprr trace v1
-442 167985
+442 167987
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -14,23 +14,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 16:58:25 GMT
+Date: Mon, 23 Jun 2025 14:34:13 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 45
+Openai-Processing-Ms: 184
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-6fbf668445-s65cc
+Via: envoy-router-678d5cbb58-4tcmr
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 47
+X-Envoy-Upstream-Service-Time: 186
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999953
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_3636e9db77fe327eff918b476db0b94f
+X-Request-Id: req_fb862cc3157198c6cf1c128ce1662bff
 
 {
   "object": "list",
@@ -7767,23 +7767,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 16:58:38 GMT
+Date: Mon, 23 Jun 2025 14:34:30 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
 Openai-Processing-Ms: 38
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-678d5cbb58-5v2pw
+Via: envoy-router-678d5cbb58-5tkf2
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 40
+X-Envoy-Upstream-Service-Time: 41
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999986
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_4ffcf779fc5cad50f9ee622fd193166c
+X-Request-Id: req_af110cf370a283c74a3f39718f35793a
 
 {
   "object": "list",
@@ -9337,40 +9337,40 @@ X-Request-Id: req_4ffcf779fc5cad50f9ee622fd193166c
     "total_tokens": 12
   }
 }
-1068 1605
+1052 1605
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 865
+Content-Length: 849
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is each piece of furniture next to the desk?\nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is each piece of furniture next to the desk?\nHelpful Answer:"}]}HTTP/2.0 200 OK
 Content-Length: 884
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 16:58:41 GMT
+Date: Mon, 23 Jun 2025 14:34:33 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 231
+Openai-Processing-Ms: 217
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 235
+X-Envoy-Upstream-Service-Time: 223
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
-X-Ratelimit-Remaining-Tokens: 9999850
+X-Ratelimit-Remaining-Tokens: 9999849
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_b42e70f75ab3874ecc11e1f21f6b7edc
+X-Request-Id: req_b7deeca7379a13428515d3c43335b072
 
 {
-  "id": "chatcmpl-Bkvq5C78g81N7dL5T50ggyZTbAaZZ",
+  "id": "chatcmpl-BlcXhQye5nd4XxTkDUdo61DAOW7lx",
   "object": "chat.completion",
-  "created": 1750525121,
+  "created": 1750689273,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // Backend is the interface that needs to be implemented by cache backends.
@@ -63,7 +64,7 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 	if response := c.cache.Get(ctx, key); response != nil {
 		if opts.StreamingFunc != nil && len(response.Choices) > 0 {
 			// only stream the first choice.
-			if err := opts.StreamingFunc(ctx, []byte(response.Choices[0].Content)); err != nil {
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Choices[0].Content); err != nil {
 				return nil, err
 			}
 		}

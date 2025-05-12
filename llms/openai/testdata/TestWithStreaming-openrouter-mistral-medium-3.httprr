@@ -1,0 +1,449 @@
+httprr trace v1
+436 65203
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 231
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"mistralai/mistral-medium-3","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"Tell me more about my taxonomy","type":"text"}]}],"stream":true,"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 64787
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Content-Type: text/event-stream
+Date: Mon, 23 Jun 2025 15:13:47 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Certain"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ly! As"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" a **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Pomeranian**,"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" you"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" belong"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" to the biological"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" classification"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" of domest"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"icated dogs"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" (*"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Can"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"is lupus familiaris"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"*),"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" which is a"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" subspecies"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" of the gray"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" wolf"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" (*Canis lupus"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"*)."},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Here’s"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" a detailed"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" breakdown"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" of your"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" taxonomy:\n\n### **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Tax"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"onomic"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Classification of"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" a"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Pomer"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"anian**\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"1. **King"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"dom:**"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Animal"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ia ("},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Animals)\n2"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":". **Phylum"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Chordata"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" (Ver"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"tebrates"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" with"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" spinal"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" cords"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":")\n3"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":". **Class:**"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Mammalia (M"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ammals –"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" warm"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-blooded,"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" fur"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-covered"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", live"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-bearing"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":")\n4. **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Order:** Carniv"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ora (Carn"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ivorous"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" mammals"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":")\n5. **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Family:** Can"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"idae (Dog"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-like"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" carn"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ivores,"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" including wolves"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":","},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" fo"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"xes, and domestic"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" dogs)\n6."},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" **Genus:**"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" *"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Canis* ("},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"D"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ogs,"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" wolves"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", and"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" related"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" species)\n7."},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" **Species:** *"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Canis lupus*"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" (Gray"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" wolf)\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"8. **Sub"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"species:** *Can"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"is lupus familiaris"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"* (Dom"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"estic dog"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":")\n\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"### **Bre"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ed"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-S"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"pecific Details"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"**\n- **Bre"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ed Name"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Pomeranian\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"- **Origin:**"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Named"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" after the Pomerania"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" region"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" ("},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"now part of Poland"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" and Germany), but"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" developed"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" from"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" larger"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Spitz"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-type"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" sled"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" dogs in"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Arctic"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" regions.\n- **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Bre"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ed Group"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Toy"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Group"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" (recognized"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" by kenn"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"el clubs"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" like"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" the AK"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"C,"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" FC"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"I"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", and UK"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"C)\n- **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Size:** Small"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" ("},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"typically"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" "},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"3"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"–"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"7"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" lbs"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" /"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" 1.4"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"–3"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":".2"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" kg)\n- **"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Co"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"at:** Double"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-coated"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":","},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" fl"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"uffy"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":","},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" with"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" a thick"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" under"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"coat and"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" long"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" outer"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" fur"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":".\n- **T"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"emperament:** L"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ively, ext"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"roverted, intelligent"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", and sometimes"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" bold"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" despite"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" their small size.\n\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"### **E"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"volutionary Background"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"**\n- Pomer"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ani"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ans descend"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" from larger"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Spitz"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-type dogs"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" used"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" for her"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ding and sled"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"-p"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ull"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ing in"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" cold"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" clim"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ates.\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"- Select"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"ive breeding over"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" centuries"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" ("},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"especially"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" in the "},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"18"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"th–"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"19th centuries"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":") reduced"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" their"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" size"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":","},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" making them popular"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" companion"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" dogs among"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" European"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" royalty"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":","},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" including"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Queen"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" Victoria.\n\n"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"Would"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" you like more details"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" on"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" their"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" genetic"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" traits"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", history"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":", or care"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"?"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":" 😊"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":"🐾"},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop","native_finish_reason":"stop","logprobs":null}]}
+
+data: {"id":"gen-1750691627-QGLnHNtlCue43wzPBZS6","provider":"Mistral","model":"mistralai/mistral-medium-3","object":"chat.completion.chunk","created":1750691627,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":15,"completion_tokens":435,"total_tokens":450,"cost":0.000876,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0},"cost_details":{"upstream_inference_cost":null},"completion_tokens_details":{"reasoning_tokens":0}}}
+
+data: [DONE]
+

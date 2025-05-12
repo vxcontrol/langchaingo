@@ -1,38 +1,38 @@
 httprr trace v1
-622 1547
+606 1545
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 419
+Content-Length: 403
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4o-2024-08-06","messages":[{"role":"system","content":"You are a student taking a math exam."},{"role":"user","content":"Solve 2 + 2"}],"temperature":0,"response_format":{"type":"json_schema","json_schema":{"name":"math_schema","strict":true,"schema":{"type":"object","properties":{"final_answer":{"type":"string","additionalProperties":false}},"additionalProperties":false,"required":["final_answer"]}}}}HTTP/2.0 200 OK
+{"model":"gpt-4o-2024-08-06","messages":[{"role":"system","content":"You are a student taking a math exam."},{"role":"user","content":"Solve 2 + 2"}],"response_format":{"type":"json_schema","json_schema":{"name":"math_schema","strict":true,"schema":{"type":"object","properties":{"final_answer":{"type":"string","additionalProperties":false}},"additionalProperties":false,"required":["final_answer"]}}}}HTTP/2.0 200 OK
 Content-Length: 825
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 13:49:11 GMT
+Date: Mon, 23 Jun 2025 15:16:32 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 1260
+Openai-Processing-Ms: 319
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 1264
+X-Envoy-Upstream-Service-Time: 321
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 2000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 1999985
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_4afb4b00280353353568622c5958b54f
+X-Request-Id: req_898fc26d1f094d393cd24f465768fb47
 
 {
-  "id": "chatcmpl-BkssgU1mIbQKVhqfrqLjMAnK3Ias4",
+  "id": "chatcmpl-BldCK8KTEXTX8txeY7XZ7XUqlgjPB",
   "object": "chat.completion",
-  "created": 1750513750,
+  "created": 1750691792,
   "model": "gpt-4o-2024-08-06",
   "choices": [
     {

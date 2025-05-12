@@ -8,6 +8,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/prompts"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/tools"
@@ -84,10 +85,10 @@ func (o *OpenAIFunctionsAgent) Plan(
 	}
 	fullInputs[agentScratchpad] = o.constructScratchPad(intermediateSteps)
 
-	var stream func(ctx context.Context, chunk []byte) error
+	var stream streaming.Callback
 
 	if o.CallbacksHandler != nil {
-		stream = func(ctx context.Context, chunk []byte) error {
+		stream = func(ctx context.Context, chunk streaming.Chunk) error {
 			o.CallbacksHandler.HandleStreamingFunc(ctx, chunk)
 			return nil
 		}

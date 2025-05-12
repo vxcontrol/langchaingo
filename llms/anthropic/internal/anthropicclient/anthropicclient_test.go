@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/internal/httprr"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,8 +61,13 @@ func TestClient_CreateMessage(t *testing.T) {
 		Model: "claude-3-opus-20240229",
 		Messages: []ChatMessage{
 			{
-				Role:    "user",
-				Content: "Hello, how are you?",
+				Role: "user",
+				Content: []Content{
+					TextContent{
+						Type: "text",
+						Text: "Hello, how are you?",
+					},
+				},
 			},
 		},
 		MaxTokens: 100,
@@ -92,14 +98,21 @@ func TestClient_CreateMessageStream(t *testing.T) {
 		Model: "claude-3-opus-20240229",
 		Messages: []ChatMessage{
 			{
-				Role:    "user",
-				Content: "Count from 1 to 5",
+				Role: "user",
+				Content: []Content{
+					TextContent{
+						Type: "text",
+						Text: "Count from 1 to 5",
+					},
+				},
 			},
 		},
 		MaxTokens: 100,
 		Stream:    true,
-		StreamingFunc: func(ctx context.Context, chunk []byte) error {
-			chunks = append(chunks, string(chunk))
+		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				chunks = append(chunks, chunk.Content)
+			}
 			return nil
 		},
 	}
@@ -131,8 +144,13 @@ func TestClient_WithAnthropicBetaHeader(t *testing.T) {
 		Model: "claude-3-opus-20240229",
 		Messages: []ChatMessage{
 			{
-				Role:    "user",
-				Content: "What's the weather like?",
+				Role: "user",
+				Content: []Content{
+					TextContent{
+						Type: "text",
+						Text: "What's the weather like?",
+					},
+				},
 			},
 		},
 		MaxTokens: 100,

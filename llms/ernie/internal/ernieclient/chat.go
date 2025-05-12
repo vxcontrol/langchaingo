@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 const (
@@ -45,7 +46,7 @@ type ChatRequest struct {
 
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 // ChatMessage is a message in a chat request.
@@ -221,20 +222,37 @@ func parseStreamingChatResponse(ctx context.Context, r *http.Response, payload *
 	// Parse response
 	response := ChatResponse{}
 
+	toolCallID := 0 // try to keep conversation of tool calls id existing
+	incToolCallID := func(args string) {
+		var data any
+		if err := json.Unmarshal([]byte(args), &data); err == nil && args != "" {
+			toolCallID++
+		}
+	}
+
 	for streamResponse := range responseChan {
-		chunk := []byte(streamResponse.Result)
+		chunk := streamResponse.Result
 		response.Result += streamResponse.Result
 		response.IsTruncated = streamResponse.IsTruncated
 		if streamResponse.FunctionCall != nil {
 			response.FunctionCall = streamResponse.FunctionCall
-			chunk, _ = json.Marshal(response.FunctionCall) // nolint:errchkjson
-		}
-
-		if payload.StreamingFunc != nil {
-			err := payload.StreamingFunc(ctx, chunk)
-			if err != nil {
+			functionCall := streamResponse.FunctionCall
+			toolCall := streaming.ToolCall{
+				ID:        fmt.Sprintf("call-%d", toolCallID),
+				Name:      functionCall.Name,
+				Arguments: functionCall.Arguments,
+			}
+			incToolCallID(functionCall.Arguments)
+			if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
 				return nil, fmt.Errorf("streaming func returned an error: %w", err)
 			}
+			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, functionCall.Thoughts); err != nil {
+				return nil, fmt.Errorf("streaming func returned an error: %w", err)
+			}
+		}
+
+		if err := streaming.CallWithText(ctx, payload.StreamingFunc, chunk); err != nil {
+			return nil, fmt.Errorf("streaming func returned an error: %w", err)
 		}
 
 		if streamResponse.IsEnd {

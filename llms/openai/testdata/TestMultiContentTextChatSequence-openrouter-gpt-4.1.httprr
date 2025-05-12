@@ -1,0 +1,31 @@
+httprr trace v1
+397 1289
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 192
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/gpt-4.1","messages":[{"role":"user","content":"Name some countries"},{"role":"assistant","content":"Spain and Lesotho"},{"role":"user","content":"Which if these is larger?"}]}HTTP/2.0 200 OK
+Content-Length: 901
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:14:22 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691662-zf3f7T1L4gjlarNtvpNU","provider":"OpenAI","model":"openai/gpt-4.1","object":"chat.completion","created":1750691662,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"Spain is significantly larger than Lesotho in both area and population.\n\n- **Area:**\n  - **Spain:** About 505,990 square kilometers\n  - **Lesotho:** About 30,355 square kilometers\n\n- **Population:**  \n  - **Spain:** Around 48 million people\n  - **Lesotho:** Around 2.3 million people\n\nSo, **Spain** is much larger than Lesotho.","refusal":null,"reasoning":null}}],"system_fingerprint":"fp_51e1070cf2","usage":{"prompt_tokens":28,"completion_tokens":87,"total_tokens":115,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}

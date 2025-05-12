@@ -1,26 +1,26 @@
 httprr trace v1
-496 2082
+480 2092
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 293
+Content-Length: 277
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4o","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"}},{"text":"describe this image in detail","type":"text"}]}],"temperature":0,"max_completion_tokens":300}HTTP/2.0 200 OK
-Content-Length: 1238
+{"model":"gpt-4o","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"}},{"text":"describe this image in detail","type":"text"}]}],"max_completion_tokens":300}HTTP/2.0 200 OK
+Content-Length: 1248
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 22:24:36 GMT
+Date: Mon, 23 Jun 2025 15:13:27 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 4530
+Openai-Processing-Ms: 3443
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 4055
+X-Envoy-Upstream-Service-Time: 3004
 X-Ratelimit-Limit-Input-Images: 50000
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 2000000
@@ -30,19 +30,19 @@ X-Ratelimit-Remaining-Tokens: 1999225
 X-Ratelimit-Reset-Input-Images: 1ms
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 23ms
-X-Request-Id: req_af945d9ebf935752a925f1d6c21c9c3d
+X-Request-Id: req_663ea758e92babece5db7a8a0938c720
 
 {
-  "id": "chatcmpl-Bl0vRd2mQs309ub4R1r36p2VMi6lh",
+  "id": "chatcmpl-Bld9ICyfO7DlvsVak2s8Iwl2QmIBh",
   "object": "chat.completion",
-  "created": 1750544673,
+  "created": 1750691604,
   "model": "gpt-4o-2024-08-06",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "The image is an emoji of a parrot. The parrot is depicted in a side view, facing to the left. It has a vibrant green body with a gradient of colors on its wings and tail, transitioning from green to yellow and then to orange and red. The parrot has a black beak and dark feet. Its head is yellow with a hint of red near the beak, and it has a black eye. The background is black, which makes the bright colors of the parrot stand out.",
+        "content": "The image is an emoji of a parrot. The parrot is depicted with a bright and colorful plumage. Its head and body are primarily green, with a gradient that transitions to yellow near the head. The tail and wingtips exhibit a vibrant orange-red hue. The parrot has a dark gray beak and feet, and a small black eye, set against a dark background. The overall appearance is lively and vibrant, capturing the essence of a parrot's diverse coloration.",
         "refusal": null,
         "annotations": []
       },
@@ -52,8 +52,8 @@ X-Request-Id: req_af945d9ebf935752a925f1d6c21c9c3d
   ],
   "usage": {
     "prompt_tokens": 267,
-    "completion_tokens": 104,
-    "total_tokens": 371,
+    "completion_tokens": 98,
+    "total_tokens": 365,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0

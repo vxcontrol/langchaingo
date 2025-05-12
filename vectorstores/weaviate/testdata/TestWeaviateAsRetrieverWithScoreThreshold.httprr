@@ -1,5 +1,5 @@
 httprr trace v1
-442 167987
+442 167985
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -14,23 +14,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 17:00:15 GMT
+Date: Mon, 23 Jun 2025 14:32:54 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 78
+Openai-Processing-Ms: 49
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-67f8f57655-5pl7r
+Via: envoy-router-5f5d5b84f-j7mnf
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 627
+X-Envoy-Upstream-Service-Time: 54
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
-X-Ratelimit-Remaining-Requests: 9997
+X-Ratelimit-Remaining-Requests: 9998
 X-Ratelimit-Remaining-Tokens: 4999953
-X-Ratelimit-Reset-Requests: 17ms
+X-Ratelimit-Reset-Requests: 10ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_25835f7e96cf483a4d8e3c1df1790e62
+X-Request-Id: req_b6acce37f95136d65bf60a7c75fbcfd6
 
 {
   "object": "list",
@@ -7752,7 +7752,7 @@ X-Request-Id: req_25835f7e96cf483a4d8e3c1df1790e62
     "total_tokens": 46
   }
 }
-325 34221
+325 34211
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -7767,23 +7767,23 @@ Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 17:00:16 GMT
+Date: Mon, 23 Jun 2025 14:32:56 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 39
+Openai-Processing-Ms: 71
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-canary-54859b9845-n7c8g
+Via: envoy-router-bf875f9-5c6zk
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 42
+X-Envoy-Upstream-Service-Time: 80
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 5000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 4999980
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_44add53a6291f2e9d3815366d605b7a3
+X-Request-Id: req_e2b5d26c93357e8d62fd9c8e989681e3
 
 {
   "object": "list",
@@ -9337,47 +9337,47 @@ X-Request-Id: req_44add53a6291f2e9d3815366d605b7a3
     "total_tokens": 17
   }
 }
-1216 1587
+1199 1622
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 1012
+Content-Length: 996
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the car is red.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors are all the pieces of furniture next to the desk and the desk itself?\nHelpful Answer:"}],"temperature":0}HTTP/2.0 200 OK
-Content-Length: 865
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the car is red.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors are all the pieces of furniture next to the desk and the desk itself?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 900
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Sat, 21 Jun 2025 17:00:18 GMT
+Date: Mon, 23 Jun 2025 14:32:57 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 182
+Openai-Processing-Ms: 219
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 189
+X-Envoy-Upstream-Service-Time: 221
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 10000000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999824
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 1ms
-X-Request-Id: req_b3686ad7f16ece0ed737e7b8e875b0a4
+X-Request-Id: req_d70939c1c2b274a6995e221f4ab49a4c
 
 {
-  "id": "chatcmpl-Bkvre3TrzQiL82QG0tN5f6ZSZneR5",
+  "id": "chatcmpl-BlcW9e8XtCMaQhcnEXLPQEnMQeVEX",
   "object": "chat.completion",
-  "created": 1750525218,
+  "created": 1750689177,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "The desk is orange. The chair beside the desk is beige.",
+        "content": "The desk is orange. The chair beside the desk is beige. The lamp beside the desk is black.",
         "refusal": null,
         "annotations": []
       },
@@ -9387,8 +9387,8 @@ X-Request-Id: req_b3686ad7f16ece0ed737e7b8e875b0a4
   ],
   "usage": {
     "prompt_tokens": 161,
-    "completion_tokens": 13,
-    "total_tokens": 174,
+    "completion_tokens": 21,
+    "total_tokens": 182,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0

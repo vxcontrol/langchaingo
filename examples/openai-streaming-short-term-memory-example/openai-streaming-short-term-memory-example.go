@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // represents the length of context.
@@ -70,7 +71,7 @@ func main() {
 }
 
 // showResponse print chunks for streaming func.
-func showResponse(_ context.Context, chunk []byte) error {
-	fmt.Print(string(chunk))
+func showResponse(_ context.Context, chunk streaming.Chunk) error {
+	fmt.Print(chunk.String())
 	return nil
 }

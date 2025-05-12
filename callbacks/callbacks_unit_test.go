@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -85,7 +86,7 @@ func (m *mockHandler) HandleRetrieverEnd(ctx context.Context, query string, docu
 	m.Called(ctx, query, documents)
 }
 
-func (m *mockHandler) HandleStreamingFunc(ctx context.Context, chunk []byte) {
+func (m *mockHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {
 	m.Called(ctx, chunk)
 }
 
@@ -114,7 +115,7 @@ func TestSimpleHandler(t *testing.T) {
 	handler.HandleAgentFinish(ctx, schema.AgentFinish{})
 	handler.HandleRetrieverStart(ctx, "query")
 	handler.HandleRetrieverEnd(ctx, "query", []schema.Document{})
-	handler.HandleStreamingFunc(ctx, []byte("chunk"))
+	handler.HandleStreamingFunc(ctx, streaming.NewTextChunk("chunk"))
 
 	// No assertions needed - if we get here, all methods executed without panic
 }
@@ -146,7 +147,7 @@ func TestCombiningHandler(t *testing.T) {
 		handler.HandleAgentFinish(ctx, schema.AgentFinish{})
 		handler.HandleRetrieverStart(ctx, "query")
 		handler.HandleRetrieverEnd(ctx, "query", []schema.Document{})
-		handler.HandleStreamingFunc(ctx, []byte("chunk"))
+		handler.HandleStreamingFunc(ctx, streaming.NewTextChunk("chunk"))
 	})
 
 	t.Run("single callback", func(t *testing.T) {
@@ -169,7 +170,7 @@ func TestCombiningHandler(t *testing.T) {
 		mock1.On("HandleAgentFinish", ctx, schema.AgentFinish{})
 		mock1.On("HandleRetrieverStart", ctx, "query")
 		mock1.On("HandleRetrieverEnd", ctx, "query", []schema.Document{})
-		mock1.On("HandleStreamingFunc", ctx, []byte("chunk"))
+		mock1.On("HandleStreamingFunc", ctx, streaming.NewTextChunk("chunk"))
 
 		// Call all methods
 		handler.HandleText(ctx, "test")
@@ -187,7 +188,7 @@ func TestCombiningHandler(t *testing.T) {
 		handler.HandleAgentFinish(ctx, schema.AgentFinish{})
 		handler.HandleRetrieverStart(ctx, "query")
 		handler.HandleRetrieverEnd(ctx, "query", []schema.Document{})
-		handler.HandleStreamingFunc(ctx, []byte("chunk"))
+		handler.HandleStreamingFunc(ctx, streaming.NewTextChunk("chunk"))
 
 		// Verify all expectations were met
 		mock1.AssertExpectations(t)
@@ -375,7 +376,7 @@ func TestCallbackTypes(t *testing.T) {
 		{
 			name: "HandleStreamingFunc",
 			callFunc: func(h Handler) {
-				h.HandleStreamingFunc(ctx, []byte("streaming chunk"))
+				h.HandleStreamingFunc(ctx, streaming.NewTextChunk("streaming chunk"))
 			},
 		},
 	}

@@ -1,38 +1,38 @@
 httprr trace v1
-1193 1838
+1177 1830
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 990
+Content-Length: 974
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4","messages":[{"role":"system","content":"you are a helpful assistant"},{"role":"user","content":"current date is 2025-01-01"},{"role":"user","content":"please be strict"},{"role":"user","content":"when was the Go programming language tagged version 1.0?"}],"temperature":0,"tools":[{"type":"function","function":{"name":"GoogleSearch","description":"\n\t\"A search engine from the internet. \"\n\t\"Useful for when you need to answer questions about current events. \"\n\t\"Input should be a search query.\"","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}},{"type":"function","function":{"name":"calculator","description":"Useful for getting the result of a math expression. \n\tThe input to this tool should be a valid mathematical expression that could be executed by a starlark evaluator.","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}}]}HTTP/2.0 200 OK
-Content-Length: 1116
+{"model":"gpt-4","messages":[{"role":"system","content":"you are a helpful assistant"},{"role":"user","content":"current date is 2025-01-01"},{"role":"user","content":"please be strict"},{"role":"user","content":"when was the Go programming language tagged version 1.0?"}],"tools":[{"type":"function","function":{"name":"GoogleSearch","description":"\n\t\"A search engine from the internet. \"\n\t\"Useful for when you need to answer questions about current events. \"\n\t\"Input should be a search query.\"","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}},{"type":"function","function":{"name":"calculator","description":"Useful for getting the result of a math expression. \n\tThe input to this tool should be a valid mathematical expression that could be executed by a starlark evaluator.","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}}]}HTTP/2.0 200 OK
+Content-Length: 1108
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Mon, 23 Jun 2025 10:46:03 GMT
+Date: Mon, 23 Jun 2025 15:39:41 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 1279
+Openai-Processing-Ms: 1429
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 1282
+X-Envoy-Upstream-Service-Time: 1435
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 300000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 299963
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 7ms
-X-Request-Id: req_b43b819cb5bc5cd318ee4e22831bca1c
+X-Request-Id: req_0148162a49ce1be9cc82b4c232202ae2
 
 {
-  "id": "chatcmpl-BlYyX2DCOFIuqOgYMfvdgxMtMnnfJ",
+  "id": "chatcmpl-BldYhQnLgf2pn5CaoE38vn25lDYpn",
   "object": "chat.completion",
-  "created": 1750675561,
+  "created": 1750693179,
   "model": "gpt-4-0613",
   "choices": [
     {
@@ -42,11 +42,11 @@ X-Request-Id: req_b43b819cb5bc5cd318ee4e22831bca1c
         "content": null,
         "tool_calls": [
           {
-            "id": "call_6EpKjWeLRrkCgpwvMUSJWckx",
+            "id": "call_nsJ8A9J6vEgxacnmzB2fwbyt",
             "type": "function",
             "function": {
               "name": "GoogleSearch",
-              "arguments": "{\n  \"__arg1\": \"Go programming language version 1.0 release date\"\n}"
+              "arguments": "{\n  \"__arg1\": \"Go programming language 1.0 release date\"\n}"
             }
           }
         ],
@@ -59,8 +59,8 @@ X-Request-Id: req_b43b819cb5bc5cd318ee4e22831bca1c
   ],
   "usage": {
     "prompt_tokens": 165,
-    "completion_tokens": 25,
-    "total_tokens": 190,
+    "completion_tokens": 24,
+    "total_tokens": 189,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -75,67 +75,89 @@ X-Request-Id: req_b43b819cb5bc5cd318ee4e22831bca1c
   "service_tier": "default",
   "system_fingerprint": null
 }
-203 36833
-GET https://serpapi.com/search?api_key=test-api-key&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date HTTP/1.1
+195 32681
+GET https://serpapi.com/search?api_key=test-api-key&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date HTTP/1.1
 Host: serpapi.com
 User-Agent: langchaingo-httprr
 
 HTTP/2.0 200 OK
-Content-Length: 36162
+Content-Length: 32013
 Alt-Svc: h3=":443"; ma=86400
 Cache-Control: max-age=3600, public
-Cf-Cache-Status: EXPIRED
+Cf-Cache-Status: MISS
 Content-Type: application/json; charset=utf-8
-Date: Mon, 23 Jun 2025 10:46:12 GMT
-Etag: W/"7cf3e210b749ff2f0c9d751fba6c9b0f"
+Date: Mon, 23 Jun 2025 15:39:48 GMT
+Etag: W/"9c096bedbe8201ccb2207e14af7b858c"
 Referrer-Policy: strict-origin-when-cross-origin
-Serpapi-Search-Id: 6859306d271332d19ac4b7bb
+Serpapi-Search-Id: 6859753fb6a867e0b5bf30c8
 Server: cloudflare
 Vary: Accept-Encoding
 X-Content-Type-Options: nosniff
 X-Download-Options: noopen
 X-Frame-Options: SAMEORIGIN
 X-Permitted-Cross-Domain-Policies: none
-X-Request-Id: 89a17078-159c-4871-b3e3-f741bfb11cdd
+X-Request-Id: d856b05c-88b6-44c2-b3a1-996bd02e4653
 X-Robots-Tag: noindex, nofollow
-X-Runtime: 6.817728
+X-Runtime: 4.987155
 X-Xss-Protection: 1; mode=block
 
 {
   "search_metadata": {
-    "id": "6859306d271332d19ac4b7bb",
+    "id": "6859753fb6a867e0b5bf30c8",
     "status": "Success",
-    "json_endpoint": "https://serpapi.com/searches/0d69dbef3494d76d/6859306d271332d19ac4b7bb.json",
-    "created_at": "2025-06-23 10:46:05 UTC",
-    "processed_at": "2025-06-23 10:46:05 UTC",
-    "google_url": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&oq=Go+programming+language+version+1.0+release+date&hl=en&gl=us&sourceid=chrome&ie=UTF-8",
-    "raw_html_file": "https://serpapi.com/searches/0d69dbef3494d76d/6859306d271332d19ac4b7bb.html",
-    "total_time_taken": 6.75
+    "json_endpoint": "https://serpapi.com/searches/5dfe74f574662de0/6859753fb6a867e0b5bf30c8.json",
+    "created_at": "2025-06-23 15:39:43 UTC",
+    "processed_at": "2025-06-23 15:39:43 UTC",
+    "google_url": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&oq=Go+programming+language+1.0+release+date&hl=en&gl=us&sourceid=chrome&ie=UTF-8",
+    "raw_html_file": "https://serpapi.com/searches/5dfe74f574662de0/6859753fb6a867e0b5bf30c8.html",
+    "total_time_taken": 4.89
   },
   "search_parameters": {
     "engine": "google",
-    "q": "Go programming language version 1.0 release date",
+    "q": "Go programming language 1.0 release date",
     "google_domain": "google.com",
     "hl": "en",
     "gl": "us",
     "device": "desktop"
   },
   "search_information": {
-    "query_displayed": "Go programming language version 1.0 release date",
-    "total_results": 18000000,
-    "time_taken_displayed": 0.37,
+    "query_displayed": "Go programming language 1.0 release date",
+    "total_results": 18700000,
+    "time_taken_displayed": 0.34,
     "organic_results_state": "Results for exact spelling"
   },
   "related_questions": [
     {
-      "question": "When did Go 1.24 come out?",
+      "question": "When was Go 1.24 released?",
       "snippet": "Introduction to Go 1.24 The latest Go release, version 1.24, arrives in February 2025, six months after Go 1.23. Most of its changes are in the implementation of the toolchain, runtime, and libraries. As always, the release maintains the Go 1 promise of compatibility.",
       "title": "February 2025",
       "link": "https://tip.golang.org/doc/go1.24#:~:text=Darwin%20WebAssembly%20Windows-,Introduction%20to%20Go%201.24,Go%201%20promise%20of%20compatibility.",
       "displayed_link": "https://tip.golang.org › doc",
-      "source_logo": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/3e0339b7a87af1536697b1f12ade96802ea73e2b3bf73b5142abf42aa504e225.png",
-      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gZGlkIEdvIDEuMjQgY29tZSBvdXQ/IiwibGsiOiJHaGwzYUdWdUlHUnBaQ0JuYnlBeExqSTBJR052YldVZ2IzVjAiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gZGlkIEdvIDEuMjQgY29tZSBvdXQ%2FIiwibGsiOiJHaGwzYUdWdUlHUnBaQ0JuYnlBeExqSTBJR052YldVZ2IzVjAiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9"
+      "source_logo": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/7fb30e38de8a4106cd3386e1eb9445d120231a22d6967d434d7e33793f0933ac.png",
+      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR28gMS4yNCByZWxlYXNlZD8iLCJsayI6IkdobDNhR1Z1SUhkaGN5Qm5ieUF4TGpJMElISmxiR1ZoYzJWayIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ==",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR28gMS4yNCByZWxlYXNlZD8iLCJsayI6IkdobDNhR1Z1SUhkaGN5Qm5ieUF4TGpJMElISmxiR1ZoYzJWayIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ%3D%3D"
+    },
+    {
+      "question": "When was Golang first released?",
+      "snippet": "A short history of the Go language That's why on September 21, 2007, they started designing a new language. It took them two years before, on November 10, 2009, the Go programming language became a public open source project. After three more years, in March 2012, version 1.0 of the Go language was released.",
+      "title": "November 10, 2009",
+      "date": "Sep 17, 2021",
+      "link": "https://codilime.com/blog/what-is-go-language/#:~:text=A%20short%20history%20of%20the%20Go%20language,-The%20story%20of&text=That's%20why%20on%20September%2021,the%20Go%20language%20was%20released.",
+      "displayed_link": "https://codilime.com › ... › Backend",
+      "source_logo": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/7fb30e38de8a4106cd3386e1eb9445d13497599cc4d3d712a31e1f1f9fa6a795.png",
+      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR29sYW5nIGZpcnN0IHJlbGVhc2VkPyIsImxrIjoiR2g1M2FHVnVJSGRoY3lCbmIyeGhibWNnWm1seWMzUWdjbVZzWldGelpXUSIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ==",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR29sYW5nIGZpcnN0IHJlbGVhc2VkPyIsImxrIjoiR2g1M2FHVnVJSGRoY3lCbmIyeGhibWNnWm1seWMzUWdjbVZzWldGelpXUSIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ%3D%3D"
+    },
+    {
+      "question": "Is Golang worth learning in 2025?",
+      "snippet": "For developers who want a robust, modern, and efficient language with real-world utility, Go remains a solid choice. Whether you're just starting your programming journey or looking to expand your skill set, investing time in Go can open up exciting opportunities in the tech world of 2025 and beyond.",
+      "title": "Is Go Still Worth Learning in 2025? What the Data Says | by Abhinav",
+      "date": "Apr 8, 2025",
+      "link": "https://medium.com/@abhinavv.singh/is-go-still-worth-learning-in-2025-what-the-data-says-42da5a218f62#:~:text=For%20developers%20who%20want%20a,world%20of%202025%20and%20beyond.",
+      "displayed_link": "https://medium.com › is-go-still-worth-learning-in-2025-...",
+      "source_logo": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/7fb30e38de8a4106cd3386e1eb9445d1cd61332ff870f747d1083d2b631b2242.png",
+      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiSXMgR29sYW5nIHdvcnRoIGxlYXJuaW5nIGluIDIwMjU/IiwibGsiOiJHaDFwY3lCbmIyeGhibWNnZDI5eWRHZ2diR1ZoY201cGJtY2dNakF5TlEiLCJicyI6ImMtT3k0WklLejBqTlV5aFBMRlp3ejFjdzFETXlVU2hLelVsTkxFNU5zWmY0b1dva0xTVlpEbE9RanFhQXk0MUxIa2wzVG1KZXVrSmFabEZ4Q1pJUlQ4U01GS1Rra0l6QW9vckxuVXZSRTI1Q2VYNVJTWVlDVUtZb0x4UEl6Y3hUTURJd01yV1gtQ1JtSkM4bG13azNBMDBkU0JFWHBuY01rTnh5SmdXTGR4QUtCQmdCIiwiaWQiOiJmY19RM1ZaYUtIbUh2dkdwODRQNDg2SDBBa18xIn0=",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiSXMgR29sYW5nIHdvcnRoIGxlYXJuaW5nIGluIDIwMjU%2FIiwibGsiOiJHaDFwY3lCbmIyeGhibWNnZDI5eWRHZ2diR1ZoY201cGJtY2dNakF5TlEiLCJicyI6ImMtT3k0WklLejBqTlV5aFBMRlp3ejFjdzFETXlVU2hLelVsTkxFNU5zWmY0b1dva0xTVlpEbE9RanFhQXk0MUxIa2wzVG1KZXVrSmFabEZ4Q1pJUlQ4U01GS1Rra0l6QW9vckxuVXZSRTI1Q2VYNVJTWVlDVUtZb0x4UEl6Y3hUTURJd01yV1gtQ1JtSkM4bG13azNBMDBkU0JFWHBuY01rTnh5SmdXTGR4QUtCQmdCIiwiaWQiOiJmY19RM1ZaYUtIbUh2dkdwODRQNDg2SDBBa18xIn0%3D"
     },
     {
       "question": "When was Go 1.20 released?",
@@ -192,35 +214,14 @@ X-Xss-Protection: 1; mode=block
       "title": "01 Feb 2023",
       "link": "https://endoflife.date/go",
       "displayed_link": "https://endoflife.date › go",
-      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gd2FzIEdvIDEuMjAgcmVsZWFzZWQ/IiwibGsiOiJHaGwzYUdWdUlIZGhjeUJuYnlBeExqSXdJSEpsYkdWaGMyVmsiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gd2FzIEdvIDEuMjAgcmVsZWFzZWQ%2FIiwibGsiOiJHaGwzYUdWdUlIZGhjeUJuYnlBeExqSXdJSEpsYkdWaGMyVmsiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9"
-    },
-    {
-      "question": "When was Golang first released?",
-      "snippet": "A short history of the Go language That's why on September 21, 2007, they started designing a new language. It took them two years before, on November 10, 2009, the Go programming language became a public open source project. After three more years, in March 2012, version 1.0 of the Go language was released.",
-      "title": "November 10, 2009",
-      "date": "Sep 17, 2021",
-      "link": "https://codilime.com/blog/what-is-go-language/#:~:text=A%20short%20history%20of%20the%20Go%20language,-The%20story%20of&text=That's%20why%20on%20September%2021,the%20Go%20language%20was%20released.",
-      "displayed_link": "https://codilime.com › ... › Backend",
-      "source_logo": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/3e0339b7a87af1536697b1f12ade9680071d3372b353e543b1985a98526e131f.png",
-      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gd2FzIEdvbGFuZyBmaXJzdCByZWxlYXNlZD8iLCJsayI6IkdoNTNhR1Z1SUhkaGN5Qm5iMnhoYm1jZ1ptbHljM1FnY21Wc1pXRnpaV1EiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IldoZW4gd2FzIEdvbGFuZyBmaXJzdCByZWxlYXNlZD8iLCJsayI6IkdoNTNhR1Z1SUhkaGN5Qm5iMnhoYm1jZ1ptbHljM1FnY21Wc1pXRnpaV1EiLCJicyI6ImMtT3k0WklLejBqTlUwakpURkZ3ejFjdzFETXlVVWpPejAxVnlDOHRzWmY0b1dva0xTVlpEbE9RanFhQUM2YTdQTEVZcXR0QW9TZzFKeld4T0RYRlh1Sk1DbHczU0VFNm1nSXVOeTU1Sk4wNWlYbnBDbW1aUmNVbFNFWThFVE5Ta0pKRE1nS0xLaTUzTGtWUHVBbmwtVVVsR1FwQW1hSzhUQ0EzTTBfQnlNREkxRjdpazVpUnZKUnNKdHdNTkhVZ1JRS01BQSIsImlkIjoiZmNfY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTRfMSJ9"
-    },
-    {
-      "question": "Is Golang worth learning in 2025?",
-      "snippet": "For developers who want a robust, modern, and efficient language with real-world utility, Go remains a solid choice. Whether you're just starting your programming journey or looking to expand your skill set, investing time in Go can open up exciting opportunities in the tech world of 2025 and beyond.",
-      "title": "Is Go Still Worth Learning in 2025? What the Data Says | by Abhinav",
-      "date": "Apr 8, 2025",
-      "link": "https://medium.com/@abhinavv.singh/is-go-still-worth-learning-in-2025-what-the-data-says-42da5a218f62#:~:text=For%20developers%20who%20want%20a,world%20of%202025%20and%20beyond.",
-      "displayed_link": "https://medium.com › is-go-still-worth-learning-in-2025-...",
-      "source_logo": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/3e0339b7a87af1536697b1f12ade9680af73f8e05bec4b50cc85782ce3349086.png",
-      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IklzIEdvbGFuZyB3b3J0aCBsZWFybmluZyBpbiAyMDI1PyIsImxrIjoiR2gxcGN5Qm5iMnhoYm1jZ2QyOXlkR2dnYkdWaGNtNXBibWNnTWpBeU5RIiwiYnMiOiJjLU95NFpJS3owak5VMGpKVEZGd3oxY3cxRE15VVVqT3owMVZ5Qzh0c1pmNG9Xb2tMU1ZaRGxPUWpxYUFDNmE3UExFWXF0dEFvU2cxSnpXeE9EWEZYdUpNQ2x3M1NFRTZtZ0l1Tnk1NUpOMDVpWG5wQ21tWlJjVWxTRVk4RVROU2tKSkRNZ0tMS2k1M0xrVlB1QW5sLVVVbEdRcEFtYUs4VENBM00wX0J5TURJMUY3aWs1aVJ2SlJzSnR3TU5IVWdSUUtNQUEiLCJpZCI6ImZjX2N6QlphTzJpQmJDRDBQRVB6dVRzMEE0XzEifQ==",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaSFlWRllUVTFYWjNoVmMwbHpjM3B3TVhaVlFrSkVNWFZ0VmxsSVpWQnJRMlEwVkZCTFlYSkpUR2xtYTNsU2FqbERibWd5U1VWclJEWmpUVWxGWlVGR2FtTkNjV3RZZDJKZldqWm9TMWR1YjI1NldWRmlZbm8yTUVoT1VSSVhZM3BDV21GUE1tbENZa05FTUZCRlVIcDFWSE13UVRRYUlrRkdUVUZIUjI5VVRqRmFla3BvVWtkZmRHbHdSRjlWYlc0eWFuaGxRVGR3YjFFIiwiZmN2IjoiMyIsImVpIjoiY3pCWmFPMmlCYkNEMFBFUHp1VHMwQTQiLCJxYyI6IkNqQm5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNCMlpYSnphVzl1SURFdU1DQnlaV3hsWVhObElHUmhkR1VRQUgxU1R5VV8iLCJxdWVzdGlvbiI6IklzIEdvbGFuZyB3b3J0aCBsZWFybmluZyBpbiAyMDI1PyIsImxrIjoiR2gxcGN5Qm5iMnhoYm1jZ2QyOXlkR2dnYkdWaGNtNXBibWNnTWpBeU5RIiwiYnMiOiJjLU95NFpJS3owak5VMGpKVEZGd3oxY3cxRE15VVVqT3owMVZ5Qzh0c1pmNG9Xb2tMU1ZaRGxPUWpxYUFDNmE3UExFWXF0dEFvU2cxSnpXeE9EWEZYdUpNQ2x3M1NFRTZtZ0l1Tnk1NUpOMDVpWG5wQ21tWlJjVWxTRVk4RVROU2tKSkRNZ0tMS2k1M0xrVlB1QW5sLVVVbEdRcEFtYUs4VENBM00wX0J5TURJMUY3aWs1aVJ2SlJzSnR3TU5IVWdSUUtNQUEiLCJpZCI6ImZjX2N6QlphTzJpQmJDRDBQRVB6dVRzMEE0XzEifQ%3D%3D"
+      "source_logo": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/7fb30e38de8a4106cd3386e1eb9445d1c88249e03a76d41df1c12ce6b5e03b16.png",
+      "next_page_token": "eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR28gMS4yMCByZWxlYXNlZD8iLCJsayI6IkdobDNhR1Z1SUhkaGN5Qm5ieUF4TGpJd0lISmxiR1ZoYzJWayIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ==",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google_related_questions&google_domain=google.com&next_page_token=eyJvbnMiOiIxMDA0MSIsImZjIjoiRXFFQkNtSkJUR3QwWDNaR01EbE5XVFZVTTE5NE5XOTVaRTR0ZDBOS2JWbG1NMmczU0RjMFNsTlNXV0pUUVhWWWVsSnFNMnBYUkVSQk4xcGtWWGRZVms1T1MzZFdRVE5VVm5CNWJXRldjR2xEYjFKVE9EWkNNa1JtZG5kME0zTnlORVU1TVV4clp4SVhVVE5XV21GTFNHMUlkblpIY0RnMFVEUTROa2d3UVdzYUlrRkdUVUZIUjNJeWFWOUlSMHBwZVhScVNsWlFPRVZwUVd4YVNFVm5NbWxmYlZFIiwiZmN2IjoiMyIsImVpIjoiUTNWWmFLSG1IdnZHcDg0UDQ4NkgwQWsiLCJxYyI6IkNpaG5ieUJ3Y205bmNtRnRiV2x1WnlCc1lXNW5kV0ZuWlNBeExqQWdjbVZzWldGelpTQmtZWFJsRUFCOUREWWZQdyIsInF1ZXN0aW9uIjoiV2hlbiB3YXMgR28gMS4yMCByZWxlYXNlZD8iLCJsayI6IkdobDNhR1Z1SUhkaGN5Qm5ieUF4TGpJd0lISmxiR1ZoYzJWayIsImJzIjoiYy1PeTRaSUt6MGpOVXloUExGWnd6MWN3MURNeVVTaEt6VWxOTEU1TnNaZjRvV29rTFNWWkRsT1FqcWFBeTQxTEhrbDNUbUpldWtKYVpsRnhDWklSVDhTTUZLVGtrSXpBb29yTG5VdlJFMjVDZVg1UlNZWUNVS1lvTHhQSXpjeFRNREl3TXJXWC1DUm1KQzhsbXdrM0EwMGRTQkVYcG5jTWtOeHlKZ1dMZHhBS0JCZ0IiLCJpZCI6ImZjX1EzVlphS0htSHZ2R3A4NFA0ODZIMEFrXzEifQ%3D%3D"
     }
   ],
   "ai_overview": {
-    "page_token": "njzh7XicvZTdkqI4FMdv90WWG1v5EG3pKmoqBERUFLRtq72hEDGNfClRUe-mah9ln2qfZgMog07P1Gzt1kYJJDk553-SX52vfwZe5P_12x8f-_0Wv9B0mqYNFMcocBtOHNI2PkcOvY4DnDgfX1AgHjD1EYhuRJ2PYpNysMhQric6F2lhjzlPWkKZMRTjcnjFDOCpfLtoLW3sboj30wbTFk06__emTAYN3HCjRm99hK3NOG4rWoNj2E5jTNshMQD_psGHsZb3MwUApZwjX-jz3RJZMMn6nZdyoJI1AEwJghggyazayCTQ1Q6BiQIsy-mBtBqxcA_6Vcc86YZdIMEUnu-FVPTB0kE2CR-U36lA5Yz2eX5Xo1LYAEgykG9DKS32Ew8IjrVvvmUfGBIPNGfW_dzhTOrpyHrXHvTcmgS8HezvzXeSDL1C5I4ZepmQF0snOLtx-CowcY89n7qRMxfq8mYi8N3R3rEFvt1tt0D6lLPk4BImXIVJ1Z3F5ZmbqTulMWxIbEmSlEWfXk__vTgYE7xVYfiuKeSeswbBN7PbG5IvHaJNfr4SYAgMJQhjIKtjc0eMYcUXvB5A9k_z-GQGKYUoQpKfr-TgEWvCXoa_l7mUNPLLFzWAYrJa3HwWGQMBzDOTfpYUMcnpkQlJQINpkbUJlRIVs0gg16KaYEgSIEFiMJQZxyzkI7IJaTex5EaJoFM-MgEyM74JrEbuEWpAMYt7z55i0yBTkpJtOQFamgXM8p3fkwTB9XR_2tBP-CUEfY-O2tz0J8rCm_eguWIT_-11v3ydcnWP74MrOnG4_AeFyPmf4dLyuZmiQ7-ES_khXPdl6goXvMGl5qKyMoWLMlWFS7vB9aFNFImUKQOkJVxKCVe_CldZpnhSpu7gyrpfgsuswoVKuPo_hqsoUze4FjK4pFe4-le4zEe4_tsylTPmFq_7mnXYoEcAlZahdep6T-ORilV79lxHW-Gtgwfn0Hyy1uH-ZZvE6MnyVi8S19-fV9ROVONaNpnYYehFqBbYETrYyK0d3QR7cVRjG0wtcQOX0Ftb2XuXCoMkFhm7te340SVZu5tNNBnGeDbSDnC3YNcfCX_kpvbE9NBqwBhWN9jOPXBqxevBiJ_6g6kqRIt3Y82Zwlivt9km7x_AAip6W1cCaa6CbsiN0Zgz7PNJ57gWqqPJJb4YQf2w2rZ63Nk9TbXObDgSoDF1BcH1rZOfOEwuDIunkaqd_HWgg5QKE0ckRPA-0Cns2JaLj2KbdZvPLbZjC6xgPwssFaL9eSvy7N81NHsD",
-    "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=njzh7XicvZTdkqI4FMdv90WWG1v5EG3pKmoqBERUFLRtq72hEDGNfClRUe-mah9ln2qfZgMog07P1Gzt1kYJJDk553-SX52vfwZe5P_12x8f-_0Wv9B0mqYNFMcocBtOHNI2PkcOvY4DnDgfX1AgHjD1EYhuRJ2PYpNysMhQric6F2lhjzlPWkKZMRTjcnjFDOCpfLtoLW3sboj30wbTFk06__emTAYN3HCjRm99hK3NOG4rWoNj2E5jTNshMQD_psGHsZb3MwUApZwjX-jz3RJZMMn6nZdyoJI1AEwJghggyazayCTQ1Q6BiQIsy-mBtBqxcA_6Vcc86YZdIMEUnu-FVPTB0kE2CR-U36lA5Yz2eX5Xo1LYAEgykG9DKS32Ew8IjrVvvmUfGBIPNGfW_dzhTOrpyHrXHvTcmgS8HezvzXeSDL1C5I4ZepmQF0snOLtx-CowcY89n7qRMxfq8mYi8N3R3rEFvt1tt0D6lLPk4BImXIVJ1Z3F5ZmbqTulMWxIbEmSlEWfXk__vTgYE7xVYfiuKeSeswbBN7PbG5IvHaJNfr4SYAgMJQhjIKtjc0eMYcUXvB5A9k_z-GQGKYUoQpKfr-TgEWvCXoa_l7mUNPLLFzWAYrJa3HwWGQMBzDOTfpYUMcnpkQlJQINpkbUJlRIVs0gg16KaYEgSIEFiMJQZxyzkI7IJaTex5EaJoFM-MgEyM74JrEbuEWpAMYt7z55i0yBTkpJtOQFamgXM8p3fkwTB9XR_2tBP-CUEfY-O2tz0J8rCm_eguWIT_-11v3ydcnWP74MrOnG4_AeFyPmf4dLyuZmiQ7-ES_khXPdl6goXvMGl5qKyMoWLMlWFS7vB9aFNFImUKQOkJVxKCVe_CldZpnhSpu7gyrpfgsuswoVKuPo_hqsoUze4FjK4pFe4-le4zEe4_tsylTPmFq_7mnXYoEcAlZahdep6T-ORilV79lxHW-Gtgwfn0Hyy1uH-ZZvE6MnyVi8S19-fV9ROVONaNpnYYehFqBbYETrYyK0d3QR7cVRjG0wtcQOX0Ftb2XuXCoMkFhm7te340SVZu5tNNBnGeDbSDnC3YNcfCX_kpvbE9NBqwBhWN9jOPXBqxevBiJ_6g6kqRIt3Y82Zwlivt9km7x_AAip6W1cCaa6CbsiN0Zgz7PNJ57gWqqPJJb4YQf2w2rZ63Nk9TbXObDgSoDF1BcH1rZOfOEwuDIunkaqd_HWgg5QKE0ckRPA-0Cns2JaLj2KbdZvPLbZjC6xgPwssFaL9eSvy7N81NHsD"
+    "page_token": "_4Ndb3icvZTdkqI4FMdv90WWG6cFFFG6itoKARGUEWw_Rm8oPqMiooCifbfvsk81TzMBlEGnZz9qtzZdHZKck3P-SX6e3__YbfbB11-O6zQ9JK8kmWVZE0UR2nlNJwpJK7nuHdKPdknsrH9DO_6UEOsd7-2J65lvE07CU4S34Y32fGUNB-HgfJYPPUZneuyAAgFRbOdN20q8LY5-2SakSeIu-LUt4kkzaXr75sA_w852HLGS0mxRdK85Jq0QO4B_0-DTXCn6mQSAVK3hEfp4t4ANBrY_RKkmMrYBYAgQRAAJRt1HxIlufghMJGCazgBk9YxleKDWAzO4G_WBADN4fRRS0werAPkifFL-oAJVK8rH57s5VcKGQBCBeJ8KWbkfR0BwrHyPLQZAFxigOLP-xwFnwkBD5lJ50nNvAtgcoZoaS3wY0kX4jSnSjvGHJuMkf3E45ahoQF8v_b2z4F7E7YRj-p9Tx-IYts92QPapYMlJKpiSOkyy5qzeu62ZfJSao6ZAVyQJefa32-0vy4sxwLwOww9Nuhkh-O52_0I80iDaFvcrAArDUIEwBqI8No7YGdZiVWOhvPYCEySVojBJQWEpwCuySDn-mzykoOC_wqgAFGFL-fJ55hPgwCJ3UfNDYZeCHhGTBBSYlac2oFShYpQHKLTIBhjhA-AkERiJlGOU8hHehJS7UvyiWNClmBkAGTnfGFa9iAgVIBnlu-f_5aZhriTD2woClCxPmJ938UgSzH9Ff9nQn_CLCfoAnXB-7A5ipXsJGI1OfOrgr_QOS1-9L3d0otD-B4XI-Z_hUoq1maTBoIJL-ilcP5SpHC54h0suROVlKinLVB0u5Q7XWplIAi5TOsgquKQKLrUOV1WmGFymHuDKu78Fl1GHC1VwqT-HqyxTd7hWInjPbnCpN7iMZ7j-2zJVMOaVn8eaddqiZwBlLnqxuvSS2fhoZKpJMH3LfONtceFM9Mn0w_T1EEd4tHFfhZaaXl3iyMtRI1-MrTDc7FFjZ-3RyUJeg25SjdjbeZjahmulHhHu4oinLPYUGxrtbQbSCgZOKOrjpX9YJO2dGDNQYt7giwSsqbakLt2z7tlpZ6RTQ_YSeK2-PRyOTVaTxwyrfXGvth4FvYWr9ueMasna1F-Bw1xwU3tr0PFxo3HLeJhAfcJepi1bhROaC9fnqwysDO0LNQnfnrxPjZPA2EuJCGOHx8_PBEAjEscyveTM0zbDdlzXtXuc57NdighRej3wDP0NsqB01Q",
+    "serpapi_link": "https://serpapi.com/search.json?engine=google_ai_overview&page_token=_4Ndb3icvZTdkqI4FMdv90WWG6cFFFG6itoKARGUEWw_Rm8oPqMiooCifbfvsk81TzMBlEGnZz9qtzZdHZKck3P-SX6e3__YbfbB11-O6zQ9JK8kmWVZE0UR2nlNJwpJK7nuHdKPdknsrH9DO_6UEOsd7-2J65lvE07CU4S34Y32fGUNB-HgfJYPPUZneuyAAgFRbOdN20q8LY5-2SakSeIu-LUt4kkzaXr75sA_w852HLGS0mxRdK85Jq0QO4B_0-DTXCn6mQSAVK3hEfp4t4ANBrY_RKkmMrYBYAgQRAAJRt1HxIlufghMJGCazgBk9YxleKDWAzO4G_WBADN4fRRS0werAPkifFL-oAJVK8rH57s5VcKGQBCBeJ8KWbkfR0BwrHyPLQZAFxigOLP-xwFnwkBD5lJ50nNvAtgcoZoaS3wY0kX4jSnSjvGHJuMkf3E45ahoQF8v_b2z4F7E7YRj-p9Tx-IYts92QPapYMlJKpiSOkyy5qzeu62ZfJSao6ZAVyQJefa32-0vy4sxwLwOww9Nuhkh-O52_0I80iDaFvcrAArDUIEwBqI8No7YGdZiVWOhvPYCEySVojBJQWEpwCuySDn-mzykoOC_wqgAFGFL-fJ55hPgwCJ3UfNDYZeCHhGTBBSYlac2oFShYpQHKLTIBhjhA-AkERiJlGOU8hHehJS7UvyiWNClmBkAGTnfGFa9iAgVIBnlu-f_5aZhriTD2woClCxPmJ938UgSzH9Ff9nQn_CLCfoAnXB-7A5ipXsJGI1OfOrgr_QOS1-9L3d0otD-B4XI-Z_hUoq1maTBoIJL-ilcP5SpHC54h0suROVlKinLVB0u5Q7XWplIAi5TOsgquKQKLrUOV1WmGFymHuDKu78Fl1GHC1VwqT-HqyxTd7hWInjPbnCpN7iMZ7j-2zJVMOaVn8eaddqiZwBlLnqxuvSS2fhoZKpJMH3LfONtceFM9Mn0w_T1EEd4tHFfhZaaXl3iyMtRI1-MrTDc7FFjZ-3RyUJeg25SjdjbeZjahmulHhHu4oinLPYUGxrtbQbSCgZOKOrjpX9YJO2dGDNQYt7giwSsqbakLt2z7tlpZ6RTQ_YSeK2-PRyOTVaTxwyrfXGvth4FvYWr9ueMasna1F-Bw1xwU3tr0PFxo3HLeJhAfcJepi1bhROaC9fnqwysDO0LNQnfnrxPjZPA2EuJCGOHx8_PBEAjEscyveTM0zbDdlzXtXuc57NdighRej3wDP0NsqB01Q"
   },
   "answer_box": {
     "type": "organic_result",
@@ -232,48 +233,35 @@ X-Xss-Protection: 1; mode=block
       "March 2012"
     ],
     "answer": "March 2012",
-    "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/97f6705af953a668e3a0d3b93a8637a6dece13f015c8e621.png",
+    "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e3f0d8faab6c558516d7deacab46a4f23207268dfdb2d372.png",
     "source": "Wikipedia",
-    "thumbnail": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/97f6705af953a668bab9fd04ac69919a9de572d35846a270.png"
+    "thumbnail": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e3f0d8faab6c558556b593f6ff03601860ff1dfb9b371f08.png"
   },
   "organic_results": [
     {
       "position": 1,
       "title": "Release History",
       "link": "https://go.dev/doc/devel/release",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://go.dev/doc/devel/release&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDoQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://go.dev/doc/devel/release&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDIQAQ",
       "displayed_link": "https://go.dev › doc › devel › release",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d92a78e4c3a0ed6171f9dfd469969b861.png",
-      "snippet": "go1.21.0 (released 2023-08-08) Go 1.21.0 is a major release of Go. Read the Go 1.21 Release Notes for more information.",
-      "sitelinks": {
-        "inline": [
-          {
-            "title": "Go1.20 (released 2023-02-01)",
-            "link": "https://go.dev/doc/devel/release#:~:text=.-,go1.20%20%28released%202023%2D02%2D01%29"
-          },
-          {
-            "title": "Go1.19 (released 2022-08-02)",
-            "link": "https://go.dev/doc/devel/release#:~:text=.-,go1.19%20%28released%202022%2D08%2D02%29"
-          },
-          {
-            "title": "Go1.16 (released 2021-02-16)",
-            "link": "https://go.dev/doc/devel/release#:~:text=.-,go1.16%20%28released%202021%2D02%2D16%29"
-          }
-        ]
-      },
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e01e590bc9db9ef5f321b8b2f2b918cd46.png",
+      "snippet": "go1.16.14 (released 2022-02-10) includes security fixes to the go command, and the crypto/elliptic and math/big packages, as well as bug fixes to the compiler.",
+      "snippet_highlighted_words": [
+        "go1.16.14"
+      ],
       "source": "The Go Programming Language"
     },
     {
       "position": 2,
       "title": "Go version 1 is released",
       "link": "https://go.dev/blog/go1",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://go.dev/blog/go1&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDAQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://go.dev/blog/go1&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDcQAQ",
       "displayed_link": "https://go.dev › blog",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0df06f2c6cb6c4c50a48b97766ec1ae332.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e0926a9a686f4ff910aa08378b6490c779.png",
       "date": "Mar 28, 2012",
-      "snippet": "Go 1 is the first release of Go that is available in supported binary distributions. They are available for Linux, FreeBSD, Mac OS X and, we are thrilled to ...",
+      "snippet": "Go version 1 is released. Andrew Gerrand 28 March 2012. Today marks a major milestone in the development of the Go programming language. We're ...",
       "snippet_highlighted_words": [
-        "Go 1 is the first release of Go"
+        "Go version 1 is released"
       ],
       "source": "The Go Programming Language"
     },
@@ -281,47 +269,28 @@ X-Xss-Protection: 1; mode=block
       "position": 3,
       "title": "The Evolution of the Go Programming Language",
       "link": "https://www.bytesizego.com/blog/go-language-history",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.bytesizego.com/blog/go-language-history&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDkQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.bytesizego.com/blog/go-language-history&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDMQAQ",
       "displayed_link": "https://www.bytesizego.com › blog › go-language-history",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d1e64c549ee2fe539fc03add102eb91c5.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e0e9a1791625362f6b197ce052394335ab.png",
       "date": "Nov 24, 2024",
       "snippet": "The Initial Release of Go 1.0 (2012). The first big moment in Go's history came in March 2012, with the release of Go 1.0. This wasn't just ...",
       "snippet_highlighted_words": [
         "March 2012"
       ],
-      "sitelinks": {
-        "inline": [
-          {
-            "title": "Introduction",
-            "link": "https://www.bytesizego.com/blog/go-language-history#:~:text=Introduction"
-          },
-          {
-            "title": "What's Next For Go?",
-            "link": "https://www.bytesizego.com/blog/go-language-history#:~:text=What%27s%20Next%20for%20Go%3F"
-          },
-          {
-            "title": "Faqs About Go Programming...",
-            "link": "https://www.bytesizego.com/blog/go-language-history#:~:text=FAQs%20About%20Go%20Programming%20Language"
-          }
-        ]
-      },
       "source": "ByteSizeGo"
     },
     {
       "position": 4,
       "title": "Go / Golang - The Google Programming Language - IONOS",
       "link": "https://www.ionos.com/digitalguide/server/know-how/golang/",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.ionos.com/digitalguide/server/know-how/golang/&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDIQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.ionos.com/digitalguide/server/know-how/golang/&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDQQAQ",
       "displayed_link": "https://www.ionos.com › ... › Server › Know-how",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d750cc0fdb8d1db86df995eabddcd44a0.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e0fe03821221871fca331ec7071770c99f.png",
       "date": "Mar 21, 2023",
-      "snippet": "The final release of the first stable version (1.0) took place on March 28, 2012. ... programming languages used to date, but as a possible ...",
+      "snippet": "The final release of the first stable version (1.0) took place on March 28, 2012. Ever since version 1.1, which followed a year later, Google ...",
       "snippet_highlighted_words": [
         "release",
-        "version",
-        "1.0",
-        "programming",
-        "date"
+        "1.0"
       ],
       "source": "ionos.com"
     },
@@ -329,9 +298,9 @@ X-Xss-Protection: 1; mode=block
       "position": 5,
       "title": "A Journey Through Time: A Brief History of Golang",
       "link": "https://plavno.io/blog/history-of-golang",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://plavno.io/blog/history-of-golang&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDEQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://plavno.io/blog/history-of-golang&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDoQAQ",
       "displayed_link": "https://plavno.io › Blog",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d3d2f78f633cbf3af40ba0c6578dbd6fb.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e05a5301fab5f19be0b4586397319c4edb.png",
       "date": "Jun 9, 2023",
       "snippet": "Go 1.0: A Groundbreaking Release: The release of Go 1.0 in March 2012 marked a crucial milestone in Golang's journey. This version ...",
       "snippet_highlighted_words": [
@@ -343,214 +312,162 @@ X-Xss-Protection: 1; mode=block
       "position": 6,
       "title": "The Go programming language — everything you should ...",
       "link": "https://codilime.com/blog/what-is-go-language/",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://codilime.com/blog/what-is-go-language/&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDsQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://codilime.com/blog/what-is-go-language/&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDYQAQ",
       "displayed_link": "https://codilime.com › ... › Backend",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d100073620a4edcec6e1b4ff2c8de6592.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e041ffa727c0d92a2bc2b32c5b592c0020.png",
       "date": "Sep 17, 2021",
       "snippet": "After three more years, in March 2012, version 1.0 of the Go language was released.",
       "snippet_highlighted_words": [
         "March 2012"
       ],
-      "sitelinks": {
-        "inline": [
-          {
-            "title": "Is It Called Golang Or Go?...",
-            "link": "https://codilime.com/blog/what-is-go-language/#:~:text=Is%20it%20called%20Golang%20or%20Go%3F%20We%20answer,-The%20Go%20programming%20language%20is"
-          },
-          {
-            "title": "The Best Ides And Editors...",
-            "link": "https://codilime.com/blog/what-is-go-language/#:~:text=The%20best%20IDEs%20and%20editors%20for%20Go%20developers,-As%20an%20open%20source%20project"
-          },
-          {
-            "title": "Go Programming Language Is...",
-            "link": "https://codilime.com/blog/what-is-go-language/#:~:text=Go%20programming%20language%20is%20fast,-The%20common%20opinion%20about%20Go"
-          }
-        ]
-      },
       "source": "CodiLime"
     },
     {
       "position": 7,
       "title": "When referring to the Go version, do people actually omit ...",
       "link": "https://www.reddit.com/r/golang/comments/1bknwp3/when_referring_to_the_go_version_do_people/",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.reddit.com/r/golang/comments/1bknwp3/when_referring_to_the_go_version_do_people/&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDgQAQ",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.reddit.com/r/golang/comments/1bknwp3/when_referring_to_the_go_version_do_people/&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDgQAQ",
       "displayed_link": "20+ comments · 1 year ago",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0d37caa7038f75864368be1522a9fa185e.png",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e0e100119783c5ded0098564e7cd71843b.png",
       "snippet": "The Go team made a compatibility promise that .go files written for Go 1.0 will still work with a Go 1.22 or later compiler, with exceptions ...",
       "snippet_highlighted_words": [
         "Go",
         "go",
         "Go 1.0",
-        "Go 1.22"
+        "Go"
       ],
       "source": "Reddit · r/golang"
     },
     {
       "position": 8,
-      "title": "Go-Release-Cycle - Go Programming Language Wiki",
-      "link": "https://zchee.github.io/golang-wiki/Go-Release-Cycle/",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://zchee.github.io/golang-wiki/Go-Release-Cycle/&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDwQAQ",
-      "displayed_link": "https://zchee.github.io › golang-wiki › Go-Release-Cycle",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0db8b9742a3bdc30a36849f18adfa7ede7.png",
-      "snippet": "The current release cycle is aligned to start in mid-January and mid-July of each year. The target milestones for a release cycle are as described below. We try ...",
+      "title": "Google: As Go programming language turns 10, here are ...",
+      "link": "https://www.zdnet.com/article/google-as-go-programming-language-turns-10-here-are-the-big-names-using-it/",
+      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://www.zdnet.com/article/google-as-go-programming-language-turns-10-here-are-the-big-names-using-it/&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQFnoECDUQAQ",
+      "displayed_link": "https://www.zdnet.com › Business › Enterprise Software",
+      "favicon": "https://serpapi.com/searches/6859753fb6a867e0b5bf30c8/images/e33759b69c128c5d784ecc98a2b374e0977361009ae564f11a1d7135dc67c468.png",
+      "date": "Nov 14, 2019",
+      "snippet": "Google launched Go exactly 10 years ago, in November 2009, offering developers a new programming language that was optimized for multicore ...",
       "snippet_highlighted_words": [
-        "mid-January and mid-July of each year"
+        "Google launched Go exactly 10 years ago, in November 2009"
       ],
-      "sitelinks": {
-        "inline": [
-          {
-            "title": "Timeline",
-            "link": "https://zchee.github.io/golang-wiki/Go-Release-Cycle/#:~:text=Timeline,-The%20current%20release%20cycle%20is"
-          },
-          {
-            "title": "May / November Week 4...",
-            "link": "https://zchee.github.io/golang-wiki/Go-Release-Cycle/#:~:text=May%20%2F%20November%20week%204%3A%20Release%20freeze%20begins.,-This%20milestone%20begins%20the%20second"
-          },
-          {
-            "title": "June / December Week 2...",
-            "link": "https://zchee.github.io/golang-wiki/Go-Release-Cycle/#:~:text=June%20%2F%20December%20week%202%3A%20Release%20candidate%201%20issued.,-A%20release%20candidate%20is%20meant"
-          }
-        ]
-      },
-      "source": "GitHub"
-    },
-    {
-      "position": 9,
-      "title": "Go",
-      "link": "https://endoflife.date/go",
-      "redirect_link": "https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://endoflife.date/go&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQFnoECDcQAQ",
-      "displayed_link": "https://endoflife.date › go",
-      "favicon": "https://serpapi.com/searches/6859306d271332d19ac4b7bb/images/339c6efa2d70a92b0636a4a2eb59cc0df29a85900ce3f965f1b8c2eb06052bd8.png",
-      "date": "Jun 6, 2025",
-      "snippet": "Go ; 1.11, 6 years and 10 months ago. (24 Aug 2018). Ended 5 years and 9 months ago. (03 Sep 2019) ; 1.10, 7 years ago. (16 Feb 2018). Ended 6 ...",
-      "snippet_highlighted_words": [
-        "Go"
-      ],
-      "missing": [
-        "1.0"
-      ],
-      "must_include": {
-        "word": "1.0",
-        "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Go+programming+language+version+%221.0%22+release+date&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ5t4CegQITxAB"
-      },
-      "source": "endoflife.date"
+      "source": "ZDNET"
     }
   ],
   "related_searches": [
     {
       "block_position": 1,
-      "query": "Go programming language version 1.0 release date github",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Go+programming+language+version+1.0+release+date+github&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhcEAE",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date+github"
+      "query": "Go programming language 1.0 release date github",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Go+programming+language+1.0+release+date+github&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAhPEAE",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date+github"
     },
     {
       "block_position": 1,
       "query": "Golang release date",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Golang+release+date&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhbEAE",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Golang+release+date&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAhNEAE",
       "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Golang+release+date"
     },
     {
       "block_position": 1,
       "query": "Golang 1.23 release date",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Golang+1.23+release+date&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhaEAE",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Golang+1.23+release+date&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAhLEAE",
       "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Golang+1.23+release+date"
     },
     {
       "block_position": 1,
-      "query": "Golang 1.24 release date",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Golang+1.24+release+date&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhZEAE",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Golang+1.24+release+date"
+      "query": "Go 1.24 release date",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Go+1.24+release+date&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAhDEAE",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+1.24+release+date"
     },
     {
       "block_position": 1,
       "query": "Go 1.22 release date",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Go+1.22+release+date&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhWEAE",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Go+1.22+release+date&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAg7EAE",
       "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+1.22+release+date"
     },
     {
       "block_position": 1,
-      "query": "Golang tutorial",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Golang+tutorial&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhVEAE",
-      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Golang+tutorial"
-    },
-    {
-      "block_position": 1,
       "query": "Go release notes",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Go+release+notes&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhYEAE",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Go+release+notes&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAg5EAE",
       "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+release+notes"
     },
     {
       "block_position": 1,
+      "query": "Go releases",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Go+releases&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAgxEAE",
+      "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+releases"
+    },
+    {
+      "block_position": 1,
       "query": "Golang version history",
-      "link": "https://www.google.com/search?sca_esv=61e37518a919a791&gl=us&hl=en&q=Golang+version+history&sa=X&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ1QJ6BAhXEAE",
+      "link": "https://www.google.com/search?sca_esv=1b465dddb89ef670&gl=us&hl=en&q=Golang+version+history&sa=X&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ1QJ6BAgwEAE",
       "serpapi_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Golang+version+history"
     }
   ],
   "pagination": {
     "current": 1,
-    "next": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=10&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8NMDegQICBAW",
+    "next": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=10&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8NMDegQIDRAW",
     "other_pages": {
-      "2": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=10&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAE",
-      "3": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=20&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAG",
-      "4": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=30&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAI",
-      "5": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=40&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAK",
-      "6": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=50&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAM",
-      "7": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=60&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAO",
-      "8": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=70&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAQ",
-      "9": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=80&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAS",
-      "10": "https://www.google.com/search?q=Go+programming+language+version+1.0+release+date&sca_esv=61e37518a919a791&gl=us&hl=en&ei=czBZaO2iBbCD0PEPzuTs0A4&start=90&sa=N&sstk=Ac65TH4sykMR7bR98DrfaGn0b2n7pOcEFoZzOAcq0PUUYvDL4z0eQdDwlcTu2aqRlTA_bGKhg-7W45DLWAoxtFQCjMCNLnGIC5FTlg&ved=2ahUKEwitqKDcroeOAxWwATQIHU4yG-oQ8tMDegQICBAU"
+      "2": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=10&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAE",
+      "3": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=20&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAG",
+      "4": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=30&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAI",
+      "5": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=40&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAK",
+      "6": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=50&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAM",
+      "7": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=60&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAO",
+      "8": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=70&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAQ",
+      "9": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=80&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAS",
+      "10": "https://www.google.com/search?q=Go+programming+language+1.0+release+date&sca_esv=1b465dddb89ef670&gl=us&hl=en&ei=Q3VZaKHmHvvGp84P486H0Ak&start=90&sa=N&sstk=Ac65TH5sqmKRgxdqo1s_Nv-b5xU3eYz4y980ezWr43FhSt7r2N8-ReJKPQykbtBtQmZSG-JT6jpp2qJ1xQrMgayYDcbUqJqIul1Aew&ved=2ahUKEwjhk7Ws8IeOAxV748kDHWPnAZoQ8tMDegQIDRAU"
     }
   },
   "serpapi_pagination": {
     "current": 1,
-    "next_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=10",
-    "next": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=10",
+    "next_link": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=10",
+    "next": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=10",
     "other_pages": {
-      "2": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=10",
-      "3": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=20",
-      "4": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=30",
-      "5": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=40",
-      "6": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=50",
-      "7": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=60",
-      "8": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=70",
-      "9": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=80",
-      "10": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+version+1.0+release+date&start=90"
+      "2": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=10",
+      "3": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=20",
+      "4": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=30",
+      "5": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=40",
+      "6": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=50",
+      "7": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=60",
+      "8": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=70",
+      "9": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=80",
+      "10": "https://serpapi.com/search.json?device=desktop&engine=google&gl=us&google_domain=google.com&hl=en&q=Go+programming+language+1.0+release+date&start=90"
     }
   }
-}1506 1574
+}1482 1574
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
-Content-Length: 1302
+Content-Length: 1278
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4","messages":[{"role":"system","content":"you are a helpful assistant"},{"role":"user","content":"current date is 2025-01-01"},{"role":"user","content":"please be strict"},{"role":"user","content":"when was the Go programming language tagged version 1.0?"},{"role":"assistant","content":"","tool_calls":[{"id":"call_6EpKjWeLRrkCgpwvMUSJWckx","type":"function","function":{"name":"GoogleSearch","arguments":"Go programming language version 1.0 release date"}}]},{"role":"tool","content":"March 2012","name":"GoogleSearch","tool_call_id":"call_6EpKjWeLRrkCgpwvMUSJWckx"}],"temperature":0,"tools":[{"type":"function","function":{"name":"GoogleSearch","description":"\n\t\"A search engine from the internet. \"\n\t\"Useful for when you need to answer questions about current events. \"\n\t\"Input should be a search query.\"","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}},{"type":"function","function":{"name":"calculator","description":"Useful for getting the result of a math expression. \n\tThe input to this tool should be a valid mathematical expression that could be executed by a starlark evaluator.","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}}]}HTTP/2.0 200 OK
+{"model":"gpt-4","messages":[{"role":"system","content":"you are a helpful assistant"},{"role":"user","content":"current date is 2025-01-01"},{"role":"user","content":"please be strict"},{"role":"user","content":"when was the Go programming language tagged version 1.0?"},{"role":"assistant","content":"","tool_calls":[{"id":"call_nsJ8A9J6vEgxacnmzB2fwbyt","type":"function","function":{"name":"GoogleSearch","arguments":"Go programming language 1.0 release date"}}]},{"role":"tool","content":"March 2012","name":"GoogleSearch","tool_call_id":"call_nsJ8A9J6vEgxacnmzB2fwbyt"}],"tools":[{"type":"function","function":{"name":"GoogleSearch","description":"\n\t\"A search engine from the internet. \"\n\t\"Useful for when you need to answer questions about current events. \"\n\t\"Input should be a search query.\"","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}},{"type":"function","function":{"name":"calculator","description":"Useful for getting the result of a math expression. \n\tThe input to this tool should be a valid mathematical expression that could be executed by a starlark evaluator.","parameters":{"properties":{"__arg1":{"title":"__arg1","type":"string"}},"required":["__arg1"],"type":"object"}}}]}HTTP/2.0 200 OK
 Content-Length: 853
 Access-Control-Expose-Headers: X-Request-ID
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Mon, 23 Jun 2025 10:46:14 GMT
+Date: Mon, 23 Jun 2025 15:39:50 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 1085
+Openai-Processing-Ms: 1248
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Content-Type-Options: nosniff
-X-Envoy-Upstream-Service-Time: 1088
+X-Envoy-Upstream-Service-Time: 1251
 X-Ratelimit-Limit-Requests: 10000
 X-Ratelimit-Limit-Tokens: 300000
 X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 299959
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 8ms
-X-Request-Id: req_b95a60d30c524c9941aad22dfedc6c37
+X-Request-Id: req_6b6090bd62f9699be75b1b7bd782cb7e
 
 {
-  "id": "chatcmpl-BlYyj9gvkyh1lKIrknjusEouh1QTB",
+  "id": "chatcmpl-BldYrLrmo9vQ4sE7j0WygLJRBldT2",
   "object": "chat.completion",
-  "created": 1750675573,
+  "created": 1750693189,
   "model": "gpt-4-0613",
   "choices": [
     {
@@ -566,9 +483,9 @@ X-Request-Id: req_b95a60d30c524c9941aad22dfedc6c37
     }
   ],
   "usage": {
-    "prompt_tokens": 193,
+    "prompt_tokens": 192,
     "completion_tokens": 18,
-    "total_tokens": 211,
+    "total_tokens": 210,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0

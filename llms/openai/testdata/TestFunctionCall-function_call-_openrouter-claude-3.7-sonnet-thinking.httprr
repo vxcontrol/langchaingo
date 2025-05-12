@@ -1,0 +1,41 @@
+httprr trace v1
+679 2957
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 474
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"anthropic/claude-3.7-sonnet:thinking","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]}HTTP/2.0 200 OK
+Content-Length: 2568
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:14:29 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691668-Pvk5B0AYlsHgwvkfMwea","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion","created":1750691668,"choices":[{"logprobs":null,"finish_reason":"tool_calls","native_finish_reason":"tool_calls","index":0,"message":{"role":"assistant","content":"I'll check the current weather in Boston, MA for you.","refusal":null,"reasoning":"The user is asking about the current weather in Boston, Massachusetts. I have access to a tool called `getCurrentWeather` that can provide this information.\n\nLet's check the required parameters for this function:\n- \"location\" (required): This should be the city and state, which the user has specified as \"Boston, MA\"\n- \"unit\" (optional): This can be either \"celsius\" or \"fahrenheit\", but the user didn't specify a preference\n\nSince the location is provided and that's the only required parameter, I can call the getCurrentWeather function with just the location parameter. For the unit parameter, since it's optional and the user didn't specify a preference, I'll omit it (which will likely default to a standard unit in the backend).","tool_calls":[{"id":"toolu_0169t8gL49enBCm5msozCbLS","index":0,"type":"function","function":{"name":"getCurrentWeather","arguments":"{\"location\": \"Boston, MA\"}"}}],"reasoning_details":[{"type":"reasoning.text","text":"The user is asking about the current weather in Boston, Massachusetts. I have access to a tool called `getCurrentWeather` that can provide this information.\n\nLet's check the required parameters for this function:\n- \"location\" (required): This should be the city and state, which the user has specified as \"Boston, MA\"\n- \"unit\" (optional): This can be either \"celsius\" or \"fahrenheit\", but the user didn't specify a preference\n\nSince the location is provided and that's the only required parameter, I can call the getCurrentWeather function with just the location parameter. For the unit parameter, since it's optional and the user didn't specify a preference, I'll omit it (which will likely default to a standard unit in the backend).","signature":"ErUBCkYIBBgCIkAh0AEuaQcd+7248RlaDg3WoCHECGviIbJLTS9PErGxsiFZ8nV9n0FIcVJZJNOfCJph0Lxcp5rZll5VPyfJhevOEgwkiZQk6N5jxT9wVGsaDNqRx+JEIMbaP8cfvyIwQuXfFRfCZYWbMb3m5/OD4xPadfKaeLRQLMBvppOkVbnXS0i8/VQghnwtocMf758qKh1SkzR1on270A5Qz4GWn83QwT+LaCGIGgTuts/OYxgC"}]}}],"usage":{"prompt_tokens":453,"completion_tokens":239,"total_tokens":692}}

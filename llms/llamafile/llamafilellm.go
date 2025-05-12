@@ -7,6 +7,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/llamafile/internal/llamafileclient"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 var (
@@ -99,7 +100,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	streamedResponse := ""
 	fn := func(response llamafileclient.ChatResponse) error {
 		if opts.StreamingFunc != nil && response.Content != "" {
-			if err := opts.StreamingFunc(ctx, []byte(response.Content)); err != nil {
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Content); err != nil {
 				return err
 			}
 		}

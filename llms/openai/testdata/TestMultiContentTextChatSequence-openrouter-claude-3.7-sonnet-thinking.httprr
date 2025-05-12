@@ -1,0 +1,43 @@
+httprr trace v1
+419 2929
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 214
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"anthropic/claude-3.7-sonnet:thinking","messages":[{"role":"user","content":"Name some countries"},{"role":"assistant","content":"Spain and Lesotho"},{"role":"user","content":"Which if these is larger?"}]}HTTP/2.0 200 OK
+Content-Length: 2540
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:14:23 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691662-o9aSRRU0dOQG2vzSeM20","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion","created":1750691662,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"Spain is significantly larger than Lesotho.\n\nSpain has an area of approximately 505,990 square kilometers (195,360 square miles), while Lesotho has an area of about 30,355 square kilometers (11,720 square miles). This means Spain is roughly 16 times larger than Lesotho in terms of land area.\n\nSpain also has a much larger population of around 47 million people, compared to Lesotho's population of about 2 million.","refusal":null,"reasoning":"The question is asking which of the two countries I mentioned - Spain and Lesotho - is larger in terms of size.\n\nLet me compare the two:\n\nSpain:\n- Located in southwestern Europe\n- Area: approximately 505,990 square kilometers (195,360 square miles)\n- Population: around 47 million people\n\nLesotho:\n- A landlocked country within South Africa\n- Area: approximately 30,355 square kilometers (11,720 square miles)\n- Population: around 2 million people\n\nBased on these facts, Spain is significantly larger than Lesotho in terms of both land area and population. Spain is about 16.7 times larger than Lesotho in terms of land area.","reasoning_details":[{"type":"reasoning.text","text":"The question is asking which of the two countries I mentioned - Spain and Lesotho - is larger in terms of size.\n\nLet me compare the two:\n\nSpain:\n- Located in southwestern Europe\n- Area: approximately 505,990 square kilometers (195,360 square miles)\n- Population: around 47 million people\n\nLesotho:\n- A landlocked country within South Africa\n- Area: approximately 30,355 square kilometers (11,720 square miles)\n- Population: around 2 million people\n\nBased on these facts, Spain is significantly larger than Lesotho in terms of both land area and population. Spain is about 16.7 times larger than Lesotho in terms of land area.","signature":"ErUBCkYIBBgCIkC4PKpfzsLS6f/UzqDd6kkxxB9HZdOzkYCV2Y3opVJCtbkb4qG8pvEatPmxvgZ2WuaG/uaN0o07WnbYXToekJaPEgwvsPE2ceBZDXeObpQaDNGoICOb2WsaXyln5yIwPugohPHAS5DRgJtK3S+6GRyTM8x50LpZmjRaFjCK914hZ0jk1HzyLF0yYZITLnRWKh2o/qZ1f+nvh5djk82WDxuFSIM8ttT4OHlP5YK0CxgC"}]}}],"usage":{"prompt_tokens":56,"completion_tokens":283,"total_tokens":339}}

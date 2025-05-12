@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCallOptions(t *testing.T) { //nolint:funlen // comprehensive test
@@ -192,8 +195,18 @@ func TestWithOptions(t *testing.T) {
 
 func TestWithStreamingFunc(t *testing.T) {
 	called := false
-	testFunc := func(ctx context.Context, chunk []byte) error {
+	var gotReasoning, gotChunk string
+	var gotToolCall streaming.ToolCall
+	testFunc := func(ctx context.Context, chunk streaming.Chunk) error {
 		called = true
+		switch chunk.Type {
+		case streaming.ChunkTypeReasoning:
+			gotReasoning = chunk.ReasoningContent
+		case streaming.ChunkTypeText:
+			gotChunk = chunk.Content
+		case streaming.ChunkTypeToolCall:
+			gotToolCall = chunk.ToolCall
+		}
 		return nil
 	}
 
@@ -207,49 +220,34 @@ func TestWithStreamingFunc(t *testing.T) {
 	ctx := t.Context()
 
 	// Test that the function works
-	err := opts.StreamingFunc(ctx, []byte("test"))
-	if err != nil {
-		t.Errorf("StreamingFunc returned error: %v", err)
+	reasoning := "reasoning"
+	if err := opts.StreamingFunc(ctx, streaming.NewReasoningChunk(reasoning)); err != nil {
+		t.Errorf("StreamingFunc with reasoning content returned error: %v", err)
 	}
+	chunk := "chunk"
+	if err := opts.StreamingFunc(ctx, streaming.NewTextChunk(chunk)); err != nil {
+		t.Errorf("StreamingFunc with text chunk returned error: %v", err)
+	}
+	toolCall := streaming.ToolCall{
+		ID:        "123",
+		Name:      "test",
+		Arguments: "{}",
+	}
+	if err := opts.StreamingFunc(ctx, streaming.NewToolCallChunk(toolCall)); err != nil {
+		t.Errorf("StreamingFunc with tool call chunk returned error: %v", err)
+	}
+
 	if !called {
 		t.Error("StreamingFunc was not called")
 	}
-}
-
-func TestWithStreamingReasoningFunc(t *testing.T) {
-	called := false
-	var gotReasoning, gotChunk []byte
-	testFunc := func(ctx context.Context, reasoningChunk, chunk []byte) error {
-		called = true
-		gotReasoning = reasoningChunk
-		gotChunk = chunk
-		return nil
+	if gotReasoning != reasoning {
+		t.Errorf("StreamingFunc reasoning = %s, want %s", gotReasoning, reasoning)
 	}
-
-	var opts llms.CallOptions
-	llms.WithStreamingReasoningFunc(testFunc)(&opts)
-
-	if opts.StreamingReasoningFunc == nil {
-		t.Error("StreamingReasoningFunc was not set")
+	if gotChunk != chunk {
+		t.Errorf("StreamingFunc chunk = %s, want %s", gotChunk, chunk)
 	}
-
-	ctx := t.Context()
-
-	// Test that the function works
-	reasoning := []byte("reasoning")
-	chunk := []byte("chunk")
-	err := opts.StreamingReasoningFunc(ctx, reasoning, chunk)
-	if err != nil {
-		t.Errorf("StreamingReasoningFunc returned error: %v", err)
-	}
-	if !called {
-		t.Error("StreamingReasoningFunc was not called")
-	}
-	if !reflect.DeepEqual(gotReasoning, reasoning) {
-		t.Errorf("StreamingReasoningFunc reasoning = %v, want %v", gotReasoning, reasoning)
-	}
-	if !reflect.DeepEqual(gotChunk, chunk) {
-		t.Errorf("StreamingReasoningFunc chunk = %v, want %v", gotChunk, chunk)
+	if !reflect.DeepEqual(gotToolCall, toolCall) {
+		t.Errorf("StreamingFunc tool call = %v, want %v", gotToolCall, toolCall)
 	}
 }
 
@@ -460,7 +458,7 @@ func TestMultipleOptions(t *testing.T) {
 
 func TestStreamingFuncError(t *testing.T) {
 	testErr := errors.New("streaming error")
-	testFunc := func(ctx context.Context, chunk []byte) error {
+	testFunc := func(ctx context.Context, chunk streaming.Chunk) error {
 		return testErr
 	}
 
@@ -469,7 +467,7 @@ func TestStreamingFuncError(t *testing.T) {
 
 	ctx := t.Context()
 
-	err := opts.StreamingFunc(ctx, []byte("test"))
+	err := opts.StreamingFunc(ctx, streaming.NewTextChunk("test"))
 	if !errors.Is(err, testErr) {
 		t.Errorf("StreamingFunc error = %v, want %v", err, testErr)
 	}
@@ -499,5 +497,365 @@ func TestEmptyOptions(t *testing.T) {
 	}
 	if opts.Functions != nil {
 		t.Error("Functions is not nil")
+	}
+}
+
+func TestReasoningConfig_IsEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		config   *llms.ReasoningConfig
+		expected bool
+	}{
+		{
+			name:     "nil config",
+			config:   nil,
+			expected: false,
+		},
+		{
+			name:     "empty config",
+			config:   &llms.ReasoningConfig{},
+			expected: false,
+		},
+		{
+			name:     "config with tokens only",
+			config:   &llms.ReasoningConfig{Tokens: 1000},
+			expected: true,
+		},
+		{
+			name:     "config with effort only",
+			config:   &llms.ReasoningConfig{Effort: llms.ReasoningLow},
+			expected: true,
+		},
+		{
+			name:     "config with both tokens and effort",
+			config:   &llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2000},
+			expected: true,
+		},
+	}
+
+	for idx := range tests {
+		tc := tests[idx]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := tc.config.IsEnabled()
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestReasoningConfig_GetEffort(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 10000
+
+	tests := []struct {
+		name      string
+		config    *llms.ReasoningConfig
+		maxTokens int
+		expected  llms.ReasoningEffort
+	}{
+		{
+			name:      "nil config",
+			config:    nil,
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningNone,
+		},
+		{
+			name:      "empty config",
+			config:    &llms.ReasoningConfig{},
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningNone,
+		},
+		{
+			name:      "config with explicit effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningHigh,
+		},
+		{
+			name:      "config with low tokens",
+			config:    &llms.ReasoningConfig{Tokens: maxTokens / 5},
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningLow,
+		},
+		{
+			name:      "config with medium tokens",
+			config:    &llms.ReasoningConfig{Tokens: maxTokens/4 + 100}, // Just above low threshold
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningMedium,
+		},
+		{
+			name:      "config with high tokens",
+			config:    &llms.ReasoningConfig{Tokens: maxTokens / 2},
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningHigh,
+		},
+		{
+			name:      "precedence - effort over tokens",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningLow, Tokens: maxTokens / 2},
+			maxTokens: maxTokens,
+			expected:  llms.ReasoningLow,
+		},
+		{
+			name:      "negative maxTokens uses default 8192",
+			config:    &llms.ReasoningConfig{Tokens: 8192/3 + 10}, // Just above medium threshold for 8192
+			maxTokens: -1,
+			expected:  llms.ReasoningHigh,
+		},
+		{
+			name:      "zero maxTokens uses default 8192",
+			config:    &llms.ReasoningConfig{Tokens: 8192 / 5}, // Low for 8192
+			maxTokens: 0,
+			expected:  llms.ReasoningLow,
+		},
+	}
+
+	for idx := range tests {
+		tc := tests[idx]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := tc.config.GetEffort(tc.maxTokens)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestReasoningConfig_GetTokens(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 12000
+
+	tests := []struct {
+		name      string
+		config    *llms.ReasoningConfig
+		maxTokens int
+		expected  int
+	}{
+		{
+			name:      "nil config",
+			config:    nil,
+			maxTokens: maxTokens,
+			expected:  0,
+		},
+		{
+			name:      "empty config",
+			config:    &llms.ReasoningConfig{},
+			maxTokens: maxTokens,
+			expected:  0,
+		},
+		{
+			name:      "config with explicit tokens",
+			config:    &llms.ReasoningConfig{Tokens: 3000},
+			maxTokens: maxTokens,
+			expected:  3000,
+		},
+		{
+			name:      "config with low effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningLow},
+			maxTokens: maxTokens,
+			expected:  max(maxTokens/4, 1024),
+		},
+		{
+			name:      "config with medium effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningMedium},
+			maxTokens: maxTokens,
+			expected:  max(maxTokens/3, 2048),
+		},
+		{
+			name:      "config with high effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
+			maxTokens: maxTokens,
+			expected:  max(maxTokens/2, 4096),
+		},
+		{
+			name:      "tokens exceeding max reasoning tokens",
+			config:    &llms.ReasoningConfig{Tokens: llms.MaxReasoningTokens + 1000},
+			maxTokens: maxTokens,
+			expected:  min(llms.MaxReasoningTokens, maxTokens*2/3),
+		},
+		{
+			name:      "tokens exceeding 2/3 of max tokens",
+			config:    &llms.ReasoningConfig{Tokens: maxTokens},
+			maxTokens: maxTokens,
+			expected:  maxTokens * 2 / 3,
+		},
+		{
+			name:      "invalid effort",
+			config:    &llms.ReasoningConfig{Effort: "invalid"},
+			maxTokens: maxTokens,
+			expected:  -1,
+		},
+		{
+			name:      "negative maxTokens uses default 8192 for low effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningLow},
+			maxTokens: -10,
+			expected:  max(8192/4, 1024), // Based on default 8192
+		},
+		{
+			name:      "zero maxTokens uses default 8192 for high effort",
+			config:    &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
+			maxTokens: 0,
+			expected:  max(8192/2, 4096), // Based on default 8192
+		},
+		{
+			name:      "negative maxTokens with explicit tokens",
+			config:    &llms.ReasoningConfig{Tokens: 7000},
+			maxTokens: -5,
+			expected:  min(7000, 8192*2/3), // Using default 8192 as maxTokens
+		},
+	}
+
+	for idx := range tests {
+		tc := tests[idx]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := tc.config.GetTokens(tc.maxTokens)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestWithReasoning(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		effort          llms.ReasoningEffort
+		tokens          int
+		expectedEffort  llms.ReasoningEffort
+		expectedTokens  int
+		expectedEnabled bool
+	}{
+		{
+			name:            "high effort",
+			effort:          llms.ReasoningHigh,
+			tokens:          0,
+			expectedEffort:  llms.ReasoningHigh,
+			expectedTokens:  0,
+			expectedEnabled: true,
+		},
+		{
+			name:            "medium effort",
+			effort:          llms.ReasoningMedium,
+			tokens:          0,
+			expectedEffort:  llms.ReasoningMedium,
+			expectedTokens:  0,
+			expectedEnabled: true,
+		},
+		{
+			name:            "low effort",
+			effort:          llms.ReasoningLow,
+			tokens:          0,
+			expectedEffort:  llms.ReasoningLow,
+			expectedTokens:  0,
+			expectedEnabled: true,
+		},
+		{
+			name:            "specific tokens",
+			effort:          llms.ReasoningNone,
+			tokens:          5000,
+			expectedEffort:  llms.ReasoningNone,
+			expectedTokens:  5000,
+			expectedEnabled: true,
+		},
+		{
+			name:            "both effort and tokens",
+			effort:          llms.ReasoningHigh,
+			tokens:          3000,
+			expectedEffort:  llms.ReasoningHigh,
+			expectedTokens:  3000,
+			expectedEnabled: true,
+		},
+		{
+			name:            "disabled reasoning",
+			effort:          llms.ReasoningNone,
+			tokens:          0,
+			expectedEffort:  llms.ReasoningNone,
+			expectedTokens:  0,
+			expectedEnabled: false,
+		},
+	}
+
+	for idx := range tests {
+		tc := tests[idx]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := &llms.CallOptions{}
+			llms.WithReasoning(tc.effort, tc.tokens)(opts)
+
+			assert.NotNil(t, opts.Reasoning)
+			assert.Equal(t, tc.expectedEffort, opts.Reasoning.Effort)
+			assert.Equal(t, tc.expectedTokens, opts.Reasoning.Tokens)
+			assert.Equal(t, tc.expectedEnabled, opts.Reasoning.IsEnabled())
+		})
+	}
+}
+
+func TestReasoningConfig_Integration(t *testing.T) {
+	t.Parallel()
+
+	const maxTokens = 16000
+
+	tests := []struct {
+		name            string
+		config          *llms.ReasoningConfig
+		maxTokens       int
+		expectedEnabled bool
+		expectedEffort  llms.ReasoningEffort
+		expectedTokens  int
+	}{
+		{
+			name:            "high effort conversion to tokens",
+			config:          &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
+			maxTokens:       maxTokens,
+			expectedEnabled: true,
+			expectedEffort:  llms.ReasoningHigh,
+			expectedTokens:  8000, // max(maxTokens/2, 4096)
+		},
+		{
+			name:            "tokens conversion to effort level",
+			config:          &llms.ReasoningConfig{Tokens: 2500},
+			maxTokens:       maxTokens,
+			expectedEnabled: true,
+			expectedEffort:  llms.ReasoningLow, // tokens < maxTokens/4 (4000)
+			expectedTokens:  2500,
+		},
+		{
+			name:            "cap excessive tokens",
+			config:          &llms.ReasoningConfig{Tokens: maxTokens},
+			maxTokens:       maxTokens,
+			expectedEnabled: true,
+			expectedEffort:  llms.ReasoningHigh, // tokens > maxTokens/3
+			expectedTokens:  maxTokens * 2 / 3,
+		},
+		{
+			name:            "default maxTokens handling",
+			config:          &llms.ReasoningConfig{Effort: llms.ReasoningMedium},
+			maxTokens:       0, // Should use default 8192
+			expectedEnabled: true,
+			expectedEffort:  llms.ReasoningMedium,
+			expectedTokens:  max(8192/3, 2048), // Based on default 8192
+		},
+	}
+
+	for idx := range tests {
+		tc := tests[idx]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			isEnabled := tc.config.IsEnabled()
+			effort := tc.config.GetEffort(tc.maxTokens)
+			tokens := tc.config.GetTokens(tc.maxTokens)
+
+			assert.Equal(t, tc.expectedEnabled, isEnabled)
+			assert.Equal(t, tc.expectedEffort, effort)
+			assert.Equal(t, tc.expectedTokens, tokens)
+		})
 	}
 }

@@ -1,0 +1,35 @@
+httprr trace v1
+662 2588
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 457
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o4-mini-high","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]}HTTP/2.0 200 OK
+Content-Length: 2199
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:14:28 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691667-x2mS0MSUVPnSJmh1MUup","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion","created":1750691667,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"","refusal":null,"reasoning":null,"tool_calls":[{"id":"call_a96rjoIVboKWE9sZSCjDfH2B","index":1,"type":"function","function":{"name":"getCurrentWeather","arguments":"{\"location\":\"Boston, MA\",\"unit\":\"fahrenheit\"}"}}],"reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWW9WHGd7G0xDxvWiSY11ChQ0FAxTKylWOILQDZ_acIftl7dxgMJTc3cTmpai1_VWRE0RJpV47zUfgKeWXe_UbKZapqKr2xtIP5M0kZKlqRvKzQhSrj--lpV80pdUdEU5_2v6KTyc0ypQjh1sGKe_jKlnThH8UyipgwW1AQRoX2IO4ZF0_T-paXVpsgJrT3YJ-qFv85LGYKDOb4Hi37Mzkkwtq-2ljQspoCOYADsBG1U0SRcx2T9sfe2DVqrg0tmPrfoW4ltv1qsSKHKPWova6FadX2jCYGu9kC-NRY5ZnN2bPa8o4J4gJpL72trfNBaqCJOSQezxhqrvLN4eP9Dp_rqhTxUgsuYivhWBTccC949VzAHzNlpWNdU-ruiyTP2e2c5An_aVbKCEEGgaGh8moTgCpaIGZfjU7hHRwkFlKTJ99AwOzTbZ1J3Gsk-cktGAHS5efuF1AQh-QYUgPBwBDHOl7WNVfDDuZqw2ikrAkTujshBPSBrNFsLu_E7dZZgillv3tcyH3I0E53jjSwEIi6tr11ZxECOAIHUgxYVd2glH9q1ELp2cXC-gX4BxEgRfDjaamtt_cIDyLYTOZvsKXmkBIKIIkKqJpce2DhMH3qk1qoDCYG_yvjJam6ju7U5gbfgB_nR9lirGUwdSAsX6VpUbj5VTC31U9P7feCE9lQf20u2YXVAevGcahYP0zxlP-8DyxjokytX5wJ-riwe4H5CXJW07CVI9G4-ukuX_Jdh4LkxOfZCtxyheA-Cm6tFXqTP4-froPWSBYmwtUroJsIazT6HJqurWL2Qa0sy0GaHJMbLlIJ3bqvDJwIpu4Zo7jjbZmPohsrNTxPqCyLKzcyfzX3KPNBUVhHlzDfmQCV237kH8tI3Xt2eqRD-HaCvzIc24KdlfA3UtaoFy3nSm3qUypu5h1K5V3FxeB-8dYtxqGcos5UmQb0Sk1OHqUTaQRARI1vlKsIoW8TQ7xnrJ_s_GZXTDWru03fU2F948umRgs2X_M679sS33zDd5RdFnRd3BYRR30gYnLX4RXpugD6D96jPebHj3CQ2qUaHHS4oo4VSeFhkj9D6z-ASEpEl1e6WBDB1RO03WCgboPFD1wiiYrnvwLfdm0U-lyN18QGK--8O9QsoKGq7bRNUpTnT9Jmid1kM7i7fEd4iZQDJ7b7Tqfh9sOFCpgJIQmy3c87GQowRKvtqFusHPSugparDaLTyb99iszUpJaXZhaMsHSc1MjLB2lEnRH7VRCBYmQOzO1uWmWxA4IUUliNeNm1ofUeGVYVvTV4VJCD4JoSYTcmEB4QLWNC6Uh6mLoyFLHchTu8-WfTpWEwxc_kKpUwQBs8pYbhBvm5XlgOYGcUXeO1CcrfNjFQNJgaV9ph48OVVKr9HjcC1SnKWPlCgA3tAEu3dr_iR435cWa9Kgkg61DMqHMQ==","id":"rs_68596f553bf4819098f6d68c82625d5a"}]}}],"usage":{"prompt_tokens":78,"completion_tokens":92,"total_tokens":170}}

@@ -1,0 +1,223 @@
+httprr trace v1
+446 36734
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 241
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"anthropic/claude-3.7-sonnet:thinking","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"Tell me more about my taxonomy","type":"text"}]}],"stream":true,"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 36318
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Content-Type: text/event-stream
+Date: Mon, 23 Jun 2025 15:13:41 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","text":"","signature":""}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The person","reasoning_details":[{"type":"reasoning.text","text":"The person"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" is asking me to provide","reasoning_details":[{"type":"reasoning.text","text":" is asking me to provide"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" information about the taxonomy (","reasoning_details":[{"type":"reasoning.text","text":" information about the taxonomy ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"scientific classification) of a","reasoning_details":[{"type":"reasoning.text","text":"scientific classification) of a"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" Pomeranian dog.","reasoning_details":[{"type":"reasoning.text","text":" Pomeranian dog."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" They're role-playing as a","reasoning_details":[{"type":"reasoning.text","text":" They're role-playing as a"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" Pomeranian and want","reasoning_details":[{"type":"reasoning.text","text":" Pomeranian and want"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" to know about their taxonom","reasoning_details":[{"type":"reasoning.text","text":" to know about their taxonom"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"ic classification.","reasoning_details":[{"type":"reasoning.text","text":"ic classification."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\n\nA Pomeranian is","reasoning_details":[{"type":"reasoning.text","text":"\n\nA Pomeranian is"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" a breed of dog,","reasoning_details":[{"type":"reasoning.text","text":" a breed of dog,"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" and here's the complete","reasoning_details":[{"type":"reasoning.text","text":" and here's the complete"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" taxonomic classification:","reasoning_details":[{"type":"reasoning.text","text":" taxonomic classification:"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\n\nKingdom: Animalia","reasoning_details":[{"type":"reasoning.text","text":"\n\nKingdom: Animalia"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" (Animals)\nPh","reasoning_details":[{"type":"reasoning.text","text":" (Animals)\nPh"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"ylum: Chordata","reasoning_details":[{"type":"reasoning.text","text":"ylum: Chordata"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" (Animals with notochords)\nClass","reasoning_details":[{"type":"reasoning.text","text":" (Animals with notochords)\nClass"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":": Mammalia (","reasoning_details":[{"type":"reasoning.text","text":": Mammalia ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Mammals)\nOrder:","reasoning_details":[{"type":"reasoning.text","text":"Mammals)\nOrder:"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" Carnivora (","reasoning_details":[{"type":"reasoning.text","text":" Carnivora ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Carnivores)\nFamily","reasoning_details":[{"type":"reasoning.text","text":"Carnivores)\nFamily"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":": Canidae (","reasoning_details":[{"type":"reasoning.text","text":": Canidae ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Canids)\nGenus","reasoning_details":[{"type":"reasoning.text","text":"Canids)\nGenus"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":": Canis (","reasoning_details":[{"type":"reasoning.text","text":": Canis ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Dogs, wolves, jack","reasoning_details":[{"type":"reasoning.text","text":"Dogs, wolves, jack"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"als)\nSpecies:","reasoning_details":[{"type":"reasoning.text","text":"als)\nSpecies:"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" Canis lupus (","reasoning_details":[{"type":"reasoning.text","text":" Canis lupus ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Wolf)\nSubspecies","reasoning_details":[{"type":"reasoning.text","text":"Wolf)\nSubspecies"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":": Canis lup","reasoning_details":[{"type":"reasoning.text","text":": Canis lup"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"us familiaris (","reasoning_details":[{"type":"reasoning.text","text":"us familiaris ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"Domestic dog)","reasoning_details":[{"type":"reasoning.text","text":"Domestic dog)"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\nBreed: Pomeranian","reasoning_details":[{"type":"reasoning.text","text":"\nBreed: Pomeranian"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\n\nI'll provide this information along","reasoning_details":[{"type":"reasoning.text","text":"\n\nI'll provide this information along"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" with some interesting context about how","reasoning_details":[{"type":"reasoning.text","text":" with some interesting context about how"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" Pomeranians fit","reasoning_details":[{"type":"reasoning.text","text":" Pomeranians fit"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" into this classification system an","reasoning_details":[{"type":"reasoning.text","text":" into this classification system an"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"d a bit about their history","reasoning_details":[{"type":"reasoning.text","text":"d a bit about their history"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" as a breed.","reasoning_details":[{"type":"reasoning.text","text":" as a breed."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","signature":"ErUBCkYIBBgCIkCSmmvSrEmIxJqzmjEk0JRPNWnmc1Iqe6D1pOakzffXpqlsN/xujaF19w1KWrbjOKTrZawyOe6YUARVqrrZ121GEgzWcE1CmFVwtxykomUaDMXC31db7oRFnQPtBCIwwHIL0E0RZjMSPywofA2Ti4exXgrTOc4PLVmKB0gXjVU8NSNodOAjC8aHroldUhftKh2Ov729VvoC2KZ5ueiBIoCpIMx+UvGyK/zz3ABcUxgC"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"# Pomeranian Taxonomy","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n\nAs a Pomeranian","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":", your scientific classification is:\n\n**","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"Kingdom:** Animalia","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" (You're an animal)","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n**Phylum","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Chordata (You have a notoch","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"ord and spinal column","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":")\n**Class:** Mammalia (You","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"'re a warm-blooded mammal","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" with fur)\n**Order","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Carnivora","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" (Your ancestors were primarily","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" meat-eaters)","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n**Family:**","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" Canidae (You belong","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" to the dog family,","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" along with wolves and fox","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"es)\n**","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"Genus:** Canis","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" (You share this genus with wolves,","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" coyotes, and jack","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"als)\n**Species","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":":** Canis lupus (Wolf","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" species)\n**Subspec","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"ies:** Canis","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" lupus familiaris","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" (Domestic dog)","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n**Breed:**","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" Pomeranian","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n\nYou're descended from larger","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" spitz-type s","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"led dogs and named after the Pomer","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"ania region in Central Europe.","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" Despite your small size now","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" (typically 3-7","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" pounds), your ancestors were much","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" larger working dogs weighing aroun","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"d 30 pounds!","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" Your breed was popularized an","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"d miniaturized in the ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"18th century, particularly","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" through Queen Victoria's breeding program in","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" England.\n\nYou retain","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" many wolf-like characteristics in","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" your fox-like face","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":", pointed ears, double","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" coat, and curle","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"d tail - all typical of sp","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"itz-type dogs that","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":" reflect your ancient northern heritage.","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":"stop","native_finish_reason":"stop","logprobs":null}]}
+
+data: {"id":"gen-1750691619-1gWqVqtFyTgb2ZcDxcvF","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750691619,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":49,"completion_tokens":521,"total_tokens":570,"cost":0.007962,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0},"cost_details":{"upstream_inference_cost":null},"completion_tokens_details":{"reasoning_tokens":196}}}
+
+data: [DONE]
+

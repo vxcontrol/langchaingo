@@ -1,0 +1,29 @@
+httprr trace v1
+365 1295
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 160
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/gpt-4.1","messages":[{"role":"user","content":[{"text":"I'm a pomeranian","type":"text"},{"text":"What kind of mammal am I?","type":"text"}]}]}HTTP/2.0 200 OK
+Content-Length: 907
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 15:13:36 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750691615-IYpLMYVNXbl7FqmnK2sF","provider":"OpenAI","model":"openai/gpt-4.1","object":"chat.completion","created":1750691615,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"You are a **dog**—specifically, a small breed of domestic dog. In biological terms, you are a **mammal** belonging to the **species Canis lupus familiaris**. Your breed, **Pomeranian**, is known for its fluffy fur, lively personality, and small size. Like all dogs and mammals, you’re warm-blooded, have hair/fur, and nurse your young with milk. 🐶","refusal":null,"reasoning":null}}],"system_fingerprint":"fp_799e4ca3f1","usage":{"prompt_tokens":20,"completion_tokens":91,"total_tokens":111,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}

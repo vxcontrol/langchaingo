@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -21,18 +22,17 @@ func main() {
 		llms.TextParts(llms.ChatMessageTypeHuman, "What would be a good company name a company that makes colorful socks?"),
 	}
 
-	// if _, err := llm.GenerateContent(ctx, content,
-	// 	llms.WithMaxTokens(104),
-	// 	llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-	// 		fmt.Print(string(chunk))
-	// 		return nil
-	// 	})); err != nil {
-	// 	log.Fatal(err)
-	// }
-	r, err := llm.GenerateContent(ctx, content, llms.WithMaxTokens(104))
-	if err != nil {
+	if r, err := llm.GenerateContent(
+		ctx,
+		content,
+		llms.WithMaxTokens(1024),
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Print(chunk.String())
+			return nil
+		}),
+	); err != nil {
 		log.Fatal(err)
+	} else {
+		fmt.Println(r.Choices[0].Content)
 	}
-	fmt.Println(r.Choices[0].Content)
-
 }
