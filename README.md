@@ -140,8 +140,6 @@ Here are some links to blog posts and articles on using Langchain Go:
 
 # Contributors
 
-There is a momentum for moving the development of langchaingo to a more community effort, if you are interested in being a maintainer or you are a contributor please join our [Discord](https://discord.gg/t9UbBQs2rG) and let us know.
-
-<a href="https://github.com/tmc/langchaingo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=tmc/langchaingo" />
+<a href="https://github.com/vxcontrol/langchaingo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=vxcontrol/langchaingo" />
 </a>

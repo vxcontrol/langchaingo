@@ -1,5 +1,16 @@
 # Code of Conduct - langchaingo
 
+## Fork Information
+
+This is a fork of the original [github.com/tmc/langchaingo](https://github.com/tmc/langchaingo) repository. This fork follows a specific branching strategy:
+
+- **main**: Fully synchronized with upstream (`tmc/langchaingo`). Never force-pushed.
+- **main-pull-requests**: Contains merged PRs from upstream that haven't been officially merged. Rebased on `main`.
+- **main-vxcontrol**: Default branch containing all current enhancements. Rebased on `main-pull-requests`.
+- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable and never force-pushed.
+
+For more information about this fork's structure and purpose, please refer to our [README](README.md).
+
 ## Our Pledge
 
 In the interest of fostering an open and welcoming environment, we as
@@ -56,7 +67,7 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at <travis.cline@gmail.com>.
+reported to the community leaders responsible for enforcement at <info@pentagi.com>.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
