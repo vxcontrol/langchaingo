@@ -6,6 +6,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/llamafile"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -30,11 +31,14 @@ func main() {
 		},
 	}
 
-	_, err = llm.GenerateContent(context.Background(), content,
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Print(string(chunk))
+	_, err = llm.GenerateContent(
+		context.Background(),
+		content,
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
 			return nil
-		}))
+		}),
+	)
 
 	if err != nil {
 		panic(err)

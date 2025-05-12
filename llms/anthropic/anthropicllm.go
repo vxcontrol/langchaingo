@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -75,7 +76,7 @@ func (o *LLM) Call(ctx context.Context, prompt string, options ...llms.CallOptio
 }
 
 // GenerateContent implements the Model interface.
-func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) { //nolint:lll
 	if o.CallbacksHandler != nil {
 		o.CallbacksHandler.HandleLLMGenerateContentStart(ctx, messages)
 	}
@@ -86,12 +87,31 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	if o.client.UseLegacyTextCompletionsAPI {
-		return generateCompletionsContent(ctx, o, messages, opts)
+		resp, err := generateCompletionsContent(ctx, o, messages, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		if o.CallbacksHandler != nil {
+			o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
+		}
+
+		return resp, nil
 	}
-	return generateMessagesContent(ctx, o, messages, opts)
+
+	resp, err := generateMessagesContent(ctx, o, messages, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if o.CallbacksHandler != nil {
+		o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
+	}
+
+	return resp, nil
 }
 
-func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) {
+func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) { //nolint:lll
 	if len(messages) == 0 || len(messages[0].Parts) == 0 {
 		return nil, ErrEmptyResponse
 	}
@@ -129,10 +149,18 @@ func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.Mes
 	return resp, nil
 }
 
-func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) {
+func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) { //nolint:lll,funlen,cyclop
 	chatMessages, systemPrompt, err := processMessages(messages)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
+	}
+
+	var thinking *anthropicclient.ThinkingPayload
+	if opts.Reasoning.IsEnabled() {
+		thinking = &anthropicclient.ThinkingPayload{
+			Type:   "enabled",
+			Budget: opts.Reasoning.GetTokens(opts.MaxTokens),
+		}
 	}
 
 	tools := toolsToTools(opts.Tools)
@@ -145,6 +173,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		Temperature:   opts.Temperature,
 		TopP:          opts.TopP,
 		Tools:         tools,
+		ToolChoice:    opts.ToolChoice,
+		Thinking:      thinking,
 		StreamingFunc: opts.StreamingFunc,
 	})
 	if err != nil {
@@ -157,29 +187,40 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		return nil, ErrEmptyResponse
 	}
 
-	choices := make([]*llms.ContentChoice, len(result.Content))
-	for i, content := range result.Content {
+	var reasoningContent string
+	for _, content := range result.Content {
+		if content.GetType() != anthropicclient.EventTypeThinking {
+			continue
+		}
+		if thinkingContent, ok := content.(*anthropicclient.ThinkingContent); ok {
+			reasoningContent = thinkingContent.Thinking
+		}
+	}
+
+	choices := make([]*llms.ContentChoice, 0, len(result.Content))
+	for _, content := range result.Content {
 		switch content.GetType() {
-		case "text":
+		case anthropicclient.EventTypeText:
 			if textContent, ok := content.(*anthropicclient.TextContent); ok {
-				choices[i] = &llms.ContentChoice{
-					Content:    textContent.Text,
-					StopReason: result.StopReason,
+				choices = append(choices, &llms.ContentChoice{
+					Content:          textContent.Text,
+					ReasoningContent: reasoningContent,
+					StopReason:       result.StopReason,
 					GenerationInfo: map[string]any{
 						"InputTokens":  result.Usage.InputTokens,
 						"OutputTokens": result.Usage.OutputTokens,
 					},
-				}
+				})
 			} else {
 				return nil, fmt.Errorf("anthropic: %w for text message", ErrInvalidContentType)
 			}
-		case "tool_use":
+		case anthropicclient.EventTypeToolUse:
 			if toolUseContent, ok := content.(*anthropicclient.ToolUseContent); ok {
 				argumentsJSON, err := json.Marshal(toolUseContent.Input)
 				if err != nil {
 					return nil, fmt.Errorf("anthropic: failed to marshal tool use arguments: %w", err)
 				}
-				choices[i] = &llms.ContentChoice{
+				choices = append(choices, &llms.ContentChoice{
 					ToolCalls: []llms.ToolCall{
 						{
 							ID: toolUseContent.ID,
@@ -194,10 +235,15 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 						"InputTokens":  result.Usage.InputTokens,
 						"OutputTokens": result.Usage.OutputTokens,
 					},
-				}
+				})
 			} else {
 				return nil, fmt.Errorf("anthropic: %w for tool use message", ErrInvalidContentType)
 			}
+		case anthropicclient.EventTypeThinking:
+			// Skip this content block because the reasoning content was already extracted earlier
+		case anthropicclient.EventTypeRedactedThinking:
+			// skip redacted thinking block because we won't send the thinking block to the server
+			continue
 		default:
 			return nil, fmt.Errorf("anthropic: %w: %v", ErrUnsupportedContentType, content.GetType())
 		}
@@ -219,6 +265,17 @@ func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
 		}
 	}
 	return toolReq
+}
+
+// parseBase64URI returns values data, media type from a base64 URI and error if invalid.
+func parseBase64URI(uri string) (string, string, error) {
+	re := regexp.MustCompile(`^data:(.*?);base64,(.*)$`)
+	matches := re.FindStringSubmatch(uri)
+	if len(matches) != 3 {
+		return "", "", errors.New("invalid base64 URI")
+	}
+
+	return matches[2], matches[1], nil
 }
 
 func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMessage, string, error) {
@@ -285,6 +342,19 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 					Data:      base64.StdEncoding.EncodeToString(p.Data),
 				},
 			})
+		case llms.ImageURLContent:
+			data, mediaType, err := parseBase64URI(p.URL)
+			if err != nil {
+				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for human message", err)
+			}
+			contents = append(contents, anthropicclient.ImageContent{
+				Type: "image",
+				Source: anthropicclient.ImageSource{
+					Type:      "base64",
+					MediaType: mediaType,
+					Data:      data,
+				},
+			})
 		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: unsupported human message part type: %T", part)
 		}
@@ -301,34 +371,41 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 }
 
 func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
-	if toolCall, ok := msg.Parts[0].(llms.ToolCall); ok {
-		var inputStruct map[string]interface{}
-		err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &inputStruct)
-		if err != nil {
-			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)
-		}
-		toolUse := anthropicclient.ToolUseContent{
-			Type:  "tool_use",
-			ID:    toolCall.ID,
-			Name:  toolCall.FunctionCall.Name,
-			Input: inputStruct,
-		}
+	message := anthropicclient.ChatMessage{
+		Role:    RoleAssistant,
+		Content: []anthropicclient.Content{},
+	}
 
-		return anthropicclient.ChatMessage{
-			Role:    RoleAssistant,
-			Content: []anthropicclient.Content{toolUse},
-		}, nil
-	}
-	if textContent, ok := msg.Parts[0].(llms.TextContent); ok {
-		return anthropicclient.ChatMessage{
-			Role: RoleAssistant,
-			Content: []anthropicclient.Content{&anthropicclient.TextContent{
+	for _, part := range msg.Parts {
+		switch p := part.(type) {
+		case llms.TextContent:
+			message.Content = append(message.Content, anthropicclient.TextContent{
 				Type: "text",
-				Text: textContent.Text,
-			}},
-		}, nil
+				Text: p.Text,
+			})
+		case llms.ToolCall:
+			if p.FunctionCall == nil {
+				continue
+			}
+
+			var inputStruct map[string]interface{}
+			if err := json.Unmarshal([]byte(p.FunctionCall.Arguments), &inputStruct); err != nil {
+				err = fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)
+				return anthropicclient.ChatMessage{}, err
+			}
+
+			message.Content = append(message.Content, anthropicclient.ToolUseContent{
+				Type:  "tool_use",
+				ID:    p.ID,
+				Name:  p.FunctionCall.Name,
+				Input: inputStruct,
+			})
+		default:
+			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
+		}
 	}
-	return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
+
+	return message, nil
 }
 
 type ToolResult struct {

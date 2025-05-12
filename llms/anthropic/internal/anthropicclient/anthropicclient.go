@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 const (
 	DefaultBaseURL = "https://api.anthropic.com/v1"
 
-	defaultModel = "claude-3-5-sonnet-20240620"
+	defaultModel = "claude-3-7-sonnet-20250219"
 )
 
 // ErrEmptyResponse is returned when the Anthropic API returns an empty response.
@@ -95,7 +97,7 @@ type CompletionRequest struct {
 
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 // Completion is a completion.
@@ -124,17 +126,19 @@ func (c *Client) CreateCompletion(ctx context.Context, r *CompletionRequest) (*C
 }
 
 type MessageRequest struct {
-	Model       string        `json:"model"`
-	Messages    []ChatMessage `json:"messages"`
-	System      string        `json:"system,omitempty"`
-	Temperature float64       `json:"temperature"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	TopP        float64       `json:"top_p,omitempty"`
-	Tools       []Tool        `json:"tools,omitempty"`
-	StopWords   []string      `json:"stop_sequences,omitempty"`
-	Stream      bool          `json:"stream,omitempty"`
+	Model       string           `json:"model"`
+	Messages    []ChatMessage    `json:"messages"`
+	System      string           `json:"system,omitempty"`
+	Temperature float64          `json:"temperature"`
+	MaxTokens   int              `json:"max_tokens,omitempty"`
+	TopP        float64          `json:"top_p,omitempty"`
+	Tools       []Tool           `json:"tools,omitempty"`
+	ToolChoice  any              `json:"tool_choice,omitempty"`
+	StopWords   []string         `json:"stop_sequences,omitempty"`
+	Stream      bool             `json:"stream,omitempty"`
+	Thinking    *ThinkingPayload `json:"thinking,omitempty"`
 
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 // CreateMessage creates message for the messages api.
@@ -148,8 +152,10 @@ func (c *Client) CreateMessage(ctx context.Context, r *MessageRequest) (*Message
 		StopWords:     r.StopWords,
 		TopP:          r.TopP,
 		Tools:         r.Tools,
+		ToolChoice:    r.ToolChoice,
 		Stream:        r.Stream,
 		StreamingFunc: r.StreamingFunc,
+		Thinking:      r.Thinking,
 	})
 	if err != nil {
 		return nil, err

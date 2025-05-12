@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/ollama"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -20,8 +21,8 @@ func main() {
 		llm,
 		"Human: Who was the first man to walk on the moon?\nAssistant:",
 		llms.WithTemperature(0.8),
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Print(string(chunk))
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Print(chunk.String())
 			return nil
 		}),
 	)

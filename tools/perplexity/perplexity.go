@@ -8,6 +8,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/tools"
 )
 
@@ -111,8 +112,10 @@ func (t *Tool) Call(ctx context.Context, input string) (string, error) {
 
 	var generatedText string
 	_, err := t.llm.GenerateContent(ctx, content,
-		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
-			generatedText += string(chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				generatedText += chunk.Content
+			}
 			return nil
 		}))
 	if err != nil {

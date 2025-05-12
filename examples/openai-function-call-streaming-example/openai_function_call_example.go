@@ -8,6 +8,7 @@ import (
 	"github.com/vxcontrol/langchaingo/jsonschema"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -20,8 +21,8 @@ func main() {
 		[]llms.MessageContent{
 			llms.TextParts(llms.ChatMessageTypeHuman, "What is the weather like in Boston?"),
 		},
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Printf("Received chunk: %s\n", chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
 			return nil
 		}),
 		llms.WithTools(tools))

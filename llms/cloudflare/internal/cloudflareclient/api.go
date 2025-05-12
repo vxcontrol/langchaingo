@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // CreateEmbedding creates an embedding from the given texts.
@@ -131,7 +133,7 @@ func (c *Client) GenerateContent(ctx context.Context, request *GenerateContentRe
 			}, nil
 		}
 
-		if err = request.StreamingFunc(ctx, bts); err != nil {
+		if err = streaming.CallWithText(ctx, request.StreamingFunc, string(bts)); err != nil {
 			return nil, err
 		}
 	}

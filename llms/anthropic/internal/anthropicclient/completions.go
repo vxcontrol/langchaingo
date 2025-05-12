@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 type completionPayload struct {
@@ -20,7 +22,7 @@ type completionPayload struct {
 	StopWords   []string `json:"stop_sequences,omitempty"`
 	Stream      bool     `json:"stream,omitempty"`
 
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 type CompletionResponsePayload struct {
@@ -127,12 +129,10 @@ func parseStreamingCompletionResponse(ctx context.Context, r *http.Response, pay
 		if streamResponse.Err != nil {
 			return nil, streamResponse.Err
 		}
-		response.Completion += streamResponse.Response.Completion
-		if payload.StreamingFunc != nil {
-			err := payload.StreamingFunc(ctx, []byte(streamResponse.Response.Completion))
-			if err != nil {
-				return nil, fmt.Errorf("streaming func returned an error: %w", err)
-			}
+		content := streamResponse.Response.Completion
+		response.Completion += content
+		if err := streaming.CallWithText(ctx, payload.StreamingFunc, content); err != nil {
+			return nil, fmt.Errorf("streaming func returned an error: %w", err)
 		}
 		lastResponse = streamResponse.Response
 	}

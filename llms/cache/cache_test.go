@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/require"
 )
@@ -141,10 +142,11 @@ func TestCache_Call_Streaming(t *testing.T) {
 
 	// expect that the value is fetched from the LLM and cached
 	act, err := llm.Call(ctx, "hello", llms.WithStreamingFunc(
-		func(_ context.Context, bs []byte) error {
-			rq.Equal("world", string(bs))
-
-			stream = true
+		func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				rq.Equal("world", chunk.Content)
+				stream = true
+			}
 
 			return nil
 		}))
@@ -159,10 +161,11 @@ func TestCache_Call_Streaming(t *testing.T) {
 
 	// expect that the cached value is returned
 	act, err = llm.Call(ctx, "hello", llms.WithStreamingFunc(
-		func(_ context.Context, bs []byte) error {
-			rq.Equal("world", string(bs))
-
-			stream = true
+		func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				rq.Equal("world", chunk.Content)
+				stream = true
+			}
 
 			return nil
 		}))

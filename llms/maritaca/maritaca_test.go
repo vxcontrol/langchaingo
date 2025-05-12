@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,8 +70,10 @@ func TestWithStreaming(t *testing.T) {
 
 	var sb strings.Builder
 	rsp, err := llm.GenerateContent(t.Context(), content,
-		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
-			sb.Write(chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				sb.WriteString(chunk.Content)
+			}
 			return nil
 		}))
 	require.NoError(t, err)

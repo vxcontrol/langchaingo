@@ -32,7 +32,7 @@ func TestStructuredOutputObjectSchema(t *testing.T) {
 			},
 		},
 	}
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 		WithResponseFormat(responseFormat),
@@ -83,7 +83,7 @@ func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
 			},
 		},
 	}
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 		WithResponseFormat(responseFormat),
@@ -111,7 +111,7 @@ func TestStructuredOutputObjectAndArraySchema(t *testing.T) {
 func TestStructuredOutputFunctionCalling(t *testing.T) {
 	t.Parallel()
 
-	llm := newTestClient(
+	llm := newTestOpenAIClient(
 		t,
 		WithModel("gpt-4o-2024-08-06"),
 	)

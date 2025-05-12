@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 type mockHTTPClient struct {
@@ -97,9 +99,11 @@ func TestClient_GenerateContent(t *testing.T) { // nolint:funlen
 						{Role: "user", Content: "userPrompt"},
 					},
 					Stream: true,
-					StreamingFunc: func(_ context.Context, chunk []byte) error {
-						if string(chunk) != `{"result": {"response": "response"}}` {
-							return io.EOF
+					StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+						if chunk.Type == streaming.ChunkTypeText {
+							if chunk.Content != `{"result": {"response": "response"}}` {
+								return io.EOF
+							}
 						}
 						return nil
 					},

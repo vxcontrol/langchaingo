@@ -3,6 +3,8 @@ package callbacks
 import (
 	"context"
 	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // DefaultKeywords is map of the agents final out prefix keywords.
@@ -12,7 +14,7 @@ var DefaultKeywords = []string{"Final Answer:", "Final:", "AI:"}
 
 type AgentFinalStreamHandler struct {
 	SimpleHandler
-	egress          chan []byte
+	egress          chan streaming.Chunk
 	Keywords        []string
 	LastTokens      string
 	KeywordDetected bool
@@ -35,7 +37,7 @@ func NewFinalStreamHandler(keywords ...string) *AgentFinalStreamHandler {
 	}
 
 	return &AgentFinalStreamHandler{
-		egress:   make(chan []byte),
+		egress:   make(chan streaming.Chunk),
 		Keywords: DefaultKeywords,
 	}
 }
@@ -43,8 +45,8 @@ func NewFinalStreamHandler(keywords ...string) *AgentFinalStreamHandler {
 // GetEgress returns the egress channel of the AgentFinalStreamHandler.
 //
 // It does not take any parameters.
-// It returns a channel of type []byte.
-func (handler *AgentFinalStreamHandler) GetEgress() chan []byte {
+// It returns a channel of type streaming.Chunk.
+func (handler *AgentFinalStreamHandler) GetEgress() chan streaming.Chunk {
 	return handler.egress
 }
 
@@ -53,10 +55,10 @@ func (handler *AgentFinalStreamHandler) GetEgress() chan []byte {
 //
 // The callback function receives two parameters:
 // - ctx: the context.Context object for the egress operation.
-// - chunk: a byte slice representing a chunk of data from the egress channel.
+// - chunk: a streaming.Chunk representing a chunk of data from the egress channel.
 func (handler *AgentFinalStreamHandler) ReadFromEgress(
 	ctx context.Context,
-	callback func(ctx context.Context, chunk []byte),
+	callback func(ctx context.Context, chunk streaming.Chunk),
 ) {
 	go func() {
 		defer close(handler.egress)
@@ -73,8 +75,13 @@ func (handler *AgentFinalStreamHandler) ReadFromEgress(
 //
 // It takes in the context and a chunk of bytes as parameters.
 // There is no return type for this function.
-func (handler *AgentFinalStreamHandler) HandleStreamingFunc(_ context.Context, chunk []byte) {
-	chunkStr := string(chunk)
+func (handler *AgentFinalStreamHandler) HandleStreamingFunc(_ context.Context, chunk streaming.Chunk) {
+	// If the chunk is not a text chunk, skip it
+	if chunk.Type != streaming.ChunkTypeText {
+		return
+	}
+
+	chunkStr := chunk.Content
 	handler.LastTokens += chunkStr
 	var detectedKeyword string
 
@@ -101,7 +108,7 @@ func (handler *AgentFinalStreamHandler) HandleStreamingFunc(_ context.Context, c
 	// Check for colon and set print mode.
 	if handler.KeywordDetected && !handler.PrintOutput {
 		// remove any other strings before the final answer
-		chunk = []byte(filterFinalString(chunkStr, detectedKeyword))
+		chunk.Content = filterFinalString(chunkStr, detectedKeyword)
 		handler.PrintOutput = true
 	}
 
