@@ -1,9 +1,8 @@
 ---
-sidebar_position: 3
-draft: true
+sidebar_position: 4
 ---
 
-# Unfinished quickstart, using chat models
+# Quickstart: Using Chat Models
 
 Chat models are a variation on language models.
 While chat models use language models under the hood, the interface they expose is a bit different.
@@ -19,26 +18,472 @@ go get github.com/vxcontrol/langchaingo
 
 ## Getting started
 
+To use chat models in LangChain Go, you'll need to understand a few key components:
+
+```go
+import (
+    "context"
+    "fmt"
+    
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai" // or any other supported provider
+)
+```
 
 ### Chat models: message in, message out
 
+Chat models accept a series of messages as input and return a message as output. LangChain Go supports several types of messages:
+
+```go
+// Create a new OpenAI chat model
+llm, err := openai.New()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Basic usage with a single human message
+resp, err := llms.GenerateFromSinglePrompt(
+    context.Background(),
+    llm,
+    "Hello, who are you?",
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(resp)
+```
 
 #### Multiple messages
 
+You can also send multiple messages in a conversation:
+
+```go
+content := []llms.MessageContent{
+    llms.TextParts(llms.ChatMessageTypeSystem, "You are a helpful AI assistant."),
+    llms.TextParts(llms.ChatMessageTypeHuman, "Hello, who are you?"),
+}
+
+resp, err := llm.GenerateContent(
+    context.Background(),
+    content,
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(resp.Choices[0].Content)
+```
 
 #### Multiple completions
 
-``
+You can generate multiple completions for the same prompt:
+
+```go
+content := []llms.MessageContent{
+    llms.TextParts(llms.ChatMessageTypeHuman, "Give me 3 ideas for a day trip."),
+}
+
+resp, err := llm.GenerateContent(
+    context.Background(),
+    content,
+    llms.WithN(3), // Request 3 completions
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+for i, choice := range resp.Choices {
+    fmt.Printf("Idea %d: %s\n", i+1, choice.Content)
+}
+```
+
+### Multi-modal Content
+
+LangChain Go supports sending and receiving different types of content, not just text:
+
+```go
+content := []llms.MessageContent{
+    {
+        Role: llms.ChatMessageTypeHuman,
+        Parts: []llms.ContentPart{
+            llms.TextPart("What's in this image?"),
+            llms.ImageURLPart("https://example.com/image.jpg"),
+        },
+    },
+}
+
+resp, err := llm.GenerateContent(context.Background(), content)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(resp.Choices[0].Content)
+```
+
+### Using Tools and Functions
+
+LangChain Go supports function calling with compatible models:
+
+```go
+tools := []llms.Tool{
+    {
+        Type: "function",
+        Function: &llms.FunctionDefinition{
+            Name:        "get_weather",
+            Description: "Get the current weather in a given location",
+            Parameters: map[string]interface{}{
+                "type": "object",
+                "properties": map[string]interface{}{
+                    "location": map[string]interface{}{
+                        "type":        "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                },
+                "required": []string{"location"},
+            },
+        },
+    },
+}
+
+content := []llms.MessageContent{
+    llms.TextParts(llms.ChatMessageTypeHuman, "What's the weather like in San Francisco?"),
+}
+
+resp, err := llm.GenerateContent(
+    context.Background(),
+    content,
+    llms.WithTools(tools),
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Handle tool calls
+if len(resp.Choices[0].ToolCalls) > 0 {
+    fmt.Printf("Tool called: %s with arguments: %s\n", 
+        resp.Choices[0].ToolCalls[0].FunctionCall.Name,
+        resp.Choices[0].ToolCalls[0].FunctionCall.Arguments)
+}
+```
+
+### Model Configuration Options
+
+You can configure various options when calling the model:
+
+```go
+resp, err := llm.GenerateContent(
+    context.Background(),
+    content,
+    llms.WithTemperature(0.7),
+    llms.WithMaxTokens(1000),
+    llms.WithStopWords([]string{"STOP"}),
+    llms.WithReasoning(llms.ReasoningHigh, 0), // Enable high reasoning
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
 
 ### Chat prompt templates: manage prompts for chat models
 
+Chat prompt templates help you structure and manage prompts for chat models:
+
+```go
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/prompts"
+)
+
+// Create a chat prompt template with variables
+template := prompts.NewChatPromptTemplate(
+    []prompts.MessageFormatter{
+        prompts.NewSystemMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "You are a helpful assistant that translates {{.input_language}} to {{.output_language}}.",
+                []string{"input_language", "output_language"},
+            ),
+        ),
+        prompts.NewHumanMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "Translate: {{.text}}",
+                []string{"text"},
+            ),
+        ),
+    },
+)
+
+// Format the template with values
+messages, err := template.FormatMessages(map[string]interface{}{
+    "input_language":  "English",
+    "output_language": "French",
+    "text":            "Hello, how are you?",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Use the formatted messages with your model
+llm, err := openai.New()
+if err != nil {
+    log.Fatal(err)
+}
+
+resp, err := llm.GenerateContent(context.Background(), messages)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(resp.Choices[0].Content) // "Bonjour, comment allez-vous?"
+```
 
 ### Model + prompt = LLM chain
 
+You can combine models and prompts into chains for more complex workflows:
+
+```go
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/vxcontrol/langchaingo/chains"
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/prompts"
+)
+
+// Create a template
+template := prompts.NewChatPromptTemplate(
+    []prompts.MessageFormatter{
+        prompts.NewSystemMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "You are a helpful assistant.",
+                []string{},
+            ),
+        ),
+        prompts.NewHumanMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "{{.question}}",
+                []string{"question"},
+            ),
+        ),
+    },
+)
+
+// Create a model
+llm, err := openai.New()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create a chain
+chain := chains.NewLLMChain(llm, template)
+
+// Run the chain
+result, err := chains.Call(
+    context.Background(),
+    chain,
+    map[string]interface{}{
+        "question": "What is the capital of France?",
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(result["text"]) // "The capital of France is Paris."
+```
 
 ### Agents: dynamically run chains based on user input
 
+Agents can use models to determine which actions to take:
+
+```go
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/vxcontrol/langchaingo/agents"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/tools"
+)
+
+// Create a model
+llm, err := openai.New()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create tools that the agent can use
+calculator := tools.Calculator{}
+search, err := tools.NewDuckDuckGo()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create the agent
+agent, err := agents.Initialize(
+    llm,
+    []tools.Tool{calculator, search},
+    agents.WithMaxIterations(5),
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Run the agent
+result, err := agents.Run(
+    context.Background(),
+    agent,
+    "If a person is born in 1990, how old are they in 2023? After that, search for famous people born in that year.",
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println(result)
+```
 
 ### Memory: add state to chains and agents
 
+Memory allows you to maintain state across interactions:
+
+```go
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/vxcontrol/langchaingo/chains"
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/memory"
+    "github.com/vxcontrol/langchaingo/prompts"
+)
+
+// Create a chat memory
+chatMemory := memory.NewConversationBuffer()
+
+// Create a template that includes the chat history
+template := prompts.NewChatPromptTemplate(
+    []prompts.MessageFormatter{
+        prompts.NewSystemMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "You are a helpful assistant. Use the conversation history to provide context for your responses.",
+                []string{},
+            ),
+        ),
+        prompts.NewMessagesPlaceholder("history"),
+        prompts.NewHumanMessagePromptTemplate(
+            prompts.NewPromptTemplate(
+                "{{.input}}",
+                []string{"input"},
+            ),
+        ),
+    },
+)
+
+// Create a model
+llm, err := openai.New()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create a chain with memory
+chain := chains.NewConversationChain(
+    llm,
+    template,
+    chains.WithMemory(chatMemory),
+)
+
+// First interaction
+result1, err := chains.Call(
+    context.Background(),
+    chain,
+    map[string]interface{}{
+        "input": "My name is Alice.",
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(result1["response"]) // "Hello Alice, nice to meet you! How can I assist you today?"
+
+// Second interaction (memory remembers the name)
+result2, err := chains.Call(
+    context.Background(),
+    chain,
+    map[string]interface{}{
+        "input": "What's my name?",
+    },
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(result2["response"]) // "Your name is Alice, as you mentioned earlier."
+```
+
+#### Different Types of Memory
+
+LangChain Go provides several memory implementations:
+
+```go
+// Basic conversation buffer (remembers all messages)
+buffer := memory.NewConversationBuffer()
+
+// Window memory (remembers only the last N exchanges)
+window := memory.NewConversationWindowBuffer(2) // Keep last 2 exchanges
+
+// Token-based memory (limits by token count)
+llm, _ := openai.New()
+tokenBuffer := memory.NewConversationTokenBuffer(llm, 2000) // Limit to 2000 tokens
+
+// Initialize with pre-loaded history
+preloadedHistory := memory.NewChatMessageHistory(
+    memory.WithPreviousMessages([]llms.ChatMessage{
+        llms.HumanChatMessage{Content: "Hello"},
+        llms.AIChatMessage{Content: "Hi there!"},
+    }),
+)
+bufferWithHistory := memory.NewConversationBuffer(
+    memory.WithChatHistory(preloadedHistory),
+)
+```
+
 ## Streaming
+
+LangChain Go supports streaming responses from chat models:
+
+```go
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    "github.com/vxcontrol/langchaingo/llms"
+    "github.com/vxcontrol/langchaingo/llms/openai"
+    "github.com/vxcontrol/langchaingo/llms/streaming"
+)
+
+content := []llms.MessageContent{
+    llms.TextParts(llms.ChatMessageTypeHuman, "Write a short story about a robot."),
+}
+
+streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
+    fmt.Println(chunk.String())
+    return nil
+}
+
+_, err := llm.GenerateContent(
+    context.Background(),
+    content,
+    llms.WithStreamingFunc(streamingFunc),
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
