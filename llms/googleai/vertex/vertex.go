@@ -12,6 +12,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -362,7 +364,7 @@ DoStream:
 
 		for _, part := range respCandidate.Content.Parts {
 			if text, ok := part.(genai.Text); ok {
-				if opts.StreamingFunc(ctx, []byte(text)) != nil {
+				if err := streaming.CallWithText(ctx, opts.StreamingFunc, string(text)); err != nil {
 					break DoStream
 				}
 			}

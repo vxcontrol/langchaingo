@@ -2,15 +2,18 @@ package openaiclient
 
 import (
 	"context"
+
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // CompletionRequest is a request to complete a completion.
 type CompletionRequest struct {
 	Model       string  `json:"model"`
 	Prompt      string  `json:"prompt"`
-	Temperature float64 `json:"temperature"`
+	Temperature float64 `json:"temperature,omitempty"`
 	// Deprecated: Use MaxCompletionTokens
-	MaxTokens           int      `json:"-,omitempty"`
+	MaxTokens           int      `json:"-"`
 	MaxCompletionTokens int      `json:"max_completion_tokens,omitempty"`
 	N                   int      `json:"n,omitempty"`
 	FrequencyPenalty    float64  `json:"frequency_penalty,omitempty"`
@@ -19,9 +22,12 @@ type CompletionRequest struct {
 	StopWords           []string `json:"stop,omitempty"`
 	Seed                int      `json:"seed,omitempty"`
 
+	// Reasoning effort is enabling reasoning if the model supports it.
+	ReasoningEffort *llms.ReasoningEffort `json:"reasoning_effort,omitempty"`
+
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 type CompletionResponse struct {
@@ -89,5 +95,6 @@ func (c *Client) createCompletion(ctx context.Context, payload *CompletionReques
 		PresencePenalty:     payload.PresencePenalty,
 		StreamingFunc:       payload.StreamingFunc,
 		Seed:                payload.Seed,
+		ReasoningEffort:     payload.ReasoningEffort,
 	})
 }

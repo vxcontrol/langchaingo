@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,11 +45,11 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 }
 
@@ -80,11 +81,11 @@ func TestToolCall(t *testing.T) {
 		},
 	}})
 
-	rsp, err := llm.GenerateContent(t.Context(), content, toolOption)
+	resp, err := llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
 
-	require.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	require.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	require.NotEmpty(t, c1.ToolCalls)
 	t1 := c1.ToolCalls[0]
 	require.Equal(t, "getTime", t1.FunctionCall.Name)
@@ -103,10 +104,10 @@ func TestToolCall(t *testing.T) {
 		},
 	})
 
-	rsp, err = llm.GenerateContent(t.Context(), content, toolOption)
+	resp, err = llm.GenerateContent(t.Context(), content, toolOption)
 	require.NoError(t, err)
-	require.NotEmpty(t, rsp.Choices)
-	c1 = rsp.Choices[0]
+	require.NotEmpty(t, resp.Choices)
+	c1 = resp.Choices[0]
 	assert.Regexp(t, "2010", c1.Content)
 	assert.Regexp(t, "13", c1.Content)
 }
@@ -126,11 +127,11 @@ func TestWithFormat(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 
 	// check whether we got *any* kind of JSON object.
@@ -155,15 +156,15 @@ func TestWithStreaming(t *testing.T) {
 	}
 
 	var sb strings.Builder
-	rsp, err := llm.GenerateContent(t.Context(), content,
-		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
-			sb.Write(chunk)
+	resp, err := llm.GenerateContent(t.Context(), content,
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			sb.WriteString(chunk.Content)
 			return nil
 		}))
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 	assert.Regexp(t, "feet", strings.ToLower(sb.String()))
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // ChainCallOption is a function that can be used to modify the behavior of the Call function.
@@ -37,7 +38,7 @@ type chainCallOption struct {
 
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error
+	StreamingFunc streaming.Callback
 
 	// TopK is the number of tokens to consider for top-k sampling in an LLM call.
 	TopK    int
@@ -92,7 +93,7 @@ func WithTemperature(temperature float64) ChainCallOption {
 }
 
 // WithStreamingFunc is an option for LLM.Call that allows streaming responses.
-func WithStreamingFunc(streamingFunc func(ctx context.Context, chunk []byte) error) ChainCallOption {
+func WithStreamingFunc(streamingFunc streaming.Callback) ChainCallOption {
 	return func(o *chainCallOption) {
 		o.StreamingFunc = streamingFunc
 	}
@@ -167,7 +168,7 @@ func getLLMCallOptions(options ...ChainCallOption) []llms.CallOption { //nolint:
 		option(opts)
 	}
 	if opts.StreamingFunc == nil && opts.CallbackHandler != nil {
-		opts.StreamingFunc = func(ctx context.Context, chunk []byte) error {
+		opts.StreamingFunc = func(ctx context.Context, chunk streaming.Chunk) error {
 			opts.CallbackHandler.HandleStreamingFunc(ctx, chunk)
 			return nil
 		}

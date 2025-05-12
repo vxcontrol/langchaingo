@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func TestParseStreamingChatResponse_FinishReason(t *testing.T) {
@@ -22,7 +23,7 @@ func TestParseStreamingChatResponse_FinishReason(t *testing.T) {
 	}
 
 	req := &ChatRequest{
-		StreamingFunc: func(_ context.Context, _ []byte) error {
+		StreamingFunc: func(_ context.Context, _ streaming.Chunk) error {
 			return nil
 		},
 	}
@@ -44,7 +45,7 @@ func TestParseStreamingChatResponse_ReasoningContent(t *testing.T) {
 	}
 
 	req := &ChatRequest{
-		StreamingFunc: func(_ context.Context, _ []byte) error {
+		StreamingFunc: func(_ context.Context, _ streaming.Chunk) error {
 			return nil
 		},
 	}
@@ -68,9 +69,19 @@ func TestParseStreamingChatResponse_ReasoningFunc(t *testing.T) {
 	}
 
 	req := &ChatRequest{
-		StreamingReasoningFunc: func(_ context.Context, reasoningChunk, chunk []byte) error {
-			t.Logf("reasoningChunk: %s", string(reasoningChunk))
-			t.Logf("chunk: %s", string(chunk))
+		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+			switch chunk.Type {
+			case streaming.ChunkTypeText:
+				t.Logf("chunk: %s", chunk.Content)
+			case streaming.ChunkTypeReasoning:
+				t.Logf("reasoningChunk: %s", chunk.ReasoningContent)
+			case streaming.ChunkTypeToolCall:
+				if toolCall, err := json.Marshal(chunk.ToolCall); err == nil {
+					t.Logf("toolCall: %s", string(toolCall))
+				} else {
+					t.Logf("error marshalling toolCall: %s", err)
+				}
+			}
 			return nil
 		},
 	}

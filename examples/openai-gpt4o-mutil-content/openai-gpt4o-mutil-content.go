@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -25,10 +26,14 @@ func main() {
 		},
 	}
 
-	completion, err := llm.GenerateContent(ctx, content, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-		fmt.Print(string(chunk))
-		return nil
-	}))
+	completion, err := llm.GenerateContent(
+		ctx,
+		content,
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
+			return nil
+		}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

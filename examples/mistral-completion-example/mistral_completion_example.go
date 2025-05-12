@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/mistral"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -15,10 +16,13 @@ func main() {
 		log.Fatal(err)
 	}
 	ctx := context.Background()
-	completionWithStreaming, err := llms.GenerateFromSinglePrompt(ctx, llm, "Who was the first man to walk on the moon?",
+	completionWithStreaming, err := llms.GenerateFromSinglePrompt(
+		ctx,
+		llm,
+		"Who was the first man to walk on the moon?",
 		llms.WithTemperature(0.8),
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Print(string(chunk))
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	)

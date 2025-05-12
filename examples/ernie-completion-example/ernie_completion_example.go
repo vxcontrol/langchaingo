@@ -8,6 +8,7 @@ import (
 	"github.com/vxcontrol/langchaingo/embeddings"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/ernie"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func main() {
@@ -21,8 +22,8 @@ func main() {
 	ctx := context.Background()
 	completion, err := llms.GenerateFromSinglePrompt(ctx, llm, "介绍一下你自己",
 		llms.WithTemperature(0.8),
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			log.Println(string(chunk))
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	)

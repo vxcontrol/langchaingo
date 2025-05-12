@@ -19,6 +19,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/googleai"
 	"github.com/vxcontrol/langchaingo/llms/googleai/vertex"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -347,8 +348,10 @@ func testWithStreaming(t *testing.T, llm llms.Model) {
 	rsp, err := llm.GenerateContent(
 		t.Context(),
 		[]llms.MessageContent{content},
-		llms.WithStreamingFunc(func(_ context.Context, chunk []byte) error {
-			sb.Write(chunk)
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				sb.WriteString(chunk.Content)
+			}
 			return nil
 		}))
 

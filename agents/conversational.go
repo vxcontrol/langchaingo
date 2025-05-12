@@ -10,6 +10,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/prompts"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/tools"
@@ -71,10 +72,10 @@ func (a *ConversationalAgent) Plan(
 
 	fullInputs["agent_scratchpad"] = constructScratchPad(intermediateSteps)
 
-	var stream func(ctx context.Context, chunk []byte) error
+	var stream streaming.Callback
 
 	if a.CallbacksHandler != nil {
-		stream = func(ctx context.Context, chunk []byte) error {
+		stream = func(ctx context.Context, chunk streaming.Chunk) error {
 			a.CallbacksHandler.HandleStreamingFunc(ctx, chunk)
 			return nil
 		}

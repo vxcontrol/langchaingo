@@ -2,14 +2,19 @@ package ollama
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/ollama/ollama/api"
 	"github.com/ollama/ollama/envconfig"
@@ -172,8 +177,7 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 	}
 
 	var err error
-	// TODO: here need more stable way to convert tool call ID to int
-	tc.Function.Index, err = strconv.Atoi(toolCall.ID)
+	tc.Function.Index, err = parseToolCallID(toolCall.ID)
 	if err != nil {
 		return api.ToolCall{}, fmt.Errorf("error converting tool call ID to int: %w", err)
 	}
@@ -240,17 +244,36 @@ func (o *LLM) processTools(req *api.ChatRequest, tools []llms.Tool) error {
 
 // handleChat sends the chat request and processes the streaming response.
 func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.CallOptions) (api.ChatResponse, error) {
-	streamedResponse := ""
-	var streamedToolCalls []api.ToolCall
-	var resp api.ChatResponse
+	var (
+		resp              api.ChatResponse
+		streamedResponse  string
+		streamedToolCalls []api.ToolCall
+	)
 
+	splitter := reasoning.NewChunkContentSplitter()
 	fn := func(response api.ChatResponse) error {
-		// TODO: handle StreamingReasoningFunc too and sptit content to reasoning and text content
-		if opts.StreamingFunc != nil && response.Message.Content != "" {
-			if err := opts.StreamingFunc(ctx, []byte(response.Message.Content)); err != nil {
-				return err
+		text, reasoning := splitter.Split(response.Message.Content)
+		if opts.StreamingFunc != nil {
+			if err := streaming.CallWithReasoning(ctx, opts.StreamingFunc, reasoning); err != nil {
+				return fmt.Errorf("error calling streaming reasoning: %w", err)
+			}
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, text); err != nil {
+				return fmt.Errorf("error calling streaming text: %w", err)
 			}
 		}
+
+		for _, tc := range response.Message.ToolCalls {
+			toolCallID := makeToolCallID(tc.Function.Index, tc.Function.Name)
+			toolCallArgs, err := json.Marshal(tc.Function.Arguments)
+			if err != nil {
+				return fmt.Errorf("error marshalling tool call '%s' arguments: %w", toolCallID, err)
+			}
+			toolCall := streaming.NewToolCall(toolCallID, tc.Function.Name, string(toolCallArgs))
+			if err := streaming.CallWithToolCall(ctx, opts.StreamingFunc, toolCall); err != nil {
+				return fmt.Errorf("error calling streaming tool call '%s': %w", toolCallID, err)
+			}
+		}
+
 		if response.Message.Content != "" {
 			streamedResponse += response.Message.Content
 		}
@@ -275,10 +298,12 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 
 // createContentResponse creates a LangChain content response from Ollama response.
 func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
+	reasoning, content := reasoning.SplitContent(resp.Message.Content)
 	choices := []*llms.ContentChoice{
 		{
-			Content:    resp.Message.Content,
-			StopReason: resp.DoneReason,
+			Content:          content,
+			ReasoningContent: reasoning,
+			StopReason:       resp.DoneReason,
 			GenerationInfo: map[string]any{
 				"CompletionTokens": resp.EvalCount,
 				"PromptTokens":     resp.PromptEvalCount,
@@ -289,7 +314,7 @@ func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse
 
 	for _, tc := range resp.Message.ToolCalls {
 		choices[0].ToolCalls = append(choices[0].ToolCalls, llms.ToolCall{
-			ID:   fmt.Sprintf("%d", tc.Function.Index),
+			ID:   makeToolCallID(tc.Function.Index, tc.Function.Name),
 			Type: "function",
 			FunctionCall: &llms.FunctionCall{
 				Name:      tc.Function.Name,
@@ -380,4 +405,24 @@ func makeOllamaOptionsFromOptions(ollamaOptions api.Options, opts llms.CallOptio
 	}
 
 	return result, nil
+}
+
+func makeToolCallID(index int, name string) string { //nolint:gosec
+	hash := crc32.NewIEEE().Sum([]byte(name))
+	encHash := hex.EncodeToString(hash)
+	return fmt.Sprintf("ollama-%s-%d", encHash, index)
+}
+
+func parseToolCallID(id string) (int, error) {
+	parts := strings.Split(id, "-")
+	if len(parts) != 3 {
+		return 0, fmt.Errorf("invalid tool call id: %s", id)
+	}
+
+	index, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return 0, fmt.Errorf("invalid tool call id: %s", id)
+	}
+
+	return index, nil
 }

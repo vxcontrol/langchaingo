@@ -7,28 +7,65 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+)
+
+const (
+	// The Anthropic API enforces strict rate limits, especially for users on the initial (free or low-tier) plans.
+	// As a result, HTTP 429 (Too Many Requests) errors are frequently encountered.
+	maxSendingRetries = 10
+	retryInterval     = 10 * time.Second
 )
 
 var (
-	ErrInvalidEventType        = fmt.Errorf("invalid event type field type")
-	ErrInvalidMessageField     = fmt.Errorf("invalid message field type")
-	ErrInvalidUsageField       = fmt.Errorf("invalid usage field type")
-	ErrInvalidIndexField       = fmt.Errorf("invalid index field type")
-	ErrInvalidDeltaField       = fmt.Errorf("invalid delta field type")
-	ErrInvalidDeltaTypeField   = fmt.Errorf("invalid delta type field type")
-	ErrInvalidDeltaTextField   = fmt.Errorf("invalid delta text field type")
-	ErrContentIndexOutOfRange  = fmt.Errorf("content index out of range")
-	ErrFailedCastToTextContent = fmt.Errorf("failed to cast content to TextContent")
-	ErrInvalidFieldType        = fmt.Errorf("invalid field type")
+	ErrInvalidEventType           = fmt.Errorf("invalid event type field type")
+	ErrInvalidMessageField        = fmt.Errorf("invalid message field type")
+	ErrInvalidUsageField          = fmt.Errorf("invalid usage field type")
+	ErrInvalidIndexField          = fmt.Errorf("invalid index field type")
+	ErrInvalidContentBlockField   = fmt.Errorf("invalid content block field type")
+	ErrInvalidDeltaField          = fmt.Errorf("invalid delta field type")
+	ErrInvalidDeltaTypeField      = fmt.Errorf("invalid delta type field type")
+	ErrInvalidDeltaTextField      = fmt.Errorf("invalid delta text field type")
+	ErrInvalidDeltaToolCallField  = fmt.Errorf("invalid delta tool call field type")
+	ErrInvalidDeltaThinkingField  = fmt.Errorf("invalid delta thinking field type")
+	ErrInvalidDeltaSignatureField = fmt.Errorf("invalid delta signature field type")
+	ErrContentIndexOutOfRange     = fmt.Errorf("content index out of range")
+	ErrFailedCastToTextContent    = fmt.Errorf("failed to cast content to TextContent")
+	ErrInvalidFieldType           = fmt.Errorf("invalid field type")
+)
+
+// For correct using thinking and redacted thinking events, use this guide:
+// https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+// In this implementation, we don't send the thinking block to the server.
+const (
+	EventTypeText             = "text"
+	EventTypeToolUse          = "tool_use"
+	EventTypeThinking         = "thinking"
+	EventTypeRedactedThinking = "redacted_thinking"
+)
+
+const (
+	EventDeltaTypeText           = "text_delta"
+	EventDeltaTypeToolUse        = "input_json_delta"
+	EventDeltaTypeThinking       = "thinking_delta"
+	EventDeltaTypeSignatureDelta = "signature_delta"
 )
 
 type ChatMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"`
+	Role    string    `json:"role"`
+	Content []Content `json:"content"`
+}
+
+type ThinkingPayload struct {
+	Type   string `json:"type"`
+	Budget int    `json:"budget_tokens,omitempty"`
 }
 
 type messagePayload struct {
@@ -39,10 +76,13 @@ type messagePayload struct {
 	StopWords   []string      `json:"stop_sequences,omitempty"`
 	Stream      bool          `json:"stream,omitempty"`
 	Temperature float64       `json:"temperature"`
-	Tools       []Tool        `json:"tools,omitempty"`
 	TopP        float64       `json:"top_p,omitempty"`
+	Tools       []Tool        `json:"tools,omitempty"`
+	ToolChoice  any           `json:"tool_choice,omitempty"`
 
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	Thinking *ThinkingPayload `json:"thinking,omitempty"`
+
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 // Tool used for the request message payload.
@@ -90,6 +130,25 @@ type ImageSource struct {
 	Data      string `json:"data"`
 }
 
+type ThinkingContent struct {
+	Type      string `json:"type"`
+	Thinking  string `json:"thinking"`
+	Signature string `json:"signature"`
+}
+
+func (tc ThinkingContent) GetType() string {
+	return tc.Type
+}
+
+type RedactedThinkingContent struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
+func (rthc RedactedThinkingContent) GetType() string {
+	return rthc.Type
+}
+
 type ToolUseContent struct {
 	Type           string                 `json:"type"`
 	ID             string                 `json:"id"`
@@ -111,13 +170,11 @@ func (tuc *ToolUseContent) DecodeStream() error {
 		return nil
 	}
 
-	m := make(map[string]interface{})
-	err := json.Unmarshal([]byte(tuc.rawStreamInput), &m)
+	err := json.Unmarshal([]byte(tuc.rawStreamInput), &tuc.Input)
 	if err != nil {
 		return err
 	}
 
-	tuc.Input = m
 	return nil
 }
 
@@ -162,32 +219,52 @@ func (m *MessageResponsePayload) UnmarshalJSON(data []byte) error {
 	}
 
 	for _, raw := range aux.Content {
-		var typeStruct struct {
-			Type string `json:"type"`
-		}
-		if err := json.Unmarshal(raw, &typeStruct); err != nil {
+		content, err := parseContentBlock(raw)
+		if err != nil {
 			return err
 		}
-
-		switch typeStruct.Type {
-		case "text":
-			tc := &TextContent{}
-			if err := json.Unmarshal(raw, tc); err != nil {
-				return err
-			}
-			m.Content = append(m.Content, tc)
-		case "tool_use":
-			tuc := &ToolUseContent{}
-			if err := json.Unmarshal(raw, tuc); err != nil {
-				return err
-			}
-			m.Content = append(m.Content, tuc)
-		default:
-			return fmt.Errorf("unknown content type: %s\n%v", typeStruct.Type, string(raw))
-		}
+		m.Content = append(m.Content, content)
 	}
 
 	return nil
+}
+
+func parseContentBlock(raw []byte) (Content, error) {
+	var typeStruct struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(raw, &typeStruct); err != nil {
+		return nil, err
+	}
+
+	switch typeStruct.Type {
+	case EventTypeText:
+		tc := &TextContent{}
+		if err := json.Unmarshal(raw, tc); err != nil {
+			return nil, err
+		}
+		return tc, nil
+	case EventTypeToolUse:
+		tuc := &ToolUseContent{}
+		if err := json.Unmarshal(raw, tuc); err != nil {
+			return nil, err
+		}
+		return tuc, nil
+	case EventTypeThinking:
+		thc := &ThinkingContent{}
+		if err := json.Unmarshal(raw, thc); err != nil {
+			return nil, err
+		}
+		return thc, nil
+	case EventTypeRedactedThinking:
+		rthc := &RedactedThinkingContent{}
+		if err := json.Unmarshal(raw, rthc); err != nil {
+			return nil, err
+		}
+		return rthc, nil
+	default:
+		return nil, fmt.Errorf("unknown content type: %s\n%v", typeStruct.Type, string(raw)) //nolint:err113
+	}
 }
 
 func (c *Client) setMessageDefaults(payload *messagePayload) {
@@ -211,6 +288,7 @@ func (c *Client) setMessageDefaults(payload *messagePayload) {
 	default:
 		payload.Model = defaultModel
 	}
+
 	if payload.StreamingFunc != nil {
 		payload.Stream = true
 	}
@@ -224,9 +302,25 @@ func (c *Client) createMessage(ctx context.Context, payload *messagePayload) (*M
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
 
-	resp, err := c.do(ctx, "/messages", payloadBytes)
-	if err != nil {
-		return nil, err
+	var resp *http.Response
+	for range maxSendingRetries {
+		resp, err = c.do(ctx, "/messages", payloadBytes)
+		if err != nil {
+			return nil, fmt.Errorf("send request: %w", err)
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests {
+			resp.Body.Close() // avoid memory leaks
+
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(retryInterval):
+				continue
+			}
+		}
+
+		break
 	}
 	defer resp.Body.Close()
 
@@ -234,7 +328,7 @@ func (c *Client) createMessage(ctx context.Context, payload *messagePayload) (*M
 		return nil, c.decodeError(resp)
 	}
 
-	if payload.StreamingFunc != nil {
+	if payload.Stream {
 		return parseStreamingMessageResponse(ctx, resp, payload)
 	}
 
@@ -251,7 +345,11 @@ type MessageEvent struct {
 	Err      error
 }
 
-func parseStreamingMessageResponse(ctx context.Context, r *http.Response, payload *messagePayload) (*MessageResponsePayload, error) {
+func parseStreamingMessageResponse(
+	ctx context.Context,
+	r *http.Response,
+	payload *messagePayload,
+) (*MessageResponsePayload, error) {
 	scanner := bufio.NewScanner(r.Body)
 	eventChan := make(chan MessageEvent)
 
@@ -260,7 +358,19 @@ func parseStreamingMessageResponse(ctx context.Context, r *http.Response, payloa
 		var response MessageResponsePayload
 		for scanner.Scan() {
 			line := scanner.Text()
-			if line == "" || !strings.HasPrefix(line, "data:") {
+			if line == "" {
+				continue
+			}
+			if !strings.HasPrefix(line, "data:") {
+				// it's happening when the server answer is not a streaming response
+				// we need to parse the response as a normal response and return it
+				if err := parseMessageResponse(ctx, line, payload, eventChan); err != nil {
+					eventChan <- MessageEvent{
+						Response: nil,
+						Err:      fmt.Errorf("failed to parse stream message response: %w", err),
+					}
+					return
+				}
 				continue
 			}
 			data := strings.TrimPrefix(line, "data: ")
@@ -290,17 +400,55 @@ func parseStreamingMessageResponse(ctx context.Context, r *http.Response, payloa
 	return lastResponse, nil
 }
 
-func parseStreamEvent(data string) (map[string]interface{}, error) {
-	var event map[string]interface{}
-	err := json.NewDecoder(bytes.NewReader([]byte(data))).Decode(&event)
-	return event, err
+func parseMessageResponse(ctx context.Context, line string,
+	payload *messagePayload, eventChan chan<- MessageEvent,
+) error {
+	var response MessageResponsePayload
+	if err := json.Unmarshal([]byte(line), &response); err != nil {
+		// skip line if it's not a valid json as a message response
+		// it's happening when custom server is used with the same API as anthropic
+		return nil //nolint:nilerr
+	}
+
+	for _, content := range response.Content {
+		switch cv := content.(type) {
+		case *ThinkingContent:
+			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, cv.Thinking); err != nil {
+				return fmt.Errorf("streaming func returned an error: %w", err)
+			}
+		case *TextContent:
+			if err := streaming.CallWithText(ctx, payload.StreamingFunc, cv.Text); err != nil {
+				return fmt.Errorf("streaming func returned an error: %w", err)
+			}
+		case *ToolUseContent:
+			toolArgs, err := json.Marshal(cv.Input)
+			if err != nil {
+				return fmt.Errorf("failed to marshal tool use input: %w", err)
+			}
+			toolCall := streaming.NewToolCall(cv.ID, cv.Name, string(toolArgs))
+			if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
+				return fmt.Errorf("streaming func returned an error: %w", err)
+			}
+		}
+	}
+
+	eventChan <- MessageEvent{Response: &response, Err: nil}
+	return nil
 }
 
-func processStreamEvent(ctx context.Context, event map[string]interface{}, payload *messagePayload, response MessageResponsePayload, eventChan chan<- MessageEvent) (MessageResponsePayload, error) {
+func parseStreamEvent(data string) (map[string]interface{}, error) {
+	var event map[string]interface{}
+	return event, json.NewDecoder(bytes.NewReader([]byte(data))).Decode(&event)
+}
+
+func processStreamEvent(ctx context.Context, event map[string]interface{}, payload *messagePayload,
+	response MessageResponsePayload, eventChan chan<- MessageEvent,
+) (MessageResponsePayload, error) {
 	eventType, ok := event["type"].(string)
 	if !ok {
 		return response, ErrInvalidEventType
 	}
+
 	switch eventType {
 	case "message_start":
 		return handleMessageStartEvent(event, response)
@@ -321,10 +469,11 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)
 	}
+
 	return response, nil
 }
 
-func handleMessageStartEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) {
+func handleMessageStartEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
 	message, ok := event["message"].(map[string]interface{})
 	if !ok {
 		return response, ErrInvalidMessageField
@@ -349,51 +498,54 @@ func handleMessageStartEvent(event map[string]interface{}, response MessageRespo
 	return response, nil
 }
 
-func handleContentBlockStartEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) {
+func handleContentBlockStartEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
 	indexValue, ok := event["index"].(float64)
 	if !ok {
 		return response, ErrInvalidIndexField
 	}
 	index := int(indexValue)
 
-	var eventType string
 	cb, ok := event["content_block"].(map[string]any)
-	if ok {
-		typ, _ := cb["type"].(string)
-		eventType = typ
+	if !ok {
+		return response, ErrInvalidContentBlockField
 	}
 
 	if len(response.Content) <= index {
-		switch eventType {
-		case "text":
+		switch eventType := getString(cb, "type"); eventType {
+		case EventTypeText:
 			response.Content = append(response.Content, &TextContent{
 				Type: eventType,
+				Text: getString(cb, "text"),
 			})
-		case "tool_use":
-			toolID, ok := cb["id"].(string)
-			if !ok {
-				return response, fmt.Errorf("missing tool id field in content block [start]")
-			}
-
-			toolName, ok := cb["name"].(string)
-			if !ok {
-				return response, fmt.Errorf("missing name field in content block [start]")
-			}
-
+		case EventTypeToolUse:
 			response.Content = append(response.Content, &ToolUseContent{
 				Type:  eventType,
-				Input: make(map[string]interface{}),
-				ID:    toolID,
-				Name:  toolName,
+				ID:    getString(cb, "id"),
+				Name:  getString(cb, "name"),
+				Input: getMap(cb, "input"),
+			})
+		case EventTypeThinking:
+			response.Content = append(response.Content, &ThinkingContent{
+				Type:      eventType,
+				Thinking:  getString(cb, "thinking"),
+				Signature: getString(cb, "signature"),
+			})
+		case EventTypeRedactedThinking:
+			response.Content = append(response.Content, &RedactedThinkingContent{
+				Type: eventType,
+				Data: getString(cb, "data"),
 			})
 		default:
 			return response, fmt.Errorf("unknown content block type: %s", eventType)
 		}
 	}
+
 	return response, nil
 }
 
-func handleContentBlockDeltaEvent(ctx context.Context, event map[string]interface{}, response MessageResponsePayload, payload *messagePayload) (MessageResponsePayload, error) {
+func handleContentBlockDeltaEvent(ctx context.Context, event map[string]interface{},
+	response MessageResponsePayload, payload *messagePayload,
+) (MessageResponsePayload, error) {
 	indexValue, ok := event["index"].(float64)
 	if !ok {
 		return response, ErrInvalidIndexField
@@ -409,71 +561,122 @@ func handleContentBlockDeltaEvent(ctx context.Context, event map[string]interfac
 		return response, ErrInvalidDeltaTypeField
 	}
 
-	streamOutput := true
 	var err error
 
 	switch deltaType {
-	case "text_delta":
-		response, err = handleTextDelta(delta, response, index)
-	case "input_json_delta":
-		streamOutput = false
-		response, err = handleInputJSONDelta(delta, response, index)
+	case EventDeltaTypeText:
+		response, err = handleTextDelta(ctx, delta, response, index, payload)
+	case EventDeltaTypeToolUse:
+		response, err = handleInputJSONDelta(ctx, delta, response, index, payload)
+	case EventDeltaTypeThinking:
+		response, err = handleThinkingDelta(ctx, delta, response, index, payload)
+	case EventDeltaTypeSignatureDelta:
+		response, err = handleSignatureDelta(ctx, delta, response, index, payload)
+	default:
+		return response, fmt.Errorf("unknown delta type: %s", deltaType)
 	}
 
 	if err != nil {
 		return response, err
 	}
 
-	if payload.StreamingFunc != nil && streamOutput {
-		err = handleStreamingOutput(ctx, delta, payload)
-	}
-
 	return response, err
 }
 
-func handleTextDelta(delta map[string]interface{}, response MessageResponsePayload, index int) (MessageResponsePayload, error) {
+func handleTextDelta(ctx context.Context, delta map[string]interface{},
+	response MessageResponsePayload, index int, payload *messagePayload,
+) (MessageResponsePayload, error) {
 	text, ok := delta["text"].(string)
 	if !ok {
 		return response, ErrInvalidDeltaTextField
 	}
+
 	if len(response.Content) <= index {
 		return response, ErrContentIndexOutOfRange
 	}
+
 	textContent, ok := response.Content[index].(*TextContent)
 	if !ok {
 		return response, ErrFailedCastToTextContent
 	}
+
 	textContent.Text += text
-	return response, nil
+
+	return response, streaming.CallWithText(ctx, payload.StreamingFunc, text)
 }
 
-func handleInputJSONDelta(delta map[string]interface{}, response MessageResponsePayload, index int) (MessageResponsePayload, error) {
+func handleInputJSONDelta(ctx context.Context, delta map[string]interface{},
+	response MessageResponsePayload, index int, payload *messagePayload,
+) (MessageResponsePayload, error) {
 	partial, ok := delta["partial_json"].(string)
 	if !ok {
-		return response, fmt.Errorf("partial_json field missing")
+		return response, ErrInvalidDeltaToolCallField
 	}
+
 	if len(response.Content) <= index {
 		return response, ErrContentIndexOutOfRange
 	}
+
 	tuc, ok := response.Content[index].(*ToolUseContent)
 	if !ok {
 		asJSON, err := json.MarshalIndent(response, "", "  ")
 		if err != nil {
 			return response, fmt.Errorf("failed to marshal response: %w", err)
 		}
-		return response, fmt.Errorf("failed to cast index %v to ToolUseContent: \n%s", index, string(asJSON))
+		msg := fmt.Sprintf("failed to cast index %d to ToolUseContent: \n%s", index, string(asJSON))
+		return response, errors.New(msg) //nolint:err113
 	}
 
 	tuc.AppendStreamChunk(partial)
-	return response, nil
+	toolCall := streaming.NewToolCall(tuc.ID, tuc.Name, partial)
+	return response, streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall)
 }
 
-func handleStreamingOutput(ctx context.Context, delta map[string]interface{}, payload *messagePayload) error {
-	text, ok := delta["text"].(string)
+func handleThinkingDelta(ctx context.Context, delta map[string]interface{},
+	response MessageResponsePayload, index int, payload *messagePayload,
+) (MessageResponsePayload, error) {
+	thinking, ok := delta["thinking"].(string)
 	if !ok {
-		return ErrInvalidDeltaTextField
+		return response, ErrInvalidDeltaThinkingField
 	}
-	return payload.StreamingFunc(ctx, []byte(text))
+
+	if len(response.Content) <= index {
+		return response, ErrContentIndexOutOfRange
+	}
+
+	thinkingContent, ok := response.Content[index].(*ThinkingContent)
+	if !ok {
+		return response, ErrFailedCastToTextContent
+	}
+
+	thinkingContent.Thinking += thinking
+	if signature, ok := delta["signature"].(string); ok && signature != "" {
+		thinkingContent.Signature = signature
+	}
+
+	return response, streaming.CallWithReasoning(ctx, payload.StreamingFunc, thinking)
+}
+
+func handleSignatureDelta(_ context.Context, delta map[string]interface{},
+	response MessageResponsePayload, index int, _ *messagePayload,
+) (MessageResponsePayload, error) {
+	signature, ok := delta["signature"].(string)
+	if !ok {
+		return response, ErrInvalidDeltaSignatureField
+	}
+
+	if len(response.Content) <= index {
+		return response, ErrContentIndexOutOfRange
+	}
+
+	thinkingContent, ok := response.Content[index].(*ThinkingContent)
+	if !ok {
+		return response, ErrFailedCastToTextContent
+	}
+
+	thinkingContent.Signature += signature
+
+	return response, nil // no need to inform about this delta event
 }
 
 func handleContentBlockStopEvent(response MessageResponsePayload) (MessageResponsePayload, error) {
@@ -491,10 +694,11 @@ func handleContentBlockStopEvent(response MessageResponsePayload) (MessageRespon
 			return response, fmt.Errorf("error decoding stream tool data: %w", err)
 		}
 	}
+
 	return response, nil
 }
 
-func handleMessageDeltaEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) {
+func handleMessageDeltaEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
 	delta, ok := event["delta"].(map[string]interface{})
 	if !ok {
 		return response, ErrInvalidDeltaField
@@ -510,6 +714,7 @@ func handleMessageDeltaEvent(event map[string]interface{}, response MessageRespo
 	if outputTokens, ok := usage["output_tokens"].(float64); ok {
 		response.Usage.OutputTokens = int(outputTokens)
 	}
+
 	return response, nil
 }
 
@@ -527,4 +732,12 @@ func getFloat64(m map[string]interface{}, key string) (float64, error) {
 		return 0, ErrInvalidFieldType
 	}
 	return value, nil
+}
+
+func getMap(m map[string]interface{}, key string) map[string]interface{} {
+	value, ok := m[key].(map[string]interface{})
+	if !ok {
+		return map[string]interface{}{}
+	}
+	return value
 }

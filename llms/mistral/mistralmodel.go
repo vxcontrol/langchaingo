@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	sdk "github.com/gage-technologies/mistral-go"
 )
@@ -228,8 +229,7 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 					}
 				}
 			}
-			err := callOptions.StreamingFunc(ctx, []byte(chunkStr))
-			if err != nil {
+			if err := streaming.CallWithText(ctx, callOptions.StreamingFunc, chunkStr); err != nil {
 				return langchainContentResponse, err
 			}
 		} else {

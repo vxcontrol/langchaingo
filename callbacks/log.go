@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
@@ -51,8 +52,8 @@ func (l LogHandler) HandleLLMGenerateContentEnd(_ context.Context, res *llms.Con
 	}
 }
 
-func (l LogHandler) HandleStreamingFunc(_ context.Context, chunk []byte) {
-	fmt.Println(string(chunk))
+func (l LogHandler) HandleStreamingFunc(_ context.Context, chunk streaming.Chunk) {
+	fmt.Println(chunk.String())
 }
 
 func (l LogHandler) HandleText(_ context.Context, text string) {

@@ -1,6 +1,6 @@
 package cloudflareclient
 
-import "context"
+import "github.com/vxcontrol/langchaingo/llms/streaming"
 
 type GenerateContentRequest struct {
 	Messages []Message `json:"messages"`
@@ -8,7 +8,7 @@ type GenerateContentRequest struct {
 
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 }
 
 type Message struct {

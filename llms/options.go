@@ -1,9 +1,114 @@
 package llms
 
-import "context"
+import "github.com/vxcontrol/langchaingo/llms/streaming"
 
 // CallOption is a function that configures a CallOptions.
 type CallOption func(*CallOptions)
+
+const MaxReasoningTokens = 64000
+
+type ReasoningEffort string
+
+const (
+	ReasoningHigh   ReasoningEffort = "high"
+	ReasoningMedium ReasoningEffort = "medium"
+	ReasoningLow    ReasoningEffort = "low"
+	ReasoningNone   ReasoningEffort = ""
+)
+
+// ReasoningConfig is a set of options for reasoning.
+type ReasoningConfig struct {
+	Effort ReasoningEffort `json:"effort"`
+	Tokens int             `json:"tokens"`
+}
+
+// IsEnabled returns true if reasoning is enabled based on the effort and tokens.
+func (r *ReasoningConfig) IsEnabled() bool {
+	if r == nil {
+		return false
+	}
+
+	if r.Effort == ReasoningNone && r.Tokens == 0 {
+		return false
+	}
+
+	return true
+}
+
+// GetEffort returns enum value of the effort based on kept values inside.
+// If maxTokens is less than 0, it will be set to 8192.
+// If neither are set, it will return ReasoningNone.
+// If effort is set, it will return the set effort.
+// If tokens are set, it will return the effort that is the closest to the set tokens.
+//   - (0, maxTokens/4) -> ReasoningLow
+//   - [maxTokens/4, maxTokens/3) -> ReasoningMedium
+//   - [maxTokens/3, inf) -> ReasoningHigh
+func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
+	if r == nil {
+		return ReasoningNone
+	}
+
+	if r.Effort != ReasoningNone {
+		return r.Effort
+	}
+
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
+
+	if r.Tokens > 0 {
+		switch {
+		case r.Tokens < maxTokens/4:
+			return ReasoningLow
+		case r.Tokens < maxTokens/3:
+			return ReasoningMedium
+		default:
+			return ReasoningHigh
+		}
+	}
+
+	return ReasoningNone
+}
+
+// GetTokens returns the number of tokens to use for reasoning based on kept values inside.
+// Maximum value is maxTokens*2/3 because we need to leave some tokens for the response.
+// If maxTokens is less than 0, it will be set to 8192.
+// If tokens are set, it will return the minimum of the set tokens and maxTokens*2/3.
+// If effort is set, it will return the maximum of the effort and maxTokens*2/3.
+// If neither are set, it will return 0 or -1 if effort is set to an invalid value.
+// Minimum correct values are:
+//   - 1024 for ReasoningLow
+//   - 2048 for ReasoningMedium
+//   - 4096 for ReasoningHigh
+func (r *ReasoningConfig) GetTokens(maxTokens int) int {
+	if r == nil {
+		return 0
+	}
+
+	if maxTokens <= 0 {
+		maxTokens = 8192
+	}
+
+	var tokens int
+	if r.Tokens > 0 {
+		tokens = r.Tokens
+	} else {
+		switch r.Effort {
+		case ReasoningLow:
+			tokens = max(maxTokens/4, 1024)
+		case ReasoningMedium:
+			tokens = max(maxTokens/3, 2048)
+		case ReasoningHigh:
+			tokens = max(maxTokens/2, 4096)
+		case ReasoningNone:
+			return 0 // disabled
+		default:
+			return -1 // error value to be handled on the server side
+		}
+	}
+
+	return min(min(tokens, maxTokens*2/3), MaxReasoningTokens)
+}
 
 // CallOptions is a set of options for calling models. Not all models support
 // all options.
@@ -20,10 +125,7 @@ type CallOptions struct {
 	StopWords []string `json:"stop_words"`
 	// StreamingFunc is a function to be called for each chunk of a streaming response.
 	// Return an error to stop streaming early.
-	StreamingFunc func(ctx context.Context, chunk []byte) error `json:"-"`
-	// StreamingReasoningFunc is a function to be called for each chunk of a streaming response.
-	// Return an error to stop streaming early.
-	StreamingReasoningFunc func(ctx context.Context, reasoningChunk, chunk []byte) error `json:"-"`
+	StreamingFunc streaming.Callback `json:"-"`
 	// TopK is the number of tokens to consider for top-k sampling.
 	TopK int `json:"top_k"`
 	// TopP is the cumulative probability for top-p sampling.
@@ -43,13 +145,16 @@ type CallOptions struct {
 	// PresencePenalty is the presence penalty for sampling.
 	PresencePenalty float64 `json:"presence_penalty"`
 
+	// Reasoning is the configuration for thinking of the model.
+	Reasoning *ReasoningConfig `json:"reasoning,omitempty"`
+
 	// JSONMode is a flag to enable JSON mode.
 	JSONMode bool `json:"json"`
 
 	// Tools is a list of tools to use. Each tool can be a specific tool or a function.
 	Tools []Tool `json:"tools,omitempty"`
 	// ToolChoice is the choice of tool to use, it can either be "none", "auto" (the default behavior), or a specific tool as described in the ToolChoice type.
-	ToolChoice any `json:"tool_choice"`
+	ToolChoice any `json:"tool_choice,omitempty"`
 
 	// Function defitions to include in the request.
 	// Deprecated: Use Tools instead.
@@ -164,16 +269,9 @@ func WithOptions(options CallOptions) CallOption {
 }
 
 // WithStreamingFunc specifies the streaming function to use.
-func WithStreamingFunc(streamingFunc func(ctx context.Context, chunk []byte) error) CallOption {
+func WithStreamingFunc(streamingFunc streaming.Callback) CallOption {
 	return func(o *CallOptions) {
 		o.StreamingFunc = streamingFunc
-	}
-}
-
-// WithStreamingReasoningFunc specifies the streaming reasoning function to use.
-func WithStreamingReasoningFunc(streamingReasoningFunc func(ctx context.Context, reasoningChunk, chunk []byte) error) CallOption {
-	return func(o *CallOptions) {
-		o.StreamingReasoningFunc = streamingReasoningFunc
 	}
 }
 
@@ -237,6 +335,20 @@ func WithFrequencyPenalty(frequencyPenalty float64) CallOption {
 func WithPresencePenalty(presencePenalty float64) CallOption {
 	return func(o *CallOptions) {
 		o.PresencePenalty = presencePenalty
+	}
+}
+
+// WithReasoning sets the reasoning configuration for the model call.
+// You can specify either the reasoning effort or the number of tokens to allocate for reasoning.
+// If both effort is ReasoningNone and tokens is 0, reasoning will be disabled.
+// Note: Most LLM providers expect only one of these options to be set at a time.
+// Internally, the options may be converted between each other according to predefined rules.
+func WithReasoning(effort ReasoningEffort, tokens int) CallOption {
+	return func(o *CallOptions) {
+		o.Reasoning = &ReasoningConfig{
+			Effort: effort,
+			Tokens: tokens,
+		}
 	}
 }
 

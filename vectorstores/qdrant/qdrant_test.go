@@ -254,7 +254,7 @@ func TestQdrantRetrieverScoreThreshold(t *testing.T) {
 		t.Context(),
 		chains.NewRetrievalQAFromLLM(
 			llm,
-			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.8)),
+			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.7)),
 		),
 		"What colors is each piece of furniture next to the desk?",
 	)

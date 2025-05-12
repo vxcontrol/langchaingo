@@ -8,6 +8,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/joho/godotenv"
 )
@@ -34,8 +35,8 @@ func main() {
 		"Write a long poem about how golang is a fantastic language.",
 		llms.WithTemperature(0.8),
 		llms.WithMaxTokens(4096),
-		llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
-			fmt.Print(string(chunk))
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	)
