@@ -45,5 +45,6 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GENAI_API_KEY: ${{ secrets.GENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: go test -v ./... -race -timeout=12m
 
