@@ -138,6 +138,6 @@ Here are some links to blog posts and articles on using Langchain Go:
 
 # Contributors
 
-<a href="https://github.com/tmc/langchaingo/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=tmc/langchaingo" />
+<a href="https://github.com/vxcontrol/langchaingo/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=vxcontrol/langchaingo" />
 </a>

@@ -1,9 +1,33 @@
-
 # Contributing to langchaingo
 
 First off, thanks for taking the time to contribute! ❤️
 
 All types of contributions are encouraged and valued. See the [Table of Contents](#table-of-contents) for different ways to help and details about how this project handles them. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. The community looks forward to your contributions. 🎉
+
+## Important: Fork Information
+
+This is a fork of the original [github.com/tmc/langchaingo](https://github.com/tmc/langchaingo) repository. This fork was created to incorporate functionality from open Pull Requests that haven't been merged into the original repository yet and to add custom improvements for use in the [PentAGI](https://github.com/vxcontrol/pentagi) project.
+
+### Branch Structure and Versioning
+
+This repository follows a specific branching strategy:
+
+- **main**: Fully synchronized with upstream (`tmc/langchaingo`). Never force-pushed.
+- **main-pull-requests**: Contains merged PRs from upstream that haven't been officially merged. Rebased on `main` after synchronization (commit hashes will change).
+- **main-vxcontrol**: Default branch containing all current enhancements. Rebased on `main-pull-requests` (commit hashes will change).
+- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable and never force-pushed.
+
+Release tags follow the format `v0.1.13-update.1`, where:
+- `v0.1.13` corresponds to the latest upstream release version
+- `-update.1` indicates our increment number (starting at 1 and incrementing with each new release)
+
+When using this fork in your projects, always reference **release tags** rather than commit hashes. For example:
+
+```
+go get github.com/vxcontrol/langchaingo@v0.1.13-update.1
+```
+
+For more details about this fork's structure and purpose, please refer to our [README](README.md).
 
 > And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
 > - Star the project
@@ -14,6 +38,8 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 ## Table of Contents
 
 - [Contributing to langchaingo](#contributing-to-langchaingo)
+  - [Important: Fork Information](#important-fork-information)
+    - [Branch Structure and Versioning](#branch-structure-and-versioning)
   - [Table of Contents](#table-of-contents)
   - [Code of Conduct](#code-of-conduct)
   - [I Have a Question](#i-have-a-question)
@@ -141,7 +167,9 @@ Click **Make a contribution** at the bottom of any docs page to make small chang
 
 2. Install or make sure **Golang** is updated.
 
-3. Create a working branch and start with your changes!
+3. Create a working branch from the `main-vxcontrol` branch and start with your changes!
+
+**Important**: Note that the `main-vxcontrol` branch undergoes rebasing as we sync with upstream, so its commit hashes will change over time. Always create Pull Requests based on the current state of the `main-vxcontrol` branch.
 
 #### Commit your update
 
@@ -150,6 +178,7 @@ Commit the changes once you are happy with them. Don't forget to self-review to 
 #### Pull Request
 
 When you're finished with the changes, create a pull request, also known as a PR.
+- Base your PR against the `main-vxcontrol` branch, not the `main` branch.
 - Name your Pull Request title clearly, concisely, and prefixed with the name of primarily affected package you changed according to [Go Contribute Guideline](https://go.dev/doc/contribute#commit_messages). (such as `memory: added interfaces` or `util: added helpers`)
 - **We strive to conceptually align with the Python and TypeScript versions of Langchain. Please link/reference the associated concepts in those codebases when introducing a new concept.**
 - Fill the "Ready for review" template so that we can review your PR. This template helps reviewers understand your changes as well as the purpose of your pull request.
@@ -164,6 +193,6 @@ Once you submit your PR, a team member will review your proposal. We may ask que
 
 Congratulations :tada::tada: The langchaingo team thanks you :sparkles:.
 
-Once your PR is merged, your contributions will be publicly visible on the repository contributors list.
+Once your PR is merged, your contributions will be included in the next release when enough changes have accumulated. Your changes will be included in the next stable release with fixed commit hashes.
 
 Now that you are part of the community!
