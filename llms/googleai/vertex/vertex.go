@@ -335,6 +335,8 @@ func convertAndStreamFromIterator(
 	iter *genai.GenerateContentResponseIterator,
 	opts *llms.CallOptions,
 ) (*llms.ContentResponse, error) {
+	defer streaming.CallWithDone(ctx, opts.StreamingFunc) //nolint:errcheck
+
 	candidate := &genai.Candidate{
 		Content: &genai.Content{},
 	}

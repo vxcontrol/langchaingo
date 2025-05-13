@@ -229,6 +229,7 @@ func parseStreamingChatResponse(ctx context.Context, r *http.Response, payload *
 			toolCallID++
 		}
 	}
+	defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
 
 	for streamResponse := range responseChan {
 		chunk := streamResponse.Result

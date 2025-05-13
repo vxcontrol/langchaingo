@@ -689,14 +689,22 @@ data: {"result":" Three","is_end":true}`,
 				Body: io.NopCloser(strings.NewReader(tt.body)),
 			}
 
-			var chunks []string
+			var (
+				chunks     []string
+				streamDone bool
+			)
 			req := &CompletionRequest{
 				StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
 					if tt.streamErr != nil {
 						return tt.streamErr
 					}
-					if chunk.Type == streaming.ChunkTypeText {
+					switch chunk.Type {
+					case streaming.ChunkTypeText:
 						chunks = append(chunks, chunk.Content)
+					case streaming.ChunkTypeDone:
+						streamDone = true
+					default:
+						// Ignore other chunk types
 					}
 					return nil
 				},
@@ -709,6 +717,7 @@ data: {"result":" Three","is_end":true}`,
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+				assert.True(t, streamDone)
 				assert.Equal(t, tt.wantText, result.Result)
 				if req.StreamingFunc != nil {
 					assert.Equal(t, tt.wantText, strings.Join(chunks, ""))

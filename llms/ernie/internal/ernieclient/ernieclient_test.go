@@ -114,7 +114,10 @@ func TestClient_CreateCompletionStream(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var chunks []string
+	var (
+		chunks     []string
+		streamDone bool
+	)
 	req := &CompletionRequest{
 		Messages: []Message{
 			{
@@ -125,8 +128,13 @@ func TestClient_CreateCompletionStream(t *testing.T) {
 		Temperature: 0.7,
 		Stream:      true,
 		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
+			switch chunk.Type {
+			case streaming.ChunkTypeText:
 				chunks = append(chunks, chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// Ignore other chunk types
 			}
 			return nil
 		},
@@ -135,6 +143,7 @@ func TestClient_CreateCompletionStream(t *testing.T) {
 	resp, err := client.CreateCompletion(ctx, DefaultCompletionModelPath, req)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
+	assert.True(t, streamDone)
 	assert.NotEmpty(t, chunks)
 }
 

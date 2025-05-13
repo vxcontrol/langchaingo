@@ -24,10 +24,10 @@ func TestTranscription(t *testing.T) {
 		}
 		whisper := NewWhisperOpenAI(os.Getenv("OPENAI_API_KEY"), opts...)
 
-		rsp, err := whisper.Load(t.Context())
+		resp, err := whisper.Load(t.Context())
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, rsp)
+		assert.NotEmpty(t, resp)
 	})
 
 	t.Run("Test from url", func(t *testing.T) {
@@ -40,9 +40,9 @@ func TestTranscription(t *testing.T) {
 		}
 		whisper := NewWhisperOpenAI(os.Getenv("OPENAI_API_KEY"), opts...)
 
-		rsp, err := whisper.Load(t.Context())
+		resp, err := whisper.Load(t.Context())
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, rsp)
+		assert.NotEmpty(t, resp)
 	})
 }

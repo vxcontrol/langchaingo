@@ -3,6 +3,7 @@ package llms_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -193,12 +194,15 @@ func TestWithOptions(t *testing.T) {
 	}
 }
 
-func TestWithStreamingFunc(t *testing.T) {
-	called := false
-	var gotReasoning, gotChunk string
-	var gotToolCall streaming.ToolCall
+func TestWithStreamingFunc(t *testing.T) { //nolint:funlen
+	var (
+		called                 int
+		gotDone                bool
+		gotReasoning, gotChunk string
+		gotToolCall            streaming.ToolCall
+	)
 	testFunc := func(ctx context.Context, chunk streaming.Chunk) error {
-		called = true
+		called++
 		switch chunk.Type {
 		case streaming.ChunkTypeReasoning:
 			gotReasoning = chunk.ReasoningContent
@@ -206,6 +210,10 @@ func TestWithStreamingFunc(t *testing.T) {
 			gotChunk = chunk.Content
 		case streaming.ChunkTypeToolCall:
 			gotToolCall = chunk.ToolCall
+		case streaming.ChunkTypeDone:
+			gotDone = true
+		default:
+			return fmt.Errorf("unexpected chunk type: %s", chunk.Type)
 		}
 		return nil
 	}
@@ -236,9 +244,15 @@ func TestWithStreamingFunc(t *testing.T) {
 	if err := opts.StreamingFunc(ctx, streaming.NewToolCallChunk(toolCall)); err != nil {
 		t.Errorf("StreamingFunc with tool call chunk returned error: %v", err)
 	}
+	if err := opts.StreamingFunc(ctx, streaming.NewDoneChunk()); err != nil {
+		t.Errorf("StreamingFunc with done chunk returned error: %v", err)
+	}
 
-	if !called {
-		t.Error("StreamingFunc was not called")
+	if called != 4 {
+		t.Errorf("StreamingFunc was not called 4 times, got %d", called)
+	}
+	if !gotDone {
+		t.Error("StreamingFunc was not called with done chunk")
 	}
 	if gotReasoning != reasoning {
 		t.Errorf("StreamingFunc reasoning = %s, want %s", gotReasoning, reasoning)

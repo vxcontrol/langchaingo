@@ -95,6 +95,7 @@ func (c *Client) GenerateContent(ctx context.Context, request *GenerateContentRe
 
 		return &generateResponse, nil
 	}
+	defer streaming.CallWithDone(ctx, request.StreamingFunc) //nolint:errcheck
 
 	scanner := bufio.NewScanner(response.Body)
 	// increase the buffer size to avoid running out of space

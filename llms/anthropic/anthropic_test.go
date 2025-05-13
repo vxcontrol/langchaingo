@@ -45,11 +45,11 @@ func TestGenerateContent(t *testing.T) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "feet", strings.ToLower(c1.Content))
 }
 
@@ -90,12 +90,12 @@ func TestGenerateContentWithTool(t *testing.T) {
 	}
 
 	// Ask a questions about the weather and let the model know that the tool is available
-	rsp, err := llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
+	resp, err := llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
 	require.NoError(t, err)
 
 	// Expect a tool call in the response
-	require.NotEmpty(t, rsp.Choices)
-	choice := rsp.Choices[0]
+	require.NotEmpty(t, resp.Choices)
+	choice := resp.Choices[0]
 	toolCall := choice.ToolCalls[0]
 	assert.Equal(t, "getCurrentWeather", toolCall.FunctionCall.Name)
 
@@ -132,11 +132,11 @@ func TestGenerateContentWithTool(t *testing.T) {
 	contents = append(contents, weatherCallResponse)
 
 	// Generate answer with the tool response
-	rsp, err = llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
+	resp, err = llm.GenerateContent(t.Context(), contents, llms.WithTools(availableTools))
 	require.NoError(t, err)
 
-	require.NotEmpty(t, rsp.Choices)
-	choice = rsp.Choices[0]
+	require.NotEmpty(t, resp.Choices)
+	choice = resp.Choices[0]
 	assert.Regexp(t, "72", choice.Content)
 }
 
@@ -160,7 +160,7 @@ func TestGenerateContentWithReasoning(t *testing.T) {
 
 	// Test with medium level of reasoning, explicitly set max_tokens higher than thinking budget
 	// When thinking is enabled, temperature must be set to 1 as per API requirements
-	rsp, err := llm.GenerateContent(
+	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithReasoning(llms.ReasoningNone, 2048),
@@ -169,8 +169,8 @@ func TestGenerateContentWithReasoning(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Contains(t, c1.Content, "96")
 	assert.NotEmpty(t, c1.ReasoningContent)
 
@@ -193,11 +193,19 @@ func TestGenerateContentWithStreaming(t *testing.T) {
 		},
 	}
 
-	var streamedChunks []string
+	var (
+		streamedChunks []string
+		streamedDone   bool
+	)
 
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
-		if chunk.Type == streaming.ChunkTypeText {
+		switch chunk.Type { //nolint:exhaustive
+		case streaming.ChunkTypeText:
 			streamedChunks = append(streamedChunks, chunk.Content)
+		case streaming.ChunkTypeDone:
+			streamedDone = true
+		default:
+			// skip other chunks
 		}
 		return nil
 	}
@@ -205,6 +213,7 @@ func TestGenerateContentWithStreaming(t *testing.T) {
 	resp, err := llm.GenerateContent(t.Context(), content, llms.WithStreamingFunc(streamingFunc))
 	require.NoError(t, err)
 
+	assert.True(t, streamedDone)
 	assert.Greater(t, len(streamedChunks), 0)
 
 	fullResponse := strings.Join(streamedChunks, "")
@@ -232,17 +241,24 @@ func TestGenerateContentWithReasoningAndStreaming(t *testing.T) {
 		},
 	}
 
-	var streamedContent []string
-	var streamedReasoning []string
+	var (
+		streamedContent   []string
+		streamedReasoning []string
+		streamedDone      bool
+	)
 
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 		switch chunk.Type {
+		case streaming.ChunkTypeNone:
+			t.Errorf("unexpected chunk type: %s", chunk.Type)
 		case streaming.ChunkTypeReasoning:
 			streamedReasoning = append(streamedReasoning, chunk.ReasoningContent)
 		case streaming.ChunkTypeText:
 			streamedContent = append(streamedContent, chunk.Content)
 		case streaming.ChunkTypeToolCall:
 			// skip tool call chunks
+		case streaming.ChunkTypeDone:
+			streamedDone = true
 		}
 		return nil
 	}
@@ -257,6 +273,7 @@ func TestGenerateContentWithReasoningAndStreaming(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	assert.True(t, streamedDone)
 	assert.Greater(t, len(streamedContent), 0)
 	assert.Greater(t, len(streamedReasoning), 0)
 
@@ -331,6 +348,7 @@ func TestGenerateContentWithToolAndStreaming(t *testing.T) {
 
 	var (
 		streamedContent      []string
+		streamedDone         bool
 		toolCallDetected     = make(map[string]struct{})
 		respToolCallDetected = make(map[string]struct{})
 		toolCalls            = make(map[string]*streaming.ToolCall)
@@ -338,6 +356,8 @@ func TestGenerateContentWithToolAndStreaming(t *testing.T) {
 
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 		switch chunk.Type {
+		case streaming.ChunkTypeNone:
+			t.Errorf("unexpected chunk type: %s", chunk.Type)
 		case streaming.ChunkTypeText:
 			streamedContent = append(streamedContent, chunk.Content)
 		case streaming.ChunkTypeReasoning:
@@ -358,6 +378,8 @@ func TestGenerateContentWithToolAndStreaming(t *testing.T) {
 			} else {
 				streaming.AppendToolCall(toolCall, resToolCall)
 			}
+		case streaming.ChunkTypeDone:
+			streamedDone = true
 		}
 
 		return nil
@@ -388,6 +410,7 @@ func TestGenerateContentWithToolAndStreaming(t *testing.T) {
 	assert.Equal(t, float64(50), calculateTipArgs["billAmount"])
 
 	// Verify the streamed content
+	assert.True(t, streamedDone)
 	assert.Greater(t, len(streamedContent), 0)
 
 	fullContent := strings.Join(streamedContent, "")
@@ -434,21 +457,28 @@ func TestLegacyTextCompletionsAPI(t *testing.T) {
 	}
 
 	// Test the legacy API with streaming
-	var streamedChunks []string
+	var (
+		streamedChunks []string
+		streamedDone   bool
+	)
 
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 		switch chunk.Type {
+		case streaming.ChunkTypeNone:
+			t.Errorf("unexpected chunk type: %s", chunk.Type)
 		case streaming.ChunkTypeText:
 			streamedChunks = append(streamedChunks, chunk.Content)
 		case streaming.ChunkTypeReasoning:
 			t.Errorf("unexpected reasoning chunk: %s", chunk.ReasoningContent)
 		case streaming.ChunkTypeToolCall:
 			t.Errorf("unexpected tool call chunk: %v", chunk.ToolCall)
+		case streaming.ChunkTypeDone:
+			streamedDone = true
 		}
 		return nil
 	}
 
-	rsp, err := llm.GenerateContent(
+	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithStreamingFunc(streamingFunc),
@@ -456,11 +486,12 @@ func TestLegacyTextCompletionsAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the response content contains the answer
-	assert.Equal(t, 1, len(rsp.Choices))
-	assert.Contains(t, rsp.Choices[0].Content, "Paris")
+	assert.Equal(t, 1, len(resp.Choices))
+	assert.Contains(t, resp.Choices[0].Content, "Paris")
 
 	// Verify we received chunks
+	assert.True(t, streamedDone)
 	assert.Greater(t, len(streamedChunks), 0)
 	fullContent := strings.Join(streamedChunks, "")
-	assert.Equal(t, fullContent, rsp.Choices[0].Content)
+	assert.Equal(t, fullContent, resp.Choices[0].Content)
 }

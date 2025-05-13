@@ -25,7 +25,7 @@ func main() {
 		ctx,
 		content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			fmt.Print(chunk.String())
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	)

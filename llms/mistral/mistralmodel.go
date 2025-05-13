@@ -204,6 +204,7 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 		Content:        "",
 		GenerationInfo: map[string]any{},
 	}
+	defer streaming.CallWithDone(ctx, callOptions.StreamingFunc) //nolint:errcheck
 
 	for chatResChunk := range chatResChan {
 		chunkStr := ""

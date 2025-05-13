@@ -22,7 +22,7 @@ func main() {
 		"Human: Who was the first man to walk on the moon?\nAssistant:",
 		llms.WithTemperature(0.8),
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			fmt.Print(chunk.String())
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	)

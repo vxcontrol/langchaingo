@@ -404,10 +404,18 @@ func TestClient_CreateCompletion_Streaming(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a channel to capture streamed content
-	var streamedContent []string
+	var (
+		streamedContent []string
+		streamDone      bool
+	)
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
-		if chunk.Type == streaming.ChunkTypeText {
+		switch chunk.Type {
+		case streaming.ChunkTypeText:
 			streamedContent = append(streamedContent, chunk.Content)
+		case streaming.ChunkTypeDone:
+			streamDone = true
+		default:
+			// ignore other chunk types
 		}
 		return nil
 	}
@@ -523,6 +531,7 @@ func TestClient_CreateCompletion_Streaming(t *testing.T) {
 
 	// Validate results
 	require.NotNil(t, resp)
+	require.True(t, streamDone)
 	require.Len(t, resp.Choices, 1)
 	assert.Equal(t, "Once upon a time, there was a brave knight.", resp.Choices[0].Content)
 	assert.Equal(t, AnthropicCompletionReasonEndTurn, resp.Choices[0].StopReason)
@@ -742,8 +751,15 @@ func TestNewClient(t *testing.T) {
 func TestClient_CreateCompletion_StreamingCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 
-	var streamedContent []string
+	var (
+		streamedContent []string
+		streamDone      bool
+	)
 	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
+		if chunk.Type == streaming.ChunkTypeDone {
+			streamDone = true
+			return nil
+		}
 		// Cancel after first chunk
 		if len(streamedContent) == 0 {
 			cancel()
@@ -805,6 +821,7 @@ func TestClient_CreateCompletion_StreamingCancellation(t *testing.T) {
 	assert.GreaterOrEqual(t, len(streamedContent), 1)
 	// The exact number of chunks processed depends on timing, but it should be less than all 5
 	assert.Less(t, len(streamedContent), 5)
+	assert.True(t, streamDone)
 }
 
 // Helper functions to test provider-specific completion methods with our mock
@@ -1101,6 +1118,7 @@ func testCreateMetaCompletionWithMock(ctx context.Context, client *mockBedrockCl
 // Helper function to test streaming response parsing
 func testParseStreamingCompletionResponse(ctx context.Context, stream *mockEventStream, options llms.CallOptions) *llms.ContentResponse {
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]interface{}{}}}
+	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	for e := range stream.Events() {
 		if err := stream.Err(); err != nil {

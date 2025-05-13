@@ -110,6 +110,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 		return nil
 	}
+	defer streaming.CallWithDone(ctx, opts.StreamingFunc) //nolint:errcheck
 
 	err := o.client.GenerateChat(ctx, req, fn)
 	if err != nil {

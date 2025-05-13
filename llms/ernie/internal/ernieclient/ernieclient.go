@@ -335,6 +335,7 @@ func parseStreamingCompletionResponse(ctx context.Context, resp *http.Response, 
 	}()
 	// Parse response
 	response := Completion{}
+	defer streaming.CallWithDone(ctx, req.StreamingFunc) //nolint:errcheck
 
 	var lastResponse *Completion
 	for streamResponse := range responseChan {

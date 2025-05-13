@@ -193,11 +193,11 @@ func testMultiContentText(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content)
+	resp, err := llm.GenerateContent(t.Context(), content)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "(?i)dog|carnivo|canid|canine", c1.Content)
 	assert.Contains(t, c1.GenerationInfo, "output_tokens")
 	assert.NotZero(t, c1.GenerationInfo["output_tokens"])
@@ -212,11 +212,11 @@ func testMultiContentTextUsingTextParts(t *testing.T, llm llms.Model) {
 		"What kind of mammal am I?",
 	)
 
-	rsp, err := llm.GenerateContent(t.Context(), []llms.MessageContent{content})
+	resp, err := llm.GenerateContent(t.Context(), []llms.MessageContent{content})
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "(?i)dog|canid|canine", c1.Content)
 }
 
@@ -224,10 +224,10 @@ func testGenerateFromSinglePrompt(t *testing.T, llm llms.Model) {
 	t.Helper()
 
 	prompt := "name all the planets in the solar system"
-	rsp, err := llms.GenerateFromSinglePrompt(t.Context(), llm, prompt)
+	resp, err := llms.GenerateFromSinglePrompt(t.Context(), llm, prompt)
 	require.NoError(t, err)
 
-	assert.Regexp(t, "(?i)jupiter", rsp)
+	assert.Regexp(t, "(?i)jupiter", resp)
 }
 
 func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
@@ -248,11 +248,11 @@ func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	assert.Regexp(t, "(?i)spain.*larger", c1.Content)
 }
 
@@ -270,11 +270,11 @@ func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	checkMatch(t, c1.Content, "(manzana|naranja)")
 }
 
@@ -294,15 +294,15 @@ func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(
+	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithModel("gemini-2.0-flash"),
 	)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	checkMatch(t, c1.Content, "parrot")
 }
 
@@ -325,15 +325,15 @@ func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	rsp, err := llm.GenerateContent(
+	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithModel("gemini-2.0-flash"),
 	)
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	checkMatch(t, c1.Content, "parrot")
 }
 
@@ -365,11 +365,11 @@ func testCandidateCountSetting(t *testing.T, llm llms.Model) {
 	}
 
 	{
-		rsp, err := llm.GenerateContent(t.Context(), content,
+		resp, err := llm.GenerateContent(t.Context(), content,
 			llms.WithCandidateCount(1), llms.WithTemperature(1))
 		require.NoError(t, err)
 
-		assert.Len(t, rsp.Choices, 1)
+		assert.Len(t, resp.Choices, 1)
 	}
 
 	// TODO: test multiple candidates when the backend supports it
@@ -384,21 +384,30 @@ func testWithStreaming(t *testing.T, llm llms.Model) {
 		"Tell me more about my taxonomy",
 	)
 
-	var sb strings.Builder
-	rsp, err := llm.GenerateContent(
+	var (
+		sb         strings.Builder
+		streamDone bool
+	)
+	resp, err := llm.GenerateContent(
 		t.Context(),
 		[]llms.MessageContent{content},
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
+			switch chunk.Type { //nolint:exhaustive
+			case streaming.ChunkTypeText:
 				sb.WriteString(chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// skip other chunks
 			}
 			return nil
 		}))
 
 	require.NoError(t, err)
 
-	assert.NotEmpty(t, rsp.Choices)
-	c1 := rsp.Choices[0]
+	assert.True(t, streamDone)
+	assert.NotEmpty(t, resp.Choices)
+	c1 := resp.Choices[0]
 	checkMatch(t, c1.Content, "(dog|canid)")
 	checkMatch(t, sb.String(), "(dog|canid)")
 }
@@ -589,11 +598,11 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 	// First, try this with a very low MaxTokens setting for such a query; expect
 	// a stop reason that max of tokens was reached.
 	{
-		rsp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(24))
+		resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(24))
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, rsp.Choices)
-		c1 := rsp.Choices[0]
+		assert.NotEmpty(t, resp.Choices)
+		c1 := resp.Choices[0]
 		// TODO: Google genai models are returning "FinishReasonStop" instead of "MaxTokens".
 		assert.Regexp(t, "(?i)(MaxTokens|FinishReasonStop)", c1.StopReason)
 	}
@@ -601,11 +610,11 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 	// Now, try it again with a much larger MaxTokens setting and expect to
 	// finish successfully and generate a response.
 	{
-		rsp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(2048))
+		resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(2048))
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, rsp.Choices)
-		c1 := rsp.Choices[0]
+		assert.NotEmpty(t, resp.Choices)
+		c1 := resp.Choices[0]
 		checkMatch(t, c1.StopReason, "stop")
 		checkMatch(t, c1.Content, "(dog|breed|canid|canine)")
 	}

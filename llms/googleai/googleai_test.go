@@ -208,13 +208,21 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 		},
 	}
 
-	var streamedContent string
+	var (
+		streamedContent strings.Builder
+		streamDone      bool
+	)
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
-				streamedContent += chunk.Content
+			switch chunk.Type {
+			case streaming.ChunkTypeText:
+				streamedContent.WriteString(chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// Ignore other chunk types
 			}
 			return nil
 		}),
@@ -222,13 +230,14 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	assert.True(t, streamDone, "Streaming should be done")
 	assert.NotEmpty(t, resp.Choices)
 	assert.NotEmpty(t, streamedContent)
 	// Check for cat-related content (the AI might use the cat's name instead of "cat")
-	catRelated := strings.Contains(strings.ToLower(streamedContent), "cat") ||
-		strings.Contains(streamedContent, "Clementine") ||
-		strings.Contains(streamedContent, "purr") ||
-		strings.Contains(streamedContent, "meow")
+	catRelated := strings.Contains(strings.ToLower(streamedContent.String()), "cat") ||
+		strings.Contains(streamedContent.String(), "Clementine") ||
+		strings.Contains(streamedContent.String(), "purr") ||
+		strings.Contains(streamedContent.String(), "meow")
 	assert.True(t, catRelated, "Response should contain cat-related content")
 }
 

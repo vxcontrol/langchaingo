@@ -137,40 +137,40 @@ func TestCache_Call_Streaming(t *testing.T) {
 	llm := New(mockLLM, mockCache)
 
 	stream := false
+	streamDone := false
+	streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
+		switch chunk.Type { //nolint:exhaustive
+		case streaming.ChunkTypeText:
+			rq.Equal("world", chunk.Content)
+			stream = true
+		case streaming.ChunkTypeDone:
+			streamDone = true
+		default:
+			// skip other chunks
+		}
+		return nil
+	}
 
 	// expect that the value is fetched from the LLM and cached
-	act, err := llm.Call(ctx, "hello", llms.WithStreamingFunc(
-		func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
-				rq.Equal("world", chunk.Content)
-				stream = true
-			}
-
-			return nil
-		}))
+	act, err := llm.Call(ctx, "hello", llms.WithStreamingFunc(streamingFunc))
 	rq.NoError(err)
 	rq.Equal("world", act)
 	rq.Equal(1, mockLLM.called)
 	rq.Equal(1, mockCache.puts)
 	rq.False(mockCache.hit)
 	rq.True(stream)
+	rq.True(streamDone)
 
 	stream = false
+	streamDone = false
 
 	// expect that the cached value is returned
-	act, err = llm.Call(ctx, "hello", llms.WithStreamingFunc(
-		func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
-				rq.Equal("world", chunk.Content)
-				stream = true
-			}
-
-			return nil
-		}))
+	act, err = llm.Call(ctx, "hello", llms.WithStreamingFunc(streamingFunc))
 	rq.NoError(err)
 	rq.Equal("world", act)
 	rq.Equal(1, mockLLM.called)
 	rq.Equal(1, mockCache.puts)
 	rq.True(mockCache.hit)
 	rq.True(stream)
+	rq.True(streamDone)
 }

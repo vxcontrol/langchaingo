@@ -66,7 +66,10 @@ func TestClient_GenerateContent(t *testing.T) {
 	})
 
 	t.Run("test generate content stream success", func(t *testing.T) {
-		var chunks []string
+		var (
+			chunks     []string
+			streamDone bool
+		)
 		request := &GenerateContentRequest{
 			Messages: []Message{
 				{Role: "system", Content: "You are a helpful assistant."},
@@ -74,8 +77,13 @@ func TestClient_GenerateContent(t *testing.T) {
 			},
 			Stream: true,
 			StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
-				if chunk.Type == streaming.ChunkTypeText {
+				switch chunk.Type {
+				case streaming.ChunkTypeText:
 					chunks = append(chunks, chunk.Content)
+				case streaming.ChunkTypeDone:
+					streamDone = true
+				default:
+					// Ignore other chunk types
 				}
 				return nil
 			},
@@ -88,6 +96,10 @@ func TestClient_GenerateContent(t *testing.T) {
 
 		if response == nil {
 			t.Fatal("GenerateContent() streaming response is nil")
+		}
+
+		if !streamDone {
+			t.Fatal("GenerateContent() streaming is not done")
 		}
 
 		// For streaming, we expect chunks to be collected

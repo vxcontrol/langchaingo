@@ -93,7 +93,10 @@ func TestClient_CreateMessageStream(t *testing.T) {
 	client, err := New(apiKey, "claude-3-opus-20240229", DefaultBaseURL, WithHTTPClient(rr.Client()))
 	require.NoError(t, err)
 
-	var chunks []string
+	var (
+		chunks     []string
+		streamDone bool
+	)
 	req := &MessageRequest{
 		Model: "claude-3-opus-20240229",
 		Messages: []ChatMessage{
@@ -110,8 +113,13 @@ func TestClient_CreateMessageStream(t *testing.T) {
 		MaxTokens: 100,
 		Stream:    true,
 		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
+			switch chunk.Type {
+			case streaming.ChunkTypeText:
 				chunks = append(chunks, chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// ignore other chunk types
 			}
 			return nil
 		},
@@ -120,6 +128,7 @@ func TestClient_CreateMessageStream(t *testing.T) {
 	resp, err := client.CreateMessage(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
+	assert.True(t, streamDone)
 	assert.NotEmpty(t, chunks)
 }
 

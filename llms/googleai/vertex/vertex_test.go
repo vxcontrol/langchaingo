@@ -204,13 +204,21 @@ func TestVertexWithStreaming(t *testing.T) {
 		},
 	}
 
-	var streamedContent strings.Builder
+	var (
+		streamedContent strings.Builder
+		streamDone      bool
+	)
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
+			switch chunk.Type {
+			case streaming.ChunkTypeText:
 				streamedContent.WriteString(chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// Ignore other chunk types
 			}
 			return nil
 		}),
@@ -218,6 +226,7 @@ func TestVertexWithStreaming(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	require.True(t, streamDone)
 	assert.NotEmpty(t, resp.Choices)
 	assert.NotEmpty(t, streamedContent.String())
 	assert.Contains(t, streamedContent.String(), "robot")

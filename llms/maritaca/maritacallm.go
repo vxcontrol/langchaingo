@@ -135,6 +135,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 		return nil
 	}
+	defer streaming.CallWithDone(ctx, opts.StreamingFunc) //nolint:errcheck
+
 	o.client.Token = o.options.maritacaOptions.Token
 	err := o.client.Generate(ctx, req, fn)
 	if err != nil {

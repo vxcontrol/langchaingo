@@ -241,6 +241,7 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 		return nil, errors.New("no stream")
 	}
 	defer stream.Close()
+	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]interface{}{}}}
 	for e := range stream.Events() {

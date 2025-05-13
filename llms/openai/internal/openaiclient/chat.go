@@ -559,6 +559,8 @@ func combineStreamingChatResponse(
 	payload *ChatRequest,
 	responseChan chan StreamedChatResponsePayload,
 ) (*ChatCompletionResponse, error) {
+	defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
+
 	var (
 		response  ChatCompletionResponse
 		splitters []reasoning.ChunkContentSplitter
