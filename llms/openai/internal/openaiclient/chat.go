@@ -30,24 +30,37 @@ type StreamOptions struct {
 	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
+// ReasoningOptions is enabling reasoning if the model supports it.
+// There should have to use one of the fields: effort or max_tokens.
+type ReasoningOptions struct {
+	Effort    llms.ReasoningEffort `json:"effort,omitempty"`
+	MaxTokens int                  `json:"max_tokens,omitempty"`
+}
+
 // ChatRequest is a request to complete a chat completion..
 type ChatRequest struct {
-	Model       string         `json:"model"`
-	Messages    []*ChatMessage `json:"messages"`
-	Temperature float64        `json:"temperature,omitempty"`
-	TopP        float64        `json:"top_p,omitempty"`
-	// Deprecated: Use MaxCompletionTokens
-	MaxTokens           int      `json:"-"`
-	MaxCompletionTokens int      `json:"max_completion_tokens,omitempty"`
-	N                   int      `json:"n,omitempty"`
-	StopWords           []string `json:"stop,omitempty"`
-	Stream              bool     `json:"stream,omitempty"`
-	FrequencyPenalty    float64  `json:"frequency_penalty,omitempty"`
-	PresencePenalty     float64  `json:"presence_penalty,omitempty"`
-	Seed                int      `json:"seed,omitempty"`
+	Model               string         `json:"model"`
+	Messages            []*ChatMessage `json:"messages"`
+	Temperature         float64        `json:"temperature,omitempty"`
+	TopP                float64        `json:"top_p,omitempty"`
+	MaxCompletionTokens int            `json:"max_completion_tokens,omitempty"`
+	N                   int            `json:"n,omitempty"`
+	StopWords           []string       `json:"stop,omitempty"`
+	Stream              bool           `json:"stream,omitempty"`
+	FrequencyPenalty    float64        `json:"frequency_penalty,omitempty"`
+	PresencePenalty     float64        `json:"presence_penalty,omitempty"`
+	Seed                int            `json:"seed,omitempty"`
 
-	// Reasoning effort is enabling reasoning if the model supports it.
+	// ReasoningEffort enables reasoning mode for models that support it.
+	// Set this field when you want to use the legacy reasoning configuration.
+	// Do not use ReasoningEffort together with Reasoning; only one should be set at a time.
 	ReasoningEffort *llms.ReasoningEffort `json:"reasoning_effort,omitempty"`
+
+	// Reasoning provides advanced reasoning configuration for models that support it.
+	// Use either the Effort or MaxTokens field to control reasoning behavior.
+	// This field should be set when using the modern reasoning format.
+	// Do not set both Reasoning and ReasoningEffort at the same time, as they are mutually exclusive.
+	Reasoning *ReasoningOptions `json:"reasoning,omitempty"`
 
 	// ResponseFormat is the format of the response.
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
@@ -164,8 +177,13 @@ type ChatMessage struct { //nolint:musttag
 	// Only present in tool messages.
 	ToolCallID string `json:"tool_call_id,omitempty"`
 
-	// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
+	// This field is primarily used by reasoning-capable models. It contains
+	// the assistant's step-by-step reasoning or thought process, provided before the final answer.
 	ReasoningContent string `json:"reasoning_content,omitempty"`
+
+	// This field serves as a fallback for ReasoningContent. If ReasoningContent is empty,
+	// Reasoning may contain the assistant's reasoning or explanation.
+	Reasoning string `json:"reasoning,omitempty"`
 }
 
 func (m ChatMessage) MarshalJSON() ([]byte, error) {
@@ -191,9 +209,13 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 			// Only present in tool messages.
 			ToolCallID string `json:"tool_call_id,omitempty"`
 
-			// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
+			// Reasoning content result fields
 			ReasoningContent string `json:"reasoning_content,omitempty"`
+			Reasoning        string `json:"reasoning,omitempty"`
 		}(m)
+		if msg.ReasoningContent == "" && msg.Reasoning != "" {
+			msg.ReasoningContent = msg.Reasoning
+		}
 		return json.Marshal(msg)
 	}
 	msg := struct {
@@ -209,9 +231,13 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		// Only present in tool messages.
 		ToolCallID string `json:"tool_call_id,omitempty"`
 
-		// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
+		// Reasoning content result fields
 		ReasoningContent string `json:"reasoning_content,omitempty"`
+		Reasoning        string `json:"reasoning,omitempty"`
 	}(m)
+	if msg.ReasoningContent == "" && msg.Reasoning != "" {
+		msg.ReasoningContent = msg.Reasoning
+	}
 	return json.Marshal(msg)
 }
 
@@ -237,12 +263,16 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 		// Only present in tool messages.
 		ToolCallID string `json:"tool_call_id,omitempty"`
 
-		// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
+		// Reasoning content result fields
 		ReasoningContent string `json:"reasoning_content,omitempty"`
+		Reasoning        string `json:"reasoning,omitempty"`
 	}{}
 	err := json.Unmarshal(data, &msg)
 	if err != nil {
 		return err
+	}
+	if msg.ReasoningContent == "" && msg.Reasoning != "" {
+		msg.ReasoningContent = msg.Reasoning
 	}
 	*m = ChatMessage(msg)
 	return nil
@@ -407,8 +437,8 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 			payload.StreamOptions = &StreamOptions{IncludeUsage: true}
 		}
 	}
-	// Build request payload
 
+	// Build request payload
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -457,6 +487,9 @@ func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
 
 	// Try to restore reasoning content (some model providers don't return reasoning content)
 	for _, choice := range response.Choices {
+		if choice.Message.ReasoningContent == "" {
+			choice.Message.ReasoningContent = choice.Message.Reasoning
+		}
 		if choice.Message.ReasoningContent == "" {
 			choice.Message.ReasoningContent, choice.Message.Content = reasoning.SplitContent(choice.Message.Content)
 		}
