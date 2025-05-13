@@ -123,6 +123,7 @@ func parseStreamingCompletionResponse(ctx context.Context, r *http.Response, pay
 	}()
 	// Parse response
 	response := CompletionResponsePayload{}
+	defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
 
 	var lastResponse *CompletionResponsePayload
 	for streamResponse := range responseChan {

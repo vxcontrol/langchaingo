@@ -62,11 +62,14 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 	}
 
 	if response := c.cache.Get(ctx, key); response != nil {
-		if opts.StreamingFunc != nil && len(response.Choices) > 0 {
+		if len(response.Choices) > 0 {
 			// only stream the first choice.
 			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Choices[0].Content); err != nil {
 				return nil, err
 			}
+		}
+		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
+			return nil, err
 		}
 
 		return response, nil

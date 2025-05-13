@@ -63,6 +63,15 @@ func TestChunk(t *testing.T) {
 	assert.Equal(t, toolCall, toolCallChunk.ToolCall)
 	assert.Contains(t, toolCallChunk.String(), "ToolCall: ToolCall{ID: 123")
 
+	// Test done chunk
+	doneChunk := NewDoneChunk()
+	assert.Equal(t, ChunkTypeDone, doneChunk.Type)
+	assert.Equal(t, "Done", doneChunk.String())
+
+	// Test empty chunk type
+	noneChunk := Chunk{Type: ChunkTypeNone}
+	assert.Equal(t, "None", noneChunk.String())
+
 	// Test Unknown chunk type string representation
 	unknownChunk := Chunk{Type: "unknown"}
 	assert.Equal(t, "unexpected chunk type: unknown", unknownChunk.String())
@@ -246,6 +255,38 @@ func TestAppendToolCall(t *testing.T) {
 	assert.Equal(t, `{"location": "New York"}, "unit": "celsius"}`, dst.Arguments)
 }
 
+func TestCallWithDone(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	var receivedDone bool
+
+	callback := func(_ context.Context, chunk Chunk) error {
+		assert.Equal(t, ChunkTypeDone, chunk.Type)
+		receivedDone = true
+		return nil
+	}
+
+	// Test with valid callback
+	err := CallWithDone(ctx, callback)
+	require.NoError(t, err)
+	assert.True(t, receivedDone)
+
+	// Test with nil callback
+	err = CallWithDone(ctx, nil)
+	require.NoError(t, err)
+
+	// Test with error from callback
+	expectedErr := errors.New("callback error")
+	errorCallback := func(_ context.Context, _ Chunk) error {
+		return expectedErr
+	}
+	err = CallWithDone(ctx, errorCallback)
+	require.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}
+
+//nolint:funlen
 func TestIntegration(t *testing.T) {
 	t.Parallel()
 
@@ -255,15 +296,20 @@ func TestIntegration(t *testing.T) {
 	var textChunks []string
 	var reasoningChunks []string
 	var toolCalls []ToolCall
+	var doneReceived bool
 
 	callback := func(_ context.Context, chunk Chunk) error {
 		switch chunk.Type {
+		case ChunkTypeNone:
+			// Just ensure we can handle this type
 		case ChunkTypeText:
 			textChunks = append(textChunks, chunk.Content)
 		case ChunkTypeReasoning:
 			reasoningChunks = append(reasoningChunks, chunk.ReasoningContent)
 		case ChunkTypeToolCall:
 			toolCalls = append(toolCalls, chunk.ToolCall)
+		case ChunkTypeDone:
+			doneReceived = true
 		}
 		return nil
 	}
@@ -288,6 +334,9 @@ func TestIntegration(t *testing.T) {
 	timeTool := NewToolCall("456", "getTime", `{}`)
 	_ = CallWithToolCall(ctx, callback, timeTool)
 
+	// Signal stream completion
+	_ = CallWithDone(ctx, callback)
+
 	// Verify results
 	assert.Equal(t, []string{"Hello", ", ", "world!"}, textChunks)
 	assert.Equal(t, []string{
@@ -308,6 +357,9 @@ func TestIntegration(t *testing.T) {
 	assert.Equal(t, "456", toolCalls[2].ID)
 	assert.Equal(t, "getTime", toolCalls[2].Name)
 	assert.Equal(t, `{}`, toolCalls[2].Arguments)
+
+	// Verify done was received
+	assert.True(t, doneReceived)
 }
 
 func TestToolCallMarshalUnmarshal(t *testing.T) {
@@ -358,4 +410,13 @@ func TestChunkMarshalUnmarshal(t *testing.T) {
 	err = json.Unmarshal(data, &unmarshaled)
 	require.NoError(t, err)
 	assert.Equal(t, toolCallChunk, unmarshaled)
+
+	// Test done chunk
+	doneChunk := NewDoneChunk()
+	data, err = json.Marshal(doneChunk)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(data, &unmarshaled)
+	require.NoError(t, err)
+	assert.Equal(t, doneChunk, unmarshaled)
 }

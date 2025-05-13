@@ -27,7 +27,7 @@ func main() {
 		content,
 		llms.WithMaxTokens(1024),
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			fmt.Print(chunk.String())
+			fmt.Println(chunk.String())
 			return nil
 		}),
 	); err != nil {

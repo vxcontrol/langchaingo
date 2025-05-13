@@ -32,7 +32,7 @@ func main() {
 	if _, err = llm.GenerateContent(ctx, content,
 		llms.WithMaxTokens(4096),
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			fmt.Print(chunk.String())
+			fmt.Println(chunk.String())
 			return nil
 		})); err != nil {
 		log.Fatal(err)

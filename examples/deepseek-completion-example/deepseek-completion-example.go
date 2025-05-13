@@ -43,6 +43,9 @@ func main() {
 			if chunk.Type == streaming.ChunkTypeText {
 				fmt.Printf("Streaming Content: %s\n", chunk.Content)
 			}
+			if chunk.Type == streaming.ChunkTypeDone {
+				fmt.Println("Streaming Done")
+			}
 			return nil
 		}),
 	)

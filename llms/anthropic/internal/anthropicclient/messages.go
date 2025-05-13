@@ -355,6 +355,8 @@ func parseStreamingMessageResponse(
 
 	go func() {
 		defer close(eventChan)
+		defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
+
 		var response MessageResponsePayload
 		for scanner.Scan() {
 			line := scanner.Text()
