@@ -35,6 +35,10 @@ type options struct {
 
 	responseFormat *ResponseFormat
 
+	// fine tuning reasoning options for various LLM providers
+	useReasoningMaxTokens bool
+	modernReasoningFormat bool
+
 	// required when APIType is APITypeAzure or APITypeAzureAD
 	apiVersion     string
 	embeddingModel string
@@ -133,5 +137,22 @@ func WithCallback(callbackHandler callbacks.Handler) Option {
 func WithResponseFormat(responseFormat *ResponseFormat) Option {
 	return func(opts *options) {
 		opts.responseFormat = responseFormat
+	}
+}
+
+// WithUsingReasoningMaxTokens allows to use reasoning max_tokens instead of effort.
+// If reasoning max_tokens is set, it will be sent to the server instead of effort.
+// Note: you must use this option within WithModernReasoningFormat(), otherwise it will be ignored.
+func WithUsingReasoningMaxTokens() Option {
+	return func(opts *options) {
+		opts.useReasoningMaxTokens = true
+	}
+}
+
+// WithModernReasoningFormat includes "reasoning" key and object value in the request payload.
+// Otherways, it will be sent as a "reasoning_effort" string value.
+func WithModernReasoningFormat() Option {
+	return func(opts *options) {
+		opts.modernReasoningFormat = true
 	}
 }

@@ -67,6 +67,10 @@ type testEnv struct {
 	name string
 	init func(t *testing.T, opts ...Option) *LLM
 	opts []Option
+
+	// reasoning options
+	ropt llms.CallOption
+	rout bool
 }
 
 func getCompletionTests() []testEnv {
@@ -109,6 +113,80 @@ func getCompletionTests() []testEnv {
 			init: newTestOpenRouterClient,
 			opts: []Option{WithModel(model)},
 		})
+	}
+	return tests
+}
+
+func getReasoningTests() []testEnv {
+	var openRouterModels = []string{ //nolint:gofumpt
+		"anthropic/claude-3.7-sonnet:thinking",
+		"deepseek/deepseek-r1",
+		"google/gemini-2.5-flash-preview:thinking",
+		"openai/o3-mini-high",
+		"openai/o3-mini",
+		"openai/o4-mini-high",
+		"openai/o4-mini",
+	}
+	reasoningOption := llms.WithReasoning(llms.ReasoningHigh, 0)
+	tests := []testEnv{
+		{
+			name: "openai-o1",
+			init: newTestOpenAIClient,
+			opts: []Option{WithModel("o1")},
+			ropt: reasoningOption,
+			rout: false,
+		},
+		{
+			name: "openai-o3",
+			init: newTestOpenAIClient,
+			opts: []Option{WithModel("o3")},
+			ropt: reasoningOption,
+			rout: false,
+		},
+		{
+			name: "openai-o3-mini",
+			init: newTestOpenAIClient,
+			opts: []Option{WithModel("o3-mini")},
+			ropt: reasoningOption,
+			rout: false,
+		},
+		{
+			name: "openai-o4-mini",
+			init: newTestOpenAIClient,
+			opts: []Option{WithModel("o4-mini")},
+			ropt: reasoningOption,
+			rout: false,
+		},
+		{
+			name: "deepseek",
+			init: newTestDeepSeekClient,
+			opts: []Option{WithModel("deepseek-reasoner")},
+			rout: true,
+		},
+	}
+	clientReasoningOptions := []Option{
+		WithUsingReasoningMaxTokens(),
+		WithModernReasoningFormat(),
+	}
+	for _, model := range openRouterModels {
+		expectResoningContent := !strings.Contains(model, "openai") // OpenAI doesn't provide reasoning content
+		normModelName := strings.ReplaceAll(strings.Split(model, "/")[1], ":", "-")
+		tests = append(tests, testEnv{
+			name: "openrouter-" + normModelName + "-effort",
+			init: newTestOpenRouterClient,
+			opts: append([]Option{WithModel(model)}, clientReasoningOptions...),
+			ropt: reasoningOption,
+			rout: expectResoningContent,
+		})
+		if strings.HasSuffix(model, ":thinking") {
+			tests = append(tests, testEnv{
+				name: "openrouter-" + normModelName + "-tokens",
+				init: newTestOpenRouterClient,
+				opts: append([]Option{WithModel(model)}, clientReasoningOptions...),
+				ropt: llms.WithReasoning(llms.ReasoningNone, 2048),
+				rout: expectResoningContent,
+			})
+		}
 	}
 	return tests
 }
@@ -164,7 +242,7 @@ func TestMultiContentText(t *testing.T) {
 		llms.TextPart("I'm a pomeranian"),
 		llms.TextPart("What kind of mammal am I?"),
 	}
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: parts,
@@ -179,7 +257,7 @@ func TestMultiContentText(t *testing.T) {
 
 			llm := test.init(t, test.opts...)
 
-			resp, err := llm.GenerateContent(t.Context(), content)
+			resp, err := llm.GenerateContent(t.Context(), messages)
 			require.NoError(t, err)
 
 			assert.NotEmpty(t, resp.Choices)
@@ -189,10 +267,85 @@ func TestMultiContentText(t *testing.T) {
 	}
 }
 
+func TestMultiContentTextWithReasoning(t *testing.T) {
+	t.Parallel()
+
+	parts := []llms.ContentPart{
+		llms.TextPart("What is the factorial of 5? Show your work. Think before you answer."),
+	}
+	messages := []llms.MessageContent{
+		{
+			Role:  llms.ChatMessageTypeHuman,
+			Parts: parts,
+		},
+	}
+
+	testFunc := func(t *testing.T, test testEnv, isStreaming bool) {
+		t.Helper()
+
+		var content, reasoningContent strings.Builder
+		opts := []llms.CallOption{
+			llms.WithMaxTokens(8192), // enough max tokens for reasoning
+		}
+
+		if isStreaming {
+			opts = append(opts, llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+				switch chunk.Type {
+				case streaming.ChunkTypeText:
+					content.WriteString(chunk.Content)
+				case streaming.ChunkTypeReasoning:
+					reasoningContent.WriteString(chunk.ReasoningContent)
+				case streaming.ChunkTypeToolCall:
+					// skip tool calls
+				}
+				return nil
+			}))
+		}
+
+		if test.ropt != nil {
+			opts = append(opts, test.ropt)
+		}
+
+		llm := test.init(t, test.opts...)
+		resp, err := llm.GenerateContent(t.Context(), messages, opts...)
+		require.NoError(t, err)
+
+		assert.NotEmpty(t, resp.Choices)
+		c1 := resp.Choices[0]
+		assert.Regexp(t, "120", strings.ToLower(c1.Content))
+
+		if test.rout {
+			assert.NotEmpty(t, c1.ReasoningContent)
+		} else {
+			assert.Empty(t, c1.ReasoningContent)
+		}
+
+		if isStreaming {
+			assert.Equal(t, content.String(), c1.Content)
+			assert.Equal(t, reasoningContent.String(), c1.ReasoningContent)
+		}
+	}
+
+	tests := getReasoningTests()
+	for idx := range tests {
+		test := tests[idx]
+		t.Run("synchronous-"+test.name, func(t *testing.T) {
+			t.Parallel()
+
+			testFunc(t, test, false)
+		})
+		t.Run("streaming-"+test.name, func(t *testing.T) {
+			t.Parallel()
+
+			testFunc(t, test, true)
+		})
+	}
+}
+
 func TestMultiContentTextChatSequence(t *testing.T) {
 	t.Parallel()
 
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: []llms.ContentPart{llms.TextPart("Name some countries")},
@@ -215,7 +368,7 @@ func TestMultiContentTextChatSequence(t *testing.T) {
 
 			llm := test.init(t, test.opts...)
 
-			resp, err := llm.GenerateContent(t.Context(), content)
+			resp, err := llm.GenerateContent(t.Context(), messages)
 			require.NoError(t, err)
 
 			assert.NotEmpty(t, resp.Choices)
@@ -234,14 +387,14 @@ func TestMultiContentImage(t *testing.T) {
 		llms.ImageURLPart("https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true"), //nolint:lll
 		llms.TextPart("describe this image in detail"),
 	}
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: parts,
 		},
 	}
 
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(300))
+	resp, err := llm.GenerateContent(t.Context(), messages, llms.WithMaxTokens(300))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, resp.Choices)
@@ -256,7 +409,7 @@ func TestWithStreaming(t *testing.T) {
 		llms.TextPart("I'm a pomeranian"),
 		llms.TextPart("Tell me more about my taxonomy"),
 	}
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: parts,
@@ -275,7 +428,7 @@ func TestWithStreaming(t *testing.T) {
 				text      strings.Builder
 				reasoning strings.Builder
 			)
-			resp, err := llm.GenerateContent(t.Context(), content,
+			resp, err := llm.GenerateContent(t.Context(), messages,
 				llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
 					switch chunk.Type {
 					case streaming.ChunkTypeText:
@@ -306,7 +459,7 @@ func TestFunctionCall(t *testing.T) {
 	parts := []llms.ContentPart{
 		llms.TextPart("What is the weather like in Boston, MA?"),
 	}
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: parts,
@@ -332,12 +485,12 @@ func TestFunctionCall(t *testing.T) {
 
 	for idx := range tests {
 		test := tests[idx]
-		t.Run("function call: "+test.name, func(t *testing.T) {
+		t.Run("synchronous-"+test.name, func(t *testing.T) {
 			t.Parallel()
 
 			llm := test.init(t, test.opts...)
 
-			resp, err := llm.GenerateContent(t.Context(), content, llms.WithFunctions(functions))
+			resp, err := llm.GenerateContent(t.Context(), messages, llms.WithFunctions(functions))
 			require.NoError(t, err)
 
 			assert.NotEmpty(t, resp.Choices)
@@ -356,7 +509,7 @@ func TestFunctionCall(t *testing.T) {
 
 	for idx := range tests {
 		test := tests[idx]
-		t.Run("function call with streaming: "+test.name, func(t *testing.T) {
+		t.Run("streaming-"+test.name, func(t *testing.T) {
 			t.Parallel()
 
 			llm := test.init(t, test.opts...)
@@ -378,7 +531,7 @@ func TestFunctionCall(t *testing.T) {
 
 			resp, err := llm.GenerateContent(
 				t.Context(),
-				content,
+				messages,
 				llms.WithFunctions(functions),
 				llms.WithStreamingFunc(streamingFunc),
 			)
@@ -408,7 +561,7 @@ func TestFunctionParallelCall(t *testing.T) {
 	parts := []llms.ContentPart{
 		llms.TextPart("What are the weather and time in Boston, MA?"),
 	}
-	content := []llms.MessageContent{
+	messages := []llms.MessageContent{
 		{
 			Role:  llms.ChatMessageTypeHuman,
 			Parts: parts,
@@ -445,12 +598,12 @@ func TestFunctionParallelCall(t *testing.T) {
 
 	for idx := range tests {
 		test := tests[idx]
-		t.Run("parallel tool calls: "+test.name, func(t *testing.T) {
+		t.Run("synchronous-"+test.name, func(t *testing.T) {
 			t.Parallel()
 
 			llm := test.init(t, test.opts...)
 
-			resp, err := llm.GenerateContent(t.Context(), content, llms.WithFunctions(functions))
+			resp, err := llm.GenerateContent(t.Context(), messages, llms.WithFunctions(functions))
 			require.NoError(t, err)
 
 			assert.NotEmpty(t, resp.Choices)
@@ -474,7 +627,7 @@ func TestFunctionParallelCall(t *testing.T) {
 
 	for idx := range tests {
 		test := tests[idx]
-		t.Run("parallel tool calls with streaming: "+test.name, func(t *testing.T) {
+		t.Run("streaming-"+test.name, func(t *testing.T) {
 			t.Parallel()
 
 			llm := test.init(t, test.opts...)
@@ -501,7 +654,7 @@ func TestFunctionParallelCall(t *testing.T) {
 
 			resp, err := llm.GenerateContent(
 				t.Context(),
-				content,
+				messages,
 				llms.WithFunctions(functions),
 				llms.WithStreamingFunc(streamingFunc),
 			)

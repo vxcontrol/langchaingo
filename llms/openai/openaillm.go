@@ -236,16 +236,44 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 		req.ResponseFormat = o.client.ResponseFormat
 	}
 
-	if opts.Reasoning.IsEnabled() {
-		reasoningEffort := opts.Reasoning.GetEffort(opts.MaxTokens)
-		if reasoningEffort != llms.ReasoningNone {
-			req.ReasoningEffort = &reasoningEffort
+	// set reasoning options, depends on the client and request options
+	o.setReasoning(req, opts)
+
+	return req, nil
+}
+
+// setReasoning sets reasoning options, depends on the client and request options.
+func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions) {
+	if !opts.Reasoning.IsEnabled() {
+		return
+	}
+
+	defer func() {
+		if req.Reasoning != nil || req.ReasoningEffort != nil {
 			// must of all reasoning models can't use temperature and top_p with reasoning at the same time
 			req.Temperature, req.TopP = 0.0, 0.0
 		}
+	}()
+
+	reasoningEffort := opts.Reasoning.GetEffort(opts.MaxTokens)
+	reasoningTokens := opts.Reasoning.GetTokens(opts.MaxTokens)
+	if !o.client.ModernReasoningFormat {
+		if reasoningEffort != llms.ReasoningNone {
+			req.ReasoningEffort = &reasoningEffort
+		}
+		return
 	}
 
-	return req, nil
+	// using modern reasoning format
+	if o.client.UseReasoningMaxTokens && opts.Reasoning.Tokens != 0 && reasoningTokens != 0 {
+		req.Reasoning = &openaiclient.ReasoningOptions{
+			MaxTokens: reasoningTokens,
+		}
+	} else if reasoningEffort != llms.ReasoningNone {
+		req.Reasoning = &openaiclient.ReasoningOptions{
+			Effort: reasoningEffort,
+		}
+	}
 }
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
