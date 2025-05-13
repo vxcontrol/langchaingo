@@ -244,6 +244,8 @@ func (o *LLM) processTools(req *api.ChatRequest, tools []llms.Tool) error {
 
 // handleChat sends the chat request and processes the streaming response.
 func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.CallOptions) (api.ChatResponse, error) {
+	defer streaming.CallWithDone(ctx, opts.StreamingFunc) //nolint:errcheck
+
 	var (
 		resp              api.ChatResponse
 		streamedResponse  string

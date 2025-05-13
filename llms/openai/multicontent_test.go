@@ -283,7 +283,10 @@ func TestMultiContentTextWithReasoning(t *testing.T) {
 	testFunc := func(t *testing.T, test testEnv, isStreaming bool) {
 		t.Helper()
 
-		var content, reasoningContent strings.Builder
+		var (
+			content, reasoningContent strings.Builder
+			streamDone                bool
+		)
 		opts := []llms.CallOption{
 			llms.WithMaxTokens(8192), // enough max tokens for reasoning
 		}
@@ -291,12 +294,16 @@ func TestMultiContentTextWithReasoning(t *testing.T) {
 		if isStreaming {
 			opts = append(opts, llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
 				switch chunk.Type {
+				case streaming.ChunkTypeNone:
+					// skip none chunks
 				case streaming.ChunkTypeText:
 					content.WriteString(chunk.Content)
 				case streaming.ChunkTypeReasoning:
 					reasoningContent.WriteString(chunk.ReasoningContent)
 				case streaming.ChunkTypeToolCall:
 					// skip tool calls
+				case streaming.ChunkTypeDone:
+					streamDone = true
 				}
 				return nil
 			}))
@@ -321,6 +328,7 @@ func TestMultiContentTextWithReasoning(t *testing.T) {
 		}
 
 		if isStreaming {
+			assert.True(t, streamDone)
 			assert.Equal(t, content.String(), c1.Content)
 			assert.Equal(t, reasoningContent.String(), c1.ReasoningContent)
 		}
@@ -425,24 +433,30 @@ func TestWithStreaming(t *testing.T) {
 			llm := test.init(t, test.opts...)
 
 			var (
-				text      strings.Builder
-				reasoning strings.Builder
+				text       strings.Builder
+				reasoning  strings.Builder
+				streamDone bool
 			)
 			resp, err := llm.GenerateContent(t.Context(), messages,
 				llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
 					switch chunk.Type {
+					case streaming.ChunkTypeNone:
+						// skip none chunks
 					case streaming.ChunkTypeText:
 						text.WriteString(chunk.Content)
 					case streaming.ChunkTypeReasoning:
 						reasoning.WriteString(chunk.ReasoningContent)
 					case streaming.ChunkTypeToolCall:
 						// skip tool calls
+					case streaming.ChunkTypeDone:
+						streamDone = true
 					}
 					return nil
 				}),
 			)
 			require.NoError(t, err)
 
+			assert.True(t, streamDone)
 			assert.NotEmpty(t, resp.Choices)
 			c1 := resp.Choices[0]
 			assert.Regexp(t, "dog|canid", strings.ToLower(c1.Content))
@@ -514,9 +528,14 @@ func TestFunctionCall(t *testing.T) {
 
 			llm := test.init(t, test.opts...)
 
-			var toolCall streaming.ToolCall
+			var (
+				toolCall   streaming.ToolCall
+				streamDone bool
+			)
 			streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 				switch chunk.Type {
+				case streaming.ChunkTypeNone:
+					// skip none chunks
 				case streaming.ChunkTypeText:
 					// skip text chunks
 				case streaming.ChunkTypeReasoning:
@@ -525,6 +544,8 @@ func TestFunctionCall(t *testing.T) {
 					toolCall.ID = chunk.ToolCall.ID
 					toolCall.Name = chunk.ToolCall.Name
 					toolCall.Arguments += chunk.ToolCall.Arguments
+				case streaming.ChunkTypeDone:
+					streamDone = true
 				}
 				return nil
 			}
@@ -537,6 +558,7 @@ func TestFunctionCall(t *testing.T) {
 			)
 			require.NoError(t, err)
 
+			assert.True(t, streamDone)
 			assert.NotEmpty(t, resp.Choices)
 			c1 := resp.Choices[0]
 			assert.Equal(t, "tool_calls", c1.StopReason)
@@ -554,7 +576,7 @@ func TestFunctionCall(t *testing.T) {
 	}
 }
 
-//nolint:funlen
+//nolint:funlen,cyclop
 func TestFunctionParallelCall(t *testing.T) {
 	t.Parallel()
 
@@ -632,9 +654,12 @@ func TestFunctionParallelCall(t *testing.T) {
 
 			llm := test.init(t, test.opts...)
 
+			var streamDone bool
 			toolCalls := make(map[string]*streaming.ToolCall)
 			streamingFunc := func(_ context.Context, chunk streaming.Chunk) error {
 				switch chunk.Type {
+				case streaming.ChunkTypeNone:
+					// skip none chunks
 				case streaming.ChunkTypeText:
 					// skip text chunks
 				case streaming.ChunkTypeReasoning:
@@ -648,6 +673,8 @@ func TestFunctionParallelCall(t *testing.T) {
 					toolCall.ID = chunk.ToolCall.ID
 					toolCall.Name = chunk.ToolCall.Name
 					toolCall.Arguments += chunk.ToolCall.Arguments
+				case streaming.ChunkTypeDone:
+					streamDone = true
 				}
 				return nil
 			}
@@ -660,6 +687,7 @@ func TestFunctionParallelCall(t *testing.T) {
 			)
 			require.NoError(t, err)
 
+			assert.True(t, streamDone)
 			assert.NotEmpty(t, resp.Choices)
 			c1 := resp.Choices[0]
 			assert.Equal(t, "tool_calls", c1.StopReason)

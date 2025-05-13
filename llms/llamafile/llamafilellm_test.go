@@ -64,16 +64,25 @@ func TestWithStreaming(t *testing.T) {
 		},
 	}
 
-	var sb strings.Builder
+	var (
+		sb         strings.Builder
+		streamDone bool
+	)
 	rsp, err := llm.GenerateContent(t.Context(), content,
 		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			if chunk.Type == streaming.ChunkTypeText {
+			switch chunk.Type { //nolint:exhaustive
+			case streaming.ChunkTypeText:
 				sb.WriteString(chunk.Content)
+			case streaming.ChunkTypeDone:
+				streamDone = true
+			default:
+				// skip other chunks
 			}
 			return nil
 		}))
 	require.NoError(t, err)
 
+	assert.True(t, streamDone)
 	assert.NotEmpty(t, rsp.Choices)
 	c1 := rsp.Choices[0]
 	assert.Regexp(t, "yes", strings.ToLower(c1.Content))

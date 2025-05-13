@@ -71,16 +71,20 @@ func TestParseStreamingChatResponse_ReasoningFunc(t *testing.T) {
 	req := &ChatRequest{
 		StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
 			switch chunk.Type {
+			case streaming.ChunkTypeNone:
+				t.Logf("none chunk: %s", chunk.Type)
 			case streaming.ChunkTypeText:
-				t.Logf("chunk: %s", chunk.Content)
+				t.Logf("text chunk: %s", chunk.Content)
 			case streaming.ChunkTypeReasoning:
-				t.Logf("reasoningChunk: %s", chunk.ReasoningContent)
+				t.Logf("reasoning chunk: %s", chunk.ReasoningContent)
 			case streaming.ChunkTypeToolCall:
 				if toolCall, err := json.Marshal(chunk.ToolCall); err == nil {
-					t.Logf("toolCall: %s", string(toolCall))
+					t.Logf("tool call chunk: %s", string(toolCall))
 				} else {
-					t.Logf("error marshalling toolCall: %s", err)
+					t.Logf("error marshalling tool call chunk: %s", err)
 				}
+			case streaming.ChunkTypeDone:
+				t.Logf("done chunk: %s", chunk.Type)
 			}
 			return nil
 		},

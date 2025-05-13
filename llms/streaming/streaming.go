@@ -10,9 +10,11 @@ import (
 type ChunkType string
 
 const (
+	ChunkTypeNone      ChunkType = ""
 	ChunkTypeText      ChunkType = "text"
 	ChunkTypeReasoning ChunkType = "reasoning"
 	ChunkTypeToolCall  ChunkType = "tool_call"
+	ChunkTypeDone      ChunkType = "done"
 )
 
 type ToolCall struct {
@@ -45,12 +47,16 @@ type Chunk struct {
 
 func (c *Chunk) String() string {
 	switch c.Type {
+	case ChunkTypeNone:
+		return "None"
 	case ChunkTypeText:
 		return fmt.Sprintf("Text: %s", c.Content)
 	case ChunkTypeReasoning:
 		return fmt.Sprintf("Reasoning: %s", c.ReasoningContent)
 	case ChunkTypeToolCall:
 		return fmt.Sprintf("ToolCall: %s", c.ToolCall.String())
+	case ChunkTypeDone:
+		return "Done"
 	default:
 		return fmt.Sprintf("unexpected chunk type: %s", c.Type)
 	}
@@ -92,6 +98,12 @@ func NewToolCall(id, name, arguments string) ToolCall {
 	}
 }
 
+func NewDoneChunk() Chunk {
+	return Chunk{
+		Type: ChunkTypeDone,
+	}
+}
+
 func CallWithText(ctx context.Context, cb Callback, text string) error {
 	if cb == nil {
 		return nil
@@ -123,6 +135,13 @@ func CallWithToolCall(ctx context.Context, cb Callback, toolCall ToolCall) error
 		return ErrToolCallNameRequired
 	}
 	return cb(ctx, NewToolCallChunk(toolCall))
+}
+
+func CallWithDone(ctx context.Context, cb Callback) error {
+	if cb == nil {
+		return nil
+	}
+	return cb(ctx, NewDoneChunk())
 }
 
 func AppendToolCall(src ToolCall, dst *ToolCall) {

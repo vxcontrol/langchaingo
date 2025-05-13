@@ -34,13 +34,16 @@ func (m *mockLLM) GenerateContent(ctx context.Context, _ []llms.MessageContent, 
 		opt(&opts)
 	}
 
-	if opts.StreamingFunc != nil && len(m.response.Choices) > 0 {
+	if len(m.response.Choices) > 0 {
 		if err := streaming.CallWithText(ctx, opts.StreamingFunc, m.response.Choices[0].Content); err != nil {
 			return nil, err
 		}
 	}
 
 	m.called++
+	if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
+		return nil, err
+	}
 
 	return m.response, m.error
 }
