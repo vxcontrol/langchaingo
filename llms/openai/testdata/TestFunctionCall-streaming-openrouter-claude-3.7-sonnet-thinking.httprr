@@ -1,0 +1,101 @@
+httprr trace v1
+733 15357
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 528
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"anthropic/claude-3.7-sonnet:thinking","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"stream":true,"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}],"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 14941
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Content-Type: text/event-stream
+Date: Mon, 23 Jun 2025 16:21:26 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","text":"","signature":""}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The","reasoning_details":[{"type":"reasoning.text","text":"The"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" user is asking about the","reasoning_details":[{"type":"reasoning.text","text":" user is asking about the"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" current weather in Boston, MA","reasoning_details":[{"type":"reasoning.text","text":" current weather in Boston, MA"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":". We have a function `","reasoning_details":[{"type":"reasoning.text","text":". We have a function `"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"getCurrentWeather` that can","reasoning_details":[{"type":"reasoning.text","text":"getCurrentWeather` that can"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" retrieve this information.\n\nLet","reasoning_details":[{"type":"reasoning.text","text":" retrieve this information.\n\nLet"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"'s check the required parameters for","reasoning_details":[{"type":"reasoning.text","text":"'s check the required parameters for"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" this function:\n- `","reasoning_details":[{"type":"reasoning.text","text":" this function:\n- `"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"location`: This is require","reasoning_details":[{"type":"reasoning.text","text":"location`: This is require"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"d and should be the city and state.","reasoning_details":[{"type":"reasoning.text","text":"d and should be the city and state."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" The user has specifically mentione","reasoning_details":[{"type":"reasoning.text","text":" The user has specifically mentione"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"d \"Boston, MA\", so we'll use that","reasoning_details":[{"type":"reasoning.text","text":"d \"Boston, MA\", so we'll use that"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":".\n- `unit","reasoning_details":[{"type":"reasoning.text","text":".\n- `unit"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"`: This is an enum","reasoning_details":[{"type":"reasoning.text","text":"`: This is an enum"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" parameter that can be either \"","reasoning_details":[{"type":"reasoning.text","text":" parameter that can be either \""}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"celsius\" or \"fahrenheit\". It","reasoning_details":[{"type":"reasoning.text","text":"celsius\" or \"fahrenheit\". It"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"'s not required, an","reasoning_details":[{"type":"reasoning.text","text":"'s not required, an"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"d the user hasn't specified a","reasoning_details":[{"type":"reasoning.text","text":"d the user hasn't specified a"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" preference, so we don","reasoning_details":[{"type":"reasoning.text","text":" preference, so we don"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"'t need to include it.","reasoning_details":[{"type":"reasoning.text","text":"'t need to include it."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\n\nSince we have all required parameters","reasoning_details":[{"type":"reasoning.text","text":"\n\nSince we have all required parameters"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":", we can proceed with the function call.","reasoning_details":[{"type":"reasoning.text","text":", we can proceed with the function call."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","signature":"ErUBCkYIBBgCIkBF+avTtRXxkevA+wQqX056t+B3Uhkf8ZzOdmxRufAkIjXZboUavmXQlbyDpYLncqgLBwHUeTQWV3jNZHIbJVkPEgwKXomjXp6lEcH0mnQaDEm/EyhmeT+XbOKKHyIwWcoQzySe0pE0HWuYXsz14HrsJYtuQVTLFWznGko4k0u9K/qUnZ3icR5mSwEr7ClbKh2oXXgRQj3fkhjNDYvbrNyJjJkf16a8vC+fc+wNZxgC"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"I'll check the current weather in Boston, MA for","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":" you.","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01PRhKjgGfxLjJyiW6sm5CG3","index":0,"type":"function","function":{"name":"getCurrentWeather","arguments":""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"type":"function","function":{"arguments":""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"type":"function","function":{"arguments":"{\"loca"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"type":"function","function":{"arguments":"tion\": \"B"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":0,"type":"function","function":{"arguments":"oston, MA\"}"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":"tool_calls","native_finish_reason":"tool_calls","logprobs":null}]}
+
+data: {"id":"gen-1750695685-gll4BBRvjF5qQo4KCQXD","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":453,"completion_tokens":210,"total_tokens":663,"cost":0.004509,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0},"cost_details":{"upstream_inference_cost":null},"completion_tokens_details":{"reasoning_tokens":150}}}
+
+data: [DONE]
+

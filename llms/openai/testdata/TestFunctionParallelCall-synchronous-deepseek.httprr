@@ -1,0 +1,22 @@
+httprr trace v1
+932 1253
+POST https://api.deepseek.com/chat/completions HTTP/1.1
+Host: api.deepseek.com
+User-Agent: langchaingo-httprr
+Content-Length: 728
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"deepseek-chat","messages":[{"role":"user","content":"What are the weather and time in Boston, MA?"}],"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}},{"type":"function","function":{"name":"getCurrentTime","description":"Get the current time in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"}},"required":["location"]}}}]}HTTP/2.0 200 OK
+Content-Length: 826
+Access-Control-Allow-Credentials: true
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 16:21:57 GMT
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: origin, access-control-request-method, access-control-request-headers
+X-Content-Type-Options: nosniff
+X-Ds-Trace-Id: 62f5c4f774c7e5aa1f45e6427c11d80f
+
+{"id":"6e2e7ddd-bcb9-4c86-a75b-512dec7064d7","object":"chat.completion","created":1750695717,"model":"deepseek-chat","choices":[{"index":0,"message":{"role":"assistant","content":"","tool_calls":[{"index":0,"id":"call_0_403dd763-507c-41f2-bbd4-6a2c13f167c1","type":"function","function":{"name":"getCurrentWeather","arguments":"{\"location\": \"Boston, MA\", \"unit\": \"fahrenheit\"}"}},{"index":1,"id":"call_1_fff22ed2-743d-492c-9bf9-38fc678e7fd1","type":"function","function":{"name":"getCurrentTime","arguments":"{\"location\": \"Boston, MA\"}"}}]},"logprobs":null,"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":264,"completion_tokens":50,"total_tokens":314,"prompt_tokens_details":{"cached_tokens":256},"prompt_cache_hit_tokens":256,"prompt_cache_miss_tokens":8},"system_fingerprint":"fp_8802369eaa_prod0425fp8"}

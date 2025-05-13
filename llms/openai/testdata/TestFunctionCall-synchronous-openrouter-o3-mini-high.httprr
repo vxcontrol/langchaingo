@@ -1,0 +1,33 @@
+httprr trace v1
+662 1556
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 457
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o3-mini-high","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]}HTTP/2.0 200 OK
+Content-Length: 1167
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 16:21:28 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750695687-zHOXng3ylFg7B2o6TdDY","provider":"OpenAI","model":"openai/o3-mini-high","object":"chat.completion","created":1750695687,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"","refusal":null,"reasoning":null,"tool_calls":[{"id":"call_Huev5hPX9SHvKsSqihRq52PX","index":1,"type":"function","function":{"name":"getCurrentWeather","arguments":"{\"location\": \"Boston, MA\", \"unit\": \"fahrenheit\"}"}}],"reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWX8KdCWNear2XGpAR9DlC7juPjSQgiajD_2rJP30QNR5eBoY4wm9PUxdaH2ykSFBGWyy4SKkrh1l35oc0gQY-1OGOn0aPsmxJargJNO4TqT7BNG_lg5PXweI7WQ66fVZ1YCaLSCp3nvB7I3_AOa5UKq1ndnE-iSBavqOAwwqZKooP3y8OEJE-DKnQFI9IggAkv-jXww0DcTvbzyARiB-WanIL75RrjshQqcdieunXIFBFXwUw6Tl7Ikgw3yUF6-8XP0H7CDJXiDKlKHqGDNOcp3TXjeByA_8X_hJpGHdAd8ALPinuNGhF8kIDd5Iu7OIhywnD12nxG1r-Z-NwvUxwWZRqhz74yrnX4tu2tfat8NTP8KdoiizZ11Q54dA6ScyxKzdg6lMXaR-LZoiY8tPVx5D5Q==","id":"rs_68597f0954b081908f6898dd3263fb23"}]}}],"usage":{"prompt_tokens":78,"completion_tokens":90,"total_tokens":168}}

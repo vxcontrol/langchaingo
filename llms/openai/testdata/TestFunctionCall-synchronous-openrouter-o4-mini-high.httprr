@@ -1,0 +1,39 @@
+httprr trace v1
+662 3591
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 457
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o4-mini-high","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}]}HTTP/2.0 200 OK
+Content-Length: 3202
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 16:21:27 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750695686-oU7jPaHStrgCP58klb07","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion","created":1750695687,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"","refusal":null,"reasoning":null,"tool_calls":[{"id":"call_bZwWtC42eAOOUY3sdCWR6Oly","index":1,"type":"function","function":{"name":"getCurrentWeather","arguments":"{\"location\":\"Boston, MA\",\"unit\":\"fahrenheit\"}"}}],"reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWX8K_FuNi9KW1ezTawsE_9S2hyjkDBYqjSj4wFErNpbjDC3d4dvwyncvi_iHqQKOw7Fjhv1S-I_JvjGaRb8OeckyQTGxrjbRSVwCt9eKd33EEhJlowmef_NmWFXp15uY-i2VJGdjBPF09LY3Fkx02zkMi5EhxGHoBLagad-a0R9LpjRh8F-fyBzxL3BefTMUnmPg5t2dlsPjR3SjbewoU4zM7xh6Bb_HRRAcsFriV_Msq_8sgcSDGO8uQ7gc7Fi43IP2pZn6Jrk3KYGOY-CGjXrvFdigZf-XZhchYxiat7oBGHYHfpFM0qlC6JBuAwC6StENggSFJ3AmL6pJkKni27baP1qJUkyMiR1POHDiiaDjf7yYtFb-0nsBTjLAjo9UAgoP-28rTwW4Aw08gJFHprgKlWkyjon5Trsdjyqx7W7svVbklTyDKnuS1EQn_35J6tq3BFH80kBE6ojgTckIa_sn-yvzgDaHcOrMcrHTrQHaZRXgvBNduZFQcxE1MquOOrNEwTiaiayyoE-HgXNy69wv6FQY26Bv5vC-OF0NjdsKXfs_ZTETey9II3v87gRWVdX4N0bT-GXm616nNSxckEbt1v12lQvQlSkPV3nPcbNs_9eFdHvPCUPpuZeiLlJRYeSLkIEm4nR_yn3vC3i1U9DeVtrAOw-7B2ZF5NkPJTyFSVDOltl32IPAZ26YcPXGeqi6JoiI2HAW9YaLJQ6AE0seXj5Hy8XTxj7RtnILW5E1BC8ujFwbXUQzo0JStysdu1Kh2CQDlkTWoHvUfG42E2mARtuptUvWFVX76N0sDkf3r8zd76B84bM2OJLIHsJSrgTqgjxliLbMT2qoz6567USmqZVOInKV4hSr9HE2Mnj_EDaNl-geFOpRM_MH9Pr5f5R36ax3hXFsJHePRK_fVgKKSx0_yZl1f8SofG07Tqk_73jmYnOMpEgs7gYxJatRN0rMbYFIKiy47_dnVfmm5aWPLVqZzC_wYyKMSf9bXxthtKiGo0O__y0okLpamTn0EZX8Eg_raINQFrwdxV2UaORVk0y1IGNoInUggvSqC8xbFJDUuzCF87UPbC8iSfITPxw2zABg_E2vz2JCePaaIxjxT67zZ-4K25NfWo-mMvZqB_aiN6C5GXfUm03x_CJBq3dGCDC57NQ6WyptRm0t3A1AoLBECxKwm63rsKmri9AXR4MyjCb9hwbNJeBPE5tHbhEQmgLJBZXSclXfKnXAsPIqyTkRTi-eao5jYLKMiWEJp6Tq1Msbfbygi_LPIm4TG9yFbhfIctpTyfe-0WtHU6D9nrPck7ernw7k3ayC6Q7SJYhUzoczpwaorTX47NGVEtU0Htds713GbTjVYApEXV-nlnxUdHYnCyGl0GV8GjJ4uz-brinItSpSCM5UF3UxhERyQwPZLq0albpPvN2pDo-w39_RpU6eGUECn5-HQUx_8IffQ11F7D-dLoxM6WIHj5hIPo54lIaeITgu0YuWXIpc0tiaELf2eDo0BjaS4FFzCOGPrrmLFEVEQ2yXzroDgjlmchcMGVa-VJkzsgEQ8h37cye8hJ4vQRsGJhGYFNxGv9jtX4kwWcnWTvQxVJL5VldPOe0K3kPSubx97m0ybKRDm98ShnqVGndJvYLECgfOnA_-c-fs3dHd5FQahLh9gL9bXgc2rGfuozaeEulRDMNUQDYETmmOhmZVOUP-cwwqXLD5grheLxZomOAJUnnCjpt0yHfzv2Hkl2P4_PE5P7xZH158yYeQW5F2zQyrYOPD_OmiQxJmNfULEuYDrfeu-X2YArPbsqhRKyi-V7NvePiF76a8dkBzXwVs9srVRJTnotfif-0K0fUr7qFD6POAnBs5jQKHtiMnbL62X_KgHE9RvF34PLAmbHIhEhZfY9NMYcMO1priW0LlSrA2QfL6fKuUbJv3PKL5-GUaqnvEg17-Za__4PJoKGcrwgcCKzuMSRNoniks4gKybjtB1Jposlg7dyt43zu0Z6JgF0z3bBT_t0GsYtXri7iCZkdg7VnYTVnR1HVPHKvHHlZkEtbB0FB0SrbyC0vJ8M8XH2FtyHPkHgkAVdU0VUajg2R4j4bFkOW_UUZOMhXAEGJgHrxMJcvvdMWmY2ZC4HH35lTErVjfpecJSuPTkqtzs_1KiJYhI9LCplxoVqSRDlgaOPYHIPuodg2ffI0hVRt1HXY0ie7uQ3a2pq8T14HFIGJxj6HbkWy8J5nsCl39fSqeHcM67LPtR3lcTGfYuHUfUecEyIhdC7Pkf8OX2JkheDeml367c2M8Zh9Z5oDM_-cOpBirtm069UfUjBJOJnRpvQyqtINCJ6KWopkGu6Hd_0m-bwiNdw18lz8MTT_Z-Px7Ant92S4Lp0YpA05zkACHikrLVKqAufnyLus0i3pcvmvghqt3euQ=","id":"rs_68597f07ac54819088cd7c590f36fa16"}]}}],"usage":{"prompt_tokens":78,"completion_tokens":284,"total_tokens":362}}

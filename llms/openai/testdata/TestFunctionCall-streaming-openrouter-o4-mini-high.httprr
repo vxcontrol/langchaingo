@@ -1,0 +1,71 @@
+httprr trace v1
+716 9242
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 511
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o4-mini-high","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"stream":true,"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}],"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 8827
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Content-Type: text/event-stream
+Date: Mon, 23 Jun 2025 16:21:25 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWX8IfRqsgYK5TmQuQVnAleZ74ibYs2rk6k9r57OJ2dnMuyX346tEt8TfM2aYVM5vuND160tRiZhC_kf8ifEgRFEeNdm9_OqvKKhXJHYMEcFKTaWebOp4GYvhPVbeLEmLVzsgc9U8UTEON88j_ofhu1e0y25UBMo-3Cf8LvPpTXdnBoHAxPaa06AwBuOa4UAQhA9-BCX19D3qHlcjyZPN67-sUiNmrugGc_TkOBgqy5DDsBKvAmLFiXK_JBDx5DgfXk2pOXUcldfowexDcAeXqsi6vWiRtyPazAbzlBGr4kRhP2kB5k3gq-3L_eIhln7kkVrDtsjNaJRN52In_1bQW-vootoaeFfIMmpR27XVqo0DgZyieqUm7v3Ht0QBYfyZGryg_vl9JEQxlDYIau07N7e9HVNe9cyQe7BDWKpHgpNtHI5qkxLXESfIS3Vw3kz6JmgHXbl1vUNvpbdQY7VkUR9UjiP2RyxYMgE3LW344uVL9-6IOMLGfCW9ZaF9QXvoXcRpdjbo6RUehKVrxRA7zTcC_6p4t_MwzR0F2io1RLO12Ee4_GgC219bRXPMFaApW_oUlm6gUz1AplPsmsmTIoYksc5G0V6xjOKdSlqmS5lswLf-CDJv5bRLKOvq23EyhRQ5K4enUnlegXiE3XI6nzFFdEvgj2amKRLHcxPyxTHDOsfeoTPujcbaRGbnPll75pE1eFTPMiswpGqCgx6Gvhb0U52T6LRBMTIb0A8NUfy7S329-n9x4AQH5xcgMnCcKkTTr6zfAlxDLjqg6sEHT3MFtj1zHEmWEyIBW78F-otCFGJv52Lb8jxntdpBXTUjJ1USYM6JkbdgbPDAoouFoYkvpvZPwidrylL6gcav6K2wC0xtwPbivqEG1OC0pdlNes9WQcbysPWO1eFub-LHSkLFf7rl9KrEvh2TNFoK1gvRSB0zfH5pOhfZl88df0peG7V_OvAB3n6nVVcA7mjcDjjsJYJhNYPzgRFWc8uXWAQuSHYxgWfdakRrGlvEU2L6sBGGzfpl4t0Md40uyasW4iw7b9Mpp7T67_bkzwITsFQRoeGY6-h7HU6BXS0rk6i-GljngSxpdyVKe1tWvo3IQG4orWVdRhs1zqJVZ6fOc4pX6nLveIv5MOgj9kpHJTDUPjsEvQOnu557YcjIu51_hRfJdsT2HBn0uo8Y4hYbdvvmwzAP3pTxKkior5uftDZ6z4ktJTuvOAb5ZKR9IubwgOop0sRen--_O_kv-lD9rALoYovQ2cm1WfJ5UaF2VPGyPPS_iUwy9YHm01Vz59qWxgbmyNp7aYqP1gJBGnM1TCwRfHEpnQ1KOmM_THhcm_otQ8q44eqODozqf-bgdbWqmH5_xAqc1SnCsBfcUelgFsmHq3xowxWwdclNx6n8_rze2REAfBdjhww7iFavnnpErueYTzmwN_aMl753JjAZOfjdwdQb5Ub-8ZEBRutpsgTYDYz2kywR9NsqeQkbUJBH36oYzILUdxYiFnJ23YeTgI805_crB_xvbtumJce1IClTtqfS9Bd3PQT3K65iznAnpk5iLEANWO0yfQsPG3CJXfcKtFP4fwtvLERSd-MkKHC6NvSCY9OKTBe0GXeNhSOFUX8qm2QKZcwPK6cLqWH1HkmklUr-jVbIL0h3WtTp_4AposYDgz9UZbUxd1842B9_Z5NhGsRAty-1LAu_YpedBvj8i44tX2WsBUJz5ZOcX_aTtq1lcmH-NC6cB8D05cfdI1xzMJ-bL-b31FkeuV2j-K9N9ycEYHkzV4UKj-zM7RyK5e3j1wTA3tgmxBxHFjzZuQEJQQGqUCAN9ZIBOnDxut1LTaIG2kl4e60vJm14UwsMCaZc_-61rB3pkjmesZRa9I84t4XO8rR5cLvO-VXSOlCwLkd0Sng5aOW6G__5-WPKhdIQFyJhUD4CD_vTjfub24SOmosFPu-rICa2Z5z1E7eIQY9Wvuq3ouKMPN5-BBW51Yk6NWJQ2pOdKUrGycgbq02HZrXvB1gczwNFjEKQqi_QepMYo3aB7Hw1U_ZB4fOdLQaSDMLBiJxbWF2jUPIha4iFPqVjQ0paU8PxTx-kw7GlyFV1BUjzTeWwgNSOCiw7BFmy2UIRk-MzY0_gpNHwdVGwuoXRkkVoPFMoWfvCDt9Eu28TOukCEe8giw94HgVjWGvc-WUhLdpWQrupOcNuQjSvWmIvkh47uAGSeTRlee_IjYY=","id":"rs_68597f060028819092b9c1253643ba35"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"call_k3DtyyfSDKzF0PeTEEimMM4u","index":1,"type":"function","function":{"name":"getCurrentWeather","arguments":""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"{\""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"location"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"\":\""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"Boston"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":","}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":" MA"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"\",\""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"unit"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"\":\""}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"fahren"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"heit"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"index":1,"type":"function","function":{"arguments":"\"}"}}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop","native_finish_reason":"stop","logprobs":null}],"finish_reason":"stop","native_finish_reason":"completed"}
+
+data: {"id":"gen-1750695685-SUZXHtLWdNTOKdsNq69C","provider":"OpenAI","model":"openai/o4-mini-high","object":"chat.completion.chunk","created":1750695685,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":78,"completion_tokens":220,"total_tokens":298,"cost":0.0010538,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0},"cost_details":{"upstream_inference_cost":null},"completion_tokens_details":{"reasoning_tokens":192}}}
+
+data: [DONE]
+

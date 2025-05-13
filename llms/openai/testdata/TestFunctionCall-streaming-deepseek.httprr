@@ -1,0 +1,54 @@
+httprr trace v1
+709 5525
+POST https://api.deepseek.com/chat/completions HTTP/1.1
+Host: api.deepseek.com
+User-Agent: langchaingo-httprr
+Content-Length: 505
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"deepseek-chat","messages":[{"role":"user","content":"What is the weather like in Boston, MA?"}],"stream":true,"tools":[{"type":"function","function":{"name":"getCurrentWeather","description":"Get the current weather in a given location","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location"]}}}],"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 5056
+Access-Control-Allow-Credentials: true
+Cache-Control: no-cache
+Cf-Cache-Status: DYNAMIC
+Content-Type: text/event-stream; charset=utf-8
+Date: Mon, 23 Jun 2025 16:21:32 GMT
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: origin, access-control-request-method, access-control-request-headers
+X-Content-Type-Options: nosniff
+X-Ds-Trace-Id: 961986471ad862eaa7b7eb384dbb6f28
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_0_cbb16f20-4aa2-4e58-8a84-7885464b9ba2","type":"function","function":{"name":"getCurrentWeather","arguments":""}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\""}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"location"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":\""}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"Boston"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":","}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":" MA"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\",\""}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"unit"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\":\""}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"f"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ahrenheit"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"e292476f-f425-4903-a2a0-150e06d6cad1","object":"chat.completion.chunk","created":1750695692,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"content":""},"logprobs":null,"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":163,"completion_tokens":26,"total_tokens":189,"prompt_tokens_details":{"cached_tokens":128},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":35}}
+
+data: [DONE]
+

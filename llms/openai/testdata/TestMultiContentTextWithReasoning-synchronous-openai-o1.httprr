@@ -1,0 +1,67 @@
+httprr trace v1
+382 1655
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 179
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"o1","messages":[{"role":"user","content":"What is the factorial of 5? Show your work. Think before you answer."}],"max_completion_tokens":8192,"reasoning_effort":"high"}HTTP/2.0 200 OK
+Content-Length: 933
+Access-Control-Expose-Headers: X-Request-ID
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 16:26:17 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 2128
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Envoy-Upstream-Service-Time: 2134
+X-Ratelimit-Limit-Requests: 10000
+X-Ratelimit-Limit-Tokens: 2000000
+X-Ratelimit-Remaining-Requests: 9999
+X-Ratelimit-Remaining-Tokens: 1999980
+X-Ratelimit-Reset-Requests: 6ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_578103cc7d2dc256f23efc98f891443f
+
+{
+  "id": "chatcmpl-BleHmKzoXDSW0cMBBDgLBqIS4o9Y8",
+  "object": "chat.completion",
+  "created": 1750695974,
+  "model": "o1-2024-12-17",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "To compute 5!, we multiply all positive integers from 1 up to 5:\n\n5! = 5 × 4 × 3 × 2 × 1 = 120.\n\nSo, the factorial of 5 is 120.",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 23,
+    "completion_tokens": 65,
+    "total_tokens": 88,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_03be0c45cc"
+}

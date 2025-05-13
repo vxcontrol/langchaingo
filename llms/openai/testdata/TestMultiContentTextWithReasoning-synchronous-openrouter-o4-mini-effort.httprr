@@ -1,0 +1,63 @@
+httprr trace v1
+400 4191
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 195
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"openai/o4-mini","messages":[{"role":"user","content":"What is the factorial of 5? Show your work. Think before you answer."}],"max_completion_tokens":8192,"reasoning":{"effort":"high"}}HTTP/2.0 200 OK
+Content-Length: 3802
+Access-Control-Allow-Origin: *
+Content-Type: application/json
+Date: Mon, 23 Jun 2025 16:26:04 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+
+         
+{"id":"gen-1750695963-mse2Ki3CiE2K7W2Z8iBa","provider":"OpenAI","model":"openai/o4-mini","object":"chat.completion","created":1750695963,"choices":[{"logprobs":null,"finish_reason":"stop","native_finish_reason":"stop","index":0,"message":{"role":"assistant","content":"Here’s how to compute 5! step by step:\n\nDefinition:  \nn! = n × (n – 1) × (n – 2) × … × 2 × 1\n\nSo for n = 5:  \n5! = 5 × 4 × 3 × 2 × 1  \n   = (5 × 4) × 3 × 2 × 1  \n   = 20 × 3 × 2 × 1  \n   = 60 × 2 × 1  \n   = 120 × 1  \n   = 120\n\nAnswer: 120","refusal":null,"reasoning":"**Calculating factorial of 5**\n\nThe user is asking for the factorial of 5 and wants to see the work behind it. So, I see that 5! means multiplying 5 by all the integers down to 1. This gives us: 5 × 4 × 3 × 2 × 1. \n\nCalculating that step-by-step results in 20 (from 5 × 4), then multiply that by 3 gives 60, and finally 60 times 2 equals 120, and 120 times 1 is still 120. \n\nSo, the final answer is 120.**Calculating factorial of 5**\n\nTo find the factorial of 5, represented as 5!, we follow this definition: n! equals n multiplied by all integers down to 1. So for 5!, it's 5 × 4 × 3 × 2 × 1. \n\nCalculating step by step, I get: \n5 × 4 equals 20, then 20 × 3 equals 60, followed by 60 × 2 which equals 120, and finally 120 multiplied by 1 is still 120. \n\nTherefore, the final answer is 120.","reasoning_details":[{"type":"reasoning.encrypted","data":"gAAAAABoWYAk_00PdIs5SrmC34URorh6SzMP1d7sVglNNuEGIN-roQ3AePAKRERfsnq6J3aJYB_xBLHk31kRVUCFLKkgE-pbhK7qzSY7TlCQXesLaEEeo72CQwU1zriWe3CwFDfVdI6RiaO7H_Pqqg_-fVkJCfYN9oAXz2xNCK0Ue4hUcH3Zrz1D-ENRSzYulSfEUBIQIgWWsj2f-vd60FUyJ--nzM4wusbZqetNPRM8h5hw8puxRRTY6ZMxa0Pz6KhG_i1-rh1T7lCZ7N7QLtU_dHNlxZU66qeR6hH-W9edrzsHxWKLdy10nTGMr5GocmAFP4lMLBU8tutQD9WJOrRKYj0LGUR6LB9Z8nMgWDgq4_VHBf9qkvnRK5LE-sLXi-teJyHxegNGLwBgrBu1T3C0kZUHI19_PflqcRrP7D3X73T2Y5Y0XYBdUTMds4IopFyL64MCnU9dx2MuJCOEmm_X0diUZpWL0wLD97DjPz7RgGMI3sch3-mKWaolPOLtJv8_XBuI2jRHzEps4U1l0pZRS5o2t4luj_1RxGaDMd6OTGdo76_kXus8QFN_9i2EAFQZZA1nh_24NJyM9QJnFk0RIrMJcFlkmF-6PBLWne-cPIEO7K8nvjXzM1OL_Ja23doqKNAKliYxvboPWgjVSuCeoUoh4w_t0c-Ve-cmc64VpNp9WzUfNNvm89tm30g_jHQXhwqeni6WAWAFWYmizs1RIXa64iJcgIEK1fx4p1Ndybp9X698UnHIHM6Jg4EzDTwXRaZFsgRyiKqGWpaQ-cYXttQzXZEj2BVA-8UUCU2UXMDqTL822JiNpLrAyA-1bhNjPc2DtUvXD6M1bJuqjmaU4-TD_ayTkQujYS3xbqm0z4-1NV7n_HwPyFslBolxIoHlBfymqoisIf0PnTJDnt90Ptv6fLK_NX04WB7E7pVglqnoxqFxs3d9FQ_r9w7whqZfqWvUdvHKfwNE7ePWLRv7xix3ceBDS6jxVBSUNIY96myQlg8uEXK4Snk24hEcy2ZHoeI61IpZpgXh-ypbzqIBIZzAeKF-aA6ttnp2EpLXebicdxzOWUNjek6StyI8R36_2P7W6kYJiPKJAmj6Z7aptbFPJgXHimSS_ogVbCAxAAobpKBFKXGmt7bj5u-jNhqp7CLmCCd69fET1GBnavXDWY1eoos0cvIblO8jsoXTNsJay7OW_qyPVlh_8eCZj2TDmd5cCDnN9pLlOqWuE2G1vLF9QDq_6zrGrf-clPrd5aWRoB-47opTFX-DiPCcSWfBC52toP2GmPhmWFVQEzynKHEdtgMROdskGuJGAEsn8JT_xfXakmxd5qvY4OXZEBR6VrBLdIkLXslmGvKKqEJlf5BzQvG-ACdl9SX6-jKjxiw0v1322dgqDZjI_EebxAt7IZXbbzU65OdBCgqg62IgKT2oGEpdgEHN3JJzMpa-N0DFRALn2rB7F1jb-9GEBtefIEHvNDPDK6yEdPeiiG3wpljfU37Tf8fCpqtOecxZlkbHZayKf9raOWbVeFe2wgMQY_H1-OXMPWBxo5YDhI7p5cLu_3q_l0Td4HT6Z3aFnNVpLYzB3itjJlBmCdxT7gJeioOXxTZjQboWD9p7vfHWszL5gohK1G1KLDmr2Seh_EpK10xNsj9WScPxox55t9KqjpEPglHzx9leqF3LiTQ--gFMrihq3oH3yRaNknjD9QuMLBk2ntz7GMXd92evBGrOeOs9RcTT6OCYD3Vk-2MmxK97K64xWWAoP89-cvcu15Nhh756N0oZV8gm-9nfWAAGJ79rLugNfK-rLrUrb_BFNkBLUf573Xa_AQ40CiUp3XslqSjlSBhuEGvv8_U_LOkEMi-wxW6JdroIsdKuzyiAB32sdD40zczbEP7sWcd7o3iN9EbT7XRS6XXUhDXtuY1luGOMqK-hKBqnK-vXvHFpmYbdO2WNCVWznCnNXUWEng8po8g5leGCtPuPoM2wmecvYll9BQ_d","id":"rs_6859801c7edc8190830dad6430aae906"}]}}],"usage":{"prompt_tokens":23,"completion_tokens":393,"total_tokens":416}}

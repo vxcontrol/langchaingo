@@ -31,7 +31,7 @@ func setupTestClient(t *testing.T, model string) *Client {
 		apiKey = key
 	}
 
-	client, err := New(apiKey, model, "", "", APITypeOpenAI, "", rr.Client(), "", nil)
+	client, err := New(apiKey, model, "", "", APITypeOpenAI, "", rr.Client(), "", nil, false, false)
 	require.NoError(t, err)
 	return client
 }
@@ -50,7 +50,7 @@ func TestClient_CreateChatCompletion(t *testing.T) {
 		apiKey = key
 	}
 
-	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil)
+	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil, false, false)
 	require.NoError(t, err)
 
 	req := &ChatRequest{
@@ -84,7 +84,7 @@ func TestClient_CreateChatCompletionStream(t *testing.T) {
 		apiKey = key
 	}
 
-	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil)
+	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil, false, false)
 	require.NoError(t, err)
 
 	var chunks []string
@@ -123,7 +123,7 @@ func TestClient_CreateEmbedding(t *testing.T) {
 		apiKey = key
 	}
 
-	client, err := New(apiKey, "", "", "", APITypeOpenAI, "", rr.Client(), "text-embedding-ada-002", nil)
+	client, err := New(apiKey, "", "", "", APITypeOpenAI, "", rr.Client(), "text-embedding-ada-002", nil, false, false)
 	require.NoError(t, err)
 
 	req := &EmbeddingRequest{
@@ -151,7 +151,7 @@ func TestClient_FunctionCall(t *testing.T) {
 		apiKey = key
 	}
 
-	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil)
+	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", nil, false, false)
 	require.NoError(t, err)
 
 	req := &ChatRequest{
@@ -199,8 +199,8 @@ func TestClient_WithResponseFormat(t *testing.T) {
 		apiKey = key
 	}
 
-	responseFormat := &ResponseFormat{Type: "json_object"}
-	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", responseFormat)
+	respFormat := &ResponseFormat{Type: "json_object"}
+	client, err := New(apiKey, "gpt-3.5-turbo", "", "", APITypeOpenAI, "", rr.Client(), "", respFormat, false, false)
 	require.NoError(t, err)
 
 	req := &ChatRequest{
@@ -213,7 +213,7 @@ func TestClient_WithResponseFormat(t *testing.T) {
 		},
 		Temperature:         0.0,
 		MaxCompletionTokens: 50,
-		ResponseFormat:      responseFormat,
+		ResponseFormat:      respFormat,
 	}
 
 	resp, err := client.CreateChat(ctx, req)

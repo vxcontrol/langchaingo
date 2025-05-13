@@ -1,0 +1,155 @@
+httprr trace v1
+478 24170
+POST https://openrouter.ai/api/v1/chat/completions HTTP/1.1
+Host: openrouter.ai
+User-Agent: langchaingo-httprr
+Content-Length: 273
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"anthropic/claude-3.7-sonnet:thinking","messages":[{"role":"user","content":"What is the factorial of 5? Show your work. Think before you answer."}],"max_completion_tokens":8192,"stream":true,"reasoning":{"max_tokens":2048},"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 23754
+Access-Control-Allow-Origin: *
+Cache-Control: no-cache
+Content-Type: text/event-stream
+Date: Mon, 23 Jun 2025 16:26:04 GMT
+Server: cloudflare
+Vary: Accept-Encoding
+X-Clerk-Auth-Message: Invalid JWT form. A JWT consists of three parts separated by dots. (reason=token-invalid, token-carrier=header)
+X-Clerk-Auth-Reason: token-invalid
+X-Clerk-Auth-Status: signed-out
+
+: OPENROUTER PROCESSING
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","text":"","signature":""}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"The factorial of a","reasoning_details":[{"type":"reasoning.text","text":"The factorial of a"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" non-negative integer n","reasoning_details":[{"type":"reasoning.text","text":" non-negative integer n"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":", denoted by n","reasoning_details":[{"type":"reasoning.text","text":", denoted by n"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"!, is the product of","reasoning_details":[{"type":"reasoning.text","text":"!, is the product of"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" all positive integers less than","reasoning_details":[{"type":"reasoning.text","text":" all positive integers less than"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" or equal to n.","reasoning_details":[{"type":"reasoning.text","text":" or equal to n."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" It's defined as:\n\nn!","reasoning_details":[{"type":"reasoning.text","text":" It's defined as:\n\nn!"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" = n × (n-1) × (","reasoning_details":[{"type":"reasoning.text","text":" = n × (n-1) × ("}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"n-2) ×","reasoning_details":[{"type":"reasoning.text","text":"n-2) ×"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" ... × 3 × 2 ","reasoning_details":[{"type":"reasoning.text","text":" ... × 3 × 2 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"× 1\n\nFor","reasoning_details":[{"type":"reasoning.text","text":"× 1\n\nFor"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" n = 5, we","reasoning_details":[{"type":"reasoning.text","text":" n = 5, we"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" compute 5!:","reasoning_details":[{"type":"reasoning.text","text":" compute 5!:"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"\n\n5! = 5","reasoning_details":[{"type":"reasoning.text","text":"\n\n5! = 5"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" × 4 ","reasoning_details":[{"type":"reasoning.text","text":" × 4 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"× 3 ×","reasoning_details":[{"type":"reasoning.text","text":"× 3 ×"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" 2 × ","reasoning_details":[{"type":"reasoning.text","text":" 2 × "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"1\n\nLet's calculate this step","reasoning_details":[{"type":"reasoning.text","text":"1\n\nLet's calculate this step"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" by step:\n5","reasoning_details":[{"type":"reasoning.text","text":" by step:\n5"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" × 4 ","reasoning_details":[{"type":"reasoning.text","text":" × 4 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"= 20\n20","reasoning_details":[{"type":"reasoning.text","text":"= 20\n20"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" × 3 ","reasoning_details":[{"type":"reasoning.text","text":" × 3 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"= 60\n60","reasoning_details":[{"type":"reasoning.text","text":"= 60\n60"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" × 2 ","reasoning_details":[{"type":"reasoning.text","text":" × 2 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"= 120\n120 × 1 ","reasoning_details":[{"type":"reasoning.text","text":"= 120\n120 × 1 "}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":"= 120\n\nSo, 5! =","reasoning_details":[{"type":"reasoning.text","text":"= 120\n\nSo, 5! ="}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":" 120.","reasoning_details":[{"type":"reasoning.text","text":" 120."}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null,"reasoning_details":[{"type":"reasoning.text","signature":"ErUBCkYIBBgCIkD86pp71tlRx5fXalS9p7onO56F1tw/UZ7lXseDveQEVWMOxFPfNVFSGduzmatuWlIfBoxh0J/r87sWQX5Zs8QlEgy3Nr9MFO4eaBw+S6caDEl5bynhmEBmpnZ8WCIwNdqb8nzNdnC2zScPW9S3OzOInWtzL3q5LhTuD5TCnQqQfxW2ylNmN6BFB9HazxA3Kh1JvPcK7+WfccXy6QUyZsFtFjW308w9ZDUe8SvLzhgC"}]},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"# Factorial of 5\n\nTo","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" find the factorial of ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"5 (written as 5","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"!), I need to","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" multiply all positive integers from","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" 1 to ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"5.\n\nThe formula","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" for factorial is: n","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"! = n × (","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"n-1) ×","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" (n-2)","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" × ... × 2","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" × 1","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n\n## Calculation:\n5! =","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" 5 × ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"4 × 3","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" × 2 ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"× 1\n\nWorking","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" through this multiplication step by step:\n-","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" 5 × ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"4 = 20","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n- 20 ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"× 3 =","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" 60\n- ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"60 × 2","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" = 120","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"\n- 120 ×","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" 1 = 120\n\nTherefore, the","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":" factorial of 5 ","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"is 120.","reasoning":null},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning":null},"finish_reason":"stop","native_finish_reason":"stop","logprobs":null}]}
+
+data: {"id":"gen-1750695963-MhwXNeYeUnx0Sm2ca70c","provider":"Anthropic","model":"anthropic/claude-3.7-sonnet:thinking","object":"chat.completion.chunk","created":1750695963,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":52,"completion_tokens":336,"total_tokens":388,"cost":0.005196,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0},"cost_details":{"upstream_inference_cost":null},"completion_tokens_details":{"reasoning_tokens":105}}}
+
+data: [DONE]
+
