@@ -36,7 +36,7 @@ func (p Markdown) parse(text string) (string, error) {
 
 	// Find the last ```
 	lastBacktickIdx := strings.LastIndex(text, "```")
-	if lastBacktickIdx <= contentStart {
+	if lastBacktickIdx < contentStart {
 		return "", ParseError{Text: text, Reason: "no closing ``` at end of output"}
 	}
 
