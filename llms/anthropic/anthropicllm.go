@@ -221,6 +221,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 					return nil, fmt.Errorf("anthropic: failed to marshal tool use arguments: %w", err)
 				}
 				choices = append(choices, &llms.ContentChoice{
+					ReasoningContent: reasoningContent,
 					ToolCalls: []llms.ToolCall{
 						{
 							ID: toolUseContent.ID,
