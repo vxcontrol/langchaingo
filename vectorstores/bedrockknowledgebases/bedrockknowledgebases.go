@@ -96,7 +96,7 @@ func (kb *KnowledgeBase) AddNamedDocuments(ctx context.Context, docs []NamedDocu
 	return kb.addDocuments(ctx, docs, options...)
 }
 
-func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) {
+func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) { //nolint:cyclop
 	for i, doc := range docs {
 		if doc.Document.Metadata == nil {
 			continue
@@ -109,7 +109,7 @@ func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) {
 			}
 
 			rv := reflect.ValueOf(v)
-			switch rv.Kind() {
+			switch rv.Kind() { //nolint:exhaustive
 			case reflect.Map:
 				if rv.Len() == 0 {
 					delete(doc.Document.Metadata, k)
@@ -122,6 +122,8 @@ func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) {
 				if v == "" {
 					delete(doc.Document.Metadata, k)
 				}
+			default:
+				// do nothing
 			}
 		}
 
@@ -133,7 +135,7 @@ func (kb *KnowledgeBase) filterMetadata(docs []NamedDocument) {
 	}
 }
 
-func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument, options ...vectorstores.Option) ([]string, error) {
+func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument, options ...vectorstores.Option) ([]string, error) { //nolint:cyclop
 	opts := kb.getOptions(options...)
 
 	kb.filterMetadata(docs)
@@ -151,21 +153,21 @@ func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument,
 					"with S3 type for the knowledge base with id: %s in the AWS console",
 				kb.knowledgeBaseID,
 			)
-		} else {
-			return nil, fmt.Errorf(
-				"no data sources with S3 type found, please create a data source "+
-					"with S3 type for the knowledge base with id: %s in the AWS console",
-				kb.knowledgeBaseID,
-			)
 		}
+
+		return nil, fmt.Errorf(
+			"no data sources with S3 type found, please create a data source "+
+				"with S3 type for the knowledge base with id: %s in the AWS console",
+			kb.knowledgeBaseID,
+		)
 	}
 
 	var datasourceID string
 	var bucketARN string
 	if opts.NameSpace != "" { //nolint:gocritic
 		for _, ds := range compatibleDs {
-			if ds.Id == opts.NameSpace {
-				datasourceID = ds.Id
+			if ds.ID == opts.NameSpace {
+				datasourceID = ds.ID
 				bucketARN = ds.BucketARN
 				break
 			}
@@ -174,7 +176,7 @@ func (kb *KnowledgeBase) addDocuments(ctx context.Context, docs []NamedDocument,
 			return nil, fmt.Errorf("data source with S3 type with id %s not found", opts.NameSpace)
 		}
 	} else if len(compatibleDs) == 1 {
-		datasourceID = compatibleDs[0].Id
+		datasourceID = compatibleDs[0].ID
 		bucketARN = compatibleDs[0].BucketARN
 	} else {
 		return nil, fmt.Errorf("multiple data sources with S3 type found, please specify " +
@@ -268,8 +270,7 @@ func (kb *KnowledgeBase) SimilaritySearch(ctx context.Context, query string, num
 	return docs, nil
 }
 
-//nolint:gocognit
-func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) {
+func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) { //nolint:gocognit,cyclop,funlen
 	if filters != nil {
 		switch filters := filters.(type) {
 		case EqualsFilter:
@@ -306,7 +307,7 @@ func (kb *KnowledgeBase) getFilters(filters any) (types.RetrievalFilter, error) 
 			}
 			switch len(filtersList) {
 			case 0:
-				return nil, nil
+				return nil, nil //nolint:nilnil
 			case 1:
 				return filtersList[0], nil
 			default:
