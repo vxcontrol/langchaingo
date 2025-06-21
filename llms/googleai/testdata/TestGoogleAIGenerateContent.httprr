@@ -1,20 +1,20 @@
 httprr trace v1
-789 1369
+774 1369
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 369
+Content-Length: 354
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.3 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
+x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
 x-goog-request-params: model=models%2Fgemini-2.0-flash
 
-{"model":"models/gemini-2.0-flash", "contents":[{"parts":[{"text":"What is the capital of France?"}], "role":"user"}], "safetySettings":[{"category":10, "threshold":3}, {"category":7, "threshold":3}, {"category":8, "threshold":3}, {"category":9, "threshold":3}], "generationConfig":{"candidateCount":1, "maxOutputTokens":2048, "temperature":0.5, "topP":0.95, "topK":3}}HTTP/2.0 200 OK
+{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is the capital of France?"}],"role":"user"}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
 Content-Length: 991
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Sat, 21 Jun 2025 13:41:15 GMT
+Date: Sat, 21 Jun 2025 19:21:39 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=412
+Server-Timing: gfet4t7; dur=414
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -73,5 +73,5 @@ X-Xss-Protection: 0
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "e7ZWaLjABf__698Pv8HGgAg"
+  "responseId": "QwZXaK3rFY_InvgPntbbqQc"
 }
