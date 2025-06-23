@@ -123,10 +123,10 @@ func (c *Client) CreateTTS(ctx context.Context, payload *TTSRequest) ([]byte, er
 		// status code.
 		var errResp errorMessage
 		if err := json.NewDecoder(response.Body).Decode(&errResp); err != nil {
-			return nil, errors.New(msg) // nolint:goerr113
+			return nil, errors.New(msg) // nolint:err113
 		}
 
-		return nil, fmt.Errorf("%s: %s", msg, errResp.Error.Message) // nolint:goerr113
+		return nil, fmt.Errorf("%s: %s", msg, errResp.Error.Message) // nolint:err113
 	}
 
 	responseData, err := io.ReadAll(response.Body)

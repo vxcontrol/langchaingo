@@ -31,7 +31,7 @@ func NewMySQL(dsn string) (sqldatabase.Engine, error) { //nolint:ireturn
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(32) //nolint:gomnd
+	db.SetMaxOpenConns(32) //nolint:mnd
 
 	return &MySQL{
 		db: db,
@@ -95,11 +95,11 @@ func (m MySQL) TableInfo(ctx context.Context, table string) (string, error) {
 	if len(result) == 0 {
 		return "", sqldatabase.ErrTableNotFound
 	}
-	if len(result[0]) < 2 { //nolint:gomnd
+	if len(result[0]) < 2 { //nolint:mnd
 		return "", sqldatabase.ErrInvalidResult
 	}
 
-	return result[0][1], nil //nolint:gomnd
+	return result[0][1], nil //nolint:mnd
 }
 
 func (m MySQL) Close() error {

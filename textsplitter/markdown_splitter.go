@@ -572,7 +572,7 @@ func (mc *markdownContext) onMDCodeBlock() {
 	// separated by blank lines. An indented chunk is a sequence of
 	// non-blank lines, each preceded by four or more spaces of indentation.
 
-	//nolint:gomnd
+	//nolint:mnd
 	codeblockMD := "\n" + formatWithIndent(codeblock.Content, strings.Repeat(" ", 4))
 
 	// adding this as a single snippet means that long codeblocks will be split

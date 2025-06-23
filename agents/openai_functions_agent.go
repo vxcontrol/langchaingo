@@ -275,7 +275,7 @@ func (o *OpenAIFunctionsAgent) ParseOutput(contentResp *llms.ContentResponse) (
 	return actions, nil, nil
 }
 
-func (o *OpenAIFunctionsAgent) parseToolCalls(id, name, args, content string) (schema.AgentAction, error) {
+func (o *OpenAIFunctionsAgent) parseToolCalls(id, name, args, content string) (schema.AgentAction, error) { //nolint:unparam
 	argsMap := make(map[string]any, 0)
 	err := json.Unmarshal([]byte(args), &argsMap)
 	if err != nil {

@@ -22,10 +22,10 @@ var (
 )
 
 var defaultParameters = map[string]interface{}{ //nolint:gochecknoglobals
-	"temperature":     0.2, //nolint:gomnd
-	"maxOutputTokens": 256, //nolint:gomnd
-	"topP":            0.8, //nolint:gomnd
-	"topK":            40,  //nolint:gomnd
+	"temperature":     0.2, //nolint:mnd
+	"maxOutputTokens": 256, //nolint:mnd
+	"topP":            0.8, //nolint:mnd
+	"topK":            40,  //nolint:mnd
 }
 
 const (
