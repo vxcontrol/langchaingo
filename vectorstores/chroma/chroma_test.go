@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -23,6 +24,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	tcchroma "github.com/testcontainers/testcontainers-go/modules/chroma"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // TODO (noodnik2):
@@ -629,8 +631,15 @@ func getValues(t *testing.T) (string, string) {
 	ctx := t.Context()
 	chromaURL := os.Getenv(chroma.ChromaURLKeyEnvVarName)
 	if chromaURL == "" {
-		image := "chromadb/chroma:0.4.24"
-		chromaContainer, err := tcchroma.Run(ctx, image, testcontainers.WithLogger(log.TestLogger(t)))
+		chromaContainer, err := tcchroma.Run(
+			ctx,
+			"chromadb/chroma:0.4.24",
+			testcontainers.WithLogger(log.TestLogger(t)),
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("Application startup complete").
+					WithStartupTimeout(30*time.Second),
+			),
+		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}

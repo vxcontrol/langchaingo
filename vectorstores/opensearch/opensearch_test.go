@@ -23,6 +23,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	tcopensearch "github.com/testcontainers/testcontainers-go/modules/opensearch"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func getEnvVariables(t *testing.T) (string, string, string) {
@@ -44,8 +45,15 @@ func getEnvVariables(t *testing.T) (string, string, string) {
 	ctx := t.Context()
 	opensearchEndpoint := os.Getenv("OPENSEARCH_ENDPOINT")
 	if opensearchEndpoint == "" {
-		image := "opensearchproject/opensearch:2.11.1"
-		openseachContainer, err := tcopensearch.Run(ctx, image, testcontainers.WithLogger(log.TestLogger(t)))
+		openseachContainer, err := tcopensearch.Run(
+			ctx,
+			"opensearchproject/opensearch:2.11.1",
+			testcontainers.WithLogger(log.TestLogger(t)),
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("ML configuration initialized successfully").
+					WithStartupTimeout(30*time.Second),
+			),
+		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}

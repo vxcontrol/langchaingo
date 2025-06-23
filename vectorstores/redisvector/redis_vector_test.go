@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -23,20 +24,15 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tclog "github.com/testcontainers/testcontainers-go/log"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func getTestURIs(t *testing.T) (string, string) { //nolint:unparam
+func getTestURIs(t *testing.T) string {
 	t.Helper()
 	testctr.SkipIfDockerNotAvailable(t)
 
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
-	}
-
-	// Default to localhost if OLLAMA_HOST not set
-	ollamaURL := os.Getenv("OLLAMA_HOST")
-	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
 	}
 
 	uri := os.Getenv("REDIS_URL")
@@ -46,6 +42,9 @@ func getTestURIs(t *testing.T) (string, string) { //nolint:unparam
 		redisContainer, err := tcredis.Run(ctx,
 			"docker.io/redis/redis-stack:7.2.0-v10",
 			testcontainers.WithLogger(tclog.TestLogger(t)),
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("* Ready to accept connections"),
+			),
 		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
@@ -59,6 +58,13 @@ func getTestURIs(t *testing.T) (string, string) { //nolint:unparam
 			}
 		})
 
+		// wait for the container to be ready
+		select {
+		case <-time.After(5 * time.Second):
+		case <-t.Context().Done():
+			t.Fatal("test timed out")
+		}
+
 		url, err := redisContainer.ConnectionString(ctx)
 		if err != nil {
 			log.Fatalf("failed to start container: %s", err)
@@ -66,7 +72,7 @@ func getTestURIs(t *testing.T) (string, string) { //nolint:unparam
 		uri = url
 	}
 
-	return uri, ollamaURL
+	return uri
 }
 
 //go:embed testdata/schema.json
@@ -85,7 +91,7 @@ func TestCreateRedisVectorOptions(t *testing.T) {
 	}
 
 	ctx := t.Context()
-	redisURL, _ := getTestURIs(t)
+	redisURL := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
 	index := "test_case1"
 
@@ -204,7 +210,7 @@ func TestAddDocuments(t *testing.T) {
 
 	ctx := t.Context()
 
-	redisURL, _ := getTestURIs(t)
+	redisURL := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
 
 	index := "test_add_document"
@@ -299,7 +305,7 @@ func TestSimilaritySearch(t *testing.T) {
 
 	ctx := t.Context()
 
-	redisURL, _ := getTestURIs(t)
+	redisURL := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
 
 	index := "test_similarity_search"
@@ -392,7 +398,7 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 
 	ctx := t.Context()
 
-	redisURL, _ := getTestURIs(t)
+	redisURL := getTestURIs(t)
 	llm, e := createOpenAILLMAndEmbedder(t)
 	index := "test_redis_vector_as_retriever"
 
@@ -458,7 +464,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 
 	ctx := t.Context()
 
-	redisURL, _ := getTestURIs(t)
+	redisURL := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
 	index := "test_redis_vector_as_retriever_with_metadata_filters"
 
@@ -560,29 +566,3 @@ func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.Embedder
 	require.NoError(t, err)
 	return llm, e
 }
-
-// nolint:unused
-/**
-func runOllamaTestContainer(model string) (*tcollama.OllamaContainer, string) {
-	ctx := context.Background()
-
-	ollamaContainer, err := tcollama.RunContainer(
-		ctx,
-		testcontainers.WithImage("ollama/ollama:0.1.31"),
-	)
-	if err != nil {
-		log.Fatalf("failed to start container: %s", err)
-	}
-
-	_, _, err = ollamaContainer.Exec(ctx, []string{"ollama", "pull", model})
-	if err != nil {
-		log.Fatalf("failed to pull model %s: %s", model, err)
-	}
-
-	connectionStr, err := ollamaContainer.ConnectionString(ctx)
-	if err != nil {
-		log.Fatalf("failed to get connection string: %s", err) // nolint:gocritic
-	}
-	return ollamaContainer, connectionStr
-}
-*/

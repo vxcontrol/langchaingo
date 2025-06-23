@@ -42,6 +42,6 @@ It's a fantastic way to learn about vector databases and how they can be used in
 
 ## Ready to Try?
 
-Make sure you have Redis running locally and an Ollama server set up with the "gemma:2b" model. Then run the code and watch the magic happen!
+Make sure you have Redis running locally and an Ollama server set up with "gemma3:4b" and "gemma:2b" models. Then run the code and watch the magic happen!
 
 Happy coding, and have fun exploring the world of vector stores and AI! 🎉🤖

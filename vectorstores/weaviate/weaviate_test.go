@@ -23,6 +23,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	tcweaviate "github.com/testcontainers/testcontainers-go/modules/weaviate"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/weaviate/weaviate/entities/models"
 )
 
@@ -38,6 +39,9 @@ func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 			ctx,
 			"semitechnologies/weaviate:1.25.5",
 			testcontainers.WithLogger(log.TestLogger(t)),
+			testcontainers.WithWaitStrategy(
+				wait.ForLog("node reporting ready"),
+			),
 		)
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
@@ -59,7 +63,7 @@ func getWeaviateTestContainerSchemeAndHost(t *testing.T) (string, string) {
 
 		// Wait for the container to be ready
 		select {
-		case <-time.After(10 * time.Second):
+		case <-time.After(5 * time.Second):
 		case <-t.Context().Done():
 			t.Fatal("test timed out")
 		}
