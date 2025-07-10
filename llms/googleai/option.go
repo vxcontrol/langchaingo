@@ -7,6 +7,7 @@ import (
 
 	"cloud.google.com/go/vertexai/genai"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
 // Options is a set of options for GoogleAI and Vertex clients.
@@ -87,6 +88,24 @@ func WithCredentialsFile(credentialsFile string) Option {
 func WithRest() Option {
 	return func(opts *Options) {
 		opts.ClientOptions = append(opts.ClientOptions, genai.WithREST())
+	}
+}
+
+// WithGRPCClient append a ClientOption that uses the provided gRPC client to
+// make requests.
+// This is useful for gemini clients.
+func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
+	return func(opts *Options) {
+		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(grpcClient))
+	}
+}
+
+// WithEndpoint append a ClientOption that uses the provided endpoint to
+// make requests.
+// This is useful for gemini clients.
+func WithEndpoint(endpoint string) Option {
+	return func(opts *Options) {
+		opts.ClientOptions = append(opts.ClientOptions, option.WithEndpoint(endpoint))
 	}
 }
 
