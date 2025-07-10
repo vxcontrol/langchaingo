@@ -180,17 +180,12 @@ func (o *LLM) convertMessageContent(mc llms.MessageContent) (api.Message, error)
 func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 	tc := api.ToolCall{
 		Function: api.ToolCallFunction{
-			Name: toolCall.FunctionCall.Name,
+			Name:  toolCall.FunctionCall.Name,
+			Index: parseToolCallID(toolCall.ID),
 		},
 	}
 
-	var err error
-	tc.Function.Index, err = parseToolCallID(toolCall.ID)
-	if err != nil {
-		return api.ToolCall{}, fmt.Errorf("error converting tool call ID to int: %w", err)
-	}
-
-	err = json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
+	err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
 	if err != nil {
 		return api.ToolCall{}, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
 	}
@@ -474,16 +469,22 @@ func makeToolCallID(index int, name string) string { //nolint:gosec
 	return fmt.Sprintf("ollama-%s-%d", encHash, index)
 }
 
-func parseToolCallID(id string) (int, error) {
+func parseToolCallID(id string) int { //nolint:gosec
+	fallback := func() int {
+		hash := crc32.NewIEEE()
+		hash.Write([]byte(id))
+		return int(hash.Sum32())
+	}
+
 	parts := strings.Split(id, "-")
 	if len(parts) != 3 {
-		return 0, fmt.Errorf("invalid tool call id: %s", id)
+		return fallback()
 	}
 
 	index, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return 0, fmt.Errorf("invalid tool call id: %s", id)
+		return fallback()
 	}
 
-	return index, nil
+	return index
 }
