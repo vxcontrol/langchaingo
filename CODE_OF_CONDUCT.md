@@ -4,10 +4,10 @@
 
 This is a fork of the original [github.com/tmc/langchaingo](https://github.com/tmc/langchaingo) repository. This fork follows a specific branching strategy:
 
-- **main**: Fully synchronized with upstream (`tmc/langchaingo`). Never force-pushed.
-- **main-pull-requests**: Contains merged PRs from upstream that haven't been officially merged. Rebased on `main`.
-- **main-vxcontrol**: Default branch containing all current enhancements. Rebased on `main-pull-requests`.
-- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable and never force-pushed.
+- **main**: Fully synchronized with upstream (`tmc/langchaingo`) using fast-forward merges.
+- **main-pull-requests**: Contains useful PRs from upstream that haven't been officially merged. Updated by merging from `main` after synchronization.
+- **main-vxcontrol**: Default branch containing all current enhancements including module name changes and stability improvements. Updated by merging from `main-pull-requests`.
+- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable to use in production, all tags are linked to these branches.
 
 For more information about this fork's structure and purpose, please refer to our [README](README.md).
 

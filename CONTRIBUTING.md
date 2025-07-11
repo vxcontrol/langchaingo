@@ -12,10 +12,10 @@ This is a fork of the original [github.com/tmc/langchaingo](https://github.com/t
 
 This repository follows a specific branching strategy:
 
-- **main**: Fully synchronized with upstream (`tmc/langchaingo`). Never force-pushed.
-- **main-pull-requests**: Contains merged PRs from upstream that haven't been officially merged. Rebased on `main` after synchronization (commit hashes will change).
-- **main-vxcontrol**: Default branch containing all current enhancements. Rebased on `main-pull-requests` (commit hashes will change).
-- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable and never force-pushed.
+- **main**: Fully synchronized with upstream (`tmc/langchaingo`) using fast-forward merges.
+- **main-pull-requests**: Contains useful PRs from upstream that haven't been officially merged. Updated by merging from `main` after synchronization.
+- **main-vxcontrol**: Default branch containing all current enhancements including module name changes and stability improvements. Updated by merging from `main-pull-requests`.
+- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable to use in production, all tags are linked to these branches.
 
 Release tags follow the format `v0.1.13-update.1`, where:
 - `v0.1.13` corresponds to the latest upstream release version
@@ -182,7 +182,7 @@ Click **Make a contribution** at the bottom of any docs page to make small chang
 
 3. Create a working branch from the `main-vxcontrol` branch and start with your changes!
 
-**Important**: Note that the `main-vxcontrol` branch undergoes rebasing as we sync with upstream, so its commit hashes will change over time. Always create Pull Requests based on the current state of the `main-vxcontrol` branch.
+**Important**: Always create Pull Requests based on the current state of the `main-vxcontrol` branch.
 
 ##### Recent Updates and Dependencies
 
@@ -498,14 +498,10 @@ Commit the changes once you are happy with them. Don't forget to self-review to 
 #### Pull Request
 
 When you're finished with the changes, create a pull request, also known as a PR.
-<<<<<<< HEAD
+- Base your PR against the `main-vxcontrol` branch, not the `main` branch.
 - Name your Pull Request title clearly, concisely, and prefixed with the name of primarily affected package you changed according to [Go Contribute Guideline](https://go.dev/doc/contribute#commit_messages). (such as `memory: add interfaces` or `util: add helpers`)
 - Run all linters and ensure tests pass: `make lint && make test`
 - If you added new HTTP-based functionality, include httprr recordings
-=======
-- Base your PR against the `main-vxcontrol` branch, not the `main` branch.
-- Name your Pull Request title clearly, concisely, and prefixed with the name of primarily affected package you changed according to [Go Contribute Guideline](https://go.dev/doc/contribute#commit_messages). (such as `memory: added interfaces` or `util: added helpers`)
->>>>>>> d174a61d (docs: update CODE_OF_CONDUCT and CONTRIBUTING with fork information and branching strategy)
 - **We strive to conceptually align with the Python and TypeScript versions of Langchain. Please link/reference the associated concepts in those codebases when introducing a new concept.**
 - Fill the "Ready for review" template so that we can review your PR. This template helps reviewers understand your changes as well as the purpose of your pull request.
 - Don't forget to [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) if you are solving one.
@@ -519,6 +515,6 @@ Once you submit your PR, a team member will review your proposal. We may ask que
 
 Congratulations :tada::tada: The langchaingo team thanks you :sparkles:.
 
-Once your PR is merged, your contributions will be included in the next release when enough changes have accumulated. Your changes will be included in the next stable release with fixed commit hashes.
+Once your PR is merged, your contributions will be included in the next release when enough changes have accumulated.
 
 Now that you are part of the community!

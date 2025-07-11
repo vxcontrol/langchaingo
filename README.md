@@ -32,10 +32,10 @@ This repository follows a specific branching strategy to maintain both upstream 
 
 ### Branch Management
 
-- **main**: Fully synchronized with upstream (`tmc/langchaingo`). Never force-pushed.
-- **main-pull-requests**: Contains merged PRs from upstream that haven't been officially merged. Rebased on `main` after synchronization (commit hashes will change).
-- **main-vxcontrol**: Default branch containing all current enhancements. Rebased on `main-pull-requests` (commit hashes will change).
-- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable and never force-pushed.
+- **main**: Fully synchronized with upstream (`tmc/langchaingo`) using fast-forward merges.
+- **main-pull-requests**: Contains useful PRs from upstream that haven't been officially merged. Updated by merging from `main` after synchronization.
+- **main-vxcontrol**: Default branch containing all current enhancements including module name changes and stability improvements. Updated by merging from `main-pull-requests`.
+- **release/v***: Created from `main-vxcontrol` for each release. These branches are stable to use in production, all tags are linked to these branches.
 
 ### Versioning
 
@@ -47,7 +47,7 @@ Each new release cumulatively includes all changes from previous releases on top
 
 ### Dependency Management
 
-**Important**: When using this fork in your projects, always reference **release tags** rather than commit hashes. This ensures proper dependency resolution since branches like `main-vxcontrol` undergo rebasing and their commit hashes change over time.
+**Important**: When using this fork in your projects, always reference **release tags** for stable and predictable dependencies.
 
 ```
 go get github.com/vxcontrol/langchaingo@v0.1.13-update.1
@@ -57,19 +57,19 @@ go get github.com/vxcontrol/langchaingo@v0.1.13-update.1
 
 ```
   main              A---B---C---D---E---F   (synced with upstream)
-                     \
-  main-pull-requests   \---G---H---I        (rebased on main, PRs from upstream)
-                          \
-  main-vxcontrol           \---J---K---L    (default branch, rebased on main-pull-requests)
-                                \
-  release/vM.M.P-update.N        M          (tagged stable release)
+                         \       \
+  main-pull-requests     G---H---I---J     (merged from main, PRs from upstream)
+                              \       \
+  main-vxcontrol              K---L---M   (default branch, merged from main-pull-requests)
+                                   \
+  release/vM.M.P-update.N          N     (tagged stable release)
 ```
 
 ### For Contributors
 
-If you want to contribute to this fork, please create Pull Requests based on the current state of the `main-vxcontrol` branch. Even though commit hashes in this branch may change due to rebasing, your contributions will be included in the next release when enough changes have accumulated.
+If you want to contribute to this fork, please create Pull Requests based on the current state of the `main-vxcontrol` branch. Your contributions will be included in the next release when enough changes have accumulated.
 
-When creating a PR, please ensure your changes are well-tested and include appropriate documentation. Once merged, your contributions will be included in the next stable release with fixed commit hashes.
+When creating a PR, please ensure your changes are well-tested and include appropriate documentation. Once merged, your contributions will be included in the next stable release.
 
 ## Acknowledgements
 
