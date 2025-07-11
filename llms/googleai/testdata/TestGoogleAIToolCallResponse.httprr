@@ -1,20 +1,20 @@
 httprr trace v1
-996 1472
-POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
+1036 1644
+POST https://generativelanguage.googleapis.com//v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 576
+Content-Length: 714
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
-x-goog-request-params: model=models%2Fgemini-2.0-flash
+X-Goog-Api-Client: google-genai-sdk/1.15.0 gl-go/go1.24.0
+X-Goog-Api-Key: test-api-key
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"}],"tools":[{"functionDeclarations":[{"name":"calculate","description":"Perform a calculation","parameters":{"type":6,"properties":{"expression":{"type":1,"description":"Mathematical expression to evaluate"}},"required":["expression"]}}]}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 1093
+{"contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Perform a calculation","name":"calculate","parameters":{"properties":{"expression":{"description":"Mathematical expression to evaluate","type":"STRING"}},"required":["expression"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 1265
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 23 Jun 2025 09:54:03 GMT
+Date: Fri, 11 Jul 2025 21:05:38 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=549
+Server-Timing: gfet4t7; dur=630
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -38,26 +38,26 @@ X-Xss-Protection: 0
         ],
         "role": "model"
       },
-      "finishReason": 1,
+      "finishReason": "STOP",
       "safetyRatings": [
         {
-          "category": 8,
-          "probability": 1
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 10,
-          "probability": 1
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 7,
-          "probability": 1
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 9,
-          "probability": 1
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
         }
       ],
-      "avgLogprobs": -0.00011299893126956054
+      "avgLogprobs": -0.0010924447726990496
     }
   ],
   "usageMetadata": {
@@ -66,36 +66,36 @@ X-Xss-Protection: 0
     "totalTokenCount": 28,
     "promptTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 21
       }
     ],
     "candidatesTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 7
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "OyRZaJLBGZb7hMIP4fzx4A4"
+  "responseId": "onxxaNXSCPy-gLUP6pjS0Qs"
 }
-1196 1743
-POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
+1230 1527
+POST https://generativelanguage.googleapis.com//v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 770
+Content-Length: 908
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
-x-goog-request-params: model=models%2Fgemini-2.0-flash
+X-Goog-Api-Client: google-genai-sdk/1.15.0 gl-go/go1.24.0
+X-Goog-Api-Key: test-api-key
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"},{"parts":[{"functionCall":{"name":"calculate","args":{"expression":"15 * 7"}}}],"role":"model"},{"parts":[{"functionResponse":{"name":"calculate","response":{"response":"105"}}}],"role":"user"}],"tools":[{"functionDeclarations":[{"name":"calculate","description":"Perform a calculation","parameters":{"type":6,"properties":{"expression":{"type":1,"description":"Mathematical expression to evaluate"}},"required":["expression"]}}]}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 1364
+{"contents":[{"parts":[{"text":"What is 15 * 7?"}],"role":"user"},{"parts":[{"functionCall":{"args":{"expression":"15 * 7"},"name":"calculate"}}],"role":"model"},{"parts":[{"functionResponse":{"name":"calculate","response":{"response":"105"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Perform a calculation","name":"calculate","parameters":{"properties":{"expression":{"description":"Mathematical expression to evaluate","type":"STRING"}},"required":["expression"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 1148
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 23 Jun 2025 09:54:05 GMT
+Date: Fri, 11 Jul 2025 21:05:40 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=242
+Server-Timing: gfet4t7; dur=495
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -103,63 +103,37 @@ X-Content-Type-Options: nosniff
 X-Frame-Options: SAMEORIGIN
 X-Xss-Protection: 0
 
-[{
-  "candidates": [
-    {
-      "content": {
-        "parts": [
-          {
-            "text": "The"
-          }
-        ],
-        "role": "model"
-      }
-    }
-  ],
-  "usageMetadata": {
-    "promptTokenCount": 78,
-    "totalTokenCount": 78,
-    "promptTokensDetails": [
-      {
-        "modality": 1,
-        "tokenCount": 78
-      }
-    ]
-  },
-  "modelVersion": "gemini-2.0-flash",
-  "responseId": "PSRZaMDfDpb7hMIP4fzx4A4"
-}
-,
 {
   "candidates": [
     {
       "content": {
         "parts": [
           {
-            "text": " answer is 105.\n"
+            "text": "The answer is 105.\n"
           }
         ],
         "role": "model"
       },
-      "finishReason": 1,
+      "finishReason": "STOP",
       "safetyRatings": [
         {
-          "category": 8,
-          "probability": 1
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 10,
-          "probability": 1
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 7,
-          "probability": 1
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 9,
-          "probability": 1
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
         }
-      ]
+      ],
+      "avgLogprobs": -0.06096559100680881
     }
   ],
   "usageMetadata": {
@@ -168,18 +142,17 @@ X-Xss-Protection: 0
     "totalTokenCount": 42,
     "promptTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 33
       }
     ],
     "candidatesTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 9
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "PSRZaMDfDpb7hMIP4fzx4A4"
+  "responseId": "o3xxaNuCOvy-gLUP6pjS0Qs"
 }
-]

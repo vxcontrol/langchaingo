@@ -71,6 +71,13 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	// Configure client with httprr
 	opts = append(opts, WithRest(), WithHTTPClient(rr.Client()))
 
+	// Add API key if available
+	if apiKey != "" {
+		opts = append(opts, WithAPIKey(apiKey))
+	} else {
+		t.Skip("No API key found, skipping test")
+	}
+
 	llm, err := New(t.Context(), opts...)
 	require.NoError(t, err)
 	return llm
@@ -119,7 +126,7 @@ func TestGoogleAIGenerateContentWithMultipleMessages(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-2.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -144,7 +151,7 @@ func TestGoogleAIGenerateContentWithSystemMessage(t *testing.T) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-2.5-flash"))
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
@@ -176,7 +183,7 @@ func TestGoogleAICreateEmbedding(t *testing.T) {
 
 func TestGoogleAIWithOptions(t *testing.T) {
 	llm := newHTTPRRClient(t,
-		WithDefaultModel("gemini-1.5-flash"),
+		WithDefaultModel("gemini-2.5-flash"),
 		WithDefaultMaxTokens(100),
 		WithDefaultTemperature(0.1),
 	)
@@ -286,6 +293,7 @@ func TestGoogleAIWithTools(t *testing.T) {
 	// Check if tool call was made
 	if len(resp.Choices[0].ToolCalls) > 0 {
 		toolCall := resp.Choices[0].ToolCalls[0]
+		assert.NotEmpty(t, toolCall.ID, "ToolCall ID should not be empty")
 		assert.Equal(t, "getWeather", toolCall.FunctionCall.Name)
 		assert.Contains(t, toolCall.FunctionCall.Arguments, "New York")
 	}
@@ -374,7 +382,7 @@ func TestGoogleAIMultiModalContent(t *testing.T) {
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
-		llms.WithModel("gemini-1.5-flash"),
+		llms.WithModel("gemini-2.5-flash"),
 	)
 
 	require.NoError(t, err)
@@ -463,10 +471,13 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 
 	// If tool was called, send back response
 	if len(resp1.Choices[0].ToolCalls) > 0 {
+		toolCall := resp1.Choices[0].ToolCalls[0]
+		assert.NotEmpty(t, toolCall.ID, "ToolCall ID should not be empty")
+
 		// Add assistant's tool call to history
 		content = append(content, llms.MessageContent{
 			Role:  llms.ChatMessageTypeAI,
-			Parts: []llms.ContentPart{resp1.Choices[0].ToolCalls[0]},
+			Parts: []llms.ContentPart{toolCall},
 		})
 
 		// Add tool response
@@ -474,8 +485,9 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 			Role: llms.ChatMessageTypeTool,
 			Parts: []llms.ContentPart{
 				llms.ToolCallResponse{
-					Name:    resp1.Choices[0].ToolCalls[0].FunctionCall.Name,
-					Content: "105",
+					ToolCallID: toolCall.ID,
+					Name:       toolCall.FunctionCall.Name,
+					Content:    "105",
 				},
 			},
 		})
@@ -490,4 +502,82 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 		require.NotNil(t, resp2)
 		assert.Contains(t, resp2.Choices[0].Content, "105")
 	}
+}
+
+func TestGoogleAIThinkingModels(t *testing.T) {
+	t.Run("non-streaming", func(t *testing.T) {
+		llm := newHTTPRRClient(t)
+
+		content := []llms.MessageContent{
+			{
+				Role: llms.ChatMessageTypeHuman,
+				Parts: []llms.ContentPart{
+					llms.TextPart("What's the next number in this sequence: 2, 6, 12, 20, 30, ? Show your reasoning."),
+				},
+			},
+		}
+
+		resp, err := llm.GenerateContent(
+			t.Context(),
+			content,
+			llms.WithModel("gemini-2.5-pro"),
+			llms.WithReasoning(llms.ReasoningHigh, 1000),
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.NotEmpty(t, resp.Choices)
+		assert.Contains(t, resp.Choices[0].Content, "42")
+
+		// Check that thinking content is present in metadata
+		if metadata, ok := resp.Choices[0].GenerationInfo["thinking"]; ok {
+			thinkingContent, ok := metadata.(string)
+			assert.True(t, ok, "thinking metadata should be a string")
+			assert.NotEmpty(t, thinkingContent, "thinking content should not be empty")
+		}
+	})
+
+	t.Run("streaming", func(t *testing.T) {
+		llm := newHTTPRRClient(t)
+
+		content := []llms.MessageContent{
+			{
+				Role: llms.ChatMessageTypeHuman,
+				Parts: []llms.ContentPart{
+					llms.TextPart("What's the next number in this sequence: 2, 6, 12, 20, 30, ? Show your reasoning."),
+				},
+			},
+		}
+
+		var (
+			streamedContent strings.Builder
+			thinkingContent strings.Builder
+			streamDone      bool
+		)
+
+		resp, err := llm.GenerateContent(
+			t.Context(),
+			content,
+			llms.WithModel("gemini-2.5-pro"),
+			llms.WithReasoning(llms.ReasoningHigh, 1000),
+			llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+				switch chunk.Type {
+				case streaming.ChunkTypeText:
+					streamedContent.WriteString(chunk.Content)
+				case streaming.ChunkTypeReasoning:
+					thinkingContent.WriteString(chunk.Content)
+				case streaming.ChunkTypeDone:
+					streamDone = true
+				}
+				return nil
+			}),
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, streamDone, "Streaming should be done")
+		assert.NotEmpty(t, resp.Choices)
+		assert.Contains(t, resp.Choices[0].Content, "42")
+		assert.NotEmpty(t, thinkingContent.String(), "Thinking content should be streamed")
+	})
 }

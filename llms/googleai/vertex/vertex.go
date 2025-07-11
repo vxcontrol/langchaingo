@@ -12,6 +12,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/llms/googleai"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"cloud.google.com/go/vertexai/genai"
@@ -73,19 +74,19 @@ func (g *Vertex) GenerateContent(
 	model.SafetySettings = []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: genai.HarmBlockThreshold(g.opts.HarmThreshold),
+			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
 		},
 		{
 			Category:  genai.HarmCategoryHarassment,
-			Threshold: genai.HarmBlockThreshold(g.opts.HarmThreshold),
+			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
 		},
 		{
 			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: genai.HarmBlockThreshold(g.opts.HarmThreshold),
+			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
 		},
 		{
 			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: genai.HarmBlockThreshold(g.opts.HarmThreshold),
+			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
 		},
 	}
 	var err error
@@ -505,5 +506,22 @@ func showContent(w io.Writer, cs []*genai.Content) {
 				fmt.Fprintf(w, "unknown type %T\n", pp)
 			}
 		}
+	}
+}
+
+func convertVertexHarmBlockThreshold(threshold googleai.HarmBlockThreshold) genai.HarmBlockThreshold {
+	switch threshold {
+	case googleai.HarmBlockUnspecified:
+		return genai.HarmBlockUnspecified
+	case googleai.HarmBlockLowAndAbove:
+		return genai.HarmBlockLowAndAbove
+	case googleai.HarmBlockMediumAndAbove:
+		return genai.HarmBlockMediumAndAbove
+	case googleai.HarmBlockOnlyHigh:
+		return genai.HarmBlockOnlyHigh
+	case googleai.HarmBlockNone:
+		return genai.HarmBlockNone
+	default:
+		return genai.HarmBlockOnlyHigh // Safe default
 	}
 }

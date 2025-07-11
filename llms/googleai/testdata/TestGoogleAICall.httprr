@@ -1,20 +1,20 @@
 httprr trace v1
-758 1345
-POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
+784 1519
+POST https://generativelanguage.googleapis.com//v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 338
+Content-Length: 462
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
-x-goog-request-params: model=models%2Fgemini-2.0-flash
+X-Goog-Api-Client: google-genai-sdk/1.15.0 gl-go/go1.24.0
+X-Goog-Api-Key: test-api-key
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"What is 2 + 2?"}],"role":"user"}],"safetySettings":[{"category":10,"threshold":3},{"category":7,"threshold":3},{"category":8,"threshold":3},{"category":9,"threshold":3}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 967
+{"contents":[{"parts":[{"text":"What is 2 + 2?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 1140
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 23 Jun 2025 09:53:38 GMT
+Date: Fri, 11 Jul 2025 21:05:13 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=573
+Server-Timing: gfet4t7; dur=331
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -33,23 +33,23 @@ X-Xss-Protection: 0
         ],
         "role": "model"
       },
-      "finishReason": 1,
+      "finishReason": "STOP",
       "safetyRatings": [
         {
-          "category": 8,
-          "probability": 1
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 10,
-          "probability": 1
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 7,
-          "probability": 1
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 9,
-          "probability": 1
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
         }
       ],
       "avgLogprobs": -0.00014923886919859797
@@ -61,17 +61,17 @@ X-Xss-Protection: 0
     "totalTokenCount": 16,
     "promptTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 8
       }
     ],
     "candidatesTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 8
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "IiRZaJTAD-rthMIPlef-8A4"
+  "responseId": "iXxxaL39J4CFsbQPrvmkmQo"
 }

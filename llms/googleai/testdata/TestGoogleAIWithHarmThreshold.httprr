@@ -1,20 +1,20 @@
 httprr trace v1
-773 3449
-POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?%24alt=json%3Benum-encoding%3Dint HTTP/1.1
+799 3426
+POST https://generativelanguage.googleapis.com//v1beta/models/gemini-2.0-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 353
+Content-Length: 477
 Content-Type: application/json
-x-goog-api-client: gl-go/1.24.0 gccl/v0.19.0 genai-go/0.19.0 gapic/0.8.0 gax/2.14.2 rest/UNKNOWN
-x-goog-request-params: model=models%2Fgemini-2.0-flash
+X-Goog-Api-Client: google-genai-sdk/1.15.0 gl-go/go1.24.0
+X-Goog-Api-Key: test-api-key
 
-{"model":"models/gemini-2.0-flash","contents":[{"parts":[{"text":"Tell me about safety features"}],"role":"user"}],"safetySettings":[{"category":10,"threshold":4},{"category":7,"threshold":4},{"category":8,"threshold":4},{"category":9,"threshold":4}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topP":0.95,"topK":3}}HTTP/2.0 200 OK
-Content-Length: 3069
+{"contents":[{"parts":[{"text":"Tell me about safety features"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 3046
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Mon, 23 Jun 2025 09:54:02 GMT
+Date: Fri, 11 Jul 2025 21:05:36 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=3098
+Server-Timing: gfet4t7; dur=3156
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
@@ -28,50 +28,50 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "Okay, let's talk about safety features. To give you the most relevant information, I need a little more direction.  Safety features can be found in many different contexts.  To help me narrow it down, tell me:\n\n**1. What are you interested in regarding safety features?**\n\nFor example, are you interested in:\n\n*   **Cars/Vehicles:** (e.g., airbags, ABS, lane departure warning, crash testing)\n*   **Home Safety:** (e.g., smoke detectors, fire extinguishers, security systems, childproofing)\n*   **Workplace Safety:** (e.g., safety training, personal protective equipment (PPE), hazard communication)\n*   **Product Safety:** (e.g., toy safety standards, electrical safety, food safety)\n*   **Online Safety:** (e.g., strong passwords, phishing awareness, malware protection, privacy settings)\n*   **General Safety/First Aid:** (e.g., CPR, Heimlich maneuver, basic wound care)\n*   **Something else entirely?**\n\n**2. What is your goal in learning about these safety features?**\n\n*   Are you trying to **purchase something** and want to know what features to look for?\n*   Are you trying to **improve safety** in a specific environment?\n*   Are you doing **research** for a project?\n*   Are you just **curious**?\n\nOnce I know what you're interested in, I can give you much more specific and helpful information.\n\nIn the meantime, here's a little general information about safety features:\n\n*   **Purpose:** Safety features are designed to reduce the risk of injury, damage, or loss. They can prevent accidents from happening in the first place, or they can minimize the harm caused by an accident.\n\n*   **Types:** Safety features can be active (requiring action, like wearing a seatbelt) or passive (automatically engaged, like airbags). They can be technological (sensors, alarms) or procedural (rules, training).\n\n*   **Importance:** Safety features are crucial for protecting individuals, property, and the environment. They can save lives, prevent injuries, and reduce costs associated with accidents.\n\nI look forward to your response so I can give you more specific information.\n"
+            "text": "Okay, let's talk about safety features! To give you the best information, I need a little more direction.  Are you interested in safety features for:\n\n*   **Cars?** (e.g., airbags, ABS, lane departure warning)\n*   **Homes?** (e.g., smoke detectors, security systems, fire extinguishers)\n*   **Workplaces?** (e.g., hard hats, machine guards, safety training)\n*   **Software/Online?** (e.g., firewalls, encryption, two-factor authentication)\n*   **Something else entirely?**\n\nIn the meantime, I can give you a general overview of the types of safety features and why they're important:\n\n**General Categories of Safety Features:**\n\n*   **Preventative:** These features aim to stop accidents or incidents from happening in the first place.\n*   **Protective:** These features are designed to minimize harm or damage if an accident does occur.\n*   **Warning:** These features alert you to potential dangers or hazards.\n\n**Common Characteristics of Effective Safety Features:**\n\n*   **Reliability:** They must function correctly when needed.\n*   **Usability:** They should be easy to understand and use, even in stressful situations.\n*   **Maintenance:** They require regular inspection and maintenance to ensure proper function.\n*   **Compliance:** They must meet relevant safety standards and regulations.\n\n**Why Safety Features are Important:**\n\n*   **Protecting Lives:** The primary goal is to prevent injuries and fatalities.\n*   **Reducing Risk:** They minimize the likelihood and severity of accidents.\n*   **Legal Compliance:** Many safety features are required by law.\n*   **Peace of Mind:** Knowing that safety measures are in place can reduce stress and anxiety.\n*   **Cost Savings:** Preventing accidents can save money on repairs, medical bills, and insurance premiums.\n\nOnce you tell me what area you're interested in, I can give you much more specific and helpful information."
           }
         ],
         "role": "model"
       },
-      "finishReason": 1,
+      "finishReason": "STOP",
       "safetyRatings": [
         {
-          "category": 8,
-          "probability": 1
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 10,
-          "probability": 1
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 7,
-          "probability": 1
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
         },
         {
-          "category": 9,
-          "probability": 1
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
         }
       ],
-      "avgLogprobs": -0.19718632698059083
+      "avgLogprobs": -0.18269800458635602
     }
   ],
   "usageMetadata": {
     "promptTokenCount": 5,
-    "candidatesTokenCount": 480,
-    "totalTokenCount": 485,
+    "candidatesTokenCount": 420,
+    "totalTokenCount": 425,
     "promptTokensDetails": [
       {
-        "modality": 1,
+        "modality": "TEXT",
         "tokenCount": 5
       }
     ],
     "candidatesTokensDetails": [
       {
-        "modality": 1,
-        "tokenCount": 480
+        "modality": "TEXT",
+        "tokenCount": 420
       }
     ]
   },
   "modelVersion": "gemini-2.0-flash",
-  "responseId": "NyRZaOTvA_OVsbQPxaKksAc"
+  "responseId": "nXxxaITTLvy-gLUP6pjS0Qs"
 }

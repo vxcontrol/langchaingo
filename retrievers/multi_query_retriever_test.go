@@ -26,9 +26,9 @@ import (
 func TestMultiQueryRetriever(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
-	genaiKey := os.Getenv("GENAI_API_KEY")
+	genaiKey := os.Getenv("GOOGLE_API_KEY")
 	if genaiKey == "" {
-		t.Skip("must set GENAI_API_KEY to run test")
+		t.Skip("must set GOOGLE_API_KEY to run test")
 	}
 
 	ctx := t.Context()

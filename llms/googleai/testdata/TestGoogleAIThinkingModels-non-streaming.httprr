@@ -1,0 +1,76 @@
+httprr trace v1
+913 4193
+POST https://generativelanguage.googleapis.com//v1beta/models/gemini-2.5-pro:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 593
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/1.15.0 gl-go/go1.24.0
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"What's the next number in this sequence: 2, 6, 12, 20, 30, ? Show your reasoning."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"thinkingConfig":{"includeThoughts":true,"thinkingBudget":1000},"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 3812
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Fri, 11 Jul 2025 21:53:22 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=13817
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "**Deconstructing the Number Sequence**\n\nOkay, so I'm presented with a sequence: 2, 6, 12, 20, 30. The user, being the discerning expert they are, wants to know not just the next number, but the reasoning behind it. Excellent, let's dive in. My first thought is to meticulously analyze the pattern, which I know is the key to solving this.\n\nI start by observing the initial sequence. They're all even numbers, and clearly increasing. A good first step with number sequences is to examine the differences between consecutive terms. Let's calculate those: 6 - 2 = 4, 12 - 6 = 6, 20 - 12 = 8, and 30 - 20 = 10.\n\nNow, that's interesting! The differences themselves form a sequence: 4, 6, 8, 10. That's a familiar pattern. It's a sequence of consecutive even numbers, increasing by 2 each time. The pattern here is \"add 2 to the previous difference\".\n\nThe last difference was 10. Following this logic, the next difference should be 10 + 2 = 12. Therefore, to find the next number in the original sequence, I'll add this new difference to the last term, 30. So, 30 + 12 = 42.\n\nTherefore, the next number is 42. It's essential to explain this.\n\nTo formulate this most straightforward answer, I need to look at the differences between the numbers.\n\n*   6 - 2 = 4\n*   12 - 6 = 6\n*   20 - 12 = 8\n*   30 - 20 = 10\n\nThe differences create the pattern: 4, 6, 8, and 10.\n\nThis is an increasing sequence with a consistent +2 pattern.\n\nGiven that the last difference is 10, the next term will be 10 + 2 = 12.\n\nSo, for the final calculation: 30 + 12 = 42.\n\nAs an alternative, it may be interesting to formulate an equation for the pattern.\n\n*   n=1: 1 * 2 = 2\n*   n=2: 2 * 3 = 6\n*   n=3: 3 * 4 = 12\n*   n=4: 4 * 5 = 20\n*   n=5: 5 * 6 = 30\n*   n=6: 6 * 7 = 42\n\nThis implies that the general formula is n \\* (n+1)\n",
+            "thought": true
+          },
+          {
+            "text": "Of course! The next number in the sequence is **42**.\n\nHere are two ways to see the reasoning:\n\n### Method 1: The Difference Between the Numbers\n\nThis is the most common way to solve this type of sequence. If you look at the difference between consecutive numbers, you'll find a simple pattern:\n\n*   6 - 2 = **4**\n*   12 - 6 = **6**\n*   20 - 12 = **8**\n*   30 - 20 = **10**\n\nThe amount being added to each number is increasing by 2 each time (4, 6, 8, 10...). The next number to add would be **12**.\n\nSo, you add 12 to the last number in the sequence:\n30 + 12 = **42**\n\n### Method 2: Multiplication Pattern\n\nYou can also see this sequence as the product of two consecutive integers:\n\n*   1 x 2 = **2**\n*   2 x 3 = **6**\n*   3 x 4 = **12**\n*   4 x 5 = **20**\n*   5 x 6 = **30**\n\nFollowing this pattern, the next step would be:\n*   6 x 7 = **42**"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "safetyRatings": [
+        {
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
+        }
+      ]
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 34,
+    "candidatesTokenCount": 288,
+    "totalTokenCount": 1137,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 34
+      }
+    ],
+    "thoughtsTokenCount": 815
+  },
+  "modelVersion": "gemini-2.5-pro",
+  "responseId": "0odxaPDUB57F1MkPp6H3wAs"
+}

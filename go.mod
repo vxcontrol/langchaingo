@@ -31,9 +31,9 @@ require (
 	github.com/IBM/watsonx-go v1.0.0
 	github.com/cohere-ai/tokenizer v1.1.2
 	github.com/gage-technologies/mistral-go v1.1.0
-	github.com/google/generative-ai-go v0.20.1
 	github.com/ollama/ollama v0.9.6
 	github.com/pkoukk/tiktoken-go v0.1.6
+	google.golang.org/genai v1.15.0
 )
 
 // Vector stores
@@ -119,7 +119,6 @@ require (
 // Cloud platforms and AI services - indirect
 require (
 	cloud.google.com/go v0.120.0 // indirect
-	cloud.google.com/go/ai v0.8.0 // indirect
 	cloud.google.com/go/alloydb v1.14.0 // indirect
 	cloud.google.com/go/auth v0.16.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
@@ -271,6 +270,7 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/goph/emperror v0.17.2 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect

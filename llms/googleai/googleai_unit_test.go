@@ -1,6 +1,7 @@
 package googleai
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -49,11 +50,11 @@ func TestNew(t *testing.T) {
 		{
 			name: "success with cloud options",
 			opts: []Option{
-				WithAPIKey("test-api-key"),
 				WithCloudProject("test-project"),
 				WithCloudLocation("us-central1"),
 			},
-			wantErr: false,
+			wantErr:     true,
+			errContains: "failed to find default credentials",
 		},
 		{
 			name: "success with embedding model",
@@ -94,7 +95,7 @@ func TestDefaultOptions(t *testing.T) {
 	assert.Equal(t, 0.5, opts.DefaultTemperature)
 	assert.Equal(t, 3, opts.DefaultTopK)
 	assert.Equal(t, 0.95, opts.DefaultTopP)
-	assert.Equal(t, HarmBlockOnlyHigh, opts.HarmThreshold)
+	assert.Equal(t, HarmBlockNone, opts.HarmThreshold)
 	assert.Empty(t, opts.CloudProject)
 	assert.Empty(t, opts.CloudLocation)
 }
@@ -249,11 +250,11 @@ func TestHasAuthOptions(t *testing.T) {
 func TestHarmBlockThresholdConstants(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, HarmBlockThreshold(0), HarmBlockUnspecified)
-	assert.Equal(t, HarmBlockThreshold(1), HarmBlockLowAndAbove)
-	assert.Equal(t, HarmBlockThreshold(2), HarmBlockMediumAndAbove)
-	assert.Equal(t, HarmBlockThreshold(3), HarmBlockOnlyHigh)
-	assert.Equal(t, HarmBlockThreshold(4), HarmBlockNone)
+	assert.Equal(t, "HARM_BLOCK_THRESHOLD_UNSPECIFIED", string(HarmBlockUnspecified))
+	assert.Equal(t, "BLOCK_LOW_AND_ABOVE", string(HarmBlockLowAndAbove))
+	assert.Equal(t, "BLOCK_MEDIUM_AND_ABOVE", string(HarmBlockMediumAndAbove))
+	assert.Equal(t, "BLOCK_ONLY_HIGH", string(HarmBlockOnlyHigh))
+	assert.Equal(t, "BLOCK_NONE", string(HarmBlockNone))
 }
 
 func TestConstants(t *testing.T) {
@@ -290,20 +291,22 @@ func TestConvertToolSchemaType(t *testing.T) {
 		input    string
 		expected string // We'll compare the string representation
 	}{
-		{"object", "TypeObject"},
-		{"string", "TypeString"},
-		{"number", "TypeNumber"},
-		{"integer", "TypeInteger"},
-		{"boolean", "TypeBoolean"},
-		{"array", "TypeArray"},
-		{"unknown", "TypeUnspecified"},
-		{"", "TypeUnspecified"},
+		{"object", "OBJECT"},
+		{"string", "STRING"},
+		{"number", "NUMBER"},
+		{"integer", "INTEGER"},
+		{"boolean", "BOOLEAN"},
+		{"array", "ARRAY"},
+		{"unknown", "TYPE_UNSPECIFIED"},
+		{"", "TYPE_UNSPECIFIED"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			result := convertToolSchemaType(tt.input)
-			assert.Equal(t, tt.expected, result.String())
+			// Convert to string for comparison
+			resultStr := string(result)
+			assert.Equal(t, tt.expected, resultStr)
 		})
 	}
 }
@@ -403,5 +406,94 @@ func TestConvertTools(t *testing.T) { //nolint:funlen // comprehensive test //no
 		assert.NotNil(t, funcDecl.Parameters)
 		assert.Len(t, funcDecl.Parameters.Properties, 2)
 		assert.Contains(t, funcDecl.Parameters.Required, "location")
+	})
+}
+
+func TestFunctionCallIDWrappers(t *testing.T) {
+	t.Run("ensureFunctionCallID", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			input    string
+			expected func(string) bool
+		}{
+			{
+				name:  "empty ID generates new ID",
+				input: "",
+				expected: func(result string) bool {
+					return strings.HasPrefix(result, GENERATED_FUNCTION_CALL_ID_PREFIX) && len(result) == len(GENERATED_FUNCTION_CALL_ID_PREFIX)+16
+				},
+			},
+			{
+				name:  "existing ID is preserved",
+				input: "existing-id-123",
+				expected: func(result string) bool {
+					return result == "existing-id-123"
+				},
+			},
+			{
+				name:  "generated ID is unique",
+				input: "",
+				expected: func(result string) bool {
+					result2 := ensureFunctionCallID("")
+					return result != result2 && strings.HasPrefix(result, GENERATED_FUNCTION_CALL_ID_PREFIX)
+				},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				result := ensureFunctionCallID(tc.input)
+				assert.True(t, tc.expected(result), "Result: %s", result)
+			})
+		}
+	})
+
+	t.Run("cleanFunctionCallID", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			input    string
+			expected string
+		}{
+			{
+				name:     "generated ID is cleaned",
+				input:    GENERATED_FUNCTION_CALL_ID_PREFIX + "1234567890abcdef",
+				expected: "",
+			},
+			{
+				name:     "backend ID is preserved",
+				input:    "backend-provided-id",
+				expected: "backend-provided-id",
+			},
+			{
+				name:     "empty ID remains empty",
+				input:    "",
+				expected: "",
+			},
+			{
+				name:     "similar prefix but not exact match is preserved",
+				input:    "fcal_not_exact_prefix",
+				expected: "fcal_not_exact_prefix",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				result := cleanFunctionCallID(tc.input)
+				assert.Equal(t, tc.expected, result)
+			})
+		}
+	})
+
+	t.Run("roundtrip ID handling", func(t *testing.T) {
+		// Test that generated IDs are properly cleaned
+		generatedID := ensureFunctionCallID("")
+		cleanedID := cleanFunctionCallID(generatedID)
+		assert.Equal(t, "", cleanedID, "Generated ID should be cleaned to empty string")
+
+		// Test that backend IDs survive roundtrip
+		backendID := "backend-id-123"
+		ensuredID := ensureFunctionCallID(backendID)
+		cleanedID = cleanFunctionCallID(ensuredID)
+		assert.Equal(t, backendID, cleanedID, "Backend ID should survive roundtrip")
 	})
 }

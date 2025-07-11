@@ -32,7 +32,7 @@ Here's what happens in this fun little program:
 ## How to Run 🏃‍♂️
 
 1. Make sure you have Go installed on your machine.
-2. Set the `GENAI_API_KEY` environment variable with your Google AI API key.
+2. Set the `GOOGLE_API_KEY` environment variable with your Google AI API key.
 3. Run the program with `go run googleai-tool-call-example.go`
 
 ## What You'll See 👀

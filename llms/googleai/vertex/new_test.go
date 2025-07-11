@@ -40,8 +40,8 @@ func TestDefaultOptions(t *testing.T) {
 	if opts.DefaultTopP != 0.95 {
 		t.Errorf("expected default TopP 0.95, got %f", opts.DefaultTopP)
 	}
-	if opts.HarmThreshold != googleai.HarmBlockOnlyHigh {
-		t.Errorf("expected default harm threshold HarmBlockOnlyHigh, got %v", opts.HarmThreshold)
+	if opts.HarmThreshold != googleai.HarmBlockNone {
+		t.Errorf("expected default harm threshold HarmBlockNone, got %v", opts.HarmThreshold)
 	}
 }
 
@@ -137,19 +137,19 @@ func TestHarmThresholdValues(t *testing.T) {
 	tests := []struct {
 		name      string
 		threshold googleai.HarmBlockThreshold
-		expected  int32
+		expected  string
 	}{
-		{"HarmBlockUnspecified", googleai.HarmBlockUnspecified, 0},
-		{"HarmBlockLowAndAbove", googleai.HarmBlockLowAndAbove, 1},
-		{"HarmBlockMediumAndAbove", googleai.HarmBlockMediumAndAbove, 2},
-		{"HarmBlockOnlyHigh", googleai.HarmBlockOnlyHigh, 3},
-		{"HarmBlockNone", googleai.HarmBlockNone, 4},
+		{"HarmBlockUnspecified", googleai.HarmBlockUnspecified, "HARM_BLOCK_THRESHOLD_UNSPECIFIED"},
+		{"HarmBlockLowAndAbove", googleai.HarmBlockLowAndAbove, "BLOCK_LOW_AND_ABOVE"},
+		{"HarmBlockMediumAndAbove", googleai.HarmBlockMediumAndAbove, "BLOCK_MEDIUM_AND_ABOVE"},
+		{"HarmBlockOnlyHigh", googleai.HarmBlockOnlyHigh, "BLOCK_ONLY_HIGH"},
+		{"HarmBlockNone", googleai.HarmBlockNone, "BLOCK_NONE"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if int32(tt.threshold) != tt.expected {
-				t.Errorf("expected %s to be %d, got %d", tt.name, tt.expected, int32(tt.threshold))
+			if string(tt.threshold) != tt.expected {
+				t.Errorf("expected %s to be %s, got %s", tt.name, tt.expected, string(tt.threshold))
 			}
 		})
 	}
@@ -162,9 +162,13 @@ func TestVertexStructure(t *testing.T) {
 
 	// Check that fields exist by assignment (will fail to compile if missing)
 	v.CallbacksHandler = nil
+	_ = v.CallbacksHandler
 	v.client = nil
+	_ = v.client
 	v.opts = googleai.Options{}
+	_ = v.opts
 	v.palmClient = nil
+	_ = v.palmClient
 }
 
 func TestWithHTTPClientOption(t *testing.T) {

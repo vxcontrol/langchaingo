@@ -22,6 +22,8 @@ type Options struct {
 	DefaultTopK           int
 	DefaultTopP           float64
 	HarmThreshold         HarmBlockThreshold
+	APIKey                string
+	HTTPClient            *http.Client
 
 	ClientOptions []option.ClientOption
 }
@@ -37,13 +39,13 @@ func DefaultOptions() Options {
 		DefaultTemperature:    0.5,
 		DefaultTopK:           3,
 		DefaultTopP:           0.95,
-		HarmThreshold:         HarmBlockOnlyHigh,
+		HarmThreshold:         HarmBlockNone,
 	}
 }
 
 // EnsureAuthPresent attempts to ensure that the client has authentication information. If it does not, it will attempt to use the GOOGLE_API_KEY environment variable.
 func (o *Options) EnsureAuthPresent() {
-	if !hasAuthOptions(o.ClientOptions) {
+	if o.APIKey == "" && !hasAuthOptions(o.ClientOptions) {
 		if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
 			WithAPIKey(key)(o)
 		}
@@ -56,6 +58,7 @@ type Option func(*Options)
 // googleai clients.
 func WithAPIKey(apiKey string) Option {
 	return func(opts *Options) {
+		opts.APIKey = apiKey
 		opts.ClientOptions = append(opts.ClientOptions, option.WithAPIKey(apiKey))
 	}
 }
@@ -114,6 +117,7 @@ func WithEndpoint(endpoint string) Option {
 // This is useful for vertex clients.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(opts *Options) {
+		opts.HTTPClient = httpClient
 		opts.ClientOptions = append(opts.ClientOptions, option.WithHTTPClient(httpClient))
 	}
 }
@@ -193,19 +197,19 @@ func WithHarmThreshold(ht HarmBlockThreshold) Option {
 	}
 }
 
-type HarmBlockThreshold int32
+type HarmBlockThreshold string
 
 const (
 	// HarmBlockUnspecified means threshold is unspecified.
-	HarmBlockUnspecified HarmBlockThreshold = 0
+	HarmBlockUnspecified HarmBlockThreshold = "HARM_BLOCK_THRESHOLD_UNSPECIFIED"
 	// HarmBlockLowAndAbove means content with NEGLIGIBLE will be allowed.
-	HarmBlockLowAndAbove HarmBlockThreshold = 1
+	HarmBlockLowAndAbove HarmBlockThreshold = "BLOCK_LOW_AND_ABOVE"
 	// HarmBlockMediumAndAbove means content with NEGLIGIBLE and LOW will be allowed.
-	HarmBlockMediumAndAbove HarmBlockThreshold = 2
+	HarmBlockMediumAndAbove HarmBlockThreshold = "BLOCK_MEDIUM_AND_ABOVE"
 	// HarmBlockOnlyHigh means content with NEGLIGIBLE, LOW, and MEDIUM will be allowed.
-	HarmBlockOnlyHigh HarmBlockThreshold = 3
+	HarmBlockOnlyHigh HarmBlockThreshold = "BLOCK_ONLY_HIGH"
 	// HarmBlockNone means all content will be allowed.
-	HarmBlockNone HarmBlockThreshold = 4
+	HarmBlockNone HarmBlockThreshold = "BLOCK_NONE"
 )
 
 // helper to inspect incoming client options for auth options.
