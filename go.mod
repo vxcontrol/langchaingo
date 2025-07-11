@@ -32,7 +32,7 @@ require (
 	github.com/cohere-ai/tokenizer v1.1.2
 	github.com/gage-technologies/mistral-go v1.1.0
 	github.com/google/generative-ai-go v0.20.1
-	github.com/ollama/ollama v0.9.2
+	github.com/ollama/ollama v0.9.6
 	github.com/pkoukk/tiktoken-go v0.1.6
 )
 

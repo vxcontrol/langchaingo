@@ -448,6 +448,9 @@ func (o *LLM) pullModelIfNeeded(ctx context.Context, model string) error {
 	progress := func(_ api.ProgressResponse) error {
 		return nil
 	}
+	if o.options.pullProgressFunc != nil {
+		progress = o.options.pullProgressFunc
+	}
 
 	err := o.client.Pull(pullCtx, req, progress)
 	if err != nil {

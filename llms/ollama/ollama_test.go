@@ -76,11 +76,8 @@ func newStreamingTestClient(t *testing.T, opts ...Option) *LLM {
 	// Set up httprr for recording/replaying HTTP interactions
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 
-	// Default model for testing
+	// Force using gemma3:1b for better performance
 	ollamaModel := "gemma3:1b"
-	if envModel := os.Getenv("OLLAMA_TEST_MODEL"); envModel != "" {
-		ollamaModel = envModel
-	}
 
 	// Default to localhost
 	serverURL := "http://localhost:11434"
@@ -88,16 +85,16 @@ func newStreamingTestClient(t *testing.T, opts ...Option) *LLM {
 		serverURL = envURL
 	}
 
+	// Skip if no recording exists and we're not recording
 	if !rr.Recording() {
-		// Skip streaming tests during replay since httprr doesn't handle chunked responses well
-		t.Skip("Skipping streaming test during replay mode - httprr doesn't support chunked/streaming responses properly")
+		httprr.SkipIfNoCredentialsAndRecordingMissing(t)
 	}
 
 	// When recording, use direct HTTP client to avoid httprr interference with streaming
 	opts = append([]Option{
 		WithServerURL(serverURL),
+		WithHTTPClient(rr.Client()),
 		WithModel(ollamaModel),
-		// Don't use httprr client for streaming tests to avoid chunked encoding issues
 	}, opts...)
 
 	c, err := New(opts...)
