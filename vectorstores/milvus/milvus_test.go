@@ -56,7 +56,7 @@ func getNewStore(t *testing.T, opts ...Option) (Store, error) {
 	ctx := t.Context()
 	url := os.Getenv("MILVUS_URL")
 	if url == "" {
-		image := "milvusdb/milvus:v2.4.0-rc.1-latest"
+		image := "milvusdb/milvus:v2.5.14"
 		milvusContainer, err := tcmilvus.Run(ctx, image, testcontainers.WithLogger(tclog.TestLogger(t)))
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")

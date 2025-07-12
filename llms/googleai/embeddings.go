@@ -35,7 +35,7 @@ func (g *GoogleAI) CreateEmbedding(ctx context.Context, texts []string) ([][]flo
 }
 
 func (g *GoogleAI) processEmbeddingBatch(ctx context.Context, texts []string) ([][]float32, error) {
-	var contents []*genai.Content
+	contents := make([]*genai.Content, 0, len(texts))
 
 	for _, text := range texts {
 		content := genai.NewContentFromText(text, genai.RoleUser)

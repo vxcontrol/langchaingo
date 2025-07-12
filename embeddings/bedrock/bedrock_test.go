@@ -19,11 +19,6 @@ func TestEmbedQuery(t *testing.T) {
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
 
-	// Only run tests in parallel when not recording (to avoid rate limits)
-	if !rr.Recording() {
-		t.Parallel()
-	}
-
 	// Replace httputil.DefaultClient with httprr client
 	oldClient := httputil.DefaultClient
 	httputil.DefaultClient = rr.Client()
@@ -43,11 +38,6 @@ func TestEmbedDocuments(t *testing.T) {
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
-
-	// Only run tests in parallel when not recording (to avoid rate limits)
-	if !rr.Recording() {
-		t.Parallel()
-	}
 
 	// Replace httputil.DefaultClient with httprr client
 	oldClient := httputil.DefaultClient

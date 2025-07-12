@@ -47,7 +47,7 @@ func getEnvVariables(t *testing.T) (string, string, string) {
 	if opensearchEndpoint == "" {
 		openseachContainer, err := tcopensearch.Run(
 			ctx,
-			"opensearchproject/opensearch:2.11.1",
+			"opensearchproject/opensearch:2.19.2",
 			testcontainers.WithLogger(log.TestLogger(t)),
 			testcontainers.WithWaitStrategy(
 				wait.ForLog("ML configuration initialized successfully").

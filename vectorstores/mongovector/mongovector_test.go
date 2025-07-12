@@ -120,7 +120,7 @@ func setupTestEnv(t *testing.T, _ ...*http.Client) *testEnv {
 		}
 		ctx := t.Context()
 
-		container, err := mongodb.Run(ctx, "mongodb/mongodb-atlas-local:latest",
+		container, err := mongodb.Run(ctx, "mongodb/mongodb-atlas-local:7.0.5",
 			mongodb.WithUsername("admin"),
 			mongodb.WithPassword("password"),
 		)
@@ -727,7 +727,7 @@ func TestStore_SimilaritySearch_NonExactQuery(t *testing.T) {
 				vectorstores.WithFilters(bson.D{{Key: "pageContent", Value: "v0001"}}),
 				vectorstores.WithEmbedder(newMockEmbedder(testIndexSize1536)),
 			},
-			wantErr: "'pageContent' needs to be indexed as token",
+			wantErr: "'pageContent' needs to be indexed as filter",
 		},
 		{name: "with deduplicator",
 			numDocuments: 1,

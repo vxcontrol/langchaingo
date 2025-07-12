@@ -96,7 +96,7 @@ func TestConvertParts(t *testing.T) {
 	}
 }
 
-func TestConvertContent(t *testing.T) {
+func TestConvertContent(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {
@@ -197,7 +197,7 @@ func TestConvertContent(t *testing.T) {
 	}
 }
 
-func TestConvertResponse(t *testing.T) {
+func TestConvertResponse(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	tests := []struct {

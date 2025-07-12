@@ -28,7 +28,7 @@ func runTestContainer(t *testing.T) string {
 
 	mongoContainer, err := mongodb.Run(
 		ctx,
-		"mongo:7.0.8",
+		"mongo:7.0",
 		mongodb.WithUsername("test"),
 		mongodb.WithPassword("test"),
 		testcontainers.WithLogger(log.TestLogger(t)),

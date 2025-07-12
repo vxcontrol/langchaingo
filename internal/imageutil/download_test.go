@@ -30,8 +30,6 @@ func requireHttprrRecording(t *testing.T) *httprr.RecordReplay {
 }
 
 func TestDownloadImageData_Integration(t *testing.T) {
-	t.Parallel()
-
 	// Setup HTTP record/replay
 	rr := requireHttprrRecording(t)
 	defer rr.Close()
@@ -51,8 +49,6 @@ func TestDownloadImageData_Integration(t *testing.T) {
 }
 
 func TestDownloadImageData_JPEG(t *testing.T) {
-	t.Parallel()
-
 	// Setup HTTP record/replay
 	rr := requireHttprrRecording(t)
 	defer rr.Close()
@@ -72,8 +68,6 @@ func TestDownloadImageData_JPEG(t *testing.T) {
 }
 
 func TestDownloadImageData_InvalidURL_Integration(t *testing.T) {
-	t.Parallel()
-
 	// Setup HTTP record/replay
 	rr := requireHttprrRecording(t)
 	defer rr.Close()
@@ -91,8 +85,6 @@ func TestDownloadImageData_InvalidURL_Integration(t *testing.T) {
 }
 
 func TestDownloadImageData_NotFound(t *testing.T) {
-	t.Parallel()
-
 	// Setup HTTP record/replay
 	rr := requireHttprrRecording(t)
 	defer rr.Close()
@@ -112,8 +104,6 @@ func TestDownloadImageData_NotFound(t *testing.T) {
 }
 
 func TestDownloadImageData_InvalidMimeType(t *testing.T) {
-	t.Parallel()
-
 	// Setup HTTP record/replay
 	rr := requireHttprrRecording(t)
 	defer rr.Close()

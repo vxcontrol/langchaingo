@@ -568,6 +568,8 @@ func TestGoogleAIThinkingModels(t *testing.T) {
 					thinkingContent.WriteString(chunk.Content)
 				case streaming.ChunkTypeDone:
 					streamDone = true
+				default:
+					// Ignore other chunk types
 				}
 				return nil
 			}),
