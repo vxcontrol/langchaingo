@@ -41,8 +41,14 @@ func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
 	t.Helper()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
+	openaiAPIKey := os.Getenv("OPENAI_API_KEY")
+	if openaiAPIKey == "" {
+		t.Skipf("Must set %s to run test", "OPENAI_API_KEY")
+	}
+
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	llm, err := openai.New(
+		openai.WithToken(openaiAPIKey),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 		openai.WithHTTPClient(rr.Client()),
 	)
@@ -57,12 +63,18 @@ func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.Embedder
 	t.Helper()
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
+	openaiAPIKey := os.Getenv("OPENAI_API_KEY")
+	if openaiAPIKey == "" {
+		t.Skipf("Must set %s to run test", "OPENAI_API_KEY")
+	}
+
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	llm, err := openai.New(
 		openai.WithHTTPClient(rr.Client()),
 	)
 	require.NoError(t, err)
 	embeddingLLM, err := openai.New(
+		openai.WithToken(openaiAPIKey),
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
 		openai.WithHTTPClient(rr.Client()),
 	)
@@ -80,11 +92,11 @@ func TestChromaGoStoreRest(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
+
 	e := createOpenAIEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithDistanceFunction(chromatypes.COSINE),
 		chroma.WithNameSpace(getTestNameSpace()),
@@ -119,11 +131,11 @@ func TestChromaStoreRestWithScoreThreshold(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
+
 	e := createOpenAIEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithDistanceFunction(chromatypes.COSINE),
 		chroma.WithNameSpace(getTestNameSpace()),
@@ -170,11 +182,11 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
+
 	e := createOpenAIEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithNameSpace(getTestNameSpace()),
 		chroma.WithEmbedder(e),
@@ -216,12 +228,11 @@ func TestChromaAsRetriever(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithNameSpace(getTestNameSpace()),
 		chroma.WithEmbedder(e),
@@ -260,12 +271,11 @@ func TestChromaAsRetrieverWithScoreThreshold(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithDistanceFunction(chromatypes.COSINE),
 		chroma.WithNameSpace(getTestNameSpace()),
@@ -309,12 +319,11 @@ func TestChromaAsRetrieverWithMetadataFilterEqualsClause(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithNameSpace(getTestNameSpace()),
 		chroma.WithEmbedder(e),
@@ -386,12 +395,11 @@ func TestChromaAsRetrieverWithMetadataFilterInClause(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, newChromaErr := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithEmbedder(e),
 	)
@@ -467,12 +475,11 @@ func TestChromaAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithNameSpace(getTestNameSpace()),
 		chroma.WithEmbedder(e),
@@ -544,12 +551,11 @@ func TestChromaAsRetrieverWithMetadataFilters(t *testing.T) {
 		t.Parallel()
 	}
 
-	testChromaURL, openaiAPIKey := getValues(t)
+	testChromaURL := getValues(t)
 
 	llm, e := createOpenAILLMAndEmbedder(t)
 
 	s, err := chroma.New(
-		chroma.WithOpenAIAPIKey(openaiAPIKey),
 		chroma.WithChromaURL(testChromaURL),
 		chroma.WithNameSpace(getTestNameSpace()),
 		chroma.WithEmbedder(e),
@@ -615,17 +621,12 @@ func TestChromaAsRetrieverWithMetadataFilters(t *testing.T) {
 	require.Contains(t, result, "purple", "expected purple in result")
 }
 
-func getValues(t *testing.T) (string, string) {
+func getValues(t *testing.T) string {
 	t.Helper()
 	testctr.SkipIfDockerNotAvailable(t)
 
 	if testing.Short() {
 		t.Skip("Skipping test in short mode")
-	}
-
-	openaiAPIKey := os.Getenv(chroma.OpenAIAPIKeyEnvVarName)
-	if openaiAPIKey == "" {
-		t.Skipf("Must set %s to run test", chroma.OpenAIAPIKeyEnvVarName)
 	}
 
 	ctx := t.Context()
@@ -657,7 +658,7 @@ func getValues(t *testing.T) (string, string) {
 		}
 	}
 
-	return chromaURL, openaiAPIKey
+	return chromaURL
 }
 
 func cleanupTestArtifacts(t *testing.T, s chroma.Store) {

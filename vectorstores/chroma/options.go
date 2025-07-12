@@ -11,8 +11,6 @@ import (
 )
 
 const (
-	OpenAIAPIKeyEnvVarName = "OPENAI_API_KEY" // #nosec G101
-	OpenAIOrgIDEnvVarName  = "OPENAI_ORGANIZATION"
 	ChromaURLKeyEnvVarName = "CHROMA_URL"
 	DefaultNameSpace       = "langchain"
 	DefaultNameSpaceKey    = "nameSpace"
@@ -61,29 +59,11 @@ func WithIncludes(includes []chromatypes.QueryEnum) Option {
 	}
 }
 
-// WithOpenAIAPIKey is an option for setting the OpenAI api key. If the option is not set
-// the api key is read from the OPENAI_API_KEY environment variable. If the
-// variable is not present, an error will be returned.
-func WithOpenAIAPIKey(openAiAPIKey string) Option {
-	return func(p *Store) {
-		p.openaiAPIKey = openAiAPIKey
-	}
-}
-
-// WithOpenAIOrganization is an option for setting the OpenAI organization id.
-func WithOpenAIOrganization(openAiOrganization string) Option {
-	return func(p *Store) {
-		p.openaiOrganization = openAiOrganization
-	}
-}
-
 func applyClientOptions(opts ...Option) (Store, error) {
 	o := &Store{
-		nameSpace:          DefaultNameSpace,
-		nameSpaceKey:       DefaultNameSpaceKey,
-		distanceFunction:   DefaultDistanceFunc,
-		openaiAPIKey:       os.Getenv(OpenAIAPIKeyEnvVarName),
-		openaiOrganization: os.Getenv(OpenAIOrgIDEnvVarName),
+		nameSpace:        DefaultNameSpace,
+		nameSpaceKey:     DefaultNameSpaceKey,
+		distanceFunction: DefaultDistanceFunc,
 	}
 
 	for _, opt := range opts {
@@ -97,11 +77,6 @@ func applyClientOptions(opts ...Option) (Store, error) {
 				"%w: missing chroma URL. Pass it as an option or set the %s environment variable",
 				ErrInvalidOptions, ChromaURLKeyEnvVarName)
 		}
-	}
-
-	// a embedder or an openai api key must be provided
-	if o.openaiAPIKey == "" && o.embedder == nil {
-		return Store{}, fmt.Errorf("%w: missing embedder or openai api key", ErrInvalidOptions)
 	}
 
 	return *o, nil

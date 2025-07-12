@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/llms/openai"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
 	"github.com/vxcontrol/langchaingo/vectorstores/chroma"
@@ -16,10 +18,26 @@ import (
 )
 
 func main() {
+	openaiAPIKey := os.Getenv("OPENAI_API_KEY")
+	if openaiAPIKey == "" {
+		log.Fatalf("OPENAI_API_KEY is not set")
+	}
+	llm, err := openai.New(
+		openai.WithToken(openaiAPIKey),
+		openai.WithEmbeddingModel("text-embedding-ada-002"),
+	)
+	if err != nil {
+		log.Fatalf("new: %v\n", err)
+	}
+	e, err := embeddings.NewEmbedder(llm)
+	if err != nil {
+		log.Fatalf("new: %v\n", err)
+	}
+
 	// Create a new Chroma vector store.
 	store, errNs := chroma.New(
 		chroma.WithChromaURL(os.Getenv("CHROMA_URL")),
-		chroma.WithOpenAIAPIKey(os.Getenv("OPENAI_API_KEY")),
+		chroma.WithEmbedder(e),
 		chroma.WithDistanceFunction(chroma_go.COSINE),
 		chroma.WithNameSpace(uuid.New().String()),
 	)

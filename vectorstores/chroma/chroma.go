@@ -11,7 +11,6 @@ import (
 	"github.com/vxcontrol/langchaingo/vectorstores"
 
 	chromago "github.com/amikos-tech/chroma-go"
-	"github.com/amikos-tech/chroma-go/openai"
 	chromatypes "github.com/amikos-tech/chroma-go/types"
 	"github.com/google/uuid"
 )
@@ -27,12 +26,10 @@ var (
 
 // Store is a wrapper around the chromaGo API and client.
 type Store struct {
-	client             *chromago.Client
-	collection         *chromago.Collection
-	distanceFunction   chromatypes.DistanceFunction
-	chromaURL          string
-	openaiAPIKey       string
-	openaiOrganization string
+	client           *chromago.Client
+	collection       *chromago.Collection
+	distanceFunction chromatypes.DistanceFunction
+	chromaURL        string
 
 	nameSpace    string
 	nameSpaceKey string
@@ -51,7 +48,7 @@ func New(opts ...Option) (Store, error) {
 	}
 
 	// create the client connection and confirm that we can access the server with it
-	chromaClient, err := chromago.NewClient(s.chromaURL)
+	chromaClient, err := chromago.NewClient(chromago.WithBasePath(s.chromaURL))
 	if err != nil {
 		return s, err
 	}
@@ -63,18 +60,8 @@ func New(opts ...Option) (Store, error) {
 
 	var embeddingFunction chromatypes.EmbeddingFunction
 	if s.embedder != nil {
-		// inject user's embedding function, if provided
+		// inject user's embedding function, if provided or use default embedding function by passing nil
 		embeddingFunction = chromaGoEmbedder{Embedder: s.embedder}
-	} else {
-		// otherwise use standard langchaingo OpenAI embedding function
-		var options []openai.Option
-		if s.openaiOrganization != "" {
-			options = append(options, openai.WithOpenAIOrganizationID(s.openaiOrganization))
-		}
-		embeddingFunction, err = openai.NewOpenAIEmbeddingFunction(s.openaiAPIKey, options...)
-		if err != nil {
-			return s, err
-		}
 	}
 
 	col, errCc := s.client.CreateCollection(context.Background(), s.nameSpace, map[string]any{}, true,
