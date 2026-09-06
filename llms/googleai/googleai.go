@@ -462,8 +462,12 @@ StreamEnd:
 		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 		metadata["CacheReadInputTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 
-		metadata["CacheCreationInputTokens"] = max(
-			int(lastUsageMetadata.PromptTokenCount-lastUsageMetadata.CachedContentTokenCount), 0)
+		if lastUsageMetadata.CachedContentTokenCount > 0 {
+			metadata["CacheCreationInputTokens"] = max(
+				int(lastUsageMetadata.PromptTokenCount-lastUsageMetadata.CachedContentTokenCount), 0)
+		} else {
+			metadata["CacheCreationInputTokens"] = 0
+		}
 	}
 
 	// Carry the finish reason so structured-output validation runs on a normal
