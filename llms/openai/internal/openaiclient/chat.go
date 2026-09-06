@@ -710,12 +710,15 @@ func parseStreamingChatResponse(
 	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	responseChan := make(chan StreamedChatResponsePayload)
 
+	producerCtx, stopProducer := context.WithCancel(ctx)
+	defer stopProducer()
+
 	go func() {
 		defer close(responseChan)
 		for scanner.Scan() {
 			// Check if context is cancelled
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			default:
 			}
@@ -757,14 +760,14 @@ func parseStreamingChatResponse(
 
 			// Non-blocking send with context check
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			case responseChan <- streamPayload:
 			}
 		}
 		if err := scanner.Err(); err != nil {
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("error reading streaming response: %w", err)}:
 			}

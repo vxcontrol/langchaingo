@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,4 +117,51 @@ func TestEveryStreamedChunkKindCarriesWhatArrivedWhenTheConsumerGivesUp(t *testi
 		require.Len(t, resp.Choices, 1)
 		assert.Equal(t, "sixty rooms", resp.Choices[0].Content)
 	})
+}
+
+// Not parallel: it counts goroutines, and a neighbour running at the same time
+// would change the count under it.
+func TestAGivenUpStreamDoesNotLeaveItsProducerBehind(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		for _, text := range []string{"sixty ", "rooms ", "are free", "today", "and tomorrow"} {
+			_, _ = io.WriteString(w, `data: {"id":"x","object":"chat.completion.chunk","created":1,`+
+				`"model":"gpt-4o","choices":[{"index":0,"delta":{"content":"`+text+`"},"finish_reason":null}]}`+"\n\n")
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := newUnitLLM(t, WithBaseURL(srv.URL), WithModel("gpt-4o"))
+
+	runtime.GC()
+	time.Sleep(50 * time.Millisecond)
+	before := runtime.NumGoroutine()
+
+	delivered := 0
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type != streaming.ChunkTypeText {
+				return nil
+			}
+			delivered++
+			if delivered == 2 {
+				return errGaveUp
+			}
+			return nil
+		}))
+	require.ErrorIs(t, err, errGaveUp)
+
+	http.DefaultClient.CloseIdleConnections()
+	deadline := time.Now().Add(3 * time.Second)
+	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	assert.LessOrEqual(t, runtime.NumGoroutine(), before,
+		"the producer must stop once the consumer has given up, even on a context nobody cancels")
 }
