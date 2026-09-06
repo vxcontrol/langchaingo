@@ -148,6 +148,9 @@ func (g *GoogleAI) GenerateContent(
 		}
 		config.Tools = tools
 	}
+	if toolConfig := googleToolConfig(opts.ToolChoice); toolConfig != nil {
+		config.ToolConfig = toolConfig
+	}
 
 	// Add safety settings
 	config.SafetySettings = []*genai.SafetySetting{
@@ -733,6 +736,31 @@ func convertContent(content llms.MessageContent) (*genai.Content, error) {
 		Parts: parts,
 		Role:  role,
 	}, nil
+}
+
+func googleToolConfig(choice any) *genai.ToolConfig {
+	var (
+		mode    genai.FunctionCallingConfigMode
+		allowed []string
+	)
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		mode, allowed = genai.FunctionCallingConfigModeAny, []string{name}
+	case llms.ToolChoiceAny:
+		mode = genai.FunctionCallingConfigModeAny
+	case llms.ToolChoiceAuto:
+		mode = genai.FunctionCallingConfigModeAuto
+	case llms.ToolChoiceNone:
+		mode = genai.FunctionCallingConfigModeNone
+	case llms.ToolChoiceUnset:
+		return nil
+	}
+	return &genai.ToolConfig{
+		FunctionCallingConfig: &genai.FunctionCallingConfig{
+			Mode:                 mode,
+			AllowedFunctionNames: allowed,
+		},
+	}
 }
 
 func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {

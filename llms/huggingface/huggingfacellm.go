@@ -43,7 +43,10 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		}()
 	}
 
-	model := defaultModel
+	model := o.client.Model
+	if model == "" {
+		model = defaultModel
+	}
 	opts := &llms.CallOptions{Model: &model}
 	for _, opt := range options {
 		opt(opts)
@@ -53,7 +56,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	msg0 := messages[0]
 	part := msg0.Parts[0]
 	result, err := o.client.RunInference(ctx, &huggingfaceclient.InferenceRequest{
-		Model:             o.client.Model,
+		Model:             opts.GetModel(),
 		Prompt:            part.(llms.TextContent).Text,
 		Task:              huggingfaceclient.InferenceTaskTextGeneration,
 		Temperature:       opts.GetTemperature(),
