@@ -49,6 +49,8 @@ const (
 	EventTypeText     = "text"
 	EventTypeToolUse  = "tool_use"
 	EventTypeThinking = "thinking"
+
+	EventTypeRedactedThinking = "redacted_thinking"
 )
 
 const (
@@ -170,6 +172,17 @@ type ThinkingContent struct {
 	Type      string `json:"type"`
 	Thinking  string `json:"thinking"`
 	Signature string `json:"signature,omitempty"`
+}
+
+// RedactedThinkingContent is reasoning the vendor encrypted. The data field is
+// opaque and travels back to the vendor unchanged.
+type RedactedThinkingContent struct {
+	Type string `json:"type"`
+	Data string `json:"data"`
+}
+
+func (rtc RedactedThinkingContent) GetType() string {
+	return EventTypeRedactedThinking
 }
 
 func (tc ThinkingContent) GetType() string {
@@ -307,6 +320,12 @@ func parseContentBlock(raw []byte) (Content, error) {
 			return nil, err
 		}
 		return thc, nil
+	case EventTypeRedactedThinking:
+		rtc := &RedactedThinkingContent{}
+		if err := json.Unmarshal(raw, rtc); err != nil {
+			return nil, err
+		}
+		return rtc, nil
 	default:
 		return nil, fmt.Errorf("unknown content type: %s\n%v", typeStruct.Type, string(raw)) //nolint:err113
 	}
