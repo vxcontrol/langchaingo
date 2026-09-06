@@ -41,10 +41,15 @@ func New(opts ...Option) (*Model, error) {
 		opt(options)
 	}
 
+	handler := options.callbacksHandler
+	if handler == nil {
+		handler = callbacks.SimpleHandler{}
+	}
+
 	return &Model{
 		clientOptions:    options,
 		client:           sdk.NewMistralClient(options.apiKey, options.endpoint, options.maxRetries, options.timeout),
-		CallbacksHandler: callbacks.SimpleHandler{},
+		CallbacksHandler: handler,
 	}, nil
 }
 
