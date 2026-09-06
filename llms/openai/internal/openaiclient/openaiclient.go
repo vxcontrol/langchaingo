@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -227,6 +228,14 @@ func (c *Client) buildAzureURL(suffix string, model string) string {
 func sanitizeHTTPError(err error) error {
 	if err == nil {
 		return nil
+	}
+
+	// http.Client.Do wraps every failure in *url.Error, which implements
+	// net.Error. Unwrap it first so application errors (httprr misses, etc.)
+	// are not reported as a failed API connection.
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		err = urlErr.Err
 	}
 
 	// Check for context deadline exceeded

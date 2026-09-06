@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -345,6 +346,23 @@ func TestSanitizeHTTPError(t *testing.T) {
 		sanitized := sanitizeHTTPError(err)
 		assert.Error(t, sanitized)
 		assert.Equal(t, err, sanitized)
+	})
+
+	t.Run("url error wrapping application error passthrough", func(t *testing.T) {
+		inner := errors.New("cached HTTP response not found")
+		err := &url.Error{Op: "Post", URL: "https://api.openai.com/v1/chat/completions", Err: inner}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, inner, sanitized)
+	})
+
+	t.Run("url error wrapping network error is sanitized", func(t *testing.T) {
+		err := &url.Error{
+			Op:  "Post",
+			URL: "https://api.openai.com/v1/chat/completions",
+			Err: &mockNetworkError{message: "connection refused"},
+		}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, "network error: failed to reach API server", sanitized.Error())
 	})
 }
 

@@ -1,5 +1,5 @@
 httprr trace v1
-492 168033
+492 168040
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -16,15 +16,15 @@ Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:43:52 GMT
+Date: Sun, 06 Sep 2026 05:50:31 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 151
+Openai-Processing-Ms: 103
 Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-6868bd775b-jwdnd
+Via: envoy-router-canary-749cf59fd5-4k4ch
 X-Content-Type-Options: nosniff
 X-Engine-Geography: EU
 X-Openai-Proxy-Wasm: v0.1
@@ -34,7 +34,7 @@ X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999941
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_3d4ea4f7dc774ed7848079de70ed4ed4
+X-Request-Id: req_0b72d396521644a2a3081898d417db5d
 
 {
   "object": "list",
@@ -7756,7 +7756,7 @@ X-Request-Id: req_3d4ea4f7dc774ed7848079de70ed4ed4
     "total_tokens": 55
   }
 }
-278 34450
+278 34442
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -7773,15 +7773,15 @@ Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:44:06 GMT
+Date: Sun, 06 Sep 2026 05:50:45 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 175
+Openai-Processing-Ms: 67
 Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-canary-659cfbdff-fjvrc
+Via: envoy-router-796b65995-j5kk9
 X-Content-Type-Options: nosniff
 X-Engine-Geography: EU
 X-Openai-Proxy-Wasm: v0.1
@@ -7791,7 +7791,7 @@ X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999991
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_a1823c6a576c49d1a8517ffcccfe7f1b
+X-Request-Id: req_02a28f9764564449a2dd84413da51627
 
 {
   "object": "list",
@@ -9345,7 +9345,7 @@ X-Request-Id: req_a1823c6a576c49d1a8517ffcccfe7f1b
     "total_tokens": 9
   }
 }
-991 1736
+991 1706
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -9353,17 +9353,17 @@ Content-Length: 789
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003ekitchen\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is orange.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003eoffice\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color is the lamp in each room?\nHelpful Answer:"}]}HTTP/2.0 200 OK
-Content-Length: 911
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is orange.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003eoffice\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003cmetadata\u003e\n\n\u003ckv key=\"location\"\u003ekitchen\u003c/kv\u003e\n\n\u003c/metadata\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What color is the lamp in each room?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 881
 Access-Control-Expose-Headers: X-Request-ID
 Access-Control-Expose-Headers: CF-Ray
 Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:44:09 GMT
+Date: Sun, 06 Sep 2026 05:50:48 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 461
+Openai-Processing-Ms: 468
 Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
@@ -9376,19 +9376,19 @@ X-Ratelimit-Remaining-Requests: 29999
 X-Ratelimit-Remaining-Tokens: 149999865
 X-Ratelimit-Reset-Requests: 2ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_8d30b2de67b64e77a958cd4ac8f40db0
+X-Request-Id: req_a3713138d456441f84b544857c93c310
 
 {
-  "id": "chatcmpl-E96uukMEL9pGENSzYmLgZVGiurSFN",
+  "id": "chatcmpl-EL0486d3jT3rHNDKnpZjAyQiLyMR1",
   "object": "chat.completion",
-  "created": 1785840248,
+  "created": 1788673848,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "In the kitchen, the lamp beside the desk is black. In the office, the lamp beside the desk is orange.",
+        "content": "The lamp in the office is orange, and the lamp in the kitchen is black.",
         "refusal": null,
         "annotations": []
       },
@@ -9398,8 +9398,8 @@ X-Request-Id: req_8d30b2de67b64e77a958cd4ac8f40db0
   ],
   "usage": {
     "prompt_tokens": 132,
-    "completion_tokens": 24,
-    "total_tokens": 156,
+    "completion_tokens": 17,
+    "total_tokens": 149,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -9412,5 +9412,5 @@ X-Request-Id: req_8d30b2de67b64e77a958cd4ac8f40db0
     }
   },
   "service_tier": "default",
-  "system_fingerprint": "fp_28f6c54d57"
+  "system_fingerprint": "fp_642c59d8b6"
 }
