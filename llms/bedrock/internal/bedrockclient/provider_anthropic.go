@@ -323,6 +323,7 @@ func createAnthropicCompletion(ctx context.Context,
 	var textContent string
 	var reasoningContent string
 	var signature []byte
+	var redacted []byte
 	var toolCalls []llms.ToolCall
 
 	for _, c := range output.Content {
@@ -333,6 +334,10 @@ func createAnthropicCompletion(ctx context.Context,
 			reasoningContent += c.Thinking
 			if len(c.Signature) > 0 {
 				signature = []byte(c.Signature)
+			}
+		case "redacted_thinking":
+			if c.Data != "" {
+				redacted = append(redacted, []byte(c.Data)...)
 			}
 		case "tool_use":
 			argumentsJSON, err := json.Marshal(c.Input)
@@ -353,7 +358,7 @@ func createAnthropicCompletion(ctx context.Context,
 	// Create single choice with all content
 	choice := &llms.ContentChoice{
 		Content:        textContent,
-		Reasoning:      processReasoning(reasoningContent, signature),
+		Reasoning:      processReasoning(reasoningContent, signature, redacted),
 		ToolCalls:      toolCalls,
 		StopReason:     output.StopReason,
 		Truncated:      llms.IsTruncated(output.StopReason),
@@ -449,14 +454,15 @@ func applyAnthropicUsage(info map[string]any, usage anthropicUsage) {
 	info["ReasoningTokens"] = int(usage.OutputTokensDetails.ThinkingTokens)
 }
 
-func processReasoning(reasoningContent string, signature []byte) *reasoning.ContentReasoning {
-	if reasoningContent == "" && len(signature) == 0 {
+func processReasoning(reasoningContent string, signature, redacted []byte) *reasoning.ContentReasoning {
+	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
 		return nil
 	}
 
 	return &reasoning.ContentReasoning{
 		Content:   reasoningContent,
 		Signature: signature,
+		Redacted:  redacted,
 	}
 }
 
@@ -647,7 +653,7 @@ DoStream:
 
 func appendReasoning(reasoning *reasoning.ContentReasoning, reasoningContent string) *reasoning.ContentReasoning {
 	if reasoning == nil {
-		return processReasoning(reasoningContent, nil)
+		return processReasoning(reasoningContent, nil, nil)
 	}
 
 	reasoning.Content += reasoningContent
@@ -708,6 +714,12 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 						thinkingBlock.Signature = string(message.Reasoning.Signature)
 					}
 					content = append(content, thinkingBlock)
+				}
+				if len(message.Reasoning.Redacted) > 0 {
+					content = append(content, anthropicTextGenerationInputContent{
+						Type: "redacted_thinking",
+						Data: string(message.Reasoning.Redacted),
+					})
 				}
 			}
 			// Add regular content (text, tool_use, tool_result, etc.)

@@ -381,6 +381,7 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 	// According to Anthropic docs, there's ONE thinking block per response
 	var reasoningContent strings.Builder
 	var signature []byte
+	var redacted []byte
 
 	for _, content := range result.Content {
 		switch cv := content.(type) {
@@ -389,15 +390,20 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 			if len(cv.Signature) > 0 {
 				signature = []byte(cv.Signature)
 			}
+		case *anthropicclient.RedactedThinkingContent:
+			if cv.Data != "" {
+				redacted = append(redacted, []byte(cv.Data)...)
+			}
 		}
 	}
 
 	// Create reasoning object
 	var contentReasoning *reasoning.ContentReasoning
-	if reasoningContent.Len() > 0 || len(signature) > 0 {
+	if reasoningContent.Len() > 0 || len(signature) > 0 || len(redacted) > 0 {
 		contentReasoning = &reasoning.ContentReasoning{
 			Content:   reasoningContent.String(),
 			Signature: signature,
+			Redacted:  redacted,
 		}
 	}
 
@@ -845,7 +851,15 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 		if len(p.Reasoning.Signature) > 0 {
 			thinkingBlock.Signature = string(p.Reasoning.Signature)
 		}
-		message.Content = append(message.Content, thinkingBlock)
+		if p.Reasoning.Content != "" || len(p.Reasoning.Signature) > 0 {
+			message.Content = append(message.Content, thinkingBlock)
+		}
+		if len(p.Reasoning.Redacted) > 0 {
+			message.Content = append(message.Content, &anthropicclient.RedactedThinkingContent{
+				Type: anthropicclient.EventTypeRedactedThinking,
+				Data: string(p.Reasoning.Redacted),
+			})
+		}
 	}
 
 	for _, part := range msg.Parts {
