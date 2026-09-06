@@ -366,6 +366,25 @@ func TestSanitizeHTTPError(t *testing.T) {
 	})
 }
 
+func TestSetHeadersOmitsEmptyToken(t *testing.T) {
+	t.Parallel()
+
+	client, err := New("", "gpt-3.5-turbo", "http://127.0.0.1:8000/v1", "", APITypeOpenAI, "", nil, "", nil, false, false, false)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8000/v1/chat/completions", http.NoBody)
+	require.NoError(t, err)
+
+	client.setHeaders(req)
+	assert.Empty(t, req.Header.Get("Authorization"))
+	assert.Empty(t, req.Header.Get("api-key"))
+	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+	client.token = "secret"
+	client.setHeaders(req)
+	assert.Equal(t, "Bearer secret", req.Header.Get("Authorization"))
+}
+
 type mockHTTPClient struct {
 	doFunc func(req *http.Request) (*http.Response, error)
 }

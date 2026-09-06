@@ -24,4 +24,10 @@
 //	    llms.WithMaxTokens(100),
 //	    openai.WithLegacyMaxTokensField(), // Forces use of max_tokens field
 //	)
+//
+// # API Keys
+//
+// An API key is required only when the base URL belongs to a known public
+// OpenAI-compatible provider (see APIKeyRequiredBaseURLs). Local servers such
+// as vLLM, Ollama, llama.cpp, and SGLang can be used without a key.
 package openai
