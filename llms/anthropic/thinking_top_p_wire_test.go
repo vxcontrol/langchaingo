@@ -28,21 +28,21 @@ func TestThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		wantTopP any
 		wantTemp any
 	}{
-		{"бюджет: top_p выше порога вытесняет служебную температуру", "claude-sonnet-4-5",
+		{"budget: top_p above the floor displaces the pinned temperature", "claude-sonnet-4-5",
 			budget(llms.WithTopP(0.97)), 0.97, nil},
-		{"бюджет: ровно порог", "claude-sonnet-4-5",
+		{"budget: exactly at the floor", "claude-sonnet-4-5",
 			budget(llms.WithTopP(0.95)), 0.95, nil},
-		{"бюджет: ниже порога снимается, температура остаётся", "claude-sonnet-4-5",
+		{"budget: below the floor is stripped, temperature stays", "claude-sonnet-4-5",
 			budget(llms.WithTopP(0.5)), nil, 1.0},
-		{"бюджет: вызывающий задал оба — побеждает температура", "claude-sonnet-4-5",
+		{"budget: caller set both — temperature wins", "claude-sonnet-4-5",
 			budget(llms.WithTopP(0.97), llms.WithTemperature(0.3)), nil, 1.0},
-		{"бюджет: без top_p служебная температура на месте", "claude-sonnet-4-5",
+		{"budget: without top_p the pinned temperature stays", "claude-sonnet-4-5",
 			budget(), nil, 1.0},
-		{"4.6 на бюджетном пути: top_p выше порога доезжает", "claude-opus-4-6",
+		{"4.6 on the budget path: top_p above the floor reaches the wire", "claude-opus-4-6",
 			adaptive(llms.WithTopP(0.97)), 0.97, nil},
-		{"4.6 на бюджетном пути: ниже порога снимается", "claude-opus-4-6",
+		{"4.6 on the budget path: below the floor is stripped", "claude-opus-4-6",
 			adaptive(llms.WithTopP(0.5)), nil, 1.0},
-		{"модель без сэмплинга не получает ни того ни другого", "claude-sonnet-5",
+		{"model without sampling gets neither", "claude-sonnet-5",
 			adaptive(llms.WithTopP(0.97)), nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -18,11 +18,11 @@ func TestLegacyThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		temp  float64
 		want  float64
 	}{
-		{"выше порога доезжает", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0, 0.97},
-		{"вызывающий задал оба — top_p уходит", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0.3, 0},
-		{"ровно порог доезжает", "anthropic.claude-sonnet-4-5-v1:0", 0.95, 0, 0.95},
-		{"ниже порога снимается", "anthropic.claude-sonnet-4-5-v1:0", 0.5, 0, 0},
-		{"модель без сэмплинга не получает", "anthropic.claude-sonnet-5-v1:0", 0.97, 0, 0},
+		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0, 0.97},
+		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0.3, 0},
+		{"exactly at the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.95, 0, 0.95},
+		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, 0, 0},
+		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -44,10 +44,10 @@ func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		temp  *float64
 		want  *float32
 	}{
-		{"выше порога доезжает", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, ptr(float32(0.97))},
-		{"вызывающий задал оба — top_p уходит", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), nil},
-		{"ниже порога снимается", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, nil},
-		{"модель без сэмплинга не получает", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, nil},
+		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, ptr(float32(0.97))},
+		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), nil},
+		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, nil},
+		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

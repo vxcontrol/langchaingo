@@ -11,37 +11,37 @@ import (
 // disagreement is a hypothesis: add the entry with its reason, and change the
 // tables only when a vendor probe says so.
 var knownDrift = map[string]string{
-	"google/gemini-2.5-flash-image":            "картиночный маршрут: эффорт вызывает отказ Gemini",
-	"google/gemini-3-pro-image":                "картиночный маршрут",
-	"google/gemini-3-pro-image-preview":        "картиночный маршрут",
-	"google/gemini-3.1-flash-image":            "картиночный маршрут",
-	"google/gemini-3.1-flash-image-preview":    "картиночный маршрут",
-	"google/gemini-3.1-flash-lite-image":       "картиночный маршрут",
-	"google-vertex/gemini-3-pro-image":         "картиночный маршрут",
-	"google-vertex/gemini-3.1-flash-image":     "картиночный маршрут",
-	"google/gemini-3.1-flash-tts-preview":      "речевой маршрут: 400 Thinking level is not supported",
-	"google/gemini-omni-flash-preview":         "не чат: 400 от вендора",
-	"google/deep-research-preview-04-2026":     "маршрут не обслуживается",
-	"google/deep-research-max-preview-04-2026": "маршрут не обслуживается",
-	"openai/gpt-5.2-chat-latest":               "чат-вариант: вендор отвечает 404",
-	"openai/gpt-realtime-2.1":                  "не чат: This is not a chat model",
-	"amazon-bedrock/qwen.qwen3-32b-v1:0":       "думает только в стриме по просьбе, а предикат отвечает на вопрос о голом вызове",
+	"google/gemini-2.5-flash-image":            "image route: effort is rejected by Gemini",
+	"google/gemini-3-pro-image":                "image route",
+	"google/gemini-3-pro-image-preview":        "image route",
+	"google/gemini-3.1-flash-image":            "image route",
+	"google/gemini-3.1-flash-image-preview":    "image route",
+	"google/gemini-3.1-flash-lite-image":       "image route",
+	"google-vertex/gemini-3-pro-image":         "image route",
+	"google-vertex/gemini-3.1-flash-image":     "image route",
+	"google/gemini-3.1-flash-tts-preview":      "speech route: 400 Thinking level is not supported",
+	"google/gemini-omni-flash-preview":         "not chat: vendor returns 400",
+	"google/deep-research-preview-04-2026":     "route is not served",
+	"google/deep-research-max-preview-04-2026": "route is not served",
+	"openai/gpt-5.2-chat-latest":               "chat variant: vendor returns 404",
+	"openai/gpt-realtime-2.1":                  "not chat: This is not a chat model",
+	"amazon-bedrock/qwen.qwen3-32b-v1:0":       "thinks only in a stream when asked, but the predicate answers the question about a bare call",
 
-	"amazon-bedrock/deepseek.v3-v1:0": "имени нет на Bedrock: The provided model identifier is invalid; линейка V3 замерена как нерассуждающая",
+	"amazon-bedrock/deepseek.v3-v1:0": "name is not on Bedrock: The provided model identifier is invalid; the V3 line was measured as non-reasoning",
 
-	"alibaba/qvq-max":                                       "не измерено",
-	"alibaba/qwen3-omni-flash":                              "не измерено",
-	"alibaba/qwen3-vl-235b-a22b":                            "не измерено",
-	"alibaba/qwen3-vl-30b-a3b":                              "не измерено",
-	"alibaba/qwen3-max":                                     "записи расходятся между собой: контроль дал ноль, коммерческий гибрид дал 3095 символов по просьбе",
-	"amazon-bedrock/qwen.qwen3-coder-next":                  "не измерено",
-	"amazon-bedrock/writer.palmyra-x4-v1:0":                 "не измерено",
-	"amazon-bedrock/writer.palmyra-x5-v1:0":                 "не измерено",
-	"amazon-bedrock/nvidia.nemotron-nano-12b-v2":            "не измерено",
-	"amazon-bedrock/nvidia.nemotron-nano-9b-v2":             "не измерено",
-	"amazon-bedrock/openai.gpt-oss-safeguard-120b":          "не измерено: кандидат в не-чатовые поверхности",
-	"amazon-bedrock/openai.gpt-oss-safeguard-20b":           "не измерено: кандидат в не-чатовые поверхности",
-	"google-vertex/qwen/qwen3-235b-a22b-instruct-2507-maas": "не измерено",
+	"alibaba/qvq-max":                                       "not measured",
+	"alibaba/qwen3-omni-flash":                              "not measured",
+	"alibaba/qwen3-vl-235b-a22b":                            "not measured",
+	"alibaba/qwen3-vl-30b-a3b":                              "not measured",
+	"alibaba/qwen3-max":                                     "records disagree: control produced zero, the commercial hybrid produced 3095 characters when asked",
+	"amazon-bedrock/qwen.qwen3-coder-next":                  "not measured",
+	"amazon-bedrock/writer.palmyra-x4-v1:0":                 "not measured",
+	"amazon-bedrock/writer.palmyra-x5-v1:0":                 "not measured",
+	"amazon-bedrock/nvidia.nemotron-nano-12b-v2":            "not measured",
+	"amazon-bedrock/nvidia.nemotron-nano-9b-v2":             "not measured",
+	"amazon-bedrock/openai.gpt-oss-safeguard-120b":          "not measured: candidate for a non-chat surface",
+	"amazon-bedrock/openai.gpt-oss-safeguard-20b":           "not measured: candidate for a non-chat surface",
+	"google-vertex/qwen/qwen3-235b-a22b-instruct-2507-maas": "not measured",
 }
 
 type snapshotModel struct {
@@ -71,13 +71,13 @@ func (m snapshotModel) claimsBudget() bool {
 
 // An entry records a divergence measured against the vendor, with the reason.
 var knownEffortDrift = map[string]string{
-	"xai/grok-4.20-multi-agent-0309": "вендор не обслуживает multi-agent на chat completions: " +
-		"«Multi Agent requests are not allowed on chat completions», замер 02.09.2026",
+	"xai/grok-4.20-multi-agent-0309": "vendor does not serve multi-agent on chat completions: " +
+		"\"Multi Agent requests are not allowed on chat completions\", measured 2026-09-02",
 }
 
 var knownBudgetDrift = map[string]string{
-	"qwen3-max": "снимок бюджета не объявляет, вендор его исполняет: голый вызов даёт 9166 " +
-		"символов размышления против 285 при thinking_budget 100, замер 03.09.2026",
+	"qwen3-max": "snapshot does not declare a budget, the vendor honors it: a bare call produces 9166 " +
+		"thinking characters versus 285 with thinking_budget 100, measured 2026-09-03",
 }
 
 func TestModelsDevBudgetDrift(t *testing.T) {

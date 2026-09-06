@@ -234,21 +234,14 @@ go test ./... -httprecord="TestOpenAI.*"
 
 ### Recording Through a Gateway
 
-The Google AI helper in `llms/googleai/googleai_test.go` reaches the vendor
-through whatever base URL `GOOGLE_BASE_URL` names, so its fixtures can be
-re-recorded with a proxy key when no direct vendor key is at hand. The cache
-tests in the same package build their own recorders and ignore the variable, so
-re-recording those still needs a direct vendor key:
+The Google AI helper in `llms/googleai/googleai_test.go` reaches the vendor through whatever base URL `GOOGLE_BASE_URL` names, so its fixtures can be re-recorded with a proxy key when no direct vendor key is at hand. The cache tests in the same package build their own recorders and ignore the variable, so re-recording those still needs a direct vendor key:
 
 ```bash
 GOOGLE_API_KEY=<gateway key> GOOGLE_BASE_URL=https://gateway.example/gemini \
   go test ./llms/googleai/ -httprecord=. -run TestGoogleAIWithTools
 ```
 
-The recorded request still carries the vendor URL, because the rewrite happens
-below the recorder. Proxy-added `X-Litellm-*` response headers are scrubbed, one
-of which reports the key's accumulated spend; `TestRecordingsCarryNoProxyHeaders`
-fails if any reaches `testdata/`.
+The recorded request still carries the vendor URL, because the rewrite happens below the recorder. Proxy-added `X-Litellm-*` response headers are scrubbed, one of which reports the key's accumulated spend; `TestRecordingsCarryNoProxyHeaders` fails if any reaches `testdata/`.
 
 ### Running with Recorded Data
 

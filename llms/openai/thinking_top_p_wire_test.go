@@ -17,17 +17,17 @@ func TestClaudeThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		want   string
 		absent bool
 	}{
-		{"Claude держит top_p выше порога", "claude-sonnet-4-5",
+		{"Claude keeps top_p above the floor", "claude-sonnet-4-5",
 			[]llms.CallOption{llms.WithTopP(0.97)}, `"top_p":0.97`, false},
-		{"Claude держит ровно порог", "claude-sonnet-4-5",
+		{"Claude keeps top_p exactly at the floor", "claude-sonnet-4-5",
 			[]llms.CallOption{llms.WithTopP(0.95)}, `"top_p":0.95`, false},
-		{"Claude снимает ниже порога", "claude-sonnet-4-5",
+		{"Claude strips top_p below the floor", "claude-sonnet-4-5",
 			[]llms.CallOption{llms.WithTopP(0.5)}, `"top_p"`, true},
-		{"вызывающий задал оба — top_p уходит", "claude-sonnet-4-5",
+		{"caller set both — top_p is dropped", "claude-sonnet-4-5",
 			[]llms.CallOption{llms.WithTopP(0.97), llms.WithTemperature(0.3)}, `"top_p"`, true},
-		{"модель без сэмплинга не получает top_p", "claude-sonnet-5",
+		{"model without sampling does not get top_p", "claude-sonnet-5",
 			[]llms.CallOption{llms.WithTopP(0.97)}, `"top_p"`, true},
-		{"reasoning-линейка OpenAI по-прежнему теряет top_p", "gpt-5.4",
+		{"OpenAI reasoning family still drops top_p", "gpt-5.4",
 			[]llms.CallOption{llms.WithTopP(0.97)}, `"top_p"`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -37,11 +37,11 @@ func TestClaudeThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 			}, tc.opts...)
 			body := bodyForCall(t, tc.model, opts...)
 			if got := strings.Contains(body, tc.want); got == tc.absent {
-				verb := "не содержит"
+				verb := "does not contain"
 				if tc.absent {
-					verb = "содержит"
+					verb = "contains"
 				}
-				t.Errorf("тело запроса %s %s\nтело: %s", verb, tc.want, body)
+				t.Errorf("request body %s %s\nbody: %s", verb, tc.want, body)
 			}
 		})
 	}
