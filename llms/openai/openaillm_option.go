@@ -66,7 +66,9 @@ type ResponseFormatJSONSchemaProperty = openaiclient.ResponseFormatJSONSchemaPro
 var ResponseFormatJSON = &ResponseFormat{Type: "json_object"} //nolint:gochecknoglobals
 
 // WithToken passes the OpenAI API token to the client. If not set, the token
-// is read from the OPENAI_API_KEY environment variable.
+// is read from the OPENAI_API_KEY environment variable. A token is required
+// only for known public OpenAI-compatible providers; local backends such as
+// vLLM may be used without one.
 func WithToken(token string) Option {
 	return func(opts *options) {
 		opts.token = token

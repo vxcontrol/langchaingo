@@ -58,6 +58,18 @@ type anthropicTextGenerationInputContent struct {
 	CacheControl *anthropicCacheControl `json:"cache_control,omitempty"`
 }
 
+func (c anthropicTextGenerationInputContent) MarshalJSON() ([]byte, error) {
+	type alias anthropicTextGenerationInputContent
+	if c.Type != "thinking" || c.Thinking != "" {
+		return json.Marshal(alias(c))
+	}
+	return json.Marshal(struct {
+		Type      string `json:"type"`
+		Thinking  string `json:"thinking"`
+		Signature string `json:"signature,omitempty"`
+	}{Type: c.Type, Signature: c.Signature})
+}
+
 type anthropicCacheControl struct {
 	Type string `json:"type"`
 	TTL  string `json:"ttl,omitempty"`
@@ -94,7 +106,8 @@ type anthropicTextGenerationInput struct {
 	// Sequences that will cause the model to stop generating tokens. Optional
 	StopSequences []string `json:"stop_sequences,omitempty"`
 	// Tools available for the model to use. Optional
-	Tools []anthropicTool `json:"tools,omitempty"`
+	Tools      []anthropicTool `json:"tools,omitempty"`
+	ToolChoice any             `json:"tool_choice,omitempty"`
 	// Thinking configuration for reasoning models. Optional
 	Thinking *anthropicThinkingPayload `json:"thinking,omitempty"`
 	// OutputConfig carries the adaptive-thinking effort. It is a top-level
@@ -144,17 +157,28 @@ type anthropicTextGenerationOutput struct {
 	// One of: ["end_turn", "max_tokens", "stop_sequence", "tool_use"]
 	StopReason string `json:"stop_reason"`
 	// Which custom stop sequence was matched, if any.
-	StopSequence string `json:"stop_sequence"`
-	Usage        struct {
-		InputTokens              int32 `json:"input_tokens"`
-		OutputTokens             int32 `json:"output_tokens"`
-		CacheCreationInputTokens int32 `json:"cache_creation_input_tokens,omitempty"`
-		CacheReadInputTokens     int32 `json:"cache_read_input_tokens,omitempty"`
-		CacheCreation            struct {
-			Ephemeral5mInputTokens int32 `json:"ephemeral_5m_input_tokens,omitempty"`
-			Ephemeral1hInputTokens int32 `json:"ephemeral_1h_input_tokens,omitempty"`
-		} `json:"cache_creation,omitempty"`
-	} `json:"usage"`
+	StopSequence string                `json:"stop_sequence"`
+	StopDetails  *anthropicStopDetails `json:"stop_details,omitempty"`
+	Usage        anthropicUsage        `json:"usage"`
+}
+
+type anthropicStopDetails struct {
+	Category    string `json:"category,omitempty"`
+	Explanation string `json:"explanation,omitempty"`
+}
+
+type anthropicUsage struct {
+	InputTokens              int32 `json:"input_tokens"`
+	OutputTokens             int32 `json:"output_tokens"`
+	CacheCreationInputTokens int32 `json:"cache_creation_input_tokens,omitempty"`
+	CacheReadInputTokens     int32 `json:"cache_read_input_tokens,omitempty"`
+	CacheCreation            struct {
+		Ephemeral5mInputTokens int32 `json:"ephemeral_5m_input_tokens,omitempty"`
+		Ephemeral1hInputTokens int32 `json:"ephemeral_1h_input_tokens,omitempty"`
+	} `json:"cache_creation,omitempty"`
+	OutputTokensDetails struct {
+		ThinkingTokens int32 `json:"thinking_tokens,omitempty"`
+	} `json:"output_tokens_details,omitempty"`
 }
 
 type anthropicContentBlock struct {
@@ -221,9 +245,10 @@ func createAnthropicCompletion(ctx context.Context,
 		system = systemPrompt
 	}
 
+	maxTokens := getMaxTokens(options.GetMaxTokens(), 2048)
 	input := anthropicTextGenerationInput{
 		AnthropicVersion: AnthropicLatestVersion,
-		MaxTokens:        getMaxTokens(options.GetMaxTokens(), 2048),
+		MaxTokens:        maxTokens,
 		System:           system,
 		Messages:         inputContents,
 		Temperature:      options.GetTemperature(),
@@ -231,10 +256,14 @@ func createAnthropicCompletion(ctx context.Context,
 		TopK:             options.GetTopK(),
 		StopSequences:    options.StopWords,
 		Tools:            tools,
+		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice),
 	}
 
-	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, options.GetMaxTokens()); err != nil {
+	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens); err != nil {
 		return nil, err
+	}
+	if input.Thinking != nil {
+		input.MaxTokens = reasoning.ClaudeMaxTokensForBudget(input.Thinking.BudgetTokens, input.MaxTokens)
 	}
 
 	// Structured output rides in output_config.format, merged with any effort set
@@ -257,7 +286,7 @@ func createAnthropicCompletion(ctx context.Context,
 		}
 		streamResp, err := parseStreamingCompletionResponse(ctx, client, modelInput, options)
 		if err != nil {
-			return nil, err
+			return streamResp, err
 		}
 		// Validate the assembled stream too — a structured-output guarantee must
 		// hold on both API paths.
@@ -323,33 +352,101 @@ func createAnthropicCompletion(ctx context.Context,
 
 	// Create single choice with all content
 	choice := &llms.ContentChoice{
-		Content:    textContent,
-		Reasoning:  processReasoning(reasoningContent, signature),
-		ToolCalls:  toolCalls,
-		StopReason: output.StopReason,
-		GenerationInfo: map[string]any{
-			"input_tokens":     output.Usage.InputTokens,
-			"output_tokens":    output.Usage.OutputTokens,
-			"PromptTokens":     output.Usage.InputTokens,
-			"CompletionTokens": output.Usage.OutputTokens,
-			"TotalTokens":      output.Usage.InputTokens + output.Usage.OutputTokens,
-			// Cache metrics
-			"CacheReadInputTokens":                output.Usage.CacheReadInputTokens,
-			"CacheCreationInputTokens":            output.Usage.CacheCreationInputTokens,
-			"CacheCreationEphemeral5mInputTokens": output.Usage.CacheCreation.Ephemeral5mInputTokens,
-			"CacheCreationEphemeral1hInputTokens": output.Usage.CacheCreation.Ephemeral1hInputTokens,
-			"PromptCachedTokens":                  output.Usage.CacheReadInputTokens,
-		},
+		Content:        textContent,
+		Reasoning:      processReasoning(reasoningContent, signature),
+		ToolCalls:      toolCalls,
+		StopReason:     output.StopReason,
+		Truncated:      llms.IsTruncated(output.StopReason),
+		GenerationInfo: map[string]any{},
 	}
+	applyAnthropicUsage(choice.GenerationInfo, output.Usage)
 	Contentchoices = append(Contentchoices, choice)
 
 	contentResp := &llms.ContentResponse{
 		Choices: Contentchoices,
 	}
+	if output.StopReason == "refusal" {
+		refusal := &llms.ErrModelRefusal{
+			Provider:                 "bedrock",
+			Message:                  textContent,
+			InputTokens:              int(output.Usage.InputTokens),
+			OutputTokens:             int(output.Usage.OutputTokens),
+			CacheCreationInputTokens: int(output.Usage.CacheCreationInputTokens),
+			CacheReadInputTokens:     int(output.Usage.CacheReadInputTokens),
+		}
+		if output.StopDetails != nil {
+			refusal.Category = output.StopDetails.Category
+			refusal.Explanation = output.StopDetails.Explanation
+		}
+		return contentResp, refusal
+	}
 	if err := validateStructuredResponse(options.StructuredOutput, modelID, contentResp); err != nil {
 		return contentResp, err
 	}
 	return contentResp, nil
+}
+
+func anthropicToolChoiceOnWire(choice any) any {
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		return map[string]any{"type": "tool", "name": name}
+	case llms.ToolChoiceAny:
+		return map[string]any{"type": "any"}
+	case llms.ToolChoiceAuto:
+		return map[string]any{"type": "auto"}
+	case llms.ToolChoiceNone:
+		return map[string]any{"type": "none"}
+	default:
+		return nil
+	}
+}
+
+func mergeAnthropicUsage(into anthropicUsage, updates ...anthropicUsage) anthropicUsage {
+	for _, u := range updates {
+		if u.InputTokens != 0 {
+			into.InputTokens = u.InputTokens
+		}
+		if u.OutputTokens != 0 {
+			into.OutputTokens = u.OutputTokens
+		}
+		if u.CacheCreationInputTokens != 0 {
+			into.CacheCreationInputTokens = u.CacheCreationInputTokens
+		}
+		if u.CacheReadInputTokens != 0 {
+			into.CacheReadInputTokens = u.CacheReadInputTokens
+		}
+		if u.CacheCreation.Ephemeral5mInputTokens != 0 {
+			into.CacheCreation.Ephemeral5mInputTokens = u.CacheCreation.Ephemeral5mInputTokens
+		}
+		if u.CacheCreation.Ephemeral1hInputTokens != 0 {
+			into.CacheCreation.Ephemeral1hInputTokens = u.CacheCreation.Ephemeral1hInputTokens
+		}
+		if u.OutputTokensDetails.ThinkingTokens != 0 {
+			into.OutputTokensDetails.ThinkingTokens = u.OutputTokensDetails.ThinkingTokens
+		}
+	}
+	return into
+}
+
+func applyAnthropicUsage(info map[string]any, usage anthropicUsage) {
+	if info == nil {
+		return
+	}
+
+	promptTokens := int(usage.InputTokens) +
+		int(usage.CacheCreationInputTokens) + int(usage.CacheReadInputTokens)
+
+	info["input_tokens"] = int(usage.InputTokens)
+	info["output_tokens"] = int(usage.OutputTokens)
+	info["PromptTokens"] = promptTokens
+	info["CompletionTokens"] = int(usage.OutputTokens)
+	info["TotalTokens"] = promptTokens + int(usage.OutputTokens)
+	info["CacheReadInputTokens"] = int(usage.CacheReadInputTokens)
+	info["CacheCreationInputTokens"] = int(usage.CacheCreationInputTokens)
+	info["CacheCreationEphemeral5mInputTokens"] = int(usage.CacheCreation.Ephemeral5mInputTokens)
+	info["CacheCreationEphemeral1hInputTokens"] = int(usage.CacheCreation.Ephemeral1hInputTokens)
+	info["PromptCachedTokens"] = int(usage.CacheReadInputTokens)
+	info["ReasoningTokens"] = int(usage.OutputTokensDetails.ThinkingTokens)
 }
 
 func processReasoning(reasoningContent string, signature []byte) *reasoning.ContentReasoning {
@@ -387,22 +484,19 @@ type streamingCompletionResponseChunk struct {
 		InvocationLatency int32 `json:"invocationLatency"`
 		FirstByteLatency  int32 `json:"firstByteLatency"`
 	} `json:"amazon-bedrock-invocationMetrics"`
-	Usage struct {
-		OutputTokens int32 `json:"output_tokens"`
-	} `json:"usage"`
-	Message struct {
-		ID           string `json:"id"`
-		Type         string `json:"type"`
-		Role         string `json:"role"`
-		Content      []any  `json:"content"`
-		Model        string `json:"model"`
-		StopReason   any    `json:"stop_reason"`
-		StopSequence any    `json:"stop_sequence"`
-		Usage        struct {
-			InputTokens  int32 `json:"input_tokens"`
-			OutputTokens int32 `json:"output_tokens"`
-		} `json:"usage"`
-	} `json:"message"`
+	Usage   anthropicUsage         `json:"usage"`
+	Message anthropicStreamMessage `json:"message"`
+}
+
+type anthropicStreamMessage struct {
+	ID           string         `json:"id"`
+	Type         string         `json:"type"`
+	Role         string         `json:"role"`
+	Content      []any          `json:"content"`
+	Model        string         `json:"model"`
+	StopReason   any            `json:"stop_reason"`
+	StopSequence any            `json:"stop_sequence"`
+	Usage        anthropicUsage `json:"usage"`
 }
 
 func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
@@ -418,27 +512,32 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var usage anthropicUsage
+	var streamedContent strings.Builder
 	var currentToolCall *streaming.ToolCall
 	var toolCalls []llms.ToolCall
 	var signature strings.Builder
 
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp streamingCompletionResponseChunk
-			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
-			if err != nil {
-				return nil, err
+			if err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp); err != nil {
+				streamErr = err
+				break DoStream
 			}
 
 			switch resp.Type {
 			case "message_start":
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.Message.Usage.InputTokens
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.Message.Usage.InputTokens
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.Message.Usage.InputTokens
+				usage = mergeAnthropicUsage(usage, resp.Message.Usage, resp.Usage)
+				applyAnthropicUsage(contentchoices[0].GenerationInfo, usage)
 			case "content_block_start":
 				if resp.ContentBlock.Type == "tool_use" {
 					currentToolCall = &streaming.ToolCall{
@@ -449,20 +548,22 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 			case "content_block_delta":
 				switch resp.Delta.Type {
 				case "text_delta":
+					streamedContent.WriteString(resp.Delta.Text)
 					if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.Delta.Text); err != nil {
-						return nil, err
+						streamErr = err
+						break DoStream
 					}
-					contentchoices[0].Content += resp.Delta.Text
 				case "thinking_delta":
 					if resp.Delta.Thinking != "" {
 						chunk := streaming.Chunk{
 							Type:      streaming.ChunkTypeReasoning,
 							Reasoning: &reasoning.ContentReasoning{Content: resp.Delta.Thinking},
 						}
-						if err = options.StreamingFunc(ctx, chunk); err != nil {
-							return nil, err
-						}
 						contentchoices[0].Reasoning = appendReasoning(contentchoices[0].Reasoning, resp.Delta.Thinking)
+						if err = options.StreamingFunc(ctx, chunk); err != nil {
+							streamErr = err
+							break DoStream
+						}
 					}
 					if resp.Delta.Signature != "" {
 						signature.WriteString(resp.Delta.Signature)
@@ -483,7 +584,8 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 						if delta != "" {
 							deltaToolCall := streaming.NewToolCall(currentToolCall.ID, currentToolCall.Name, delta)
 							if err = streaming.CallWithToolCall(ctx, options.StreamingFunc, deltaToolCall); err != nil {
-								return nil, err
+								streamErr = err
+								break DoStream
 							}
 						}
 					}
@@ -503,34 +605,44 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 				}
 			case "message_delta":
 				contentchoices[0].StopReason = resp.Delta.StopReason
-				inputTokens := resp.Message.Usage.InputTokens
-				outputTokens := resp.Message.Usage.OutputTokens
-				if inputTokens == 0 {
-					if v, ok := contentchoices[0].GenerationInfo["input_tokens"].(int32); ok {
-						inputTokens = v
-					}
-				}
-				contentchoices[0].GenerationInfo["output_tokens"] = outputTokens
-				contentchoices[0].GenerationInfo["CompletionTokens"] = outputTokens
-				contentchoices[0].GenerationInfo["TotalTokens"] = inputTokens + outputTokens
+				contentchoices[0].Truncated = llms.IsTruncated(resp.Delta.StopReason)
+				usage = mergeAnthropicUsage(usage, resp.Message.Usage, resp.Usage)
+				applyAnthropicUsage(contentchoices[0].GenerationInfo, usage)
 			}
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
 	// Add tool calls to the final response
 	contentchoices[0].ToolCalls = toolCalls
 
 	// Add signature to reasoning if accumulated
-	if signature.Len() > 0 && contentchoices[0].Reasoning != nil {
+	if signature.Len() > 0 {
+		if contentchoices[0].Reasoning == nil {
+			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
+		}
 		contentchoices[0].Reasoning.Signature = []byte(signature.String())
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+
+	response := &llms.ContentResponse{Choices: contentchoices}
+	if streamErr != nil {
+		return response, streamErr
+	}
+	if contentchoices[0].StopReason == "refusal" {
+		return response, &llms.ErrModelRefusal{
+			Provider:                 "bedrock",
+			Message:                  streamedContent.String(),
+			InputTokens:              int(usage.InputTokens),
+			OutputTokens:             int(usage.OutputTokens),
+			CacheCreationInputTokens: int(usage.CacheCreationInputTokens),
+			CacheReadInputTokens:     int(usage.CacheReadInputTokens),
+		}
+	}
+	return response, nil
 }
 
 func appendReasoning(reasoning *reasoning.ContentReasoning, reasoningContent string) *reasoning.ContentReasoning {
@@ -688,11 +800,15 @@ func getAnthropicInputContent(message Message) anthropicTextGenerationInputConte
 func applyAnthropicReasoning(
 	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int,
 ) error {
+	callerTemperature := input.Temperature
 	// Adaptive-only models reject sampling params even without thinking.
 	if reasoning.ClaudeRejectsSampling(modelID) {
 		input.Temperature = 0
 		input.TopP = 0
 		input.TopK = 0
+	}
+	if reasoning.ClaudeMutuallyExclusiveSampling(modelID) && input.Temperature != 0 && input.TopP != 0 {
+		input.TopP = 0
 	}
 
 	switch cfg.ResolveMode() {
@@ -710,57 +826,45 @@ func applyAnthropicReasoning(
 
 	setAdaptive := func() {
 		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
-		input.OutputConfig = &anthropicOutputConfig{Effort: string(cfg.GetEffort(maxTokens))}
+		input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)))}
 		input.Temperature = 0
 		input.TopP = 0
 		input.TopK = 0
 	}
-	setBudget := func() {
-		mt := maxTokens
-		if mt == 0 {
-			mt = 2048
+	setBudget := func() error {
+		tokens := reasoning.ClaudeClampBudget(modelID, cfg.GetTokens(maxTokens))
+		if tokens <= 0 {
+			return &reasoning.ErrEffortHasNoBudget{Model: modelID, Effort: string(cfg.GetEffort(maxTokens))}
 		}
-		if tokens := cfg.GetTokens(mt); tokens > 0 {
-			input.Thinking = &anthropicThinkingPayload{Type: "enabled", BudgetTokens: tokens}
-			// Budget thinking requires temperature=1.0 and rejects top_p/top_k.
+		input.Thinking = &anthropicThinkingPayload{Type: "enabled", BudgetTokens: tokens}
+		if reasoning.ClaudeSupportsEffortWithBudget(modelID, reasoning.ProviderBedrock) {
+			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)))}
+		}
+		// Budget thinking requires temperature=1.0 and rejects top_p/top_k.
+		keepTopP := callerTemperature == 0 &&
+			reasoning.ClaudeKeepsTopPWhileThinking(modelID, input.TopP)
+		switch {
+		case reasoning.ClaudeRejectsSampling(modelID), keepTopP:
+			input.Temperature = 0
+		default:
 			input.Temperature = 1.0
-			input.TopP = 0
-			input.TopK = 0
 		}
+		if !keepTopP {
+			input.TopP = 0
+		}
+		input.TopK = 0
+		return nil
 	}
 
-	switch {
-	case reasoning.ClaudeSupportsThinking(modelID):
-		// Known thinking Claude: the model, not the flag, picks the mechanism.
-		if reasoning.ResolveClaudeAdaptive(modelID, cfg.Adaptive) {
-			setAdaptive()
-		} else {
-			setBudget()
-		}
-	case cfg.Adaptive && !reasoning.ClaudePredatesAdaptive(modelID):
-		// Unclassified — assumed newer than the table — Claude generation with an
-		// explicit adaptive request. Known pre-adaptive families are excluded so
-		// adaptive is never sent to a model that would reject it with a 400; those
-		// fall through to the budget gate below (or send no thinking at all).
+	switch reasoning.ResolveMechanism(modelID, cfg.Adaptive, true, supportsAnthropicReasoning(modelID)) {
+	case reasoning.MechanismAdaptive:
 		setAdaptive()
-	case supportsAnthropicReasoning(modelID):
-		setBudget()
+	case reasoning.MechanismBudget:
+		return setBudget()
 	}
 	return nil
 }
 
-// supportsAnthropicReasoning checks if the model supports reasoning
 func supportsAnthropicReasoning(modelID string) bool {
-	reasoningModels := []string{
-		"anthropic.claude-opus-4-",
-		"anthropic.claude-sonnet-4-",
-		"anthropic.claude-haiku-4-",
-	}
-
-	for _, model := range reasoningModels {
-		if strings.Contains(modelID, model) {
-			return true
-		}
-	}
-	return false
+	return reasoning.IsReasoningModel(modelID)
 }

@@ -1131,7 +1131,7 @@ func TestAmazonReasoningConverseAPI(t *testing.T) {
 	for _, model := range reasoningModels {
 		t.Logf("Testing reasoning with model: %s", model)
 
-		err := testReasoningWorkflow(ctx, t, llm, model, nil)
+		err := testReasoningWorkflow(ctx, t, llm, model, nil, false)
 		if err != nil {
 			t.Errorf("Reasoning failed for model %s: %v", model, err)
 		}
@@ -1168,7 +1168,7 @@ func TestAmazonReasoningLegacyAPI(t *testing.T) {
 	for _, model := range reasoningModels {
 		t.Logf("Testing reasoning with model: %s", model)
 
-		err := testReasoningWorkflow(ctx, t, llm, model, nil)
+		err := testReasoningWorkflow(ctx, t, llm, model, nil, true)
 		if err != nil {
 			t.Errorf("Reasoning failed for model %s: %v", model, err)
 		}
@@ -1223,7 +1223,7 @@ func TestAmazonReasoningStreamingConverseAPI(t *testing.T) {
 			return nil
 		}
 
-		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator)
+		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator, false)
 		if err != nil {
 			t.Errorf("Streaming reasoning failed for model %s: %v", model, err)
 		}
@@ -1267,7 +1267,7 @@ func TestAmazonReasoningStreamingLegacyAPI(t *testing.T) {
 			return nil
 		}
 
-		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator)
+		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator, true)
 		if err != nil {
 			t.Errorf("Streaming reasoning failed for model %s: %v", model, err)
 		}
@@ -1280,6 +1280,7 @@ func testReasoningWorkflow( //nolint:funlen
 	llm *bedrock.LLM,
 	model string,
 	streamingValidator func(reasoningChunks []string) error,
+	countsThinkingTokens bool,
 ) error {
 	t.Logf("Testing reasoning workflow for model: %s", model)
 
@@ -1360,6 +1361,22 @@ func testReasoningWorkflow( //nolint:funlen
 		t.Logf("Found reasoning content for model %s: %s", model, preview)
 	} else {
 		return fmt.Errorf("empty reasoning content")
+	}
+
+	reasoningTokens, hasReasoningTokens := choice.GenerationInfo["ReasoningTokens"]
+	switch {
+	case countsThinkingTokens:
+		if got, ok := reasoningTokens.(int); !ok || got <= 0 {
+			return fmt.Errorf("an answer that reasoned must report ReasoningTokens as an int, got %#v",
+				reasoningTokens)
+		}
+	case hasReasoningTokens:
+		return fmt.Errorf("this door's usage carries no thinking count, so none must be invented, got %#v",
+			reasoningTokens)
+	}
+	if got, ok := choice.GenerationInfo["CompletionTokens"].(int); !ok || got <= 0 {
+		return fmt.Errorf("an answer that reasoned must report CompletionTokens as an int, got %#v",
+			choice.GenerationInfo["CompletionTokens"])
 	}
 
 	t.Logf("Reasoning workflow completed successfully for model: %s", model)
@@ -2834,6 +2851,8 @@ func TestAmazonAutomaticCachingLegacyAPI(t *testing.T) { //nolint:funlen
 
 	t.Logf("Turn 2 Response: %s", resp2.Choices[0].Content)
 
+	requireUsageAddsUp(t, resp2.Choices[0].GenerationInfo)
+
 	// Turn 3: Continue conversation - automatic caching should apply
 	messages = append(messages,
 		llms.MessageContent{
@@ -3006,6 +3025,8 @@ func TestAmazonAutomaticCachingConverseAPI(t *testing.T) { //nolint:funlen
 	}
 
 	t.Logf("Turn 2 Response: %s", resp2.Choices[0].Content)
+
+	requireUsageAddsUp(t, resp2.Choices[0].GenerationInfo)
 
 	// Turn 3: Continue conversation - automatic caching should apply
 	messages = append(messages,
@@ -3200,4 +3221,33 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 	}
 
 	t.Logf("Response: %s", resp)
+}
+
+func requireUsageAddsUp(t *testing.T, info map[string]any) {
+	t.Helper()
+
+	prompt, ok := info["PromptTokens"].(int)
+	if !ok {
+		t.Fatalf("PromptTokens missing or not int: %#v", info["PromptTokens"])
+	}
+	completion, ok := info["CompletionTokens"].(int)
+	if !ok {
+		t.Fatalf("CompletionTokens missing or not int: %#v", info["CompletionTokens"])
+	}
+	cached, _ := info["CacheReadInputTokens"].(int)
+	created, _ := info["CacheCreationInputTokens"].(int)
+	if cached+created == 0 {
+		t.Fatalf("this recording carries no cache tokens, so it cannot show whether they are counted: %#v", info)
+	}
+	total, ok := info["TotalTokens"].(int)
+	if !ok {
+		total = prompt + completion
+	}
+	if prompt+completion != total {
+		t.Errorf("PromptTokens(%d) + CompletionTokens(%d) = %d, but TotalTokens = %d;"+
+			" cache read %d, cache creation %d", prompt, completion, prompt+completion, total, cached, created)
+	}
+	if prompt <= cached+created {
+		t.Errorf("PromptTokens(%d) does not count the cached input (read %d, created %d)", prompt, cached, created)
+	}
 }

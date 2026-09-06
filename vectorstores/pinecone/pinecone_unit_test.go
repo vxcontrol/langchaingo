@@ -7,7 +7,10 @@ import (
 
 	"github.com/vxcontrol/langchaingo/vectorstores"
 
+	"github.com/pinecone-io/go-pinecone/v4/pinecone"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // testEmbedder is a mock embedder for testing
@@ -226,6 +229,36 @@ func TestGetNameSpace(t *testing.T) {
 			assert.Equal(t, tt.expectedNS, ns)
 		})
 	}
+}
+
+func TestGetDocumentsFromMatchesStableOrder(t *testing.T) {
+	t.Parallel()
+
+	store := Store{textKey: "text"}
+	match := func(text string, score float32) *pinecone.ScoredVector {
+		t.Helper()
+		metadata, err := structpb.NewStruct(map[string]any{"text": text})
+		require.NoError(t, err)
+		return &pinecone.ScoredVector{
+			Vector: &pinecone.Vector{Metadata: metadata},
+			Score:  score,
+		}
+	}
+
+	docs, err := store.getDocumentsFromMatches(&pinecone.QueryVectorsResponse{
+		Matches: []*pinecone.ScoredVector{
+			match("The color of the chair beside the desk is beige.", 0.81),
+			match("The color of the desk is orange.", 0.81),
+			match("The color of the lamp beside the desk is black.", 0.90),
+			match("The color of the car is red.", 0.70),
+		},
+	}, 0.8)
+	require.NoError(t, err)
+	require.Equal(t, []string{
+		"The color of the lamp beside the desk is black.",
+		"The color of the chair beside the desk is beige.",
+		"The color of the desk is orange.",
+	}, []string{docs[0].PageContent, docs[1].PageContent, docs[2].PageContent})
 }
 
 func TestGetScoreThreshold(t *testing.T) {

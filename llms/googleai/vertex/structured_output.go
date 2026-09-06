@@ -56,24 +56,14 @@ func applyVertexResponseFormat(model *genai.GenerativeModel, opts *llms.CallOpti
 }
 
 // validateVertexStructuredOutput validates each normal-final (FinishReasonStop)
-// candidate against the original schema. Other finish reasons keep their prior
-// semantics and are not validated as final JSON.
+// candidate against the original schema.
 func validateVertexStructuredOutput(opts *llms.CallOptions, resp *llms.ContentResponse) error {
 	so := opts.StructuredOutput
-	if so == nil || resp == nil {
+	if so == nil {
 		return nil
 	}
-	model := opts.GetModel()
-	stop := genai.FinishReasonStop.String()
-	for i, choice := range resp.Choices {
-		if choice.StopReason != stop {
-			continue
-		}
-		if err := structuredoutput.Validate(so.Schema, providerVertex, model, i, choice.StopReason, choice.Content); err != nil {
-			return err
-		}
-	}
-	return nil
+	return structuredoutput.ValidateFinalChoices(
+		so.Schema, providerVertex, opts.GetModel(), wireFinishReason(genai.FinishReasonStop), resp)
 }
 
 func unsupportedVertexSchema(reason string) error {
@@ -139,6 +129,14 @@ func convertVertexNode(node map[string]any) (*genai.Schema, error) { //nolint:fu
 	schema.Type = gt
 	schema.Nullable = nullable
 
+	if n, ok := node["nullable"]; ok {
+		b, ok := n.(bool)
+		if !ok {
+			return nil, unsupportedVertexSchema(`keyword "nullable" must be a boolean`)
+		}
+		schema.Nullable = schema.Nullable || b
+	}
+
 	if s, ok := node["description"].(string); ok {
 		schema.Description = s
 	}
@@ -152,14 +150,9 @@ func convertVertexNode(node map[string]any) (*genai.Schema, error) { //nolint:fu
 		schema.Pattern = s
 	}
 
-	// additionalProperties: only the strict `false` is accepted. Vertex object
-	// schemas have no field for it, but dropping `false` does not loosen the
-	// effective guarantee — the final response is validated against the original
-	// schema locally. Any schema value (or `true`) IS a meaningful loosening, so it
-	// is rejected instead of silently ignored.
 	if ap, ok := node["additionalProperties"]; ok {
-		if b, isBool := ap.(bool); !isBool || b {
-			return nil, unsupportedVertexSchema("additionalProperties must be false; a schema or true is not representable")
+		if _, isBool := ap.(bool); !isBool {
+			return nil, unsupportedVertexSchema("a schema-valued additionalProperties is not representable")
 		}
 	}
 

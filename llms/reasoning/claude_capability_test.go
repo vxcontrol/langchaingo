@@ -1,6 +1,9 @@
 package reasoning
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestClaudeReasoningKindFor(t *testing.T) {
 	t.Parallel()
@@ -8,7 +11,6 @@ func TestClaudeReasoningKindFor(t *testing.T) {
 		model string
 		want  ClaudeReasoningKind
 	}{
-		// Adaptive-only (T1), first-party and Bedrock forms.
 		{"claude-opus-4-7", ClaudeReasoningAdaptiveOnly},
 		{"claude-opus-4-8", ClaudeReasoningAdaptiveOnly},
 		{"us.anthropic.claude-opus-4-8", ClaudeReasoningAdaptiveOnly},
@@ -18,13 +20,20 @@ func TestClaudeReasoningKindFor(t *testing.T) {
 		{"us.anthropic.claude-sonnet-5", ClaudeReasoningAdaptiveOnly},
 		{"claude-fable-5", ClaudeReasoningAdaptiveOnly},
 		{"claude-mythos-5", ClaudeReasoningAdaptiveOnly},
-		// Dual (T2).
 		{"claude-opus-4-6", ClaudeReasoningAdaptiveAndBudget},
 		{"us.anthropic.claude-sonnet-4-6", ClaudeReasoningAdaptiveAndBudget},
-		// Budget-only (T3).
+		{"claude-mythos-preview", ClaudeReasoningAdaptiveAndBudget},
 		{"claude-opus-4-5-20251101", ClaudeReasoningBudgetOnly},
 		{"claude-sonnet-4-5-20250929", ClaudeReasoningBudgetOnly},
 		{"us.anthropic.claude-haiku-4-5-20251001-v1:0", ClaudeReasoningBudgetOnly},
+		{"claude-3-7-sonnet-20250219", ClaudeReasoningBudgetOnly},
+		{"claude-3.7-sonnet", ClaudeReasoningBudgetOnly},
+		{"anthropic.claude-3-7-sonnet-20250219-v1:0", ClaudeReasoningBudgetOnly},
+		{"claude-opus-4-0", ClaudeReasoningBudgetOnly},
+		{"claude-opus-4-20250514", ClaudeReasoningBudgetOnly},
+		{"claude-opus-4-1-20250805", ClaudeReasoningBudgetOnly},
+		{"claude-sonnet-4-0", ClaudeReasoningBudgetOnly},
+		{"claude-sonnet-4-20250514", ClaudeReasoningBudgetOnly},
 		// Unknown: no-thinking Claude, retired/non-classified, non-Claude, empty.
 		{"claude-3-5-haiku-20241022", ClaudeReasoningUnknown},
 		{"claude-2.1", ClaudeReasoningUnknown},
@@ -34,6 +43,32 @@ func TestClaudeReasoningKindFor(t *testing.T) {
 	for _, tc := range cases {
 		if got := ClaudeReasoningKindFor(tc.model); got != tc.want {
 			t.Errorf("ClaudeReasoningKindFor(%q) = %d, want %d", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestClaudeEffortsFor(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model    string
+		provider Provider
+		want     []string
+	}{
+		{"claude-opus-5", ProviderAnthropic, []string{"low", "medium", "high", "xhigh", "max"}},
+		{"us.anthropic.claude-opus-4-7", ProviderAnthropic, []string{"low", "medium", "high", "xhigh", "max"}},
+		{"claude-opus-4-6", ProviderAnthropic, []string{"low", "medium", "high", "max"}},
+		{"claude-sonnet-4-6", ProviderAnthropic, []string{"low", "medium", "high", "max"}},
+		{"claude-mythos-preview", ProviderAnthropic, []string{"low", "medium", "high", "max"}},
+		{"claude-opus-4-5-20251101", ProviderAnthropic, []string{"low", "medium", "high"}},
+		{"claude-sonnet-4-5-20250929", ProviderAnthropic, nil},
+		{"us.anthropic.claude-haiku-4-5-20251001-v1:0", ProviderAnthropic, nil},
+		{"gpt-5.5", ProviderAnthropic, nil},
+		{"claude-opus-4-5-20251101", ProviderBedrock, nil},
+		{"claude-opus-4-6", ProviderBedrock, []string{"low", "medium", "high", "max"}},
+	}
+	for _, tc := range cases {
+		if got := ClaudeEffortsFor(tc.model, tc.provider); !slices.Equal(got, tc.want) {
+			t.Errorf("ClaudeEffortsFor(%q, %v) = %v, want %v", tc.model, tc.provider, got, tc.want)
 		}
 	}
 }
@@ -48,19 +83,22 @@ func TestResolveClaudeAdaptive(t *testing.T) {
 		want      bool
 		note      string
 	}{
-		// Adaptive-only: budget preference upgraded to adaptive (M1/M2/H1b).
-		{"claude-sonnet-5", false, true, "budget on T1 upgrades"},
-		{"claude-sonnet-5", true, true, "adaptive on T1 stays"},
+		// Adaptive-only: budget preference upgraded to adaptive.
+		{"claude-sonnet-5", false, true, "budget on an adaptive-only model upgrades"},
+		{"claude-sonnet-5", true, true, "adaptive on an adaptive-only model stays"},
 		{"claude-opus-5", false, true, "budget on Opus 5 upgrades"},
-		// Budget-only: adaptive preference downgraded to budget (M3).
-		{"claude-haiku-4-5", true, false, "adaptive on T3 downgrades"},
-		{"claude-haiku-4-5", false, false, "budget on T3 stays"},
+		// Budget-only: adaptive preference downgraded to budget.
+		{"claude-haiku-4-5", true, false, "adaptive on a budget-only model downgrades"},
+		{"claude-haiku-4-5", false, false, "budget on a budget-only model stays"},
 		// Dual: caller preference honored both ways (unchanged).
-		{"claude-opus-4-6", true, true, "adaptive on T2 honored"},
-		{"claude-opus-4-6", false, false, "budget on T2 honored"},
+		{"claude-opus-4-6", true, true, "adaptive on a dual model is honored"},
+		{"claude-opus-4-6", false, false, "budget on a dual model is honored"},
+		{"claude-3-5-haiku", true, false, "adaptive on pre-adaptive downgrades"},
+		{"claude-3-5-haiku", false, false, "budget on pre-adaptive stays"},
+		{"claude-3-5-sonnet-latest", true, false, "same for the dated alias"},
 		// Unknown: literal pass-through (unchanged).
-		{"claude-3-5-haiku", true, true, "adaptive on unknown literal"},
-		{"claude-3-5-haiku", false, false, "budget on unknown literal"},
+		{"claude-future-9", true, true, "adaptive on unknown literal"},
+		{"claude-future-9", false, false, "budget on unknown literal"},
 	}
 	for _, tc := range cases {
 		if got := ResolveClaudeAdaptive(tc.model, tc.preferAda); got != tc.want {
@@ -79,9 +117,14 @@ func TestClaudeSupportsStructuredOutput(t *testing.T) {
 		{"claude-sonnet-5", true},
 		{"claude-opus-5", true},
 		{"claude-opus-4-5", true},
+		{"claude-opus-4-6", true},
+		{"claude-opus-4-8", true},
 		{"claude-haiku-4-5", true},
 		{"us.anthropic.claude-sonnet-4-5-v1:0", true},
 		{"some-future-model", true}, // unknown passes through
+		{"claude-opus-4-1-20250805", false},
+		{"claude-opus-4-20250514", false},
+		{"us.anthropic.claude-sonnet-4-20250514-v1:0", false},
 		{"claude-3-5-sonnet-latest", false},
 		{"claude-3-7-sonnet", false},
 		{"claude-2.1", false},
@@ -110,6 +153,7 @@ func TestClaudeThinkingDefaultAndAlwaysOn(t *testing.T) {
 		{"claude-opus-4-8", false, false, "defaults off"},
 		{"claude-fable-5", true, true, "always on, cannot disable"},
 		{"claude-mythos-5", true, true, "always on, cannot disable"},
+		{"claude-mythos-preview", true, true, "always on, cannot disable"},
 	}
 	for _, tc := range cases {
 		if got := ClaudeThinkingDefaultsOn(tc.model); got != tc.defaultOn {
@@ -130,6 +174,7 @@ func TestClaudeRejectsSampling(t *testing.T) {
 		{"claude-sonnet-5", true},
 		{"claude-opus-5", true},
 		{"us.anthropic.claude-opus-4-8", true},
+		{"claude-mythos-preview", true},
 		{"claude-opus-4-6", false},
 		{"claude-sonnet-4-5", false},
 		{"claude-3-5-haiku", false},
@@ -138,6 +183,113 @@ func TestClaudeRejectsSampling(t *testing.T) {
 	for _, tc := range cases {
 		if got := ClaudeRejectsSampling(tc.model); got != tc.want {
 			t.Errorf("ClaudeRejectsSampling(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestClaudeRejectsAssistantPrefill(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"claude-opus-4-6", true},
+		{"us.anthropic.claude-sonnet-4-6", true},
+		{"claude-mythos-preview", true},
+		{"claude-opus-4-7", true},
+		{"claude-sonnet-5", true},
+		{"claude-fable-5", true},
+		{"claude-opus-4-5-20251101", false},
+		{"claude-sonnet-4-5", false},
+		{"claude-haiku-4-5", false},
+		{"claude-3-5-sonnet", false},
+		{"gpt-5.5", false},
+	}
+	for _, tc := range cases {
+		if got := ClaudeRejectsAssistantPrefill(tc.model); got != tc.want {
+			t.Errorf("ClaudeRejectsAssistantPrefill(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestClaudeSupportsEffortWithBudget(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model    string
+		provider Provider
+		want     bool
+	}{
+		{"claude-opus-4-5-20251101", ProviderAnthropic, true},
+		{"us.anthropic.claude-opus-4-5-20251101-v1:0", ProviderBedrock, false},
+		{"claude-mythos-preview", ProviderAnthropic, true},
+		{"claude-opus-4-6", ProviderAnthropic, true},
+		{"us.anthropic.claude-opus-4-6-v1", ProviderBedrock, true},
+		{"us.anthropic.claude-sonnet-4-6", ProviderBedrock, true},
+		{"claude-sonnet-4-5", ProviderAnthropic, false},
+		{"us.anthropic.claude-sonnet-4-5-20250929-v1:0", ProviderBedrock, false},
+		{"claude-haiku-4-5", ProviderAnthropic, false},
+		{"claude-sonnet-5", ProviderAnthropic, false},
+	}
+	for _, tc := range cases {
+		if got := ClaudeSupportsEffortWithBudget(tc.model, tc.provider); got != tc.want {
+			t.Errorf("ClaudeSupportsEffortWithBudget(%q, %v) = %v, want %v", tc.model, tc.provider, got, tc.want)
+		}
+	}
+}
+
+func TestClaudePredatesAdaptive(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"claude-2.1", true},
+		{"anthropic.claude-v2", true},
+		{"anthropic.claude-v2:1", true},
+		{"anthropic.claude-instant-v1", true},
+		{"claude-3-5-haiku", true},
+		{"claude-3-7-sonnet-20250219", true},
+		{"claude-opus-4-1-20250805", true},
+		{"claude-opus-4-20250514", true},
+		{"us.anthropic.claude-sonnet-4-20250514-v1:0", true},
+		{"claude-3-opus", true},
+		{"claude-4-opus-20250514", true},
+		{"claude-opus-4-5", false},
+		{"claude-sonnet-4-5", false},
+		{"claude-haiku-4-5", false},
+		{"claude-opus-4-6", false},
+		{"claude-sonnet-4-6", false},
+		{"claude-opus-4-8", false},
+		{"claude-sonnet-5", false},
+		{"us.anthropic.claude-fable-5", false},
+	}
+	for _, tc := range cases {
+		if got := ClaudePredatesAdaptive(tc.model); got != tc.want {
+			t.Errorf("ClaudePredatesAdaptive(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestClaudeMutuallyExclusiveSampling(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"claude-haiku-4-5-20251001", true},
+		{"claude-sonnet-4-5-20250929", true},
+		{"claude-opus-4-5-20251101", true},
+		{"claude-sonnet-4-6", true},
+		{"claude-opus-4-6", true},
+		{"us.anthropic.claude-opus-4-6-v1", true},
+		{"anthropic/claude-sonnet-4.5", true},
+		{"claude-opus-4-7", false},
+		{"claude-opus-5", false},
+		{"gpt-5.4-mini", false},
+	}
+	for _, tc := range cases {
+		if got := ClaudeMutuallyExclusiveSampling(tc.model); got != tc.want {
+			t.Errorf("ClaudeMutuallyExclusiveSampling(%q) = %v, want %v", tc.model, got, tc.want)
 		}
 	}
 }

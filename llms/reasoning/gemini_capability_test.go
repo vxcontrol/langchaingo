@@ -36,10 +36,14 @@ func TestGeminiCanDisable(t *testing.T) {
 		{"gemini-2.5-flash", true},
 		{"gemini-2.5-flash-lite", true},
 		{"gemma-4-31b-it", true},
+		{"gemma-4-26b-a4b-it", true},
 		{"gemini-2.5-pro", false},
-		{"gemini-3-flash-preview", false},
+		{"gemini-3-flash-preview", true},
 		{"gemini-3.1-pro-preview", false},
-		{"gemini-3.5-flash", false},
+		{"gemini-3.5-flash", true},
+		{"gemini-3.5-pro", false},
+		{"gemini-3.6-flash", false},
+		{"gemini-3.7-flash", false},
 		{"some-unknown-google-model", true}, // optimistic
 	}
 	for _, tc := range cases {
@@ -64,6 +68,130 @@ func TestGeminiUsesThinkingLevel(t *testing.T) {
 	for _, tc := range cases {
 		if got := GeminiUsesThinkingLevel(tc.model); got != tc.want {
 			t.Errorf("GeminiUsesThinkingLevel(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestGeminiFamilyBoundary(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model         string
+		nonThinking   bool
+		supportsThink bool
+		usesLevel     bool
+		off           OffWire
+	}{
+		{"gemini-1.0-pro", true, false, false, OffOmit},
+		{"gemini-1.5-pro", true, false, false, OffOmit},
+		{"gemini-10-pro", false, false, false, OffZeroBudget},
+		{"gemini-15-flash", false, false, false, OffZeroBudget},
+		{"gemini-2.0-flash", true, false, false, OffOmit},
+		{"gemini-20-flash", false, false, false, OffZeroBudget},
+		{"gemma-3-27b", true, false, false, OffOmit},
+		{"gemma-30b", false, false, false, OffZeroBudget},
+		{"gemini-3-pro", false, true, true, OffUnsupported},
+		{"gemini-30-pro", false, false, false, OffZeroBudget},
+		{"gemini-2.5-flash", false, true, false, OffZeroBudget},
+		{"gemini-25-flash", false, false, false, OffZeroBudget},
+	}
+	for _, tc := range cases {
+		if got := geminiKnownNonThinking(tc.model); got != tc.nonThinking {
+			t.Errorf("geminiKnownNonThinking(%q) = %v, want %v", tc.model, got, tc.nonThinking)
+		}
+		if got := GeminiSupportsThinking(tc.model); got != tc.supportsThink {
+			t.Errorf("GeminiSupportsThinking(%q) = %v, want %v", tc.model, got, tc.supportsThink)
+		}
+		if got := GeminiUsesThinkingLevel(tc.model); got != tc.usesLevel {
+			t.Errorf("GeminiUsesThinkingLevel(%q) = %v, want %v", tc.model, got, tc.usesLevel)
+		}
+		if got := ResolveOff(tc.model, ProviderGoogleAI); got != tc.off {
+			t.Errorf("ResolveOff(%q) = %v, want %v", tc.model, got, tc.off)
+		}
+	}
+}
+
+func TestGeminiFlashLiteDisablesByOmitting(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model      string
+		canDisable bool
+		off        OffWire
+	}{
+		{"gemini-2.5-flash-lite", true, OffOmit},
+		{"gemini-3.1-flash-lite", true, OffOmit},
+		{"gemini-3.5-flash-lite", true, OffOmit},
+		{"gemini-2.5-flash", true, OffZeroBudget},
+		{"gemini-2.5-pro", false, OffUnsupported},
+		{"gemini-3.1-pro-preview", false, OffUnsupported},
+		{"gemini-3.6-flash", false, OffUnsupported},
+	}
+	for _, tc := range cases {
+		if got := GeminiCanDisable(tc.model); got != tc.canDisable {
+			t.Errorf("GeminiCanDisable(%q) = %v, want %v", tc.model, got, tc.canDisable)
+		}
+		if got := ResolveOff(tc.model, ProviderGoogleAI); got != tc.off {
+			t.Errorf("ResolveOff(%q) = %v, want %v", tc.model, got, tc.off)
+		}
+	}
+}
+
+func TestGeminiAcceptsMinimalLevel(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"gemini-3-flash-preview", true},
+		{"gemini-3.1-flash-lite", true},
+		{"gemini-3.1-flash-lite-preview", true},
+		{"gemini-3.5-flash", true},
+		{"gemini-3.5-flash-lite", true},
+		{"gemini-3.6-flash", true},
+		{"google/gemini-3.5-flash", true},
+		{"gemini-3.1-pro-preview", false},
+		{"gemini-3.1-pro-preview-customtools", false},
+		{"gemini-3.7-flash", false},
+		{"gemini-2.5-flash", false},
+		{"gemini-3.9-flash", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		if got := GeminiAcceptsMinimalLevel(tc.model); got != tc.want {
+			t.Errorf("GeminiAcceptsMinimalLevel(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestGemmaTogglesThinkingByLevel(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"gemma-4-31b-it", true},
+		{"gemma-4-26b-a4b-it", true},
+		{"gemma-4-E2B-it", true},
+		{"google/gemma-4-31b-it", true},
+		{"gemma-3-27b-it", false},
+		{"gemini-3.5-flash", false},
+		{"gemini-2.5-flash", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		if got := GeminiTogglesThinkingByLevel(tc.model); got != tc.want {
+			t.Errorf("GeminiTogglesThinkingByLevel(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestGemmaOffGoesOutAsTheMinimalLevelRatherThanAZeroBudget(t *testing.T) {
+	t.Parallel()
+	for _, model := range []string{"gemma-4-31b-it", "gemma-4-26b-a4b-it", "google/gemma-4-E2B-it"} {
+		if got := ResolveOff(model, ProviderGoogleAI); got != OffMinimalLevel {
+			t.Errorf("ResolveOff(%q) = %v, want OffMinimalLevel", model, got)
+		}
+		if !GeminiCanDisable(model) {
+			t.Errorf("GeminiCanDisable(%q) = false, want true", model)
 		}
 	}
 }

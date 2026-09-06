@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -130,12 +131,13 @@ func createAmazonCompletion(ctx context.Context,
 		contentChoices[i] = &llms.ContentChoice{
 			Content:    result.OutputText,
 			StopReason: result.CompletionReason,
+			Truncated:  llms.IsTruncated(result.CompletionReason),
 			GenerationInfo: map[string]any{
 				"input_tokens":  output.InputTextTokenCount,
 				"output_tokens": result.TokenCount,
 				// Standardized field names for cross-provider compatibility
-				"PromptTokens":     output.InputTextTokenCount,
-				"CompletionTokens": result.TokenCount,
+				"PromptTokens":     int(output.InputTextTokenCount),
+				"CompletionTokens": int(result.TokenCount),
 				"TotalTokens":      output.InputTextTokenCount + result.TokenCount,
 			},
 		}
@@ -159,29 +161,37 @@ func parseAmazonStreamingResponse(ctx context.Context, client *bedrockruntime.Cl
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var streamedContent strings.Builder
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp amazonStreamingResponseChunk
 			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
 			if err != nil {
-				return nil, err
+				streamErr = err
+				break DoStream
 			}
 
 			// Send text chunk if available
 			if resp.OutputText != "" {
+				streamedContent.WriteString(resp.OutputText)
 				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.OutputText); err != nil {
-					return nil, err
+					streamErr = err
+					break DoStream
 				}
-				contentchoices[0].Content += resp.OutputText
 			}
 
 			// Set completion reason
 			if resp.CompletionReason != "" {
 				contentchoices[0].StopReason = resp.CompletionReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.CompletionReason)
 			}
 
 			// Set token counts
@@ -199,10 +209,10 @@ func parseAmazonStreamingResponse(ctx context.Context, client *bedrockruntime.Cl
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+
+	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }

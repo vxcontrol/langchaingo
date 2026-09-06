@@ -95,6 +95,8 @@ type messagePayload struct {
 	Stream      bool          `json:"stream,omitempty"`
 	Temperature *float64      `json:"temperature,omitempty"`
 	TopP        *float64      `json:"top_p,omitempty"`
+	TopK        *int          `json:"top_k,omitempty"`
+	Speed       *string       `json:"speed,omitempty"`
 	Tools       []Tool        `json:"tools,omitempty"`
 	ToolChoice  any           `json:"tool_choice,omitempty"`
 
@@ -110,6 +112,11 @@ type Tool struct {
 	Description  string        `json:"description,omitempty"`
 	InputSchema  any           `json:"input_schema,omitempty"`
 	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+type ToolChoice struct {
+	Type string `json:"type"`
+	Name string `json:"name,omitempty"`
 }
 
 // CacheControl represents Anthropic's prompt caching configuration.
@@ -161,7 +168,7 @@ type ImageSource struct {
 
 type ThinkingContent struct {
 	Type      string `json:"type"`
-	Thinking  string `json:"thinking,omitempty"`
+	Thinking  string `json:"thinking"`
 	Signature string `json:"signature,omitempty"`
 }
 
@@ -242,7 +249,11 @@ type MessageResponsePayload struct {
 			Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
 			Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
 		} `json:"cache_creation,omitempty"`
+		OutputTokensDetails struct {
+			ThinkingTokens int `json:"thinking_tokens,omitempty"`
+		} `json:"output_tokens_details,omitempty"`
 		ServiceTier string `json:"service_tier,omitempty"`
+		Speed       string `json:"speed,omitempty"`
 	} `json:"usage"`
 }
 
@@ -369,12 +380,18 @@ type MessageEvent struct {
 	Err      error
 }
 
+const (
+	initialStreamBuffer = 64 * 1024
+	maxStreamLine       = 8 * 1024 * 1024
+)
+
 func parseStreamingMessageResponse(
 	ctx context.Context,
 	r *http.Response,
 	payload *messagePayload,
 ) (*MessageResponsePayload, error) {
 	scanner := bufio.NewScanner(r.Body)
+	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	eventChan := make(chan MessageEvent)
 
 	go func() {
@@ -402,24 +419,30 @@ func parseStreamingMessageResponse(
 			data := strings.TrimPrefix(line, "data: ")
 			event, err := parseStreamEvent(data)
 			if err != nil {
-				eventChan <- MessageEvent{Response: nil, Err: fmt.Errorf("failed to parse stream event: %w", err)}
+				partial := response
+				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)}
 				return
 			}
 			response, err = processStreamEvent(ctx, event, payload, response, eventChan)
 			if err != nil {
-				eventChan <- MessageEvent{Response: nil, Err: fmt.Errorf("failed to process stream event: %w", err)}
+				partial := response
+				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)}
 				return
 			}
 		}
 		if err := scanner.Err(); err != nil {
-			eventChan <- MessageEvent{Response: nil, Err: fmt.Errorf("issue scanning response: %w", err)}
+			partial := response
+			eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)}
 		}
 	}()
 
 	var lastResponse *MessageResponsePayload
 	for event := range eventChan {
 		if event.Err != nil {
-			return nil, event.Err
+			if event.Response != nil {
+				lastResponse = event.Response
+			}
+			return lastResponse, event.Err
 		}
 		lastResponse = event.Response
 	}
@@ -492,7 +515,8 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "ping":
 		// Nothing to do here
 	case "error":
-		eventChan <- MessageEvent{Response: nil, Err: fmt.Errorf("received error event: %v", event)}
+		partial := response
+		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)}
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)
 	}
@@ -774,6 +798,11 @@ func handleMessageDeltaEvent(event map[string]interface{}, response MessageRespo
 	}
 	if cacheReadTokens, err := getFloat64(usage, "cache_read_input_tokens"); err == nil {
 		response.Usage.CacheReadInputTokens = int(cacheReadTokens)
+	}
+	if details, ok := usage["output_tokens_details"].(map[string]interface{}); ok {
+		if thinkingTokens, err := getFloat64(details, "thinking_tokens"); err == nil {
+			response.Usage.OutputTokensDetails.ThinkingTokens = int(thinkingTokens)
+		}
 	}
 	return response, nil
 }

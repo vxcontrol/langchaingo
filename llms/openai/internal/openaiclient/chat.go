@@ -41,23 +41,31 @@ type ReasoningOptions struct {
 	MaxTokens int                  `json:"max_tokens,omitempty"`
 }
 
+type ThinkingOptions struct {
+	Type string `json:"type"`
+}
+
 // ChatRequest is a request to complete a chat completion..
 type ChatRequest struct {
-	Model               string         `json:"model"`
-	Messages            []*ChatMessage `json:"messages"`
-	Temperature         *float64       `json:"temperature,omitempty"`
-	TopK                *int           `json:"top_k,omitempty"`
-	TopP                *float64       `json:"top_p,omitempty"`
-	MinP                *float64       `json:"min_p,omitempty"`
-	MaxTokens           *int           `json:"max_tokens,omitempty"`
-	MaxCompletionTokens *int           `json:"max_completion_tokens,omitempty"`
-	N                   *int           `json:"n,omitempty"`
-	StopWords           []string       `json:"stop,omitempty"`
-	Stream              bool           `json:"stream,omitempty"`
-	FrequencyPenalty    *float64       `json:"frequency_penalty,omitempty"`
-	PresencePenalty     *float64       `json:"presence_penalty,omitempty"`
-	RepetitionPenalty   *float64       `json:"repetition_penalty,omitempty"`
-	Seed                *int           `json:"seed,omitempty"`
+	Model               string           `json:"model"`
+	Messages            []*ChatMessage   `json:"messages"`
+	Temperature         *float64         `json:"temperature,omitempty"`
+	TopK                *int             `json:"top_k,omitempty"`
+	TopP                *float64         `json:"top_p,omitempty"`
+	MinP                *float64         `json:"min_p,omitempty"`
+	EnableThinking      *bool            `json:"enable_thinking,omitempty"`
+	ThinkingBudget      *int             `json:"thinking_budget,omitempty"`
+	Thinking            *ThinkingOptions `json:"thinking,omitempty"`
+	MaxTokens           *int             `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int             `json:"max_completion_tokens,omitempty"`
+	N                   *int             `json:"n,omitempty"`
+	StopWords           []string         `json:"stop,omitempty"`
+	Stream              bool             `json:"stream,omitempty"`
+	FrequencyPenalty    *float64         `json:"frequency_penalty,omitempty"`
+	PresencePenalty     *float64         `json:"presence_penalty,omitempty"`
+	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
+	Verbosity           *string          `json:"verbosity,omitempty"`
+	Seed                *int             `json:"seed,omitempty"`
 
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.
@@ -659,16 +667,7 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("API returned unexpected status code: %d", r.StatusCode)
-
-		// No need to check the error here: if it fails, we'll just return the
-		// status code.
-		var errResp errorMessage
-		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
-			return nil, errors.New(msg)
-		}
-
-		return nil, fmt.Errorf("%s: %s", msg, errResp.Error.Message)
+		return nil, statusError(r.StatusCode, r.Body)
 	}
 	if payload.Stream {
 		return parseStreamingChatResponse(ctx, r, payload)
@@ -696,6 +695,11 @@ func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
 	return &response, nil
 }
 
+const (
+	initialStreamBuffer = 64 * 1024
+	maxStreamLine       = 8 * 1024 * 1024
+)
+
 func parseStreamingChatResponse(
 	ctx context.Context,
 	r *http.Response,
@@ -703,6 +707,7 @@ func parseStreamingChatResponse(
 ) (*ChatCompletionResponse, error) {
 	// Parse response
 	scanner := bufio.NewScanner(r.Body)
+	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	responseChan := make(chan StreamedChatResponsePayload)
 
 	go func() {
@@ -738,7 +743,7 @@ func parseStreamingChatResponse(
 			if data == "[DONE]" {
 				return
 			}
-			if !isValidJSON(data) {
+			if !looksLikeJSONObject(data) {
 				continue
 			}
 
@@ -771,13 +776,11 @@ func parseStreamingChatResponse(
 	return combineStreamingChatResponse(ctx, payload, responseChan)
 }
 
-func isValidJSON(data string) bool {
-	var dummy any
+// looksLikeJSONObject must not parse the chunk: whether it really parses is
+// answered by the decode that follows.
+func looksLikeJSONObject(data string) bool {
 	data = strings.Trim(data, " \n\r\t")
-	if !strings.HasPrefix(data, "{") || !strings.HasSuffix(data, "}") {
-		return false
-	}
-	return json.Unmarshal([]byte(data), &dummy) == nil
+	return strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}")
 }
 
 //nolint:gocognit,cyclop
@@ -791,12 +794,17 @@ func combineStreamingChatResponse(
 	var (
 		response          ChatCompletionResponse
 		splitters         []reasoning.ChunkContentSplitter
+		accums            []*streamedText
 		toolCallNameCache = make(map[string]string) // Cache tool call names by ID for streaming
 	)
 
+	var streamErr error
+
+DoStream:
 	for streamResponse := range responseChan {
 		if streamResponse.Error != nil {
-			return nil, streamResponse.Error
+			streamErr = streamResponse.Error
+			break DoStream
 		}
 
 		updateChatUsage(&response.Usage, streamResponse.Usage)
@@ -811,6 +819,7 @@ func combineStreamingChatResponse(
 				if len(response.Choices) <= idx {
 					response.Choices = append(response.Choices, &ChatCompletionChoice{})
 					splitters = append(splitters, reasoning.NewChunkContentSplitter())
+					accums = append(accums, &streamedText{})
 				}
 			}
 			// Get current updatable values
@@ -825,16 +834,19 @@ func combineStreamingChatResponse(
 			}
 
 			content, reasoningContent := getChunkContent(choice, splitter)
-			responseChoice.Message.Content += content
-			responseChoice.Message.ReasoningContent += reasoningContent
-			responseChoice.Message.Refusal += choice.Delta.Refusal
+			accum := accums[choice.Index]
+			accum.content.WriteString(content)
+			accum.reasoningContent.WriteString(reasoningContent)
+			accum.refusal.WriteString(choice.Delta.Refusal)
 
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
-				return nil, fmt.Errorf("streaming reasoning func returned an error: %w", err)
+				streamErr = fmt.Errorf("streaming reasoning func returned an error: %w", err)
+				break DoStream
 			}
 			if err := streaming.CallWithText(ctx, payload.StreamingFunc, content); err != nil {
-				return nil, fmt.Errorf("streaming text func returned an error: %w", err)
+				streamErr = fmt.Errorf("streaming text func returned an error: %w", err)
+				break DoStream
 			}
 
 			if choice.Delta.FunctionCall != nil {
@@ -843,7 +855,8 @@ func combineStreamingChatResponse(
 
 				toolCall := streaming.NewToolCall("", functionCall.Name, functionCall.Arguments)
 				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
-					return nil, fmt.Errorf("streaming tool call func returned an error: %w", err)
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
 				}
 			}
 
@@ -852,15 +865,33 @@ func combineStreamingChatResponse(
 
 				toolCall := streaming.NewToolCall(toolCall.ID, toolCall.Function.Name, toolCall.Function.Arguments)
 				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
-					return nil, fmt.Errorf("streaming tool call func returned an error: %w", err)
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
 				}
 			}
 		}
 	}
 
+	for idx, accum := range accums {
+		accum.flushInto(&response.Choices[idx].Message)
+	}
+
 	removeEmptyToolCalls(&response)
 
-	return &response, nil
+	return &response, streamErr
+}
+
+// streamedText collects one choice's text across deltas.
+type streamedText struct {
+	content          strings.Builder
+	reasoningContent strings.Builder
+	refusal          strings.Builder
+}
+
+func (t *streamedText) flushInto(msg *ChatMessage) {
+	msg.Content = t.content.String()
+	msg.ReasoningContent = t.reasoningContent.String()
+	msg.Refusal = t.refusal.String()
 }
 
 func getChunkContent(choice StreamedChatResponseChunk, splitter reasoning.ChunkContentSplitter) (string, string) {

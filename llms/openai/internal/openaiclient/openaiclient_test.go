@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -346,6 +347,42 @@ func TestSanitizeHTTPError(t *testing.T) {
 		assert.Error(t, sanitized)
 		assert.Equal(t, err, sanitized)
 	})
+
+	t.Run("url error wrapping application error passthrough", func(t *testing.T) {
+		inner := errors.New("cached HTTP response not found")
+		err := &url.Error{Op: "Post", URL: "https://api.openai.com/v1/chat/completions", Err: inner}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, inner, sanitized)
+	})
+
+	t.Run("url error wrapping network error is sanitized", func(t *testing.T) {
+		err := &url.Error{
+			Op:  "Post",
+			URL: "https://api.openai.com/v1/chat/completions",
+			Err: &mockNetworkError{message: "connection refused"},
+		}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, "network error: failed to reach API server", sanitized.Error())
+	})
+}
+
+func TestSetHeadersOmitsEmptyToken(t *testing.T) {
+	t.Parallel()
+
+	client, err := New("", "gpt-3.5-turbo", "http://127.0.0.1:8000/v1", "", APITypeOpenAI, "", nil, "", nil, false, false, false)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8000/v1/chat/completions", http.NoBody)
+	require.NoError(t, err)
+
+	client.setHeaders(req)
+	assert.Empty(t, req.Header.Get("Authorization"))
+	assert.Empty(t, req.Header.Get("api-key"))
+	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+	client.token = "secret"
+	client.setHeaders(req)
+	assert.Equal(t, "Bearer secret", req.Header.Get("Authorization"))
 }
 
 type mockHTTPClient struct {

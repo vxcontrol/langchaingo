@@ -188,9 +188,9 @@ if err != nil {
 
 **Converse API**:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
-- DeepSeek R1
 - OpenAI GPT OSS (120B, 20B)
 - Moonshot Kimi K2-Thinking
+- MiniMax M2.5 / M2.1
 
 **Legacy API** (InvokeModel):
 - Claude: Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
@@ -209,9 +209,11 @@ source of truth used by the first-party Anthropic provider):
   yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
 - **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` +
-  `budget_tokens`; Opus 4.5 also honors `output_config.effort`.
+  `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on
+  this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
+  this door does not send it.
 
-Non-Claude reasoning models (DeepSeek R1, GPT OSS, Kimi K2-Thinking) use budget
+Non-Claude reasoning models (GPT OSS, Kimi K2-Thinking, MiniMax M2.5/M2.1) use budget
 thinking through the Converse API. `WithReasoningDisabled()` returns a typed
 `ErrReasoningOffUnsupported` for always-on Bedrock models.
 
@@ -246,7 +248,7 @@ resp, err := llm.GenerateContent(ctx, messages,
 
 **Why these models?**
 
-Extended thinking/reasoning capabilities are model-specific features. DeepSeek R1, OpenAI OSS, and Moonshot models provide reasoning through the Converse API, while Anthropic models support both APIs.
+Extended thinking/reasoning capabilities are model-specific features. OpenAI OSS, Moonshot and MiniMax models provide reasoning through the Converse API, while Anthropic models support both APIs.
 
 ### Message Structure with Reasoning
 
@@ -761,19 +763,20 @@ for the exact model IDs.
 | Nova 2/Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| DeepSeek R1 | ❌ | ✅ | ✅ | ❌ | ❌ | Converse native* |
+| DeepSeek R1 | ❌ | ❌ | ✅ | ❌ | ❌ | Converse native* |
 | OpenAI GPT (OSS) | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
 | Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Moonshot Kimi | ✅**** | ✅ | ✅ | Some | ❌ | Converse native* |
-| MiniMax M2/M2.1/M2.5 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| GLM-4.7/4.7-Flash/5 | ❌***** | ✅ (GLM-5) | ✅ | ❌ | ❌ | Converse native* |
-| NVIDIA Nemotron 3 Super | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
+| MiniMax M2/M2.1/M2.5 | ✅ | ✅ (M2.5/M2.1) | ✅ | ❌ | ❌ | Converse native* |
+| GLM-4.7/4.7-Flash/5 | ❌***** | ❌****** | ✅ | ❌ | ❌ | Converse native* |
+| NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 
 *Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; support depends on what AWS advertises for the model at the time. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
 **Qwen3: Most models support tools, except Qwen3-VL (unstable in streaming)  
 ***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  
-*****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)
+*****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)  
+******GLM-5 and Nemotron 3 may reason on their own, but this door sends them no thinking instruction: they are absent from the reasoning list in `supportsReasoning`, so a reasoning request on them is a no-op here.
 
 See `models_list.go` for the complete model list and detailed capabilities.

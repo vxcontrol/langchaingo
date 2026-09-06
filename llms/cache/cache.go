@@ -65,11 +65,11 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 		if len(response.Choices) > 0 {
 			// only stream the first choice.
 			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Choices[0].Content); err != nil {
-				return nil, err
+				return response, err
 			}
 		}
 		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
-			return nil, err
+			return response, err
 		}
 
 		return response, nil
@@ -77,7 +77,7 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 
 	response, err := c.llm.GenerateContent(ctx, messages, options...)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	c.cache.Put(ctx, key, response)

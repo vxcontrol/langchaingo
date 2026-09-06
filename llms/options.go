@@ -1,7 +1,8 @@
 package llms
 
 import (
-	"github.com/vxcontrol/langchaingo/llms/reasoning"
+	"fmt"
+
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
@@ -30,10 +31,11 @@ const (
 type ReasoningEffort string
 
 const (
-	ReasoningHigh   ReasoningEffort = "high"
-	ReasoningMedium ReasoningEffort = "medium"
-	ReasoningLow    ReasoningEffort = "low"
-	ReasoningNone   ReasoningEffort = ""
+	ReasoningHigh    ReasoningEffort = "high"
+	ReasoningMedium  ReasoningEffort = "medium"
+	ReasoningLow     ReasoningEffort = "low"
+	ReasoningNone    ReasoningEffort = ""
+	ReasoningMinimal ReasoningEffort = "minimal"
 	// ReasoningXHigh and ReasoningMax are the top reasoning efforts. Anthropic models
 	// carry them via WithAdaptiveReasoning (max since Claude 4.6, xhigh since Opus 4.7);
 	// OpenAI-compatible providers that expose them (e.g. GPT-5.5, GLM-5.2) accept them
@@ -115,13 +117,20 @@ func (r *ReasoningConfig) IsDisabled() bool {
 }
 
 // GetEffort returns enum value of the effort based on kept values inside.
-// If maxTokens is less than 0, it will be set to 8192.
+// A non-positive maxTokens is replaced with DefaultMaxTokens.
 // If neither are set, it will return ReasoningNone.
 // If effort is set, it will return the set effort.
 // If tokens are set, it will return the effort that is the closest to the set tokens.
 //   - (0, maxTokens/4) -> ReasoningLow
 //   - [maxTokens/4, maxTokens/3) -> ReasoningMedium
 //   - [maxTokens/3, inf) -> ReasoningHigh
+//
+// HasExplicitTokens reports whether the caller set a token budget of its own,
+// rather than leaving the budget to be derived from an effort.
+func (r *ReasoningConfig) HasExplicitTokens() bool {
+	return r != nil && r.Tokens != 0
+}
+
 func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	if r == nil {
 		return ReasoningNone
@@ -136,7 +145,7 @@ func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	}
 
 	if maxTokens <= 0 {
-		maxTokens = 8192
+		maxTokens = DefaultMaxTokens
 	}
 
 	if r.Tokens > 0 {
@@ -159,9 +168,25 @@ func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	return ReasoningNone
 }
 
+// ValidateReasoning reports an effort no door accepts.
+func (o *CallOptions) ValidateReasoning() error {
+	if o == nil || o.Reasoning == nil {
+		return nil
+	}
+	switch o.Reasoning.Effort {
+	case ReasoningNone, ReasoningMinimal, ReasoningLow,
+		ReasoningMedium, ReasoningHigh, ReasoningXHigh, ReasoningMax:
+		return nil
+	}
+	return &Error{
+		Code:    ErrCodeInvalidRequest,
+		Message: fmt.Sprintf("unknown reasoning effort %q", string(o.Reasoning.Effort)),
+	}
+}
+
 // GetTokens returns the number of tokens to use for reasoning based on kept values inside.
 // Maximum value is maxTokens*2/3 because we need to leave some tokens for the response.
-// If maxTokens is less than 0, it will be set to 8192.
+// A non-positive maxTokens is replaced with DefaultMaxTokens.
 // If tokens are set, it will return the minimum of the set tokens and maxTokens*2/3.
 // If effort is set, it will return the maximum of the effort and maxTokens*2/3.
 // If neither are set, it will return 0 or -1 if effort is set to an invalid value.
@@ -175,7 +200,7 @@ func (r *ReasoningConfig) GetTokens(maxTokens int) int {
 	}
 
 	if maxTokens <= 0 {
-		maxTokens = 8192
+		maxTokens = DefaultMaxTokens
 	}
 
 	var tokens int
@@ -183,18 +208,13 @@ func (r *ReasoningConfig) GetTokens(maxTokens int) int {
 		tokens = r.Tokens
 	} else {
 		switch r.Effort {
-		case ReasoningLow:
-			tokens = max(maxTokens/4, 1024)
-		case ReasoningMedium:
-			tokens = max(maxTokens/3, 2048)
-		case ReasoningHigh, ReasoningXHigh, ReasoningMax:
-			// no distinct token budget for xhigh/max; map them to the high budget.
-			tokens = max(maxTokens/2, 4096)
+		case ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh, ReasoningMax:
+			tokens = ReasoningEffortBudget(r.Effort, maxTokens)
 		case ReasoningNone:
 			if r.Adaptive || r.Mode == ReasoningOn {
 				// Adaptive, or an explicit ReasoningOn with no effort, defaults to the
 				// high budget so budget-mapping providers keep reasoning enabled.
-				tokens = max(maxTokens/2, 4096)
+				tokens = ReasoningEffortBudget(ReasoningHigh, maxTokens)
 			} else {
 				return 0 // disabled
 			}
@@ -204,6 +224,25 @@ func (r *ReasoningConfig) GetTokens(maxTokens int) int {
 	}
 
 	return min(min(tokens, maxTokens*2/3), MaxReasoningTokens)
+}
+
+// ReasoningEffortBudget reports the thinking budget an effort stands for, before
+// any answer limit caps it.
+func ReasoningEffortBudget(effort ReasoningEffort, maxTokens int) int {
+	if maxTokens <= 0 {
+		maxTokens = DefaultMaxTokens
+	}
+	switch effort {
+	case ReasoningLow:
+		return max(maxTokens/4, 1024)
+	case ReasoningMedium:
+		return max(maxTokens/3, 2048)
+	case ReasoningHigh, ReasoningXHigh, ReasoningMax:
+		// no distinct token budget for xhigh/max; map them to the high budget.
+		return max(maxTokens/2, 4096)
+	default:
+		return 0
+	}
 }
 
 // CallOptions is a set of options for calling models. Not all models support
@@ -242,12 +281,23 @@ type CallOptions struct {
 	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty"`
 	// PresencePenalty is the presence penalty for sampling.
 	PresencePenalty *float64 `json:"presence_penalty,omitempty"`
+	// Verbosity asks the model for a shorter or longer answer.
+	Verbosity *string `json:"verbosity,omitempty"`
+	// InferenceSpeed picks the inference configuration. Not to be confused with
+	// Speed above, which is the voice rate of speech synthesis.
+	InferenceSpeed *string `json:"inference_speed,omitempty"`
+	// LogProbs asks for the log probability of each returned token.
+	LogProbs *bool `json:"logprobs,omitempty"`
+	// TopLogProbs is how many alternatives to report per position.
+	TopLogProbs *int `json:"top_logprobs,omitempty"`
 
 	// Reasoning is the configuration for thinking of the model.
 	Reasoning *ReasoningConfig `json:"reasoning,omitempty"`
 
 	// JSONMode is a flag to enable JSON mode.
 	JSONMode bool `json:"json"`
+
+	FailOnTruncation bool `json:"fail_on_truncation,omitempty"`
 
 	// StructuredOutput requests provider-native, schema-constrained output. When
 	// set (via WithStructuredOutput) JSONMode is also true and the provider is
@@ -317,12 +367,6 @@ func (o *CallOptions) GetMaxTokens() int {
 func (o *CallOptions) GetTemperature() float64 {
 	if o.Temperature == nil {
 		return DefaultTemperature
-	}
-	// Reasoning models require temperature=1.0, but only when thinking is not
-	// explicitly disabled — an explicit WithReasoningDisabled() must let the
-	// user's temperature through, matching the OpenAI adapter's guard.
-	if reasoning.IsReasoningModel(o.GetModel()) && !o.Reasoning.IsDisabled() {
-		return 1.0
 	}
 	return *o.Temperature
 }
@@ -627,6 +671,34 @@ func WithStreamingFunc(streamingFunc streaming.Callback) CallOption {
 	}
 }
 
+// WithLogProbs will add an option to return the log probability of each token.
+func WithLogProbs(logProbs bool) CallOption {
+	return func(o *CallOptions) {
+		o.LogProbs = &logProbs
+	}
+}
+
+// WithTopLogProbs will add an option to report alternatives per position.
+func WithTopLogProbs(topLogProbs int) CallOption {
+	return func(o *CallOptions) {
+		o.TopLogProbs = &topLogProbs
+	}
+}
+
+// WithInferenceSpeed will add an option to pick the inference configuration.
+func WithInferenceSpeed(speed string) CallOption {
+	return func(o *CallOptions) {
+		o.InferenceSpeed = &speed
+	}
+}
+
+// WithVerbosity will add an option to ask for a shorter or longer answer.
+func WithVerbosity(verbosity string) CallOption {
+	return func(o *CallOptions) {
+		o.Verbosity = &verbosity
+	}
+}
+
 // WithTopK will add an option to use top-k sampling.
 func WithTopK(topK int) CallOption {
 	return func(o *CallOptions) {
@@ -699,7 +771,9 @@ func WithPresencePenalty(presencePenalty float64) CallOption {
 
 // WithReasoning sets the reasoning configuration for the model call.
 // You can specify either the reasoning effort or the number of tokens to allocate for reasoning.
-// If both effort is ReasoningNone and tokens is 0, reasoning will be disabled.
+// If both effort is ReasoningNone and tokens is 0, the reasoning control is
+// omitted and the model's own default applies, which on a model that thinks by
+// default leaves thinking on. Use WithReasoningDisabled to force it off.
 // Note: Most LLM providers expect only one of these options to be set at a time.
 // Internally, the options may be converted between each other according to predefined rules.
 func WithReasoning(effort ReasoningEffort, tokens int) CallOption {
@@ -764,6 +838,14 @@ func WithToolChoice(choice any) CallOption {
 func WithTools(tools []Tool) CallOption {
 	return func(o *CallOptions) {
 		o.Tools = tools
+	}
+}
+
+// WithFailOnTruncation makes an answer that stopped at the output token limit
+// return an error rather than a successful response. Off by default.
+func WithFailOnTruncation() CallOption {
+	return func(o *CallOptions) {
+		o.FailOnTruncation = true
 	}
 }
 

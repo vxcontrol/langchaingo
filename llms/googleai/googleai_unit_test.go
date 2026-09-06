@@ -1,15 +1,22 @@
 package googleai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"math"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"google.golang.org/genai"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
@@ -94,7 +101,7 @@ func TestDefaultOptions(t *testing.T) {
 	assert.Equal(t, "gemini-2.5-flash", opts.DefaultModel)
 	assert.Equal(t, "gemini-embedding-001", opts.DefaultEmbeddingModel)
 	assert.Equal(t, 1, opts.DefaultCandidateCount)
-	assert.Equal(t, 2048, opts.DefaultMaxTokens)
+	assert.Equal(t, llms.DefaultMaxTokens, opts.DefaultMaxTokens)
 	assert.Equal(t, 0.5, opts.DefaultTemperature)
 	assert.Equal(t, 3, opts.DefaultTopK)
 	assert.Equal(t, 0.95, opts.DefaultTopP)
@@ -900,6 +907,22 @@ func TestValidateGoogleStructuredOutput(t *testing.T) {
 		}
 	})
 
+	t.Run("a tool turn is not a final answer", func(t *testing.T) {
+		t.Parallel()
+		err := validateGoogleStructuredOutput(opts, mk(&llms.ContentChoice{
+			Content:    "",
+			StopReason: stop,
+			ToolCalls: []llms.ToolCall{{
+				ID:           "call_1",
+				Type:         "function",
+				FunctionCall: &llms.FunctionCall{Name: "getWeather", Arguments: `{"city":"Paris"}`},
+			}},
+		}))
+		if err != nil {
+			t.Fatalf("a STOP turn carrying tool calls must not be validated as JSON: %v", err)
+		}
+	})
+
 	t.Run("MAX_TOKENS is skipped", func(t *testing.T) {
 		t.Parallel()
 		err := validateGoogleStructuredOutput(opts, mk(&llms.ContentChoice{Content: `{"answer"`, StopReason: maxTok}))
@@ -919,4 +942,187 @@ func TestValidateGoogleStructuredOutput(t *testing.T) {
 			t.Fatalf("want validation error at choice 1, got %v", err)
 		}
 	})
+}
+
+type stubStreamTransport struct{ body string }
+
+func (t stubStreamTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(t.body)),
+	}, nil
+}
+
+func TestGenerateContentKeepsPartialResponseWhenStreamingFuncFails(t *testing.T) {
+	t.Parallel()
+
+	chunk := `{"candidates":[{"content":{"parts":[{"text":"partial answer"}],` +
+		`"role":"model"},"finishReason":"STOP","index":0}]}`
+	llm, err := New(t.Context(),
+		WithAPIKey("test-api-key"),
+		WithRest(),
+		WithHTTPClient(&http.Client{Transport: stubStreamTransport{body: "data: " + chunk + "\n\n"}}),
+	)
+	require.NoError(t, err)
+
+	errAbort := errors.New("caller stopped the stream")
+	resp, err := llm.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return errAbort }),
+	)
+
+	require.ErrorIs(t, err, errAbort)
+	require.NotNil(t, resp)
+	require.Equal(t, "partial answer", resp.Choices[0].Content)
+}
+
+type captureTransport struct {
+	body []byte
+	resp string
+}
+
+func (t *captureTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Body != nil {
+		t.body, _ = io.ReadAll(r.Body)
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(t.resp)),
+	}, nil
+}
+
+func TestConfiguredDefaultTemperatureReachesTheWire(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		opts  []Option
+		want  float64
+		model string
+	}{
+		{name: "gemini-3 without a configured default", model: "gemini-3-flash", want: 1.0},
+		{
+			name:  "gemini-3 with a configured default",
+			model: "gemini-3-flash",
+			opts:  []Option{WithDefaultTemperature(0.2)},
+			want:  0.2,
+		},
+		{
+			name:  "gemini-2.5 with a configured default",
+			model: "gemini-2.5-flash",
+			opts:  []Option{WithDefaultTemperature(0.2)},
+			want:  0.2,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rt := &captureTransport{
+				resp: `{"candidates":[{"content":{"parts":[{"text":"ok"}],"role":"model"},` +
+					`"finishReason":"STOP","index":0}]}`,
+			}
+			opts := append([]Option{
+				WithAPIKey("test-api-key"),
+				WithRest(),
+				WithDefaultModel(tc.model),
+				WithHTTPClient(&http.Client{Transport: rt}),
+			}, tc.opts...)
+
+			llm, err := New(t.Context(), opts...)
+			require.NoError(t, err)
+
+			_, err = llm.GenerateContent(t.Context(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+			require.NoError(t, err)
+
+			var payload struct {
+				GenerationConfig struct {
+					Temperature *float64 `json:"temperature"`
+				} `json:"generationConfig"`
+			}
+			require.NoError(t, json.Unmarshal(rt.body, &payload))
+			require.NotNil(t, payload.GenerationConfig.Temperature)
+			require.InDelta(t, tc.want, *payload.GenerationConfig.Temperature, 1e-6)
+		})
+	}
+}
+
+func TestMaxTokensAboveInt32DoesNotGoNegative(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		in   int
+		want int32
+	}{
+		{16384, 16384},
+		{math.MaxInt32, math.MaxInt32},
+		{math.MaxInt32 + 1, math.MaxInt32},
+		{3_000_000_000, math.MaxInt32},
+		{math.MinInt32 - 1, math.MinInt32},
+	}
+	for _, tc := range cases {
+		n := tc.in
+		if got := convertToInt32(&n); got != tc.want {
+			t.Errorf("convertToInt32(%d) = %d, want %d", tc.in, got, tc.want)
+		}
+		if got := convertToInt32Pointer(&n); got == nil || *got != tc.want {
+			t.Errorf("convertToInt32Pointer(%d) = %v, want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestWithEndpointFeedsBothDoors(t *testing.T) {
+	t.Parallel()
+
+	opts := DefaultOptions()
+	WithEndpoint("https://llm.example.net/gemini")(&opts)
+
+	assert.Equal(t, "https://llm.example.net/gemini", opts.BaseURL,
+		"the Gemini API client reads BaseURL")
+	assert.Len(t, opts.ClientOptions, 1,
+		"the vertex door reads the same endpoint out of ClientOptions")
+}
+
+func TestTheCallersEndpointReachesTheRequest(t *testing.T) {
+	t.Parallel()
+
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"candidates":[{"content":{"role":"model","parts":[{"text":"hi"}]},` +
+			`"finishReason":"STOP"}],"usageMetadata":{}}`))
+	}))
+	defer server.Close()
+
+	llm, err := New(t.Context(), WithAPIKey("test-key"), WithEndpoint(server.URL), WithDefaultModel("gemini-2.5-flash"))
+	require.NoError(t, err)
+
+	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "hello"),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, gotPath, "gemini-2.5-flash",
+		"the request must reach the caller's endpoint, not generativelanguage.googleapis.com")
+}
+
+func TestNewRefusesTheOptionsThisDoorCannotCarry(t *testing.T) {
+	t.Parallel()
+
+	for name, opt := range map[string]Option{
+		"WithCredentialsFile": WithCredentialsFile("path/to/creds.json"),
+		"WithCredentialsJSON": WithCredentialsJSON([]byte(`{"type":"service_account"}`)),
+		"WithGRPCConn":        WithGRPCConn(nil),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := New(t.Context(), WithAPIKey("test-key"), opt)
+
+			var notHonored *ErrOptionNotHonored
+			require.ErrorAs(t, err, &notHonored,
+				"an option the door drops must be refused, not ignored")
+			assert.Contains(t, notHonored.Options, name)
+		})
+	}
 }

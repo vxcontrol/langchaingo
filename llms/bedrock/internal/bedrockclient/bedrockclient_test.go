@@ -674,16 +674,7 @@ func TestAnthropicResponseParsing(t *testing.T) {
 		},
 		StopReason:   AnthropicCompletionReasonEndTurn,
 		StopSequence: "",
-		Usage: struct {
-			InputTokens              int32 `json:"input_tokens"`
-			OutputTokens             int32 `json:"output_tokens"`
-			CacheCreationInputTokens int32 `json:"cache_creation_input_tokens,omitempty"`
-			CacheReadInputTokens     int32 `json:"cache_read_input_tokens,omitempty"`
-			CacheCreation            struct {
-				Ephemeral5mInputTokens int32 `json:"ephemeral_5m_input_tokens,omitempty"`
-				Ephemeral1hInputTokens int32 `json:"ephemeral_1h_input_tokens,omitempty"`
-			} `json:"cache_creation,omitempty"`
-		}{
+		Usage: anthropicUsage{
 			InputTokens:  10,
 			OutputTokens: 15,
 		},
@@ -745,27 +736,12 @@ func TestAnthropicStreamingResponseChunk(t *testing.T) {
 			name: "message_start chunk",
 			chunk: streamingCompletionResponseChunk{
 				Type: "message_start",
-				Message: struct {
-					ID           string `json:"id"`
-					Type         string `json:"type"`
-					Role         string `json:"role"`
-					Content      []any  `json:"content"`
-					Model        string `json:"model"`
-					StopReason   any    `json:"stop_reason"`
-					StopSequence any    `json:"stop_sequence"`
-					Usage        struct {
-						InputTokens  int32 `json:"input_tokens"`
-						OutputTokens int32 `json:"output_tokens"`
-					} `json:"usage"`
-				}{
+				Message: anthropicStreamMessage{
 					ID:    "msg-123",
 					Type:  "message",
 					Role:  "assistant",
 					Model: "claude-3",
-					Usage: struct {
-						InputTokens  int32 `json:"input_tokens"`
-						OutputTokens int32 `json:"output_tokens"`
-					}{
+					Usage: anthropicUsage{
 						InputTokens: 25,
 					},
 				},
@@ -805,9 +781,7 @@ func TestAnthropicStreamingResponseChunk(t *testing.T) {
 				}{
 					StopReason: AnthropicCompletionReasonEndTurn,
 				},
-				Usage: struct {
-					OutputTokens int32 `json:"output_tokens"`
-				}{
+				Usage: anthropicUsage{
 					OutputTokens: 12,
 				},
 			},

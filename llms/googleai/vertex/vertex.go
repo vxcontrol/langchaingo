@@ -18,9 +18,12 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/googleai"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
+	aiplatformpb "cloud.google.com/go/aiplatform/apiv1beta1/aiplatformpb"
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
+	"github.com/vxcontrol/langchaingo/internal/numutil"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"google.golang.org/api/iterator"
 )
 
@@ -65,35 +68,13 @@ func (g *Vertex) GenerateContent(
 		}()
 	}
 
-	opts := llms.CallOptions{
-		Model:          &g.opts.DefaultModel,
-		CandidateCount: &g.opts.DefaultCandidateCount,
-		MaxTokens:      &g.opts.DefaultMaxTokens,
-		Temperature:    &g.opts.DefaultTemperature,
-		TopP:           &g.opts.DefaultTopP,
-		TopK:           &g.opts.DefaultTopK,
-	}
-	for _, opt := range options {
-		opt(&opts)
+	opts := g.resolveCallOptions(options)
+	if refusesReasoningOff(opts) {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: opts.GetModel()}
 	}
 
 	model := g.client.GenerativeModel(opts.GetModel())
-	if opts.CandidateCount != nil {
-		model.SetCandidateCount(int32(opts.GetCandidateCount()))
-	}
-	if opts.MaxTokens != nil {
-		model.SetMaxOutputTokens(int32(opts.GetMaxTokens()))
-	}
-	if opts.Temperature != nil {
-		model.SetTemperature(float32(opts.GetTemperature()))
-	}
-	if opts.TopP != nil {
-		model.SetTopP(float32(opts.GetTopP()))
-	}
-	if opts.TopK != nil {
-		model.SetTopK(int32(opts.GetTopK()))
-	}
-	model.StopSequences = opts.StopWords
+	applyGenerationConfig(model, opts)
 	model.SafetySettings = []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryDangerousContent,
@@ -134,25 +115,51 @@ func (g *Vertex) GenerateContent(
 		response, err = generateFromMessages(ctx, model, messages, &opts)
 	}
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
-	// When structured output was requested, validate each normal-final candidate
-	// against the original schema; the response is returned with the typed error.
-	if err := validateVertexStructuredOutput(&opts, response); err != nil {
+	if err := finishVertexResponse(&opts, response); err != nil {
 		return response, err
 	}
 
 	return response, nil
 }
 
+func finishVertexResponse(opts *llms.CallOptions, response *llms.ContentResponse) error {
+	if err := llms.CheckTruncation(response, *opts); err != nil {
+		return err
+	}
+	return validateVertexStructuredOutput(opts, response)
+}
+
 // convertCandidates converts a sequence of genai.Candidate to a response.
+func classifyVertexError(err error) error {
+	var blocked *genai.BlockedError
+	if !errors.As(err, &blocked) {
+		return err
+	}
+	message := "the model blocked the exchange"
+	if blocked.PromptFeedback != nil {
+		message = "the prompt was blocked (" + blocked.PromptFeedback.BlockReason.String() + ")"
+		if blocked.PromptFeedback.BlockReasonMessage != "" {
+			message += ": " + blocked.PromptFeedback.BlockReasonMessage
+		}
+	} else if blocked.Candidate != nil {
+		message = "the answer was blocked (" + blocked.Candidate.FinishReason.String() + ")"
+	}
+	return &llms.Error{
+		Code:     llms.ErrCodeContentFilter,
+		Message:  message,
+		Provider: "vertex",
+	}
+}
+
 func convertCandidates(candidates []*genai.Candidate, usage *genai.UsageMetadata) (*llms.ContentResponse, error) {
 	var contentResponse llms.ContentResponse
-	var toolCalls []llms.ToolCall
 
 	for _, candidate := range candidates {
 		buf := strings.Builder{}
+		var toolCalls []llms.ToolCall
 
 		if candidate.Content != nil {
 			for _, part := range candidate.Content.Parts {
@@ -190,10 +197,12 @@ func convertCandidates(candidates []*genai.Candidate, usage *genai.UsageMetadata
 			metadata["total_tokens"] = usage.TotalTokenCount
 		}
 
+		stopReason := wireFinishReason(candidate.FinishReason)
 		contentResponse.Choices = append(contentResponse.Choices,
 			&llms.ContentChoice{
 				Content:        buf.String(),
-				StopReason:     candidate.FinishReason.String(),
+				StopReason:     stopReason,
+				Truncated:      llms.IsTruncated(stopReason),
 				GenerationInfo: metadata,
 				ToolCalls:      toolCalls,
 			})
@@ -291,7 +300,7 @@ func generateFromSingleMessage(
 		// the complete response with a list of candidates.
 		resp, err := model.GenerateContent(ctx, convertedParts...)
 		if err != nil {
-			return nil, err
+			return nil, classifyVertexError(err)
 		}
 
 		if len(resp.Candidates) == 0 {
@@ -334,7 +343,7 @@ func generateFromMessages(
 	if opts.StreamingFunc == nil {
 		resp, err := session.SendMessage(ctx, reqContent.Parts...)
 		if err != nil {
-			return nil, err
+			return nil, classifyVertexError(err)
 		}
 
 		if len(resp.Candidates) == 0 {
@@ -361,6 +370,7 @@ func convertAndStreamFromIterator(
 	candidate := &genai.Candidate{
 		Content: &genai.Content{},
 	}
+	var streamErr error
 DoStream:
 	for {
 		resp, err := iter.Next()
@@ -368,11 +378,13 @@ DoStream:
 			break DoStream
 		}
 		if err != nil {
-			return nil, fmt.Errorf("error in stream mode: %w", err)
+			streamErr = classifyVertexError(err)
+			break DoStream
 		}
 
 		if len(resp.Candidates) != 1 {
-			return nil, fmt.Errorf("expect single candidate in stream mode; got %v", len(resp.Candidates))
+			streamErr = fmt.Errorf("expect single candidate in stream mode; got %v", len(resp.Candidates))
+			break DoStream
 		}
 		respCandidate := resp.Candidates[0]
 
@@ -383,13 +395,24 @@ DoStream:
 		for _, part := range respCandidate.Content.Parts {
 			if text, ok := part.(genai.Text); ok {
 				if err := streaming.CallWithText(ctx, opts.StreamingFunc, string(text)); err != nil {
+					streamErr = err
 					break DoStream
 				}
 			}
 		}
 	}
-	mresp := iter.MergedResponse()
-	return convertCandidates([]*genai.Candidate{candidate}, mresp.UsageMetadata)
+	var usage *genai.UsageMetadata
+	if mresp := iter.MergedResponse(); mresp != nil {
+		usage = mresp.UsageMetadata
+	}
+	resp, err := convertCandidates([]*genai.Candidate{candidate}, usage)
+	if err != nil {
+		if streamErr != nil {
+			return nil, streamErr
+		}
+		return nil, err
+	}
+	return resp, streamErr
 }
 
 // mergeStreamCandidate folds one streamed candidate into the accumulator. It
@@ -570,4 +593,53 @@ func convertVertexHarmBlockThreshold(threshold googleai.HarmBlockThreshold) gena
 	default:
 		return genai.HarmBlockOnlyHigh // Safe default
 	}
+}
+
+func (g *Vertex) resolveCallOptions(options []llms.CallOption) llms.CallOptions {
+	opts := llms.CallOptions{
+		Model:          &g.opts.DefaultModel,
+		CandidateCount: &g.opts.DefaultCandidateCount,
+		MaxTokens:      &g.opts.DefaultMaxTokens,
+		TopP:           &g.opts.DefaultTopP,
+		TopK:           &g.opts.DefaultTopK,
+	}
+	for _, opt := range options {
+		opt(&opts)
+	}
+	if opts.Temperature == nil {
+		temperature := g.opts.ResolveTemperature(opts.GetModel())
+		opts.Temperature = &temperature
+	}
+	return opts
+}
+
+// refusesReasoningOff reports whether an explicit disable cannot be honored.
+// This door builds no thinking config at all, so only a model that is already
+// off once the config is omitted can be turned off here.
+func refusesReasoningOff(opts llms.CallOptions) bool {
+	return opts.Reasoning.ResolveMode() == llms.ReasoningOff &&
+		reasoning.ResolveOff(opts.GetModel(), reasoning.ProviderGoogleAI) != reasoning.OffOmit
+}
+
+func applyGenerationConfig(model *genai.GenerativeModel, opts llms.CallOptions) {
+	if opts.CandidateCount != nil {
+		model.SetCandidateCount(numutil.SaturateInt32(opts.GetCandidateCount()))
+	}
+	if opts.MaxTokens != nil {
+		model.SetMaxOutputTokens(numutil.SaturateInt32(opts.GetMaxTokens()))
+	}
+	if opts.Temperature != nil {
+		model.SetTemperature(float32(opts.GetTemperature()))
+	}
+	if opts.TopP != nil {
+		model.SetTopP(float32(opts.GetTopP()))
+	}
+	if opts.TopK != nil {
+		model.SetTopK(numutil.SaturateInt32(opts.GetTopK()))
+	}
+	model.StopSequences = opts.StopWords
+}
+
+func wireFinishReason(r genai.FinishReason) string {
+	return aiplatformpb.Candidate_FinishReason(r).String()
 }

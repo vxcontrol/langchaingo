@@ -96,6 +96,15 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
+	if err := opts.ValidateReasoning(); err != nil {
+		return nil, err
+	}
+
+	sendsBudget := o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()
+	if err := llms.CheckClaudeTurnLimitsOnWire(o.effectiveModel(opts), opts, messages, sendsBudget); err != nil {
+		return nil, err
+	}
+
 	chatMsgs, err := o.convertMessages(messages)
 	if err != nil {
 		return nil, err
@@ -108,13 +117,32 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	result, err := o.client.CreateChat(ctx, req)
 	if err != nil {
-		return nil, err
+		if result == nil || len(result.Choices) == 0 {
+			return nil, err
+		}
+		return o.processResponse(result), err
 	}
 	if len(result.Choices) == 0 {
 		return nil, ErrEmptyResponse
 	}
 
 	response := o.processResponse(result)
+
+	if refusal, choice := refusalFrom(result); refusal != nil {
+		if opts.StructuredOutput != nil {
+			return response, &ErrStructuredOutputRefusal{
+				Model:   o.effectiveModel(opts),
+				Choice:  choice,
+				Refusal: refusal.Message,
+				cause:   refusal,
+			}
+		}
+		return response, refusal
+	}
+
+	if err := llms.CheckTruncation(response, opts); err != nil {
+		return response, err
+	}
 
 	// When structured output was requested, validate each normal-final choice
 	// against the original schema. The response is still returned alongside the
@@ -240,7 +268,10 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 		FrequencyPenalty:     opts.FrequencyPenalty,
 		PresencePenalty:      opts.PresencePenalty,
 		RepetitionPenalty:    opts.RepetitionPenalty,
-		ToolChoice:           opts.ToolChoice,
+		Verbosity:            opts.Verbosity,
+		LogProbs:             opts.LogProbs != nil && *opts.LogProbs,
+		TopLogProbs:          derefInt(opts.TopLogProbs),
+		ToolChoice:           openaiToolChoice(opts.ToolChoice),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
 		Seed:                 opts.Seed,
 		Metadata:             opts.Metadata,
@@ -248,7 +279,28 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 		ExtraBody:            getExtraBody(&opts),
 	}
 
-	if isLegacyMaxTokensField(&opts) {
+	if reasoning.RejectsPenalties(o.effectiveModel(opts)) {
+		req.FrequencyPenalty = nil
+		req.PresencePenalty = nil
+	}
+
+	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
+		if opts.StreamingFunc == nil {
+			if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+				return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
+			}
+			thinkingOff := false
+			req.EnableThinking = &thinkingOff
+		}
+	}
+
+	if model := o.effectiveModel(opts); reasoning.QwenThinkingEnabledByFlag(model) &&
+		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+		thinkingOn := true
+		req.EnableThinking = &thinkingOn
+	}
+
+	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) {
 		req.MaxTokens = opts.MaxTokens
 	} else {
 		req.MaxCompletionTokens = opts.MaxTokens
@@ -256,13 +308,6 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 
 	if opts.GetJSONMode() {
 		req.SetResponseFormat(ResponseFormatJSON)
-	}
-
-	// set temperature to 1.0 for reasoning models, unless reasoning is explicitly
-	// disabled (the model then runs as a plain completion honoring the caller's temp)
-	if reasoning.IsReasoningModel(opts.GetModel()) && !opts.Reasoning.IsDisabled() {
-		temperature := 1.0
-		req.Temperature = &temperature
 	}
 
 	// add tools from functions and tool definitions
@@ -281,10 +326,11 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 		return nil, err
 	}
 
-	// set reasoning options, depends on the client and request options
-	if err := o.setReasoning(req, opts); err != nil {
+	wireEffort, err := o.setReasoning(req, opts)
+	if err != nil {
 		return nil, err
 	}
+	o.applySamplingPolicy(req, opts, wireEffort)
 
 	return req, nil
 }
@@ -303,65 +349,175 @@ func (o *LLM) effectiveModel(opts llms.CallOptions) string {
 	return openaiclient.DefaultChatModel
 }
 
-// setReasoning sets reasoning options, depends on the client and request options.
-func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+func wireEffortOf(sent bool, effort llms.ReasoningEffort) string {
+	if !sent {
+		return ""
+	}
+	return string(effort)
+}
+
+// setReasoning writes the reasoning fields and reports the effort that reached the wire.
+func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions) (string, error) {
+	model := o.effectiveModel(opts)
+	toolsRule := reasoning.EffortToolsFree
+	if len(opts.Tools) > 0 {
+		toolsRule = reasoning.EffortWithTools(model)
+	}
+
 	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
 	case llms.ReasoningDefault:
-		return nil
+		if toolsRule == reasoning.EffortToolsDisable {
+			o.writeDisableEffort(req)
+			return reasoning.OpenAIDisableEffort, nil
+		}
+		return "", nil
 	case llms.ReasoningOff:
-		return o.setReasoningOff(req, opts)
+		return "", o.setReasoningOff(req, opts)
 	}
 
-	defer func() {
-		if req.Reasoning != nil || req.ReasoningEffort != nil {
-			// must of all reasoning models can't use temperature and top_p with reasoning at the same time
-			req.Temperature, req.TopP = nil, nil
-		}
-	}()
-
-	// Clamp the effort to what the model accepts (e.g. GPT-5 Pro accepts only
-	// high, GPT-5.4 mini rejects max) so a known-invalid value never reaches the
-	// API; unknown models pass through unchanged.
-	caps := reasoning.OpenAIReasoningCapsFor(o.effectiveModel(opts))
-	reasoningEffort := llms.ReasoningEffort(caps.ClampEffort(string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))))
+	acceptsEffort := reasoning.AcceptsEffortWire(model)
+	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(string(opts.Reasoning.GetEffort(opts.GetMaxTokens())))
+	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
-	if !o.client.ModernReasoningFormat {
-		if reasoningEffort != llms.ReasoningNone {
-			req.ReasoningEffort = &reasoningEffort
-		}
-		return nil
+	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
+	switch toolsRule { //nolint:exhaustive // EffortToolsFree leaves the request alone
+	case reasoning.EffortToolsDisable:
+		o.writeDisableEffort(req)
+		return reasoning.OpenAIDisableEffort, nil
+	case reasoning.EffortToolsOmit:
+		sendsEffort = false
+	}
+	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
+		reasoning.DashScopeTakesThinkingBudget(model) {
+		req.ThinkingBudget = &reasoningTokens
+		return wireEffortOf(true, reasoningEffort), nil
+	}
+	budget := 0
+	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 {
+		budget = reasoning.ClaudeClampBudget(model, reasoningTokens)
+	}
+	effortBudget := 0
+	if reasoning.ClaudeSpendsThinkingBudget(model) {
+		effortBudget = llms.ReasoningEffortBudget(reasoningEffort, opts.GetMaxTokens())
 	}
 
-	// using modern reasoning format
-	if o.client.UseReasoningMaxTokens && opts.Reasoning.Tokens != 0 && reasoningTokens != 0 {
-		req.Reasoning = &openaiclient.ReasoningOptions{
-			MaxTokens: reasoningTokens,
+	return o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget), nil
+}
+
+func (o *LLM) writeEffort(
+	req *openaiclient.ChatRequest, sends bool, effort llms.ReasoningEffort, budget, effortBudget int,
+) string {
+	if !o.client.ModernReasoningFormat {
+		if sends {
+			req.ReasoningEffort = &effort
+			o.raiseAnswerLimitForBudget(req, effortBudget)
 		}
-	} else if reasoningEffort != llms.ReasoningNone {
-		req.Reasoning = &openaiclient.ReasoningOptions{
-			Effort: reasoningEffort,
-		}
+		return wireEffortOf(sends, effort)
 	}
-	return nil
+
+	switch {
+	case o.client.UseReasoningMaxTokens && budget > 0:
+		req.Reasoning = &openaiclient.ReasoningOptions{MaxTokens: budget}
+		o.raiseAnswerLimitForBudget(req, budget)
+	case sends:
+		req.Reasoning = &openaiclient.ReasoningOptions{Effort: effort}
+		o.raiseAnswerLimitForBudget(req, effortBudget)
+	}
+	return wireEffortOf(sends, effort)
+}
+
+func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget int) {
+	for _, limit := range []**int{&req.MaxCompletionTokens, &req.MaxTokens} {
+		if *limit == nil || **limit <= 0 {
+			continue
+		}
+		raised := reasoning.ClaudeMaxTokensForBudget(budget, **limit)
+		*limit = &raised
+	}
 }
 
 // setReasoningOff sends the model's explicit disable token so a reasoning model
-// runs as a plain completion. Sampling params are left intact (a non-thinking
-// call); a model whose thinking cannot be disabled returns a typed error.
+// runs as a plain completion; a model whose thinking cannot be disabled returns
+// a typed error.
 func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
 	model := o.effectiveModel(opts)
 	switch reasoning.ResolveOff(model, reasoning.ProviderOpenAI) { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffUnsupported:
 		return &reasoning.ErrReasoningOffUnsupported{Model: model}
 	case reasoning.OffEffortNone:
-		none := llms.ReasoningEffort("none")
-		if o.client.ModernReasoningFormat {
-			req.Reasoning = &openaiclient.ReasoningOptions{Effort: none}
-		} else {
-			req.ReasoningEffort = &none
-		}
+		o.writeDisableEffort(req)
+	case reasoning.OffDisableDashScope:
+		thinkingOff := false
+		req.EnableThinking = &thinkingOff
+	case reasoning.OffDisableThinkingObject:
+		req.Thinking = &openaiclient.ThinkingOptions{Type: "disabled"}
 	}
 	return nil
+}
+
+func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
+	none := llms.ReasoningEffort(reasoning.OpenAIDisableEffort)
+	if o.client.ModernReasoningFormat {
+		req.Reasoning = &openaiclient.ReasoningOptions{Effort: none}
+	} else {
+		req.ReasoningEffort = &none
+	}
+}
+
+func (o *LLM) applySamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string) {
+	model := o.effectiveModel(opts)
+	if reasoning.RejectsMinP(model) {
+		req.MinP = nil
+	}
+	if reasoning.ClaudeRejectsSampling(model) {
+		req.Temperature, req.TopP, req.TopK = nil, nil, nil
+		return
+	}
+
+	switch {
+	case refusesSamplingWhileThinking(model, opts, wireEffort):
+		if req.Temperature != nil {
+			temperature := 1.0
+			req.Temperature = &temperature
+		}
+		if req.Temperature != nil || req.TopP == nil ||
+			!reasoning.ClaudeKeepsTopPWhileThinking(model, *req.TopP) {
+			req.TopP = nil
+		}
+		req.TopK = nil
+		req.FrequencyPenalty = nil
+		req.PresencePenalty = nil
+		req.LogProbs = false
+		req.TopLogProbs = 0
+	case reasoning.ClaudeMutuallyExclusiveSampling(model) && req.Temperature != nil && req.TopP != nil:
+		req.TopP = nil
+	}
+}
+
+func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffort string) bool {
+	if !thinkingRuns(model, opts, wireEffort) {
+		return false
+	}
+	return reasoning.OpenAIReasoningCapsFor(model).Known || reasoning.ClaudeSupportsThinking(model)
+}
+
+// thinkingRuns reports whether the model reasons on this request: an effort
+// reached the wire, or none did and the model reasons until told otherwise.
+func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
+	if opts.Reasoning.IsDisabled() || !reasoning.IsReasoningModel(model) {
+		return false
+	}
+	if isThinkingOnTheWire(wireEffort) || reasoning.ThinkingMarkedInName(model) {
+		return true
+	}
+	if reasoning.ClaudeSupportsThinking(model) {
+		return reasoning.ClaudeThinkingDefaultsOn(model)
+	}
+	return !reasoning.ThinkingOptIn(model)
+}
+
+func isThinkingOnTheWire(wireEffort string) bool {
+	return wireEffort != "" && wireEffort != reasoning.OpenAIDisableEffort
 }
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
@@ -391,15 +547,34 @@ func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOpt
 	return nil
 }
 
+func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRefusal, int) {
+	for i, c := range result.Choices {
+		if c.Message.Refusal == "" {
+			continue
+		}
+		cached := result.Usage.PromptTokensDetails.CachedTokens
+		return &llms.ErrModelRefusal{
+			Provider:             "openai",
+			Message:              c.Message.Refusal,
+			InputTokens:          result.Usage.PromptTokens - cached,
+			OutputTokens:         result.Usage.CompletionTokens,
+			CacheReadInputTokens: cached,
+		}, i
+	}
+	return nil, 0
+}
+
 // processResponse processes the OpenAI API response into a ContentResponse.
 func (o *LLM) processResponse(result *openaiclient.ChatCompletionResponse) *llms.ContentResponse {
 	choices := make([]*llms.ContentChoice, len(result.Choices))
 
 	for i, c := range result.Choices {
+		stopReason := string(c.FinishReason)
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
 			Reasoning:      o.processReasoning(c.Message.ReasoningContent),
-			StopReason:     fmt.Sprint(c.FinishReason),
+			StopReason:     stopReason,
+			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
 		}
 
@@ -561,9 +736,13 @@ func toolCallsFromToolCalls(tcs []llms.ToolCall) []openaiclient.ToolCall {
 
 // toolCallFromToolCall converts an llms.ToolCall to a ToolCall.
 func toolCallFromToolCall(tc llms.ToolCall) openaiclient.ToolCall {
+	toolType := openaiclient.ToolType(tc.Type)
+	if toolType == "" {
+		toolType = openaiclient.ToolTypeFunction
+	}
 	return openaiclient.ToolCall{
 		ID:   tc.ID,
-		Type: openaiclient.ToolType(tc.Type),
+		Type: toolType,
 		Function: openaiclient.ToolFunction{
 			Name:      tc.FunctionCall.Name,
 			Arguments: tc.FunctionCall.Arguments,
@@ -592,4 +771,26 @@ func webSearchOptionsFromCallOptions(opts *llms.WebSearchOptions) *openaiclient.
 		}
 	}
 	return result
+}
+
+func openaiToolChoice(choice any) any {
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		return llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: name}}
+	case llms.ToolChoiceAny:
+		return "required"
+	case llms.ToolChoiceAuto:
+		return "auto"
+	case llms.ToolChoiceNone:
+		return "none"
+	default:
+		return choice
+	}
+}
+
+func derefInt(i *int) int {
+	if i == nil {
+		return 0
+	}
+	return *i
 }

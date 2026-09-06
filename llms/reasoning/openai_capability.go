@@ -1,6 +1,9 @@
 package reasoning
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // openAIEffortRank orders OpenAI reasoning efforts so a requested effort can be
 // clamped to a model's ceiling. It does not include "none", which is the disable
@@ -15,8 +18,8 @@ var openAIEffortRank = map[string]int{
 }
 
 // OpenAIReasoningCaps is a best-effort static projection of which reasoning
-// efforts an OpenAI model accepts, so callers avoid sending a value the API would
-// reject with a 400. It asserts only documented, non-default constraints; every
+// efforts a model reachable on an OpenAI-compatible door accepts, so callers avoid
+// sending a value the API would reject with a 400. It asserts only documented, non-default constraints; every
 // other model returns Known=false and is treated optimistically (send as
 // requested, let the API be the arbiter), preserving prior pass-through behavior.
 type OpenAIReasoningCaps struct {
@@ -29,44 +32,108 @@ type OpenAIReasoningCaps struct {
 	Efforts []string
 }
 
-// ClampEffort lowers a requested effort to what the model accepts: an effort
-// above the model's ceiling drops to the ceiling, and a model that accepts a
-// single effort (e.g. GPT-5 Pro accepts only "high") pins to it. Unknown models
-// and the empty effort are returned unchanged.
+// ClampEffort moves a requested effort to one the model accepts: above the
+// ceiling drops to the ceiling, below the floor rises to the floor, and anything
+// the set does not list steps down to the nearest level it does. Unknown models
+// and efforts outside the scale are returned unchanged.
 func (c OpenAIReasoningCaps) ClampEffort(effort string) string {
-	if !c.Known || effort == "" || len(c.Efforts) == 0 {
+	want, ranked := openAIEffortRank[effort]
+	if !c.Known || !ranked || len(c.Efforts) == 0 {
 		return effort
 	}
-	if len(c.Efforts) == 1 {
-		return c.Efforts[0]
+	if slices.Contains(c.Efforts, effort) {
+		return effort
 	}
-	ceiling := c.Efforts[len(c.Efforts)-1]
-	if openAIEffortRank[effort] > openAIEffortRank[ceiling] {
-		return ceiling
+
+	accepted := c.Efforts[0]
+	for _, level := range c.Efforts {
+		if openAIEffortRank[level] <= want {
+			accepted = level
+		}
 	}
-	return effort
+	return accepted
 }
 
-// OpenAIReasoningCapsFor classifies an OpenAI reasoning model. Only models with
-// documented constraints tighter than the general GPT-5 surface are listed;
-// anything else (including newer models) returns Known=false so the caller stays
-// optimistic.
+// OpenAIReasoningCapsFor classifies a reasoning model by the effort set its
+// generation accepts on /chat/completions. A model outside the listed
+// generations (including newer ones) returns Known=false so the caller stays
+// optimistic and the API arbitrates.
 func OpenAIReasoningCapsFor(model string) OpenAIReasoningCaps {
-	m := strings.ToLower(model)
-	if idx := strings.LastIndex(m, "/"); idx != -1 {
-		m = m[idx+1:] // strip a proxy prefix such as "openai/"
+	for _, form := range modelSpellings(model) {
+		if caps := openAICapsForForm(form); caps.Known {
+			return caps
+		}
+	}
+	return OpenAIReasoningCaps{Known: false}
+}
+
+func openAIChatVariant(m string) bool {
+	return strings.HasPrefix(m, "gpt-") && strings.Contains(m, "-chat")
+}
+
+func openAICapsForForm(m string) OpenAIReasoningCaps {
+	if openAIChatVariant(m) {
+		return OpenAIReasoningCaps{Known: false}
 	}
 	switch {
-	case strings.HasPrefix(m, "gpt-5-pro"):
-		// GPT-5 Pro accepts only high and cannot be disabled.
+	case openAIProVariant(m):
+		if openAIXHighCeiling(m) {
+			return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"medium", "high", "xhigh"}}
+		}
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"high"}}
 	case openAIMandatoryReasoning(m):
-		// o-series floor is minimal/low with no hard off; expose low..high.
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high"}}
-	case strings.HasPrefix(m, "gpt-5.4-mini"):
-		// GPT-5.4 mini accepts none..xhigh but not max.
+	case openAIGPT5Base(m):
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"minimal", "low", "medium", "high"}}
+	case hasGeneration(m, "gpt-5.1"):
+		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
+	case openAIXHighCeiling(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
+	case nonOpenAILowHighMax(m):
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "high", "max"}}
 	default:
 		return OpenAIReasoningCaps{Known: false}
 	}
 }
+
+func openAIProVariant(m string) bool {
+	return hasGeneration(m, "gpt-5") && strings.Contains(m, "-pro")
+}
+
+func openAIGPT5Base(m string) bool {
+	return m == "gpt-5" || strings.HasPrefix(m, "gpt-5-20") ||
+		hasGeneration(m, "gpt-5-mini") || hasGeneration(m, "gpt-5-nano")
+}
+
+func nonOpenAILowHighMax(m string) bool {
+	return hasGeneration(m, "kimi-k3") || hasGeneration(m, "glm-5.3")
+}
+
+func openAIXHighCeiling(m string) bool {
+	for _, generation := range []string{"gpt-5.2", "gpt-5.4", "gpt-5.5", "gpt-5.6"} {
+		if hasGeneration(m, generation) {
+			return true
+		}
+	}
+	return false
+}
+
+// OpenAIThinkingOptIn reports the generations that reason only when an effort
+// asks them to.
+func OpenAIThinkingOptIn(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if openAIProVariant(form) {
+			continue
+		}
+		for _, generation := range []string{"gpt-5.1", "gpt-5.2", "gpt-5.4"} {
+			if hasGeneration(form, generation) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// OpenAIDisableEffort turns thinking off on the wire. It is not llms.ReasoningNone,
+// which is the empty string and instead omits the field.
+const OpenAIDisableEffort = "none"

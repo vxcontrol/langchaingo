@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -117,12 +118,13 @@ func createMetaCompletion(ctx context.Context,
 			{
 				Content:    output.Generation,
 				StopReason: output.StopReason,
+				Truncated:  llms.IsTruncated(output.StopReason),
 				GenerationInfo: map[string]any{
 					"input_tokens":  output.PromptTokenCount,
 					"output_tokens": output.GenerationTokenCount,
 					// Standardized field names for cross-provider compatibility
-					"PromptTokens":     output.PromptTokenCount,
-					"CompletionTokens": output.GenerationTokenCount,
+					"PromptTokens":     int(output.PromptTokenCount),
+					"CompletionTokens": int(output.GenerationTokenCount),
 					"TotalTokens":      output.PromptTokenCount + output.GenerationTokenCount,
 				},
 			},
@@ -143,29 +145,37 @@ func parseMetaStreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var streamedContent strings.Builder
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp metaStreamingResponseChunk
 			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
 			if err != nil {
-				return nil, err
+				streamErr = err
+				break DoStream
 			}
 
 			// Send text chunk if available
 			if resp.Generation != "" {
+				streamedContent.WriteString(resp.Generation)
 				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.Generation); err != nil {
-					return nil, err
+					streamErr = err
+					break DoStream
 				}
-				contentchoices[0].Content += resp.Generation
 			}
 
 			// Set completion reason
 			if resp.StopReason != "" {
 				contentchoices[0].StopReason = resp.StopReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.StopReason)
 			}
 
 			// Set token counts
@@ -183,10 +193,10 @@ func parseMetaStreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+
+	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }

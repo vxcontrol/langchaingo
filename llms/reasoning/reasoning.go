@@ -3,6 +3,7 @@ package reasoning
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
@@ -22,10 +23,20 @@ type ContentReasoning struct {
 
 	// Signature is the signature of the reasoning contents.
 	Signature []byte `json:"signature,omitempty"`
+
+	// Redacted is reasoning the provider encrypted. It carries no readable text
+	// and travels back to the vendor unchanged.
+	Redacted []byte `json:"redacted,omitempty"`
 }
 
+// IsEmpty reports whether there is nothing to carry back into the next turn.
 func (r *ContentReasoning) IsEmpty() bool {
-	return r == nil || (r.Content == "" && len(r.Signature) == 0)
+	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Redacted) == 0)
+}
+
+// HasContent reports whether the model actually reasoned.
+func (r *ContentReasoning) HasContent() bool {
+	return r != nil && r.Content != ""
 }
 
 func (r *ContentReasoning) String() string {
@@ -39,6 +50,9 @@ func (r *ContentReasoning) String() string {
 	if len(r.Signature) > 0 {
 		buf.WriteString("\nSignature: ")
 		buf.Write(r.Signature)
+	}
+	if len(r.Redacted) > 0 {
+		fmt.Fprintf(&buf, "\nRedacted: %d bytes", len(r.Redacted))
 	}
 
 	return buf.String()
@@ -172,39 +186,72 @@ func IsReasoningModel(model string) bool {
 // DefaultIsReasoningModel provides the default reasoning model detection logic.
 // This can be used by LLM implementations that want to extend rather than replace
 // the default detection logic.
-func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat catalog of model-family prefix checks; splitting hurts readability
-	modelLower := strings.ToLower(model)
+func DefaultIsReasoningModel(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if namesReasoningModel(form) {
+			return true
+		}
+	}
+	return false
+}
 
-	// Remove provider prefix if present (e.g., "openai/", "anthropic/", "google/")
-	if idx := strings.LastIndex(modelLower, "/"); idx != -1 {
-		modelLower = modelLower[idx+1:]
+func mistralReasons(model string) bool {
+	if model == "mistral-medium" {
+		return true
+	}
+	for _, prefix := range []string{
+		"mistral-medium-3", "mistral-medium-latest", "mistral-medium-2604",
+		"mistral-small-2603", "mistral-small-latest",
+		"mistral-vibe-cli",
+	} {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func nvidiaNonChatSurface(model string) bool {
+	return strings.Contains(model, "-embed-") ||
+		strings.Contains(model, "-rerank-") ||
+		strings.Contains(model, "-asr-") ||
+		strings.Contains(model, "content-safety")
+}
+
+func namesReasoningModel(modelLower string) bool { //nolint:funlen // a flat catalog of model-family prefix checks; splitting hurts readability
+	if strings.Contains(modelLower, "-chat-latest") || openAIChatVariant(modelLower) {
+		return false
 	}
 
 	// OpenAI reasoning models
 	if strings.HasPrefix(modelLower, "gpt-5") ||
-		strings.HasPrefix(modelLower, "gpt-oss-") ||
+		strings.HasPrefix(modelLower, "gpt-oss") ||
 		strings.HasPrefix(modelLower, "o1") ||
 		strings.HasPrefix(modelLower, "o3") ||
-		strings.HasPrefix(modelLower, "o4-mini") {
+		strings.HasPrefix(modelLower, "o4-mini") ||
+		modelLower == "gpt-latest" {
 		return true
 	}
 
 	// Anthropic extended thinking / adaptive models
-	if strings.Contains(modelLower, "claude-3.7") ||
-		strings.HasPrefix(modelLower, "claude-opus-4") ||
-		strings.HasPrefix(modelLower, "claude-opus-5") ||
-		strings.HasPrefix(modelLower, "claude-sonnet-4") ||
-		strings.HasPrefix(modelLower, "claude-sonnet-5") ||
-		strings.Contains(modelLower, "claude-fable-5") ||
-		strings.Contains(modelLower, "claude-mythos-5") ||
-		strings.Contains(modelLower, "claude-haiku-4.5") {
+	claudeName := canonicalClaude(modelLower)
+	if strings.Contains(claudeName, "claude-3-7") ||
+		strings.HasPrefix(claudeName, "claude-opus-4") ||
+		strings.HasPrefix(claudeName, "claude-opus-5") ||
+		strings.HasPrefix(claudeName, "claude-sonnet-4") ||
+		strings.HasPrefix(claudeName, "claude-sonnet-5") ||
+		strings.Contains(claudeName, "claude-fable-5") ||
+		strings.Contains(claudeName, "claude-mythos-5") ||
+		strings.Contains(claudeName, "claude-haiku-4-5") ||
+		ClaudeSupportsThinking(claudeName) {
 		return true
 	}
 
 	// DeepSeek reasoning models
 	if strings.Contains(modelLower, "deepseek-r1") ||
-		strings.Contains(modelLower, "deepseek-chat-v3") ||
-		strings.Contains(modelLower, "deepseek-v3.1-terminus") ||
+		strings.Contains(modelLower, "deepseek-reasoner") ||
+		strings.Contains(modelLower, "deepseek-chat-v3.") ||
+		strings.Contains(modelLower, "deepseek-v3.1") ||
 		strings.HasPrefix(modelLower, "deepseek-v3.2") ||
 		strings.HasPrefix(modelLower, "deepseek-v4") {
 		return true
@@ -217,31 +264,41 @@ func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat cata
 
 	// X-AI Grok reasoning models
 	if strings.HasPrefix(modelLower, "grok-3-mini") ||
-		(strings.HasPrefix(modelLower, "grok-4") && !strings.HasSuffix(modelLower, "-non-reasoning")) ||
-		(strings.HasPrefix(modelLower, "grok-5") && !strings.HasSuffix(modelLower, "-non-reasoning")) ||
+		(strings.HasPrefix(modelLower, "grok-4") && !strings.Contains(modelLower, "-non-reasoning")) ||
+		(strings.HasPrefix(modelLower, "grok-5") && !strings.Contains(modelLower, "-non-reasoning")) ||
 		strings.HasPrefix(modelLower, "grok-build") ||
-		strings.Contains(modelLower, "grok-code-fast") {
+		strings.Contains(modelLower, "grok-code-fast") ||
+		modelLower == "grok-latest" {
 		return true
 	}
 
 	// Z-AI GLM reasoning models (Zhipu AI)
-	if strings.HasPrefix(modelLower, "glm-4.5") ||
-		strings.HasPrefix(modelLower, "glm-4.6") ||
-		strings.HasPrefix(modelLower, "glm-4.7") ||
-		strings.HasPrefix(modelLower, "glm-5") {
+	glm := strings.TrimPrefix(modelLower, "zai-")
+	if strings.HasPrefix(glm, "glm-4.5") ||
+		strings.HasPrefix(glm, "glm-4.6") ||
+		strings.HasPrefix(glm, "glm-4.7") ||
+		strings.HasPrefix(glm, "glm-5") ||
+		glm == "glm-latest" || glm == "glm-flash-latest" {
+		return true
+	}
+
+	if strings.HasPrefix(modelLower, "labs-leanstral") {
 		return true
 	}
 
 	// Qwen reasoning models. Qwen3.x thinking is user-toggleable with configurable
 	// sampling, so the bare qwen3 prefix must not force temperature pinning; only
 	// an explicit "thinking" marker or the QwQ line count as always-on reasoning.
-	if (strings.HasPrefix(modelLower, "qwen") && strings.Contains(modelLower, "thinking")) ||
-		strings.Contains(modelLower, "qwq-") {
+	if (strings.HasPrefix(modelLower, "qwen") && ThinkingMarkedInName(modelLower)) ||
+		strings.Contains(modelLower, "qwq-") ||
+		QwenThinkingRequiresStream(modelLower) ||
+		QwenThinkingEnabledByFlag(modelLower) ||
+		qwenReasonsUnasked(modelLower) {
 		return true
 	}
 
 	// Minimax reasoning models
-	if strings.HasPrefix(modelLower, "minimax-m") {
+	if strings.HasPrefix(modelLower, "minimax-m") && !strings.Contains(modelLower, "-her") {
 		return true
 	}
 
@@ -252,7 +309,8 @@ func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat cata
 			strings.Contains(modelLower, "2.6") ||
 			strings.Contains(modelLower, "2.7") ||
 			strings.Contains(modelLower, "k3") ||
-			strings.Contains(modelLower, "dev-72b")) {
+			strings.Contains(modelLower, "dev-72b")) ||
+		modelLower == "kimi-latest" {
 		return true
 	}
 
@@ -265,7 +323,7 @@ func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat cata
 	}
 
 	// Other reasoning models
-	if strings.Contains(modelLower, "aion-") ||
+	if (strings.Contains(modelLower, "aion-") && !strings.Contains(modelLower, "aion-rp")) ||
 		(strings.Contains(modelLower, "olmo-") && strings.Contains(modelLower, "-think")) ||
 		strings.Contains(modelLower, "nova-2-lite") ||
 		strings.Contains(modelLower, "trinity-mini") ||
@@ -273,14 +331,17 @@ func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat cata
 		strings.Contains(modelLower, "seed-1.6") ||
 		strings.Contains(modelLower, "cogito-v2") ||
 		(strings.Contains(modelLower, "lfm-") && strings.Contains(modelLower, "-thinking")) ||
+		strings.HasPrefix(modelLower, "lfm-2.5") ||
+		strings.Contains(modelLower, "seed-2-1") ||
+		strings.Contains(modelLower, "inkling") ||
 		strings.Contains(modelLower, "deephermes") ||
 		strings.Contains(modelLower, "hermes-4-") ||
-		strings.Contains(modelLower, "nemotron") ||
+		(strings.Contains(modelLower, "nemotron") && !nvidiaNonChatSurface(modelLower)) ||
 		strings.Contains(modelLower, "intellect-3") ||
 		strings.Contains(modelLower, "step3") ||
 		strings.Contains(modelLower, "hunyuan-a13b") ||
 		strings.Contains(modelLower, "chimera") ||
-		strings.Contains(modelLower, "mimo-v2") ||
+		(strings.Contains(modelLower, "mimo-v2") && !strings.Contains(modelLower, "-tts")) ||
 		strings.Contains(modelLower, "tongyi-deepresearch") {
 		return true
 	}
@@ -294,18 +355,82 @@ func DefaultIsReasoningModel(model string) bool { //nolint:funlen // a flat cata
 		strings.HasPrefix(modelLower, "mercury-2") ||
 		strings.HasPrefix(modelLower, "ring-2.6") ||
 		strings.HasPrefix(modelLower, "muse-spark") ||
-		strings.HasPrefix(modelLower, "mistral-medium-3") ||
-		strings.HasPrefix(modelLower, "mistral-small-2603") ||
+		mistralReasons(modelLower) ||
+		strings.HasPrefix(modelLower, "magistral") ||
 		strings.HasPrefix(modelLower, "nex-n2") ||
 		strings.HasPrefix(modelLower, "perceptron-mk") ||
 		strings.HasPrefix(modelLower, "laguna-") ||
 		strings.HasPrefix(modelLower, "reka-flash-3") ||
 		strings.HasPrefix(modelLower, "fugu-ultra") ||
 		strings.HasPrefix(modelLower, "hy3") ||
+		strings.HasPrefix(modelLower, "hy4") ||
 		strings.HasPrefix(modelLower, "solar-pro-3") ||
+		strings.HasPrefix(modelLower, "solar-pro4") ||
+		strings.HasPrefix(modelLower, "ling-3.0") ||
+		strings.HasPrefix(modelLower, "longcat-2") ||
 		strings.Contains(modelLower, "trinity-large-thinking") {
 		return true
 	}
 
+	return false
+}
+
+// ThinkingOptIn reports whether the model reasons only when a request asks it to.
+func ThinkingOptIn(model string) bool {
+	if OpenAIThinkingOptIn(model) || QwenThinkingEnabledByFlag(model) {
+		return true
+	}
+	for _, form := range modelSpellings(model) {
+		if mistralReasons(form) || strings.HasPrefix(form, "magistral") ||
+			strings.HasPrefix(form, "ernie-4.5") {
+			return true
+		}
+		for _, prefix := range []string{"solar-pro-3", "solar-pro4", "deepseek-v3.1", "deepseek-chat-v3.1", "deepseek-v3.2"} {
+			if strings.HasPrefix(form, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ThinkingMarkedInName reports whether the model name selects a routing variant
+// that already runs with thinking on, not merely a model capable of thinking.
+func ThinkingMarkedInName(model string) bool {
+	m := strings.ToLower(model)
+	const marker = "thinking"
+	for i := 0; i < len(m); {
+		idx := strings.Index(m[i:], marker)
+		if idx == -1 {
+			return false
+		}
+		start, end := i+idx, i+idx+len(marker)
+		if !letterAt(m, start-1) && !letterAt(m, end) {
+			return true
+		}
+		i = end
+	}
+	return false
+}
+
+func letterAt(s string, i int) bool {
+	return i >= 0 && i < len(s) && s[i] >= 'a' && s[i] <= 'z'
+}
+
+func isAlpha(s string) bool {
+	for i := range len(s) {
+		if s[i] < 'a' || s[i] > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
+func qwenReasonsUnasked(model string) bool {
+	for _, prefix := range []string{"qwen3.5", "qwen3.6", "qwen3.7", "qwen3.8"} {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
 	return false
 }

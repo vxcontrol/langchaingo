@@ -2,8 +2,13 @@ package mistral
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"fmt"
+	"math"
+	"math/big"
 	"os"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -29,7 +34,7 @@ func New(opts ...Option) (*Model, error) {
 		endpoint:   sdk.Endpoint,
 		maxRetries: sdk.DefaultMaxRetries,
 		timeout:    sdk.DefaultTimeout,
-		model:      sdk.ModelOpenMistral7b,
+		model:      defaultModel,
 	}
 
 	for _, opt := range opts {
@@ -47,7 +52,10 @@ func New(opts ...Option) (*Model, error) {
 func (m *Model) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
 	callOptions := resolveDefaultOptions(sdk.DefaultChatRequestParams, m.clientOptions)
 	setCallOptions(options, callOptions)
-	mistralChatParams := mistralChatParamsFromCallOptions(callOptions)
+	mistralChatParams, err := mistralChatParamsFromCallOptions(callOptions)
+	if err != nil {
+		return "", err
+	}
 
 	messages := []sdk.ChatMessage{{
 		Role:    "user",
@@ -55,24 +63,42 @@ func (m *Model) Call(ctx context.Context, prompt string, options ...llms.CallOpt
 	}}
 	res, err := m.client.Chat(callOptions.GetModel(), messages, &mistralChatParams)
 	if err != nil {
-		m.CallbacksHandler.HandleLLMError(ctx, err)
+		if m.CallbacksHandler != nil {
+			m.CallbacksHandler.HandleLLMError(ctx, err)
+		}
 		return "", err
 	}
 	if len(res.Choices) != 1 {
-		m.CallbacksHandler.HandleLLMError(ctx, err)
-		return "", errors.New("unexpected response from Mistral SDK, length of the Choices slice must be 1")
+		err := errors.New("unexpected response from Mistral SDK, length of the Choices slice must be 1")
+		if m.CallbacksHandler != nil {
+			m.CallbacksHandler.HandleLLMError(ctx, err)
+		}
+		return "", err
 	}
 
 	return res.Choices[0].Message.Content, nil
 }
 
 // GenerateContent implements the langchaingo llms.Model interface.
-func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.MessageContent, options ...llms.CallOption) (resp *llms.ContentResponse, err error) { //nolint:lll,nonamedreturns
+	if m.CallbacksHandler != nil {
+		m.CallbacksHandler.HandleLLMGenerateContentStart(ctx, langchainMessages)
+		defer func() {
+			if err != nil {
+				m.CallbacksHandler.HandleLLMError(ctx, err)
+			} else {
+				m.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
+			}
+		}()
+	}
+
 	callOptions := resolveDefaultOptions(sdk.DefaultChatRequestParams, m.clientOptions)
 	setCallOptions(options, callOptions)
-	m.CallbacksHandler.HandleLLMGenerateContentStart(ctx, langchainMessages)
 
-	chatOpts := mistralChatParamsFromCallOptions(callOptions)
+	chatOpts, err := mistralChatParamsFromCallOptions(callOptions)
+	if err != nil {
+		return nil, err
+	}
 
 	messages, err := convertToMistralChatMessages(langchainMessages)
 	if err != nil {
@@ -82,7 +108,7 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 	if callOptions.StreamingFunc != nil {
 		return generateStreamingContent(ctx, m, callOptions, messages, chatOpts)
 	}
-	return generateNonStreamingContent(ctx, m, callOptions, messages, chatOpts)
+	return generateNonStreamingContent(m, callOptions, messages, chatOpts)
 }
 
 func setCallOptions(options []llms.CallOption, callOpts *llms.CallOptions) {
@@ -105,18 +131,25 @@ func resolveDefaultOptions(sdkDefaults sdk.ChatRequestParams, c *clientOptions) 
 		Temperature: &sdkDefaults.Temperature,
 		// TopP is the cumulative probability for top-p sampling.
 		TopP: &sdkDefaults.TopP,
-		// Seed is a seed for deterministic sampling.
-		Seed: &sdkDefaults.RandomSeed,
 		// Function defitions to include in the request.
 		Functions: make([]llms.FunctionDefinition, 0),
 	}
 }
 
-func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) sdk.ChatRequestParams {
+func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatRequestParams, error) {
 	chatOpts := sdk.DefaultChatRequestParams
 	chatOpts.MaxTokens = callOpts.GetMaxTokens()
 	chatOpts.Temperature = callOpts.GetTemperature()
-	chatOpts.RandomSeed = callOpts.GetSeed()
+	chatOpts.TopP = callOpts.GetTopP()
+	seed, err := seedForRequest(callOpts)
+	if err != nil {
+		return sdk.ChatRequestParams{}, err
+	}
+	chatOpts.RandomSeed = seed
+	if callOpts.GetJSONMode() {
+		chatOpts.ResponseFormat = sdk.ResponseFormatJsonObject
+	}
+	chatOpts.ToolChoice = mistralToolChoice(callOpts.ToolChoice)
 	chatOpts.Tools = make([]sdk.Tool, 0)
 	if len(callOpts.Tools) > 0 {
 		for _, tool := range callOpts.Tools {
@@ -141,19 +174,27 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) sdk.ChatReques
 			})
 		}
 	}
-	return chatOpts
+	return chatOpts, nil
 }
 
-func generateNonStreamingContent(ctx context.Context, m *Model, callOptions *llms.CallOptions, messages []sdk.ChatMessage, chatOpts sdk.ChatRequestParams) (*llms.ContentResponse, error) {
-	res, err := m.client.Chat(callOptions.GetModel(), messages, &chatOpts)
-	m.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, nil)
+func seedForRequest(callOpts *llms.CallOptions) (int, error) {
+	if callOpts.Seed != nil {
+		return *callOpts.Seed, nil
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt32))
 	if err != nil {
-		m.CallbacksHandler.HandleLLMError(ctx, err)
+		return 0, fmt.Errorf("mistral: drawing a seed: %w", err)
+	}
+	return int(n.Int64()), nil
+}
+
+func generateNonStreamingContent(m *Model, callOptions *llms.CallOptions, messages []sdk.ChatMessage, chatOpts sdk.ChatRequestParams) (*llms.ContentResponse, error) {
+	res, err := m.client.Chat(callOptions.GetModel(), messages, &chatOpts)
+	if err != nil {
 		return nil, err
 	}
 
 	if len(res.Choices) < 1 {
-		m.CallbacksHandler.HandleLLMError(ctx, err)
 		return nil, errors.New("unexpected response from Mistral SDK, length of the Choices slice must be greater than or equal 1")
 	}
 
@@ -164,6 +205,7 @@ func generateNonStreamingContent(ctx context.Context, m *Model, callOptions *llm
 		langchainContentResponse.Choices = append(langchainContentResponse.Choices, &llms.ContentChoice{
 			Content:    choice.Message.Content,
 			StopReason: string(choice.FinishReason),
+			Truncated:  llms.IsTruncated(string(choice.FinishReason)),
 			GenerationInfo: map[string]any{
 				"created": res.Created,
 				"model":   res.Model,
@@ -185,7 +227,9 @@ func generateNonStreamingContent(ctx context.Context, m *Model, callOptions *llm
 			}
 		}
 	}
-	m.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, langchainContentResponse)
+	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
+		return langchainContentResponse, err
+	}
 
 	return langchainContentResponse, nil
 }
@@ -193,7 +237,6 @@ func generateNonStreamingContent(ctx context.Context, m *Model, callOptions *llm
 func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.CallOptions, messages []sdk.ChatMessage, chatOpts sdk.ChatRequestParams) (*llms.ContentResponse, error) {
 	chatResChan, err := m.client.ChatStream(callOptions.GetModel(), messages, &chatOpts)
 	if err != nil {
-		m.CallbacksHandler.HandleLLMError(ctx, err)
 		return nil, err
 	}
 	langchainContentResponse := &llms.ContentResponse{
@@ -205,6 +248,9 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 	}
 	defer streaming.CallWithDone(ctx, callOptions.StreamingFunc) //nolint:errcheck
 
+	var streamedContent strings.Builder
+	defer func() { langchainContentResponse.Choices[0].Content = streamedContent.String() }()
+
 	for chatResChunk := range chatResChan {
 		chunkStr := ""
 		langchainContentResponse.Choices[0].GenerationInfo["created"] = chatResChunk.Created
@@ -213,8 +259,11 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 		if chatResChunk.Error == nil {
 			for _, choice := range chatResChunk.Choices {
 				chunkStr += choice.Delta.Content
-				langchainContentResponse.Choices[0].Content += choice.Delta.Content
-				langchainContentResponse.Choices[0].StopReason = string(choice.FinishReason)
+				streamedContent.WriteString(choice.Delta.Content)
+				if choice.FinishReason != "" {
+					langchainContentResponse.Choices[0].StopReason = string(choice.FinishReason)
+					langchainContentResponse.Choices[0].Truncated = llms.IsTruncated(string(choice.FinishReason))
+				}
 				if len(choice.Delta.ToolCalls) > 0 {
 					langchainContentResponse.Choices[0].FuncCall = (*llms.FunctionCall)(&choice.Delta.ToolCalls[0].Function)
 					for _, tool := range choice.Delta.ToolCalls {
@@ -235,6 +284,10 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 		} else {
 			return langchainContentResponse, chatResChunk.Error
 		}
+	}
+
+	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
+		return langchainContentResponse, err
 	}
 
 	return langchainContentResponse, nil
@@ -278,4 +331,19 @@ func setMistralChatMessageRole(msg *llms.MessageContent, chatMsg *sdk.ChatMessag
 	case llms.ChatMessageTypeSystem:
 		chatMsg.Role = "system"
 	}
+}
+
+func mistralToolChoice(choice any) string {
+	kind, _ := llms.ClassifyToolChoice(choice)
+	switch kind {
+	case llms.ToolChoiceAuto:
+		return sdk.ToolChoiceAuto
+	case llms.ToolChoiceNone:
+		return sdk.ToolChoiceNone
+	case llms.ToolChoiceAny:
+		return sdk.ToolChoiceAny
+	case llms.ToolChoiceNamed, llms.ToolChoiceUnset:
+		return ""
+	}
+	return ""
 }

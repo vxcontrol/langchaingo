@@ -164,10 +164,18 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	resp, err := o.handleChat(ctx, req, opts)
 	if err != nil {
-		return nil, err
+		partial := o.createContentResponse(resp)
+		if len(partial.Choices) == 0 || isEmptyChoice(partial.Choices[0]) {
+			return nil, err
+		}
+		return partial, err
 	}
 
 	response = o.createContentResponse(resp)
+
+	if err = llms.CheckTruncation(response, opts); err != nil {
+		return response, err
+	}
 
 	// When a schema was requested, validate the final response against it; the
 	// response is returned alongside the typed error so usage is preserved.
@@ -287,6 +295,19 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 	return tc, nil
 }
 
+func resolveThink(opts llms.CallOptions) *api.ThinkValue {
+	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningDefault leaves the field unset
+	case llms.ReasoningOff:
+		return &api.ThinkValue{Value: false}
+	case llms.ReasoningOn:
+		if level := (&api.ThinkValue{Value: string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))}); level.IsValid() {
+			return level
+		}
+		return &api.ThinkValue{Value: true}
+	}
+	return nil
+}
+
 // createChatRequest creates a chat request with the given parameters.
 func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.CallOptions) (*api.ChatRequest, error) {
 	format, err := o.resolveFormat(opts)
@@ -309,6 +330,7 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
+		Think:    resolveThink(opts),
 	}
 
 	keepAlive := o.options.keepAlive
@@ -363,13 +385,15 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 
 	var (
 		resp              api.ChatResponse
-		streamedResponse  string
+		streamedResponse  strings.Builder
+		streamedThinking  strings.Builder
 		streamedToolCalls []api.ToolCall
 	)
 
 	splitter := reasoning.NewChunkContentSplitter()
 	fn := func(response api.ChatResponse) error {
 		textContent, reasoningContent := splitter.Split(response.Message.Content)
+		reasoningContent += response.Message.Thinking
 		if opts.StreamingFunc != nil {
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, opts.StreamingFunc, reasoning); err != nil {
@@ -393,8 +417,9 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		}
 
 		if response.Message.Content != "" {
-			streamedResponse += response.Message.Content
+			streamedResponse.WriteString(response.Message.Content)
 		}
+		streamedThinking.WriteString(response.Message.Thinking)
 		if len(response.Message.ToolCalls) > 0 {
 			streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
 		}
@@ -403,7 +428,8 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 			resp = response
 			resp.Message = api.Message{
 				Role:      "assistant",
-				Content:   streamedResponse,
+				Content:   streamedResponse.String(),
+				Thinking:  streamedThinking.String(),
 				ToolCalls: streamedToolCalls,
 			}
 		}
@@ -411,17 +437,31 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	}
 
 	err := o.client.Chat(ctx, req, fn)
+	if err != nil && resp.Message.Content == "" && resp.Message.Thinking == "" && len(resp.Message.ToolCalls) == 0 {
+		resp.Message = api.Message{
+			Role:      "assistant",
+			Content:   streamedResponse.String(),
+			Thinking:  streamedThinking.String(),
+			ToolCalls: streamedToolCalls,
+		}
+	}
 	return resp, err
 }
 
 // createContentResponse creates a LangChain content response from Ollama response.
+func isEmptyChoice(choice *llms.ContentChoice) bool {
+	return choice.Content == "" && len(choice.ToolCalls) == 0 && choice.Reasoning.IsEmpty()
+}
+
 func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
-	reasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning.Content += resp.Message.Thinking
 	choices := []*llms.ContentChoice{
 		{
 			Content:    content,
-			Reasoning:  reasoning,
+			Reasoning:  contentReasoning,
 			StopReason: resp.DoneReason,
+			Truncated:  llms.IsTruncated(resp.DoneReason),
 			GenerationInfo: map[string]any{
 				"CompletionTokens": resp.EvalCount,
 				"PromptTokens":     resp.PromptEvalCount,

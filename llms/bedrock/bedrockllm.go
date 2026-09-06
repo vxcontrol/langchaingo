@@ -108,13 +108,29 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	// Use Converse API if enabled
-	if l.useConverseAPI {
-		return l.generateContentWithConverseAPI(ctx, messages, opts)
+	if err := opts.ValidateReasoning(); err != nil {
+		return nil, err
 	}
 
-	// Use legacy implementation
-	return l.generateContentWithLegacyAPI(ctx, messages, opts)
+	if err := checkAnthropicTurnLimits(&opts, messages); err != nil {
+		return nil, err
+	}
+
+	// Use Converse API if enabled
+	if l.useConverseAPI {
+		resp, err = l.generateContentWithConverseAPI(ctx, messages, opts)
+	} else {
+		resp, err = l.generateContentWithLegacyAPI(ctx, messages, opts)
+	}
+	if err != nil {
+		return resp, err
+	}
+
+	if err = llms.CheckTruncation(resp, opts); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
 }
 
 // generateContentWithConverseAPI uses the unified Converse API
@@ -137,6 +153,7 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 		ModelID:          opts.GetModel(),
 		Messages:         m,
 		Tools:            opts.Tools,
+		ToolChoice:       opts.ToolChoice,
 		StreamingFunc:    opts.StreamingFunc,
 		ReasoningConfig:  opts.Reasoning,
 		EnableCaching:    enableCaching,
@@ -363,3 +380,7 @@ func (l *LLM) supportsCaching(modelID string) bool {
 }
 
 var _ llms.Model = (*LLM)(nil)
+
+func checkAnthropicTurnLimits(opts *llms.CallOptions, messages []llms.MessageContent) error {
+	return llms.CheckClaudeTurnLimits(opts.GetModel(), *opts, messages)
+}

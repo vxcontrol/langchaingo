@@ -64,6 +64,32 @@ func TestConvertJSONSchemaToVertex(t *testing.T) { //nolint:funlen // table-driv
 		}
 	})
 
+	t.Run("both nullable spellings reach the schema", func(t *testing.T) {
+		t.Parallel()
+		for _, raw := range []string{
+			`{"type":["string","null"]}`,
+			`{"type":"string","nullable":true}`,
+		} {
+			schema, err := convertJSONSchemaToVertex(json.RawMessage(raw))
+			if err != nil {
+				t.Fatalf("%s: unexpected error: %v", raw, err)
+			}
+			if schema.Type != genai.TypeString {
+				t.Errorf("%s: type = %v, want string", raw, schema.Type)
+			}
+			if !schema.Nullable {
+				t.Errorf("%s: Nullable = false, want true", raw)
+			}
+		}
+	})
+
+	t.Run("nullable must be a boolean", func(t *testing.T) {
+		t.Parallel()
+		if _, err := convertJSONSchemaToVertex(json.RawMessage(`{"type":"string","nullable":"yes"}`)); err == nil {
+			t.Error("want an error for a non-boolean nullable, got nil")
+		}
+	})
+
 	t.Run("string constraints are preserved", func(t *testing.T) {
 		t.Parallel()
 		schema, err := convertJSONSchemaToVertex(json.RawMessage(`{"type":"string","minLength":2,"maxLength":8,"pattern":"^[a-z]+$"}`))
@@ -128,12 +154,12 @@ func TestConvertJSONSchemaToVertex(t *testing.T) { //nolint:funlen // table-driv
 	})
 
 	unrepresentable := map[string]string{
-		"$ref":                      `{"$ref":"#/x"}`,
-		"anyOf":                     `{"anyOf":[{"type":"string"}]}`,
-		"oneOf":                     `{"oneOf":[{"type":"string"}]}`,
-		"const":                     `{"const":"x"}`,
-		"additionalProperties true": `{"type":"object","properties":{"a":{"type":"string"}},"additionalProperties":true}`,
-		"union type":                `{"type":["string","number"]}`,
+		"$ref":                               `{"$ref":"#/x"}`,
+		"anyOf":                              `{"anyOf":[{"type":"string"}]}`,
+		"oneOf":                              `{"oneOf":[{"type":"string"}]}`,
+		"const":                              `{"const":"x"}`,
+		"schema-valued additionalProperties": `{"type":"object","properties":{"a":{"type":"string"}},"additionalProperties":{"type":"string"}}`,
+		"union type":                         `{"type":["string","number"]}`,
 	}
 	for name, raw := range unrepresentable {
 		t.Run("rejects "+name, func(t *testing.T) {
@@ -142,6 +168,23 @@ func TestConvertJSONSchemaToVertex(t *testing.T) { //nolint:funlen // table-driv
 			var unsup *llms.ErrStructuredOutputUnsupported
 			if !errors.As(err, &unsup) {
 				t.Fatalf("want ErrStructuredOutputUnsupported, got %v", err)
+			}
+		})
+	}
+
+	for name, raw := range map[string]string{
+		"absent":                     `{"type":"object","properties":{"a":{"type":"string"}}}`,
+		"additionalProperties false": `{"type":"object","properties":{"a":{"type":"string"}},"additionalProperties":false}`,
+		"additionalProperties true":  `{"type":"object","properties":{"a":{"type":"string"}},"additionalProperties":true}`,
+	} {
+		t.Run("accepts "+name, func(t *testing.T) {
+			t.Parallel()
+			got, err := convertJSONSchemaToVertex(json.RawMessage(raw))
+			if err != nil {
+				t.Fatalf("an explicit boolean says no more than its absence does: %v", err)
+			}
+			if got == nil {
+				t.Fatal("want a schema")
 			}
 		})
 	}
@@ -196,7 +239,7 @@ func TestValidateVertexStructuredOutput(t *testing.T) {
 		JSONMode:         true,
 		StructuredOutput: &llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(`{"type":"object","properties":{"a":{"type":"string"}},"required":["a"],"additionalProperties":false}`)},
 	}
-	stop := genai.FinishReasonStop.String()
+	stop := "STOP"
 
 	if err := validateVertexStructuredOutput(opts, &llms.ContentResponse{Choices: []*llms.ContentChoice{{Content: `{"a":"ok"}`, StopReason: stop}}}); err != nil {
 		t.Errorf("valid STOP must pass: %v", err)
@@ -206,5 +249,39 @@ func TestValidateVertexStructuredOutput(t *testing.T) {
 	var ve *llms.ErrStructuredOutputValidation
 	if !errors.As(err, &ve) {
 		t.Errorf("invalid STOP must fail typed: %v", err)
+	}
+
+	toolTurn := &llms.ContentChoice{
+		Content:    "",
+		StopReason: stop,
+		ToolCalls: []llms.ToolCall{{
+			ID:           "call_1",
+			Type:         "function",
+			FunctionCall: &llms.FunctionCall{Name: "getWeather", Arguments: `{"city":"Paris"}`},
+		}},
+	}
+	if err := validateVertexStructuredOutput(opts, &llms.ContentResponse{Choices: []*llms.ContentChoice{toolTurn}}); err != nil {
+		t.Errorf("a STOP turn carrying tool calls must not be validated as JSON: %v", err)
+	}
+}
+
+func TestValidateVertexStructuredOutputOnConvertedResponse(t *testing.T) {
+	t.Parallel()
+	opts := &llms.CallOptions{
+		JSONMode:         true,
+		StructuredOutput: &llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(`{"type":"object","properties":{"a":{"type":"string"}},"required":["a"],"additionalProperties":false}`)},
+	}
+
+	resp, err := convertCandidates([]*genai.Candidate{{
+		Content:      &genai.Content{Parts: []genai.Part{genai.Text(`{"a":1}`)}},
+		FinishReason: genai.FinishReasonStop,
+	}}, nil)
+	if err != nil {
+		t.Fatalf("convertCandidates: %v", err)
+	}
+
+	var ve *llms.ErrStructuredOutputValidation
+	if got := validateVertexStructuredOutput(opts, resp); !errors.As(got, &ve) {
+		t.Errorf("schema violation on a converted STOP turn must fail typed, got %v", got)
 	}
 }

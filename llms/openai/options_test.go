@@ -373,8 +373,6 @@ func TestQwenSamplingReachesWireVerbatim(t *testing.T) { //nolint:funlen // thre
 // default the client substitutes on the wire — not off an empty model. Otherwise
 // WithReasoningDisabled() on a zero-config client is a silent no-op.
 func TestZeroConfigReasoningDisabledUsesDefaultModel(t *testing.T) {
-	// Ensure no ambient model is configured so the client falls through to the
-	// package default (cannot use t.Parallel with t.Setenv).
 	t.Setenv("OPENAI_MODEL", "")
 
 	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
@@ -405,5 +403,53 @@ func TestZeroConfigReasoningDisabledUsesDefaultModel(t *testing.T) {
 	if !strings.Contains(body, `"reasoning_effort":"none"`) {
 		t.Fatalf("zero-config disable must send the disable wire for %s, got body: %s",
 			openaiclient.DefaultChatModel, body)
+	}
+}
+
+func TestZeroConfigTemperaturePinUsesDefaultModel(t *testing.T) {
+	t.Setenv("OPENAI_MODEL", "")
+
+	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
+		`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],` +
+		`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`
+
+	capture := func(t *testing.T, opts ...Option) string {
+		t.Helper()
+		var body string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b, _ := io.ReadAll(r.Body)
+			body = string(b)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, completion)
+		}))
+		defer srv.Close()
+
+		llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test")}, opts...)...)
+		if err != nil {
+			t.Fatalf("New() error: %v", err)
+		}
+		if _, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithTemperature(0.2)); err != nil {
+			t.Fatalf("GenerateContent() error: %v", err)
+		}
+		return body
+	}
+
+	// The pin must read the client's model, which no per-call option supplies.
+	clientModel := capture(t, WithModel("gpt-5.5"))
+	if !strings.Contains(clientModel, `"temperature":1`) {
+		t.Errorf("gpt-5.5 only accepts the default temperature, got body: %s", clientModel)
+	}
+
+	zeroConfig := capture(t)
+	if !strings.Contains(zeroConfig, `"temperature":0.2`) {
+		t.Errorf("%s takes the caller temperature, got body: %s",
+			openaiclient.DefaultChatModel, zeroConfig)
+	}
+
+	plain := capture(t, WithModel("gpt-4.1-mini"))
+	if !strings.Contains(plain, `"temperature":0.2`) {
+		t.Errorf("a non-reasoning model must keep the caller temperature, got body: %s", plain)
 	}
 }

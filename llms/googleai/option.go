@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 
 	"cloud.google.com/go/vertexai/genai"
 	"google.golang.org/api/option"
@@ -28,6 +29,14 @@ type Options struct {
 	HTTPClient            *http.Client
 
 	ClientOptions []option.ClientOption
+
+	BaseURL string
+
+	unhonoredOnREST []string
+
+	// Set by WithDefaultTemperature; writing DefaultTemperature directly leaves
+	// it false and lets the Gemini 3 recommendation win.
+	temperatureFromCaller bool
 }
 
 func DefaultOptions() Options {
@@ -37,7 +46,7 @@ func DefaultOptions() Options {
 		DefaultModel:          "gemini-2.5-flash",
 		DefaultEmbeddingModel: "gemini-embedding-001",
 		DefaultCandidateCount: 1,
-		DefaultMaxTokens:      2048,
+		DefaultMaxTokens:      llms.DefaultMaxTokens,
 		DefaultTemperature:    0.5,
 		DefaultTopK:           3,
 		DefaultTopP:           0.95,
@@ -73,6 +82,7 @@ func WithCredentialsJSON(credentialsJSON []byte) Option {
 		if len(credentialsJSON) == 0 {
 			return
 		}
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithCredentialsJSON")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsJSON(credentialsJSON))
 	}
 }
@@ -85,6 +95,7 @@ func WithCredentialsFile(credentialsFile string) Option {
 		if credentialsFile == "" {
 			return
 		}
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithCredentialsFile")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsFile(credentialsFile))
 	}
 }
@@ -101,6 +112,7 @@ func WithRest() Option {
 // This is useful for gemini clients.
 func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 	return func(opts *Options) {
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCClient")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(grpcClient))
 	}
 }
@@ -110,6 +122,7 @@ func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 // This is useful for gemini clients.
 func WithEndpoint(endpoint string) Option {
 	return func(opts *Options) {
+		opts.BaseURL = endpoint
 		opts.ClientOptions = append(opts.ClientOptions, option.WithEndpoint(endpoint))
 	}
 }
@@ -129,6 +142,7 @@ func WithHTTPClient(httpClient *http.Client) Option {
 // This is useful for testing embeddings in vertex clients.
 func WithGRPCConn(conn *grpc.ClientConn) Option {
 	return func(opts *Options) {
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCConn")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(conn))
 	}
 }
@@ -179,10 +193,12 @@ func WithDefaultMaxTokens(maxTokens int) Option {
 	}
 }
 
-// WithDefaultTemperature sets the maximum token count for the model.
+// WithDefaultTemperature sets the sampling temperature used when a call does not
+// set one of its own.
 func WithDefaultTemperature(defaultTemperature float64) Option {
 	return func(opts *Options) {
 		opts.DefaultTemperature = defaultTemperature
+		opts.temperatureFromCaller = true
 	}
 }
 
@@ -234,6 +250,14 @@ const (
 	// HarmBlockNone means all content will be allowed.
 	HarmBlockNone HarmBlockThreshold = "BLOCK_NONE"
 )
+
+// ResolveTemperature reports the temperature to send when the caller set none.
+func (o Options) ResolveTemperature(model string) float64 {
+	if !o.temperatureFromCaller && reasoning.GeminiUsesThinkingLevel(model) {
+		return 1.0
+	}
+	return o.DefaultTemperature
+}
 
 // helper to inspect incoming client options for auth options.
 func hasAuthOptions(opts []option.ClientOption) bool {

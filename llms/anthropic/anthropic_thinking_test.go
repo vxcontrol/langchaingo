@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
@@ -850,16 +852,29 @@ func TestAnthropic_AdaptiveThinkingRequest(t *testing.T) {
 		assert.Equal(t, "high", outputConfig["effort"])
 	})
 
-	t.Run("xhigh effort flows through to output_config", func(t *testing.T) {
+	t.Run("xhigh flows through where the generation takes it", func(t *testing.T) {
 		t.Parallel()
 
-		payload, _ := captureMessagesRequest(t,
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-4-7",
 			llms.WithAdaptiveReasoning(llms.ReasoningXHigh),
 			llms.WithMaxTokens(4096),
 		)
 
 		outputConfig, _ := payload["output_config"].(map[string]any)
 		assert.Equal(t, "xhigh", outputConfig["effort"])
+	})
+
+	t.Run("xhigh is lowered where the generation does not", func(t *testing.T) {
+		t.Parallel()
+
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-4-6",
+			llms.WithAdaptiveReasoning(llms.ReasoningXHigh),
+			llms.WithMaxTokens(4096),
+		)
+
+		outputConfig, _ := payload["output_config"].(map[string]any)
+		assert.Equal(t, "high", outputConfig["effort"],
+			"xhigh must step down to the highest level below it, not up to max")
 	})
 }
 
@@ -895,19 +910,49 @@ func TestAnthropic_BudgetThinkingRequest(t *testing.T) {
 	_, hasDisplay := thinking["display"]
 	assert.False(t, hasDisplay, "budget thinking has no display field")
 
-	_, hasOutputConfig := payload["output_config"]
-	assert.False(t, hasOutputConfig, "budget thinking has no output_config")
+	outputConfig, _ := payload["output_config"].(map[string]any)
+	assert.Equal(t, "medium", outputConfig["effort"],
+		"Opus 4.6 accepts an effort alongside its budget")
 
-	// Budget thinking pins temperature to 1.0 and drops top_p — the API rejects
-	// temperature and top_p together.
 	assert.EqualValues(t, 1.0, payload["temperature"])
 	_, hasTopP := payload["top_p"]
 	assert.False(t, hasTopP, "budget thinking must drop top_p")
 	assert.EqualValues(t, 4096, payload["max_tokens"]) // max(budget*2, maxTokens)
 }
 
-// Haiku 4.5 rejects temperature and top_p together; without thinking the SDK must
-// send at most one (keeping temperature) rather than both.
+func TestAnthropic_AnswerLimitSurvivesInterleavedThinking(t *testing.T) {
+	t.Parallel()
+
+	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "get_weather", Description: "weather",
+		Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}
+	budgeted := func(extra ...llms.CallOption) []llms.CallOption {
+		return append([]llms.CallOption{llms.WithReasoning("", 4096), llms.WithMaxTokens(512)}, extra...)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		opts     []llms.CallOption
+		wantBeta bool
+		want     float64
+	}{
+		{"tools put the beta on the wire", budgeted(llms.WithTools([]llms.Tool{tool})), true, 512},
+		{"the caller asks for interleaving without tools", budgeted(anthropic.WithInterleavedThinking()), true, 512},
+		{"no interleaving, the vendor checks the pair", budgeted(), false, 2048},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			payload, header := captureMessagesRequestModel(t, "claude-sonnet-4-5", tc.opts...)
+			gotBeta := strings.Contains(header.Get("anthropic-beta"), "interleaved-thinking-2025-05-14")
+			require.Equal(t, tc.wantBeta, gotBeta, "beta header: %q", header.Get("anthropic-beta"))
+			require.Equal(t, float64(1024), payload["thinking"].(map[string]any)["budget_tokens"])
+			require.Equal(t, tc.want, payload["max_tokens"])
+		})
+	}
+}
+
 func TestAnthropic_Haiku45MutuallyExclusiveSampling(t *testing.T) {
 	t.Parallel()
 
@@ -922,8 +967,6 @@ func TestAnthropic_Haiku45MutuallyExclusiveSampling(t *testing.T) {
 	assert.False(t, hasTopP, "Haiku 4.5 must not send top_p together with temperature")
 }
 
-// Opus 4.5 uses budget thinking but also honors effort, so the budget path must
-// carry output_config.effort instead of dropping it.
 func TestAnthropic_BudgetEffortForOpus45(t *testing.T) {
 	t.Parallel()
 
@@ -999,4 +1042,436 @@ func TestAnthropic_InterleavedThinkingBetaHeader(t *testing.T) {
 		)
 		assert.NotContains(t, header.Get("anthropic-beta"), "interleaved-thinking")
 	})
+}
+
+func captureAssistantReplay(t *testing.T, parts []llms.ContentPart) []any {
+	t.Helper()
+
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"claude-sonnet-5",` +
+			`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(
+		anthropic.WithToken("test-key"),
+		anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-sonnet-5"),
+	)
+	require.NoError(t, err)
+
+	messages := []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
+		{Role: llms.ChatMessageTypeAI, Parts: parts},
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("continue")}},
+	}
+	_, err = llm.GenerateContent(t.Context(), messages)
+	require.NoError(t, err)
+
+	var payload struct {
+		Messages []struct {
+			Content []any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(body, &payload))
+	require.Len(t, payload.Messages, 3)
+	return payload.Messages[1].Content
+}
+
+func thinkingBlocks(blocks []any) []map[string]any {
+	var out []map[string]any
+	for _, b := range blocks {
+		if m, ok := b.(map[string]any); ok && m["type"] == "thinking" {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func TestAnthropic_AssistantPrefill(t *testing.T) {
+	t.Parallel()
+
+	prefilled := []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPart("The answer is")}},
+	}
+
+	newLLM := func(t *testing.T, model string) (*anthropic.LLM, *atomic.Int32) {
+		t.Helper()
+		var hits atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"` + model + `",` +
+				`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn",` +
+				`"usage":{"input_tokens":1,"output_tokens":1}}`))
+		}))
+		t.Cleanup(srv.Close)
+
+		llm, err := anthropic.New(
+			anthropic.WithToken("test-key"),
+			anthropic.WithBaseURL(srv.URL),
+			anthropic.WithModel(model),
+		)
+		require.NoError(t, err)
+		return llm, &hits
+	}
+
+	t.Run("rejected on 4.6 and later without a round trip", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-opus-4-6")
+		_, err := llm.GenerateContent(t.Context(), prefilled)
+
+		var unsupported *anthropic.ErrAssistantPrefillUnsupported
+		require.ErrorAs(t, err, &unsupported)
+		require.Equal(t, "claude-opus-4-6", unsupported.Model)
+		require.Zero(t, hits.Load(), "the request must not be sent")
+	})
+
+	t.Run("still allowed on the 4.5 generation", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-4-5")
+		_, err := llm.GenerateContent(t.Context(), prefilled)
+
+		require.NoError(t, err)
+		require.Equal(t, int32(1), hits.Load())
+	})
+
+	t.Run("a trailing user turn is untouched on 4.6 and later", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-5")
+		_, err := llm.GenerateContent(t.Context(), []llms.MessageContent{
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPart("earlier turn")}},
+			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
+		})
+
+		require.NoError(t, err)
+		require.Equal(t, int32(1), hits.Load())
+	})
+}
+
+func TestAnthropic_ForcedToolChoiceWithBudgetThinking(t *testing.T) {
+	t.Parallel()
+
+	tools := []llms.Tool{{
+		Type: "function",
+		Function: &llms.FunctionDefinition{
+			Name:       "get_weather",
+			Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+		},
+	}}
+	messages := []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("weather?")}},
+	}
+
+	newLLM := func(t *testing.T, model string) (*anthropic.LLM, *atomic.Int32) {
+		t.Helper()
+		var hits atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"` + model + `",` +
+				`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn",` +
+				`"usage":{"input_tokens":1,"output_tokens":1}}`))
+		}))
+		t.Cleanup(srv.Close)
+
+		llm, err := anthropic.New(
+			anthropic.WithToken("test-key"),
+			anthropic.WithBaseURL(srv.URL),
+			anthropic.WithModel(model),
+		)
+		require.NoError(t, err)
+		return llm, &hits
+	}
+
+	t.Run("budget thinking rejects a forced tool choice without a round trip", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-4-5")
+		_, err := llm.GenerateContent(t.Context(), messages,
+			llms.WithReasoning(llms.ReasoningMedium, 0),
+			llms.WithTools(tools),
+			llms.WithToolChoice(map[string]any{"type": "any"}),
+		)
+
+		var conflict *anthropic.ErrForcedToolUseWithThinking
+		require.ErrorAs(t, err, &conflict)
+		require.Equal(t, "claude-sonnet-4-5", conflict.Model)
+		require.Zero(t, hits.Load(), "the request must not be sent")
+	})
+
+	t.Run("adaptive thinking allows a forced tool choice", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-5")
+		_, err := llm.GenerateContent(t.Context(), messages,
+			llms.WithReasoning(llms.ReasoningMedium, 0),
+			llms.WithTools(tools),
+			llms.WithToolChoice(map[string]any{"type": "tool", "name": "get_weather"}),
+		)
+
+		require.NoError(t, err)
+		require.Equal(t, int32(1), hits.Load())
+	})
+
+	t.Run("budget thinking allows auto", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-4-5")
+		_, err := llm.GenerateContent(t.Context(), messages,
+			llms.WithReasoning(llms.ReasoningMedium, 0),
+			llms.WithTools(tools),
+			llms.WithToolChoice(map[string]any{"type": "auto"}),
+		)
+
+		require.NoError(t, err)
+		require.Equal(t, int32(1), hits.Load())
+	})
+}
+
+func TestAnthropic_OmittedThinkingResponseKeepsSignature(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"claude-sonnet-5",` +
+			`"content":[{"type":"thinking","thinking":"","signature":"sig-only"},{"type":"text","text":"ok"}],` +
+			`"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(
+		anthropic.WithToken("test-key"),
+		anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-sonnet-5"),
+	)
+	require.NoError(t, err)
+
+	resp, err := llm.GenerateContent(t.Context(), []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+	require.NotNil(t, resp.Choices[0].Reasoning,
+		"a block with an empty thinking field still carries the signature the next turn must replay")
+	require.Equal(t, "sig-only", string(resp.Choices[0].Reasoning.Signature))
+	require.Empty(t, resp.Choices[0].Reasoning.Content)
+}
+
+func TestAnthropic_ThinkingReplayNeverOmitsRequiredField(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a block carrying only a signature keeps the required field", func(t *testing.T) {
+		t.Parallel()
+
+		blocks := captureAssistantReplay(t, []llms.ContentPart{
+			llms.TextContent{
+				Text:      "answer",
+				Reasoning: &reasoning.ContentReasoning{Signature: []byte("sig-only")},
+			},
+		})
+
+		emitted := thinkingBlocks(blocks)
+		require.Len(t, emitted, 1)
+		require.Contains(t, emitted[0], "thinking",
+			"the thinking field is required even when the model returned no text for it")
+		require.Equal(t, "", emitted[0]["thinking"])
+		require.Equal(t, "sig-only", emitted[0]["signature"])
+	})
+
+	t.Run("every thinking block of the turn is replayed in order", func(t *testing.T) {
+		t.Parallel()
+
+		blocks := captureAssistantReplay(t, []llms.ContentPart{
+			llms.TextContent{
+				Reasoning: &reasoning.ContentReasoning{Signature: []byte("sig-only")},
+			},
+			llms.TextContent{
+				Text:      "answer",
+				Reasoning: &reasoning.ContentReasoning{Content: "real thinking", Signature: []byte("sig")},
+			},
+		})
+
+		emitted := thinkingBlocks(blocks)
+		require.Len(t, emitted, 2)
+		require.Equal(t, "", emitted[0]["thinking"])
+		require.Equal(t, "sig-only", emitted[0]["signature"])
+		require.Equal(t, "real thinking", emitted[1]["thinking"])
+
+		require.Len(t, blocks, 3)
+		last, ok := blocks[2].(map[string]any)
+		require.True(t, ok)
+		require.Equal(t, "text", last["type"])
+	})
+
+	t.Run("thinking text always reaches the wire", func(t *testing.T) {
+		t.Parallel()
+
+		blocks := captureAssistantReplay(t, []llms.ContentPart{
+			llms.TextContent{
+				Text:      "answer",
+				Reasoning: &reasoning.ContentReasoning{Content: "step one", Signature: []byte("sig")},
+			},
+		})
+
+		emitted := thinkingBlocks(blocks)
+		require.Len(t, emitted, 1)
+		require.Equal(t, "step one", emitted[0]["thinking"])
+		require.Equal(t, "sig", emitted[0]["signature"])
+	})
+}
+
+func TestBudgetThinkingDoesNotPinTemperatureOnAModelThatRejectsIt(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a model that rejects sampling gets no temperature", func(t *testing.T) {
+		t.Parallel()
+		payload, _ := captureMessagesRequestModel(t, "claude-mythos-preview",
+			llms.WithReasoning(llms.ReasoningMedium, 2048))
+
+		thinking, ok := payload["thinking"].(map[string]any)
+		require.True(t, ok, "budget thinking must reach the wire, got %v", payload)
+		require.Equal(t, "enabled", thinking["type"])
+		require.NotContains(t, payload, "temperature",
+			"a model listed as rejecting sampling must not be sent temperature, got %v", payload)
+	})
+
+	t.Run("a model that accepts sampling still gets the required pin", func(t *testing.T) {
+		t.Parallel()
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-4-6",
+			llms.WithReasoning(llms.ReasoningMedium, 2048))
+
+		thinking, ok := payload["thinking"].(map[string]any)
+		require.True(t, ok, "budget thinking must reach the wire, got %v", payload)
+		require.Equal(t, "enabled", thinking["type"])
+		require.InDelta(t, 1.0, payload["temperature"], 0.0001)
+	})
+}
+
+func TestUnversionedAliasRunsItsTiersMechanism(t *testing.T) {
+	t.Parallel()
+
+	t.Run("an adaptive tier alias runs adaptive thinking", func(t *testing.T) {
+		t.Parallel()
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-latest",
+			llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithTemperature(0.3))
+
+		thinking, ok := payload["thinking"].(map[string]any)
+		require.True(t, ok, "thinking must reach the wire, got %v", payload)
+		require.Equal(t, "adaptive", thinking["type"])
+		require.NotContains(t, payload, "temperature",
+			"an adaptive-only model must not be sent temperature, got %v", payload)
+	})
+
+	t.Run("a budget tier alias keeps budget thinking", func(t *testing.T) {
+		t.Parallel()
+		payload, _ := captureMessagesRequestModel(t, "claude-haiku-latest",
+			llms.WithReasoning(llms.ReasoningHigh, 2048))
+
+		thinking, ok := payload["thinking"].(map[string]any)
+		require.True(t, ok, "thinking must reach the wire, got %v", payload)
+		require.Equal(t, "enabled", thinking["type"])
+	})
+}
+
+func TestTopKReachesTheWireAndYieldsToThinking(t *testing.T) {
+	t.Parallel()
+
+	t.Run("plain request carries it", func(t *testing.T) {
+		t.Parallel()
+
+		body, _ := captureMessagesRequestModel(t, "claude-sonnet-4-5", llms.WithTopK(20))
+		if body["top_k"] != float64(20) {
+			t.Fatalf("top_k must reach the wire, got body: %v", body)
+		}
+	})
+
+	t.Run("thinking unsets it", func(t *testing.T) {
+		t.Parallel()
+
+		body, _ := captureMessagesRequestModel(t, "claude-sonnet-4-5",
+			llms.WithTopK(20), llms.WithReasoning(llms.ReasoningNone, 1100))
+		if _, ok := body["top_k"]; ok {
+			t.Fatalf("the vendor answers `top_k` must be unset when thinking is enabled; got body: %v", body)
+		}
+	})
+
+	t.Run("adaptive thinking unsets it too", func(t *testing.T) {
+		t.Parallel()
+
+		body, _ := captureMessagesRequestModel(t, "claude-sonnet-5",
+			llms.WithTopK(20), llms.WithReasoning(llms.ReasoningHigh, 0))
+		if _, ok := body["top_k"]; ok {
+			t.Fatalf("adaptive thinking is thinking, so top_k must stay off the wire; got body: %v", body)
+		}
+	})
+
+	t.Run("a model that rejects sampling never gets it", func(t *testing.T) {
+		t.Parallel()
+
+		body, _ := captureMessagesRequestModel(t, "claude-sonnet-5", llms.WithTopK(20))
+		if _, ok := body["top_k"]; ok {
+			t.Fatalf("claude-sonnet-5 rejects sampling params, got body: %v", body)
+		}
+	})
+}
+
+func TestFastModeTravelsWithItsBetaHeader(t *testing.T) {
+	t.Parallel()
+
+	t.Run("asked", func(t *testing.T) {
+		t.Parallel()
+
+		body, header := captureMessagesRequestModel(t, "claude-opus-5", llms.WithInferenceSpeed("fast"))
+		if body["speed"] != "fast" {
+			t.Fatalf("the speed field must reach the wire, got body: %v", body)
+		}
+		if !strings.Contains(header.Get("Anthropic-Beta"), "fast-mode-2026-02-01") {
+			t.Fatalf("the beta header must ride along, got: %q", header.Get("Anthropic-Beta"))
+		}
+	})
+
+	t.Run("not asked", func(t *testing.T) {
+		t.Parallel()
+
+		body, header := captureMessagesRequestModel(t, "claude-opus-5")
+		if _, ok := body["speed"]; ok {
+			t.Fatalf("an unset speed must stay off the wire, got body: %v", body)
+		}
+		if strings.Contains(header.Get("Anthropic-Beta"), "fast-mode") {
+			t.Fatalf("the beta header must stay off too, got: %q", header.Get("Anthropic-Beta"))
+		}
+	})
+}
+
+func TestTheServedSpeedReachesTheCaller(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"msg_test","type":"message","role":"assistant",` +
+			`"model":"claude-opus-5","content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn",` +
+			`"usage":{"input_tokens":1,"output_tokens":1,"speed":"standard"}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("test-key"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-4-6"))
+	require.NoError(t, err)
+
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}}},
+		llms.WithInferenceSpeed("fast"))
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+
+	assert.Equal(t, "standard", resp.Choices[0].GenerationInfo["InferenceSpeed"],
+		"a model that quietly serves the standard speed must be visible to the caller")
 }

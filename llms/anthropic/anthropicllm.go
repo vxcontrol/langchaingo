@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,33 +31,8 @@ var (
 	ErrUnsupportedContentType   = errors.New("unsupported content type")
 )
 
-// ErrModelRefusal is returned when the model declines to respond (Anthropic
-// stop_reason "refusal"), e.g. a creative model such as Claude Fable 5 hitting a
-// content boundary. It is distinct from an empty or failed response; any refusal
-// text the model returned is in Message. Category and Explanation carry the API's
-// stop_details so callers can pick a fallback by classifier; InputTokens and
-// OutputTokens preserve billed usage (a refusal is still billed for what ran).
-type ErrModelRefusal struct {
-	Message      string
-	Category     string
-	Explanation  string
-	InputTokens  int
-	OutputTokens int
-}
-
-func (e *ErrModelRefusal) Error() string {
-	msg := "anthropic: model refused to respond"
-	if e.Category != "" {
-		msg += " (" + e.Category + ")"
-	}
-	if e.Explanation != "" {
-		msg += " (" + e.Explanation + ")"
-	}
-	if e.Message != "" {
-		msg += ": " + e.Message
-	}
-	return msg
-}
+// ErrModelRefusal is the shared refusal error, aliased for callers of this door.
+type ErrModelRefusal = llms.ErrModelRefusal
 
 const (
 	RoleUser      = "user"
@@ -96,15 +72,20 @@ func New(opts ...Option) (*LLM, error) {
 }
 
 func newClientFromOptions(options *options) (*anthropicclient.Client, error) {
-	if len(options.token) == 0 {
+	if options.federation == nil && len(options.token) == 0 {
 		return nil, ErrMissingToken
 	}
 
-	return anthropicclient.New(options.token, options.model, options.baseURL,
+	clientOptions := []anthropicclient.Option{
 		anthropicclient.WithHTTPClient(options.httpClient),
 		anthropicclient.WithLegacyTextCompletionsAPI(options.useLegacyTextCompletionsAPI),
 		anthropicclient.WithAnthropicBetaHeader(options.anthropicBetaHeader),
-	)
+	}
+	if options.federation != nil {
+		clientOptions = append(clientOptions, anthropicclient.WithFederation(*options.federation))
+	}
+
+	return anthropicclient.New(options.token, options.model, options.baseURL, clientOptions...)
 }
 
 // Call requests a completion for the given prompt.
@@ -171,14 +152,23 @@ func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.Mes
 	resp := &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{
 			{
-				Content: result.Text,
+				Content:    result.Text,
+				StopReason: result.StopReason,
+				Truncated:  llms.IsTruncated(result.StopReason),
 			},
 		},
+	}
+	if err := llms.CheckTruncation(resp, *opts); err != nil {
+		return resp, err
 	}
 	return resp, nil
 }
 
 func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) { //nolint:lll,funlen,cyclop
+	if err := opts.ValidateReasoning(); err != nil {
+		return nil, err
+	}
+
 	chatMessages, systemPrompt, err := processMessages(messages)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
@@ -203,19 +193,25 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 				Display: "summarized",
 			}
 			outputConfig = &anthropicclient.OutputConfig{
-				Effort: string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
+				Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))),
 			}
-		} else {
+		} else if budget := reasoning.ClaudeClampBudget(model,
+			opts.Reasoning.GetTokens(opts.GetMaxTokens())); budget > 0 {
 			thinking = &anthropicclient.ThinkingPayload{
 				Type:   "enabled",
-				Budget: opts.Reasoning.GetTokens(opts.GetMaxTokens()),
+				Budget: budget,
 			}
 			// Some budget-thinking models (Opus 4.5) also honor effort; without this
 			// the caller's effort is silently dropped on the budget path.
-			if reasoning.ClaudeSupportsEffortWithBudget(model) {
+			if reasoning.ClaudeSupportsEffortWithBudget(model, reasoning.ProviderAnthropic) {
 				outputConfig = &anthropicclient.OutputConfig{
-					Effort: string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
+					Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))),
 				}
+			}
+		} else {
+			return nil, &reasoning.ErrEffortHasNoBudget{
+				Model:  model,
+				Effort: string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
 			}
 		}
 	case llms.ReasoningOff:
@@ -225,6 +221,14 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
+	}
+
+	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) {
+		return nil, &ErrForcedToolUseWithThinking{Model: model}
+	}
+
+	if reasoning.ClaudeRejectsAssistantPrefill(model) && llms.HasAssistantPrefill(messages) {
+		return nil, &ErrAssistantPrefillUnsupported{Model: model}
 	}
 
 	// Structured output rides in output_config.format, merged with any effort set
@@ -261,25 +265,34 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 	}
 
-	// Thinking constrains sampling params: the API rejects temperature and top_p
-	// together, and requires temperature=1.0 with budget thinking. So pin
-	// temperature and drop top_p for budget; drop both for adaptive (which
-	// rejects sampling params outright).
-	temperature, topP, maxTokens := opts.Temperature, opts.TopP, opts.GetMaxTokens()
+	temperature, topP, topK, maxTokens := opts.Temperature, opts.TopP, opts.TopK, opts.GetMaxTokens()
 	switch {
 	case thinking != nil && thinking.Type == "adaptive":
 		temperature = nil
 		topP = nil
+		topK = nil
 	case thinking != nil && thinking.Type == "enabled" && thinking.Budget > 0:
-		temperature = getFloatPointer(1.0)
-		topP = nil
-		maxTokens = max(thinking.Budget*2, maxTokens) // 2x the budget for thinking
+		keepTopP := topP != nil && opts.Temperature == nil &&
+			reasoning.ClaudeKeepsTopPWhileThinking(model, *topP)
+		switch {
+		case reasoning.ClaudeRejectsSampling(model), keepTopP:
+			temperature = nil
+		default:
+			temperature = getFloatPointer(1.0)
+		}
+		if !keepTopP {
+			topP = nil
+		}
+		topK = nil
+		if !slices.Contains(betaHeaders, anthropicInterleavedThinkingBeta) {
+			maxTokens = reasoning.ClaudeMaxTokensForBudget(thinking.Budget, maxTokens)
+		}
 	case reasoning.ClaudeRejectsSampling(model):
 		// Adaptive-only models reject sampling params even without thinking.
 		temperature = nil
 		topP = nil
+		topK = nil
 	case reasoning.ClaudeMutuallyExclusiveSampling(model) && temperature != nil && topP != nil:
-		// Haiku 4.5 rejects temperature and top_p together; keep temperature.
 		topP = nil
 	}
 
@@ -291,8 +304,10 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		StopWords:     opts.StopWords,
 		Temperature:   temperature,
 		TopP:          topP,
+		TopK:          topK,
+		Speed:         opts.InferenceSpeed,
 		Tools:         tools,
-		ToolChoice:    opts.ToolChoice,
+		ToolChoice:    anthropicToolChoice(opts.ToolChoice),
 		Thinking:      thinking,
 		OutputConfig:  outputConfig,
 		BetaHeaders:   betaHeaders,
@@ -300,11 +315,22 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	})
 	if err != nil {
 		// The closing callback is emitted once by GenerateContent's deferred handler.
-		return nil, fmt.Errorf("anthropic: failed to create message: %w", err)
+		wrapped := fmt.Errorf("anthropic: failed to create message: %w", err)
+		if result == nil {
+			return nil, wrapped
+		}
+		partial, buildErr := processAnthropicResponse(result)
+		if buildErr != nil {
+			return nil, wrapped
+		}
+		return partial, wrapped
 	}
 	response, err := processAnthropicResponse(result)
 	if err != nil {
-		return nil, err
+		return response, err
+	}
+	if err := llms.CheckTruncation(response, *opts); err != nil {
+		return response, err
 	}
 	// When structured output was requested, validate the final text against the
 	// original schema. The response is returned alongside the typed error so the
@@ -326,27 +352,28 @@ func anthropicTextContent(contents []anthropicclient.Content) string {
 	return b.String()
 }
 
+func anthropicRefusal(result *anthropicclient.MessageResponsePayload) *ErrModelRefusal {
+	refusal := &ErrModelRefusal{
+		Provider:                 "anthropic",
+		Message:                  anthropicTextContent(result.Content),
+		InputTokens:              result.Usage.InputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
+		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
+	}
+	if result.StopDetails != nil {
+		refusal.Category = result.StopDetails.Category
+		refusal.Explanation = result.StopDetails.Explanation
+	}
+	return refusal
+}
+
 // processAnthropicResponse converts Anthropic API response to standard ContentResponse
 func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*llms.ContentResponse, error) {
 	if result == nil {
 		return nil, ErrEmptyResponse
 	}
-	// A refusal is a distinct outcome from an empty/failed response: surface it as a
-	// typed error carrying any text the model returned, so callers can tell "the
-	// model declined" from "no response" (an empty refusal would otherwise look empty).
-	if result.StopReason == "refusal" {
-		refusal := &ErrModelRefusal{
-			Message:      anthropicTextContent(result.Content),
-			InputTokens:  result.Usage.InputTokens,
-			OutputTokens: result.Usage.OutputTokens,
-		}
-		if result.StopDetails != nil {
-			refusal.Category = result.StopDetails.Category
-			refusal.Explanation = result.StopDetails.Explanation
-		}
-		return nil, refusal
-	}
-	if len(result.Content) == 0 {
+	if len(result.Content) == 0 && result.StopReason == "" {
 		return nil, ErrEmptyResponse
 	}
 
@@ -376,12 +403,12 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 
 	// Process content blocks to collect text and tool calls
 	var toolCalls []llms.ToolCall
-	var textContent string
+	var textContent strings.Builder
 
 	for _, content := range result.Content {
 		switch cv := content.(type) {
 		case *anthropicclient.TextContent:
-			textContent = cv.Text
+			textContent.WriteString(cv.Text)
 		case *anthropicclient.ToolUseContent:
 			argumentsJSON, err := json.Marshal(cv.Input)
 			if err != nil {
@@ -401,22 +428,24 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 
 	// Build response choice - reasoning ALWAYS goes to choice, not tool calls
 	choice := &llms.ContentChoice{
-		Content:    textContent,
+		Content:    textContent.String(),
 		Reasoning:  contentReasoning, // Always in choice for Anthropic
 		ToolCalls:  toolCalls,
 		StopReason: result.StopReason,
+		Truncated:  llms.IsTruncated(result.StopReason),
 		GenerationInfo: map[string]any{
 			// Standardized field names for cross-provider compatibility
 			"PromptTokens":             result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens,
 			"CompletionTokens":         result.Usage.OutputTokens,
 			"TotalTokens":              result.Usage.InputTokens + result.Usage.CacheCreationInputTokens + result.Usage.CacheReadInputTokens + result.Usage.OutputTokens,
-			"ReasoningTokens":          0, // Reasoning tokens are not included in the usage metrics
+			"ReasoningTokens":          result.Usage.OutputTokensDetails.ThinkingTokens,
 			"PromptCachedTokens":       result.Usage.CacheReadInputTokens,
 			"CacheReadInputTokens":     result.Usage.CacheReadInputTokens,
 			"CacheCreationInputTokens": result.Usage.CacheCreationInputTokens,
 			// Special fields for Anthropic cache creation
 			"CacheCreationEphemeral5mInputTokens": result.Usage.CacheCreation.Ephemeral5mInputTokens,
 			"CacheCreationEphemeral1hInputTokens": result.Usage.CacheCreation.Ephemeral1hInputTokens,
+			"InferenceSpeed":                      result.Usage.Speed,
 			// Special fields for Anthropic
 			"InputTokens":  result.Usage.InputTokens,
 			"OutputTokens": result.Usage.OutputTokens,
@@ -424,9 +453,11 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 		},
 	}
 
-	return &llms.ContentResponse{
-		Choices: []*llms.ContentChoice{choice},
-	}, nil
+	response := &llms.ContentResponse{Choices: []*llms.ContentChoice{choice}}
+	if result.StopReason == "refusal" {
+		return response, anthropicRefusal(result)
+	}
+	return response, nil
 }
 
 func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
@@ -802,25 +833,19 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 		Content: []anthropicclient.Content{},
 	}
 
-	// The API requires the thinking block to lead the assistant turn, before any
-	// text or tool_use. Emit it first regardless of where the caller placed the
-	// reasoning-bearing part among msg.Parts.
 	for _, part := range msg.Parts {
 		p, ok := part.(llms.TextContent)
-		if !ok || p.Reasoning == nil {
+		if !ok || p.Reasoning.IsEmpty() {
 			continue
 		}
-		if len(p.Reasoning.Content) > 0 || len(p.Reasoning.Signature) > 0 {
-			thinkingBlock := &anthropicclient.ThinkingContent{
-				Type:     "thinking",
-				Thinking: p.Reasoning.Content,
-			}
-			if len(p.Reasoning.Signature) > 0 {
-				thinkingBlock.Signature = string(p.Reasoning.Signature)
-			}
-			message.Content = append(message.Content, thinkingBlock)
+		thinkingBlock := &anthropicclient.ThinkingContent{
+			Type:     "thinking",
+			Thinking: p.Reasoning.Content,
 		}
-		break // one thinking block per assistant turn
+		if len(p.Reasoning.Signature) > 0 {
+			thinkingBlock.Signature = string(p.Reasoning.Signature)
+		}
+		message.Content = append(message.Content, thinkingBlock)
 	}
 
 	for _, part := range msg.Parts {
@@ -883,6 +908,11 @@ func handleToolMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, er
 	return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
 }
 
+const (
+	anthropicFastModeBeta            = "fast-mode-2026-02-01"
+	anthropicInterleavedThinkingBeta = "interleaved-thinking-2025-05-14"
+)
+
 // extractBetaHeaders extracts beta headers from call options. thinking is the
 // mechanism actually resolved for this request (nil when no thinking), so the
 // interleaved-thinking beta keys off the real wire shape rather than the caller's
@@ -904,7 +934,11 @@ func extractBetaHeaders(opts *llms.CallOptions, thinking *anthropicclient.Thinki
 	// Budget thinking + tools needs the interleaved-thinking beta; adaptive
 	// thinking interleaves natively and needs no header.
 	if thinking != nil && thinking.Type == "enabled" && len(opts.Tools) > 0 {
-		betaHeaders = appendIfMissing(betaHeaders, "interleaved-thinking-2025-05-14")
+		betaHeaders = appendIfMissing(betaHeaders, anthropicInterleavedThinkingBeta)
+	}
+
+	if opts.InferenceSpeed != nil {
+		betaHeaders = appendIfMissing(betaHeaders, anthropicFastModeBeta)
 	}
 
 	return betaHeaders
@@ -934,7 +968,7 @@ func applyAnthropicStructuredOutput(
 			Reason:   "model predates the output_config.format JSON Schema mode",
 		}
 	}
-	if anthropicHasAssistantPrefill(messages) {
+	if llms.HasAssistantPrefill(messages) {
 		return nil, &llms.ErrStructuredOutputConflict{
 			Provider: providerAnthropic,
 			Detail:   "structured output is incompatible with assistant message prefilling",
@@ -953,15 +987,6 @@ func applyAnthropicStructuredOutput(
 		Schema: so.Schema,
 	}
 	return cfg, nil
-}
-
-// anthropicHasAssistantPrefill reports whether the last message is an assistant
-// turn, i.e. a prefilled response, which Anthropic rejects with structured output.
-func anthropicHasAssistantPrefill(messages []llms.MessageContent) bool {
-	if len(messages) == 0 {
-		return false
-	}
-	return messages[len(messages)-1].Role == llms.ChatMessageTypeAI
 }
 
 // validateAnthropicStructuredOutput validates the concatenation of all final text
@@ -1003,4 +1028,19 @@ func appendIfMissing(slice []string, val string) []string {
 
 func getFloatPointer(f float64) *float64 {
 	return &f
+}
+
+func anthropicToolChoice(choice any) any {
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		return anthropicclient.ToolChoice{Type: "tool", Name: name}
+	case llms.ToolChoiceAny:
+		return anthropicclient.ToolChoice{Type: "any"}
+	case llms.ToolChoiceAuto:
+		return anthropicclient.ToolChoice{Type: "auto"}
+	case llms.ToolChoiceNone:
+		return anthropicclient.ToolChoice{Type: "none"}
+	default:
+		return choice
+	}
 }

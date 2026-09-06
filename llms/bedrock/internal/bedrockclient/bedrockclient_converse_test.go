@@ -3,6 +3,7 @@ package bedrockclient
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -10,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
@@ -225,9 +227,16 @@ func TestConverseClient_ModelDetection(t *testing.T) {
 	assert.True(t, client.supportsReasoning("us.anthropic.claude-sonnet-4-5-20250929-v1:0"))
 	assert.True(t, client.supportsReasoning("minimax.minimax-m2.5"))
 	assert.True(t, client.supportsReasoning("minimax.minimax-m2.1"))
-	assert.False(t, client.supportsReasoning("minimax.minimax-m2"))
+	assert.True(t, client.supportsReasoning("minimax.minimax-m2"))
+	assert.True(t, client.supportsReasoning("us.deepseek.r1-v1:0"))
+	assert.True(t, client.supportsReasoning("deepseek.v3.2"))
+	assert.True(t, client.supportsReasoning("zai.glm-4.7"))
+	assert.True(t, client.supportsReasoning("moonshotai.kimi-k2.5"))
+	assert.True(t, client.supportsReasoning("us.amazon.nova-2-lite-v1:0"))
 	assert.False(t, client.supportsReasoning("us.amazon.nova-pro-v1:0"))
 	assert.False(t, client.supportsReasoning("anthropic.claude-3-sonnet-20240229-v1:0"))
+	assert.False(t, client.supportsReasoning("meta.llama3-70b-instruct-v1:0"))
+	assert.False(t, client.supportsReasoning("cohere.command-r-plus-v1:0"))
 }
 
 func TestConverseClient_InferenceConfiguration(t *testing.T) {
@@ -472,8 +481,9 @@ func TestConverseClient_BudgetReasoning(t *testing.T) {
 	assert.True(t, ok && budget > 0, "budget thinking must carry a positive token budget")
 	_, hasDisplay := thinking["display"]
 	assert.False(t, hasDisplay, "budget thinking has no display field")
-	_, hasOutputConfig := fields["output_config"]
-	assert.False(t, hasOutputConfig, "budget thinking has no output_config")
+	outputConfig, _ := fields["output_config"].(map[string]any)
+	assert.Equal(t, "medium", outputConfig["effort"],
+		"Opus 4.6 accepts an effort alongside its budget")
 
 	mockClient.AssertExpectations(t)
 }
@@ -586,8 +596,6 @@ func TestConverseClient_AdaptiveReasoningNonAnthropicModel(t *testing.T) {
 		},
 	}, nil)
 
-	// Adaptive is an Anthropic request shape; other reasoning-capable models
-	// fall back to budget thinking.
 	input := &ConverseInput{
 		ModelID:         "openai.gpt-oss-120b-1:0",
 		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
@@ -600,23 +608,8 @@ func TestConverseClient_AdaptiveReasoningNonAnthropicModel(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotNil(t, capturedInput.InferenceConfig.Temperature, "sampling params stay when adaptive is not applied")
-
-	if !assert.NotNil(t, capturedInput.AdditionalModelRequestFields) {
-		return
-	}
-	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
-	assert.NoError(t, err)
-	var fields map[string]any
-	assert.NoError(t, json.Unmarshal(raw, &fields))
-
-	thinking, _ := fields["thinking"].(map[string]any)
-	assert.Equal(t, "enabled", thinking["type"])
-	budget, ok := thinking["budget_tokens"].(float64)
-	assert.True(t, ok && budget > 0, "fallback must carry a positive token budget")
-	_, hasOutputConfig := fields["output_config"]
-	assert.False(t, hasOutputConfig, "budget fallback has no output_config")
-
-	mockClient.AssertExpectations(t)
+	assert.Nil(t, capturedInput.AdditionalModelRequestFields,
+		"an Anthropic request shape does not travel to another vendor")
 }
 
 func TestConverseClient_AdaptiveReasoningPreAdaptiveModelGated(t *testing.T) {
@@ -991,4 +984,448 @@ func TestConvertMessages_MultipleToolCallVariants(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConverseClient_AdaptiveEffortDerivedFromMaxTokens(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	input := &ConverseInput{
+		ModelID:         "us.anthropic.claude-sonnet-5",
+		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+		MaxTokens:       ptr(32000),
+		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Tokens: 5000},
+	}
+
+	_, err := client.CreateCompletionConverse(t.Context(), input)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, capturedInput.AdditionalModelRequestFields) {
+		return
+	}
+	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
+	assert.NoError(t, err)
+	var fields map[string]any
+	assert.NoError(t, json.Unmarshal(raw, &fields))
+
+	outputConfig, _ := fields["output_config"].(map[string]any)
+	assert.Equal(t, string(llms.ReasoningLow), outputConfig["effort"],
+		"5000 of 32000 max tokens is a low effort; deriving from a substituted default would say medium")
+}
+
+func TestConverseClient_NoBudgetEffortForOpus45OnBedrock(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	input := &ConverseInput{
+		ModelID:         "us.anthropic.claude-opus-4-5-20251101-v1:0",
+		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+		MaxTokens:       ptr(8000),
+		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningHigh},
+	}
+
+	_, err := client.CreateCompletionConverse(t.Context(), input)
+	assert.NoError(t, err)
+
+	if !assert.NotNil(t, capturedInput.AdditionalModelRequestFields) {
+		return
+	}
+	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
+	assert.NoError(t, err)
+	var fields map[string]any
+	assert.NoError(t, json.Unmarshal(raw, &fields))
+
+	thinking, _ := fields["thinking"].(map[string]any)
+	assert.Equal(t, "enabled", thinking["type"], "Opus 4.5 is budget-only")
+	_, hasOutputConfig := fields["output_config"]
+	assert.False(t, hasOutputConfig, "Bedrock rejects output_config.effort on Opus 4.5")
+}
+
+func TestConverseClient_DropsTopPWhenBothSamplingParamsSet(t *testing.T) {
+	for _, model := range []string{
+		"us.anthropic.claude-haiku-4-5-20251001-v1:0",
+		"us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+		"us.anthropic.claude-opus-4-5-20251101-v1:0",
+		"us.anthropic.claude-sonnet-4-6",
+		"us.anthropic.claude-opus-4-6-v1",
+	} {
+		t.Run(model, func(t *testing.T) {
+			client := NewConverseClient(&MockBedrockRuntimeClient{})
+			temp, topP := 0.5, 0.9
+			got, err := client.buildConverseInput(&ConverseInput{
+				ModelID:     model,
+				Messages:    []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+				Temperature: &temp,
+				TopP:        &topP,
+			})
+			require.NoError(t, err)
+			cfg := got.InferenceConfig
+			require.NotNil(t, cfg)
+			require.NotNil(t, cfg.Temperature,
+				"%s takes a temperature; dropping both params would satisfy a not-both assertion", model)
+			assert.InDelta(t, 0.5, *cfg.Temperature, 0.0001, "the caller's temperature must survive for %s", model)
+			assert.Nil(t, cfg.TopP, "top_p is the one that goes for %s", model)
+		})
+	}
+}
+
+func TestConverseMaxTokensSaturatesInsteadOfWrapping(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		in   int
+		want int32
+	}{
+		{"ordinary", 16384, 16384},
+		{"exactly the ceiling", math.MaxInt32, math.MaxInt32},
+		{"above the ceiling", math.MaxInt32 + 1, math.MaxInt32},
+		{"far above the ceiling", 3_000_000_000, math.MaxInt32},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			maxTokens := tc.in
+			got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+				ModelID:   "anthropic.claude-3-sonnet-20240229-v1:0",
+				Messages:  []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+				MaxTokens: &maxTokens,
+			})
+			require.NoError(t, err)
+			require.NotNil(t, got.InferenceConfig.MaxTokens)
+			assert.Equal(t, tc.want, *got.InferenceConfig.MaxTokens)
+		})
+	}
+}
+
+func TestConverseBudgetPinsTemperatureOnlyForClaude(t *testing.T) {
+	t.Parallel()
+
+	build := func(t *testing.T, model string) *types.InferenceConfiguration {
+		t.Helper()
+		temp, topP, maxTokens := 0.2, 0.9, 8192
+		got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+			ModelID:         model,
+			Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			Temperature:     &temp,
+			TopP:            &topP,
+			MaxTokens:       &maxTokens,
+			ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Tokens: 2048},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got.InferenceConfig)
+		return got.InferenceConfig
+	}
+
+	t.Run("a Claude model takes the pin the mechanism requires", func(t *testing.T) {
+		t.Parallel()
+		cfg := build(t, "us.anthropic.claude-sonnet-4-5-v1:0")
+		require.NotNil(t, cfg.Temperature)
+		assert.InDelta(t, 1.0, *cfg.Temperature, 0.0001)
+	})
+
+	t.Run("a non-Claude reasoning model keeps the caller's sampling", func(t *testing.T) {
+		t.Parallel()
+		cfg := build(t, "openai.gpt-oss-120b-1:0")
+		require.NotNil(t, cfg.Temperature, "the caller's temperature must survive")
+		assert.InDelta(t, 0.2, *cfg.Temperature, 0.0001)
+	})
+}
+
+func TestConverseClient_NonClaudeThinkersTakeNoThinkingConfiguration(t *testing.T) {
+	for _, modelID := range []string{
+		"zai.glm-4.7",
+		"minimax.minimax-m2.5",
+		"openai.gpt-oss-120b-1:0",
+		"moonshot.kimi-k2-thinking",
+	} {
+		t.Run(modelID, func(t *testing.T) {
+			mockClient := &MockBedrockRuntimeClient{}
+			client := NewConverseClient(mockClient)
+
+			var capturedInput *bedrockruntime.ConverseInput
+			mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+				capturedInput = input
+				return true
+			}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+				Output: &types.ConverseOutputMemberMessage{
+					Value: types.Message{
+						Role:    types.ConversationRoleAssistant,
+						Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+					},
+				},
+			}, nil)
+
+			input := &ConverseInput{
+				ModelID:         modelID,
+				Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+				MaxTokens:       ptr(8000),
+				ReasoningConfig: &llms.ReasoningConfig{Effort: llms.ReasoningMedium},
+			}
+
+			_, err := client.CreateCompletionConverse(t.Context(), input)
+			require.NoError(t, err)
+
+			assert.Nil(t, capturedInput.AdditionalModelRequestFields,
+				"only a family with a documented mechanism carries one")
+			require.NotNil(t, capturedInput.InferenceConfig.MaxTokens)
+			assert.EqualValues(t, 8000, *capturedInput.InferenceConfig.MaxTokens,
+				"no foreign budget rule raises the caller ceiling")
+		})
+	}
+}
+
+func TestConverseClient_DeepSeekTakesNoThinkingConfiguration(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	input := &ConverseInput{
+		ModelID:         "us.deepseek.r1-v1:0",
+		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+		MaxTokens:       ptr(4096),
+		ReasoningConfig: &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
+	}
+
+	_, err := client.CreateCompletionConverse(t.Context(), input)
+	require.NoError(t, err)
+
+	assert.Nil(t, capturedInput.AdditionalModelRequestFields,
+		"the model reasons on its own and answers 400 to a thinking configuration")
+	require.NotNil(t, capturedInput.InferenceConfig.MaxTokens)
+	assert.EqualValues(t, 4096, *capturedInput.InferenceConfig.MaxTokens,
+		"no foreign budget rule raises the caller ceiling")
+}
+
+// novaConverseFields runs one reasoning request through the client and returns the
+// additionalModelRequestFields it built, plus the inference config it settled on.
+func novaConverseFields(t *testing.T, modelID string, cfg *llms.ReasoningConfig,
+	temperature, topP *float64,
+) (map[string]any, *types.InferenceConfiguration) {
+	t.Helper()
+
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	input := &ConverseInput{
+		ModelID:         modelID,
+		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+		MaxTokens:       ptr(8000),
+		Temperature:     temperature,
+		TopP:            topP,
+		ReasoningConfig: cfg,
+	}
+
+	_, err := client.CreateCompletionConverse(t.Context(), input)
+	require.NoError(t, err)
+	require.NotNil(t, capturedInput.AdditionalModelRequestFields)
+
+	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(raw, &fields))
+
+	return fields, capturedInput.InferenceConfig
+}
+
+func TestConverseNovaSendsReasoningConfigNotThinking(t *testing.T) {
+	fields, cfg := novaConverseFields(t, "us.amazon.nova-2-lite-v1:0",
+		&llms.ReasoningConfig{Effort: llms.ReasoningMedium}, nil, nil)
+
+	assert.Nil(t, fields["thinking"],
+		"Bedrock answers a thinking key on Nova with extraneous key [thinking] is not permitted")
+
+	rc, _ := fields["reasoningConfig"].(map[string]any)
+	require.NotNil(t, rc, "Nova carries its reasoning in reasoningConfig")
+	assert.Equal(t, "enabled", rc["type"])
+	assert.Equal(t, "medium", rc["maxReasoningEffort"])
+
+	require.NotNil(t, cfg)
+	assert.EqualValues(t, 8000, *cfg.MaxTokens,
+		"AWS unsets maxTokens only at the top effort; below it the caller's ceiling stands")
+}
+
+func TestConverseNovaClampsEffortAndDropsSamplingAtHigh(t *testing.T) {
+	temperature, topP := 0.4, 0.9
+	fields, cfg := novaConverseFields(t, "us.amazon.nova-2-lite-v1:0",
+		&llms.ReasoningConfig{Effort: llms.ReasoningMax}, &temperature, &topP)
+
+	rc, _ := fields["reasoningConfig"].(map[string]any)
+	require.NotNil(t, rc)
+	assert.Equal(t, "high", rc["maxReasoningEffort"], "Nova takes only low, medium and high")
+
+	require.NotNil(t, cfg)
+	assert.Nil(t, cfg.Temperature, "Nova rejects sampling params at the top effort")
+	assert.Nil(t, cfg.TopP)
+	assert.Nil(t, cfg.MaxTokens, "the same rule unsets maxTokens at the top effort")
+}
+
+func TestConverseNovaKeepsMaxTokensBelowTopEffort(t *testing.T) {
+	for _, effort := range []llms.ReasoningEffort{llms.ReasoningLow, llms.ReasoningMedium} {
+		t.Run(string(effort), func(t *testing.T) {
+			temperature, topP := 0.4, 0.9
+			_, cfg := novaConverseFields(t, "us.amazon.nova-2-lite-v1:0",
+				&llms.ReasoningConfig{Effort: effort}, &temperature, &topP)
+
+			require.NotNil(t, cfg)
+			require.NotNil(t, cfg.MaxTokens, "dropping the ceiling here silently voids WithMaxTokens")
+			assert.EqualValues(t, 8000, *cfg.MaxTokens)
+			assert.NotNil(t, cfg.Temperature, "sampling is refused only at the top effort")
+			assert.NotNil(t, cfg.TopP)
+		})
+	}
+}
+
+func TestConverseGrokSendsReasoningEffort(t *testing.T) {
+	fields, _ := novaConverseFields(t, "us.xai.grok-4.6",
+		&llms.ReasoningConfig{Effort: llms.ReasoningMax}, nil, nil)
+
+	assert.Nil(t, fields["thinking"], "Grok carries no thinking object")
+
+	r, _ := fields["reasoning"].(map[string]any)
+	require.NotNil(t, r, "Grok carries its effort in a reasoning object")
+	assert.Equal(t, "xhigh", r["effort"], "4.6 gained xhigh")
+}
+
+func TestConverseClient_RedactedReasoningReachesTheCaller(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+	encrypted := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+
+	mockClient.On("Converse", mock.Anything, mock.Anything, mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role: types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{
+					&types.ContentBlockMemberReasoningContent{
+						Value: &types.ReasoningContentBlockMemberRedactedContent{Value: encrypted},
+					},
+					&types.ContentBlockMemberText{Value: "answer"},
+				},
+			},
+		},
+	}, nil)
+
+	resp, err := client.CreateCompletionConverse(t.Context(), &ConverseInput{
+		ModelID:  "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+		Messages: []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+	require.NotNil(t, resp.Choices[0].Reasoning, "the vendor returned a thought, encrypted or not")
+	assert.Equal(t, encrypted, resp.Choices[0].Reasoning.Redacted)
+	assert.False(t, resp.Choices[0].Reasoning.HasContent(), "encrypted bytes are not readable thinking")
+}
+
+func TestConverseClient_RedactedReasoningTravelsBack(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+	encrypted := []byte{0x01, 0x02, 0x03}
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	_, err := client.CreateCompletionConverse(t.Context(), &ConverseInput{
+		ModelID: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+		Messages: []Message{
+			{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"},
+			{
+				Role:      llms.ChatMessageTypeAI,
+				Content:   "answer",
+				Type:      "text",
+				Reasoning: &reasoning.ContentReasoning{Redacted: encrypted},
+			},
+			{Role: llms.ChatMessageTypeHuman, Content: "And now?", Type: "text"},
+		},
+	})
+	require.NoError(t, err)
+
+	var got []byte
+	for _, msg := range capturedInput.Messages {
+		for _, block := range msg.Content {
+			reasoningBlock, ok := block.(*types.ContentBlockMemberReasoningContent)
+			if !ok {
+				continue
+			}
+			if redacted, ok := reasoningBlock.Value.(*types.ReasoningContentBlockMemberRedactedContent); ok {
+				got = redacted.Value
+			}
+		}
+	}
+	assert.Equal(t, encrypted, got, "the replayed turn carries the encrypted block unchanged")
+}
+
+func TestConverseReasoningStreamKeepsEveryDelta(t *testing.T) {
+	t.Parallel()
+
+	var acc converseReasoningStream
+	assert.Equal(t, "thinking", acc.add(&types.ReasoningContentBlockDeltaMemberText{Value: "thinking"}))
+	assert.Empty(t, acc.add(&types.ReasoningContentBlockDeltaMemberSignature{Value: "sig"}))
+	assert.Empty(t, acc.add(&types.ReasoningContentBlockDeltaMemberRedactedContent{Value: []byte{0x07, 0x08}}))
+
+	got := acc.result(NewConverseClient(nil))
+	require.NotNil(t, got)
+	assert.Equal(t, "thinking", got.Content)
+	assert.Equal(t, []byte("sig"), got.Signature)
+	assert.Equal(t, []byte{0x07, 0x08}, got.Redacted)
 }

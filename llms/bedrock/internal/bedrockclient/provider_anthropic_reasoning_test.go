@@ -89,6 +89,23 @@ func TestApplyAnthropicReasoning_AdaptiveEmptyEffortDefaultsToHigh(t *testing.T)
 	assert.Equal(t, "high", input.OutputConfig.Effort)
 }
 
+func TestApplyAnthropicReasoning_NoBudgetEffortForOpus45OnBedrock(t *testing.T) {
+	t.Parallel()
+
+	input := anthropicTextGenerationInput{MaxTokens: 8000}
+	applyAnthropicReasoning(&input,
+		&llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningHigh},
+		"us.anthropic.claude-opus-4-5-20251101-v1:0", 8000)
+
+	fields := marshalAnthropicInput(t, input)
+
+	thinking, _ := fields["thinking"].(map[string]any)
+	assert.Equal(t, "enabled", thinking["type"], "Opus 4.5 is budget-only")
+
+	_, hasOutputConfig := fields["output_config"]
+	assert.False(t, hasOutputConfig, "Bedrock rejects output_config.effort on Opus 4.5")
+}
+
 func TestApplyAnthropicReasoning_Budget(t *testing.T) {
 	t.Parallel()
 
@@ -110,11 +127,10 @@ func TestApplyAnthropicReasoning_Budget(t *testing.T) {
 	_, hasDisplay := thinking["display"]
 	assert.False(t, hasDisplay, "budget thinking has no display field")
 
-	_, hasOutputConfig := fields["output_config"]
-	assert.False(t, hasOutputConfig, "budget thinking has no output_config")
+	outputConfig, _ := fields["output_config"].(map[string]any)
+	assert.Equal(t, "medium", outputConfig["effort"],
+		"Opus 4.6 accepts an effort alongside its budget")
 
-	// Budget thinking pins temperature to 1.0 and drops top_p/top_k — the API
-	// rejects temperature != 1 and top_p/top_k with thinking enabled.
 	assert.EqualValues(t, 1.0, fields["temperature"])
 	_, hasTopP := fields["top_p"]
 	assert.False(t, hasTopP, "budget thinking drops top_p")
@@ -233,4 +249,103 @@ func TestApplyAnthropicReasoning_OffAlwaysOnErrors(t *testing.T) {
 	var offErr *reasoning.ErrReasoningOffUnsupported
 	require.ErrorAs(t, err, &offErr)
 	assert.Nil(t, input.Thinking)
+}
+
+func TestApplyAnthropicReasoning_DropsTopPWhenBothSamplingParamsSet(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"us.anthropic.claude-haiku-4-5-20251001-v1:0",
+		"us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+		"us.anthropic.claude-opus-4-5-20251101-v1:0",
+		"us.anthropic.claude-sonnet-4-6",
+		"us.anthropic.claude-opus-4-6-v1",
+	} {
+		t.Run(model, func(t *testing.T) {
+			input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: 0.5, TopP: 0.9}
+			require.NoError(t, applyAnthropicReasoning(&input, &llms.ReasoningConfig{}, model, 2048))
+			fields := marshalAnthropicInput(t, input)
+			_, hasTemp := fields["temperature"]
+			_, hasTopP := fields["top_p"]
+			require.True(t, hasTemp,
+				"the model takes a temperature; dropping both params would satisfy a not-both assertion: %v", fields)
+			assert.False(t, hasTopP, "top_p is the one that goes: %v", fields)
+		})
+	}
+}
+
+func TestApplyAnthropicReasoning_BudgetKeepsTheSamplingRefusal(t *testing.T) {
+	t.Parallel()
+
+	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: 0.8, TopP: 0.9, TopK: 40}
+	applyAnthropicReasoning(&input,
+		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
+		"anthropic.claude-mythos-preview-v1:0", 4096)
+
+	fields := marshalAnthropicInput(t, input)
+
+	thinking, _ := fields["thinking"].(map[string]any)
+	assert.Equal(t, "enabled", thinking["type"], "budget thinking must reach the wire")
+	_, hasTemperature := fields["temperature"]
+	assert.False(t, hasTemperature,
+		"a model listed as rejecting sampling must not be handed temperature back by the budget path")
+}
+
+func TestApplyAnthropicReasoning_BudgetStillPinsWhereSamplingIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: 0.8, TopP: 0.9, TopK: 40}
+	applyAnthropicReasoning(&input,
+		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
+		"anthropic.claude-opus-4-6-v1:0", 4096)
+
+	fields := marshalAnthropicInput(t, input)
+
+	thinking, _ := fields["thinking"].(map[string]any)
+	assert.Equal(t, "enabled", thinking["type"])
+	assert.InDelta(t, 1.0, fields["temperature"], 0.0001)
+}
+
+func TestApplyAnthropicReasoning_UnsetMaxTokensUsesTheSharedDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := &llms.ReasoningConfig{Effort: llms.ReasoningMedium}
+	input := anthropicTextGenerationInput{}
+	applyAnthropicReasoning(&input, cfg, "anthropic.claude-sonnet-4-5-v1:0", 0)
+
+	fields := marshalAnthropicInput(t, input)
+	thinking, ok := fields["thinking"].(map[string]any)
+	require.True(t, ok, "budget thinking must reach the wire, got %v", fields)
+
+	want := cfg.GetTokens(0)
+	assert.InDelta(t, float64(want), thinking["budget_tokens"], 0.5,
+		"an unset max-tokens must fall back to the same number every other caller gets")
+}
+
+func TestApplyAnthropicReasoning_ReachesTheClaude5Generation(t *testing.T) {
+	t.Parallel()
+
+	for _, modelID := range []string{
+		"us.anthropic.claude-sonnet-5-v1:0",
+		"us.anthropic.claude-opus-5-v1:0",
+		"us.anthropic.claude-fable-5-v1:0",
+	} {
+		t.Run(modelID, func(t *testing.T) {
+			t.Parallel()
+
+			input := anthropicTextGenerationInput{MaxTokens: 8000}
+			applyAnthropicReasoning(&input,
+				&llms.ReasoningConfig{Effort: llms.ReasoningMedium},
+				modelID, 8000)
+
+			fields := marshalAnthropicInput(t, input)
+			thinking, _ := fields["thinking"].(map[string]any)
+			require.NotNil(t, thinking, "legacy door asks this model to think")
+			assert.Equal(t, "adaptive", thinking["type"])
+			assert.Equal(t, "summarized", thinking["display"])
+
+			outputConfig, _ := fields["output_config"].(map[string]any)
+			assert.Equal(t, "medium", outputConfig["effort"])
+		})
+	}
 }

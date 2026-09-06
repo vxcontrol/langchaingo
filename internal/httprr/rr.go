@@ -585,7 +585,7 @@ func (rr *RecordReplay) reqWire(req *http.Request) (string, error) {
 	result = regexp.MustCompile(`(?m)^User-Agent: .*$`).ReplaceAllString(result, "User-Agent: langchaingo-httprr")
 
 	// Remove OpenAI-Project header for consistency across recordings
-	result = regexp.MustCompile(`(?m)^openai-project: .*\n`).ReplaceAllString(result, "")
+	result = regexp.MustCompile(`(?mi)^openai-project: .*\n`).ReplaceAllString(result, "")
 
 	// Normalize x-goog-api-client header with version information
 	result = regexp.MustCompile(`(?m)^x-goog-api-client: (.*)$`).ReplaceAllStringFunc(result, func(match string) string {
@@ -993,24 +993,19 @@ func hasExistingRecording(t *testing.T) bool {
 	return uncompressedErr == nil || compressedErr == nil
 }
 
-// normalizeGoogleAPIClientHeader normalizes version information in the x-goog-api-client header
-// to avoid test failures when dependencies are updated. It preserves the exact byte count
-// by padding with spaces to maintain httprr recording integrity.
-//
-// Example input:  "gl-go/1.24.4 gccl/v0.15.1 genai-go/0.15.1 gapic/0.7.0 gax/2.14.1 rest/UNKNOWN"
-// Example output: "gl-go/X.XX.X gccl/vX.XX.X genai-go/X.XX.X gapic/X.X.X gax/X.XX.X rest/UNKNOWN"
 func normalizeGoogleAPIClientHeader(header string) string {
-	originalLen := len(header)
-
-	// Replace each version segment while preserving its length
-	versionPattern := regexp.MustCompile(`(/v?)(\d+\.\d+(?:\.\d+)?)`)
+	versionPattern := regexp.MustCompile(`(/v?(?:go)?)(\d+\.\d+(?:\.\d+)?)`)
 
 	normalized := versionPattern.ReplaceAllStringFunc(header, func(match string) string {
-		// Find the slash and optional 'v'
 		slashIdx := strings.Index(match, "/")
 		prefix := match[:slashIdx+1]
-		if strings.HasPrefix(match[slashIdx+1:], "v") {
+		rest := match[slashIdx+1:]
+		if strings.HasPrefix(rest, "v") {
 			prefix += "v"
+			rest = rest[1:]
+		}
+		if strings.HasPrefix(rest, "go") {
+			prefix += "go"
 		}
 
 		// Calculate how many characters we need for the version part
@@ -1037,24 +1032,7 @@ func normalizeGoogleAPIClientHeader(header string) string {
 				replacement = strings.Repeat("X", xBefore) + "." + strings.Repeat("X", xAfter)
 			}
 		case 2:
-			// Format: X.X.X, X.XX.X, etc.
-			// Distribute X's around the dots fairly
-			switch versionLen {
-			case 5:
-				replacement = "X.X.X"
-			case 6:
-				replacement = "X.XX.X"
-			case 7:
-				replacement = "X.XX.XX"
-			default:
-				// Generic case: distribute evenly
-				segLen := (versionLen - 2) / 3
-				remainder := (versionLen - 2) % 3
-				seg1 := segLen + min(1, remainder)
-				seg2 := segLen + min(1, max(0, remainder-1))
-				seg3 := segLen
-				replacement = strings.Repeat("X", seg1) + "." + strings.Repeat("X", seg2) + "." + strings.Repeat("X", seg3)
-			}
+			replacement = "X.XX.X"
 		default:
 			// More than 2 dots or other format, just preserve length with X's
 			replacement = strings.Repeat("X", versionLen)
@@ -1062,13 +1040,6 @@ func normalizeGoogleAPIClientHeader(header string) string {
 
 		return prefix + replacement
 	})
-
-	// Ensure the result has the exact same length
-	if len(normalized) < originalLen {
-		normalized += strings.Repeat(" ", originalLen-len(normalized))
-	} else if len(normalized) > originalLen {
-		normalized = normalized[:originalLen]
-	}
 
 	return normalized
 }
@@ -1209,6 +1180,9 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 			}
 			if resp.Header.Get("openai-organization") != "" {
 				resp.Header.Set("openai-organization", "lcgo-tst")
+			}
+			if resp.Header.Get("Openai-Project") != "" {
+				resp.Header.Set("Openai-Project", "proj_lcgo-tst")
 			}
 
 			// Re-serialize the response

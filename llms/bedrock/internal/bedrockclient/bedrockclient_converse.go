@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/numutil"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -49,7 +52,7 @@ func (c *ConverseClient) CreateCompletionConverse(ctx context.Context, input *Co
 		resp, err = c.handleNonStreamingResponse(ctx, converseInput)
 	}
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 	if err := validateConverseStructuredOutput(input, resp); err != nil {
 		return resp, err
@@ -66,6 +69,7 @@ type ConverseInput struct {
 	TopP             *float64
 	StopSequences    []string
 	Tools            []llms.Tool
+	ToolChoice       any
 	StreamingFunc    streaming.Callback
 	ReasoningConfig  *llms.ReasoningConfig
 	EnableCaching    bool
@@ -91,6 +95,23 @@ type converseAdditionalModelRequestFields struct {
 	OutputConfig *converseOutputConfig    `json:"output_config,omitempty" document:"output_config,omitempty"`
 }
 
+type converseNovaReasoningConfig struct {
+	Type               string `json:"type" document:"type"`
+	MaxReasoningEffort string `json:"maxReasoningEffort,omitempty" document:"maxReasoningEffort,omitempty"`
+}
+
+type converseNovaFields struct {
+	ReasoningConfig *converseNovaReasoningConfig `json:"reasoningConfig,omitempty" document:"reasoningConfig,omitempty"`
+}
+
+type converseGrokReasoning struct {
+	Effort string `json:"effort,omitempty" document:"effort,omitempty"`
+}
+
+type converseGrokFields struct {
+	Reasoning *converseGrokReasoning `json:"reasoning,omitempty" document:"reasoning,omitempty"`
+}
+
 // buildConverseInput converts our input to AWS Converse format
 func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockruntime.ConverseInput, error) {
 	// Convert messages
@@ -102,7 +123,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Build inference configuration
 	inferenceConfig := &types.InferenceConfiguration{}
 	if input.MaxTokens != nil {
-		inferenceConfig.MaxTokens = aws.Int32(int32(*input.MaxTokens))
+		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
 	}
 	if input.Temperature != nil {
 		inferenceConfig.Temperature = aws.Float32(float32(*input.Temperature))
@@ -139,9 +160,9 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		converseInput.System = systemPrompts
 	}
 
-	// Add tool configuration if tools are provided
-	if len(input.Tools) > 0 {
-		toolConfig, err := c.convertToolsToToolConfig(input.Tools)
+	kind, _ := llms.ClassifyToolChoice(input.ToolChoice)
+	if len(input.Tools) > 0 && (kind != llms.ToolChoiceNone || carriesToolBlocks(converseMessages)) {
+		toolConfig, err := c.convertToolsToToolConfig(input.Tools, input.ToolChoice)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert tools: %w", err)
 		}
@@ -152,46 +173,82 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	switch input.ReasoningConfig.ResolveMode() {
 	case llms.ReasoningOn:
 		additionalModelFields := converseAdditionalModelRequestFields{}
+		var familyFields any
+		maxTokens := 0 // Use 0 to let it use default maxTokens
+		if input.MaxTokens != nil {
+			maxTokens = *input.MaxTokens
+		}
 		setAdaptive := func() {
-			effort := input.ReasoningConfig.GetEffort(0)
+			effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "adaptive", Display: "summarized"}
-			additionalModelFields.OutputConfig = &converseOutputConfig{Effort: string(effort)}
+			additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			// Adaptive models reject sampling params.
 			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = nil
 		}
-		setBudget := func() {
-			maxTokens := 0 // Use 0 to let it use default maxTokens
-			if input.MaxTokens != nil {
-				maxTokens = *input.MaxTokens
+		setBudget := func() error {
+			tokens := reasoning.ClaudeClampBudget(input.ModelID, input.ReasoningConfig.GetTokens(maxTokens))
+			if tokens <= 0 {
+				return &reasoning.ErrEffortHasNoBudget{
+					Model:  input.ModelID,
+					Effort: string(input.ReasoningConfig.GetEffort(maxTokens)),
+				}
 			}
-			if tokens := input.ReasoningConfig.GetTokens(maxTokens); tokens > 0 {
-				additionalModelFields.Thinking = &converseThinkingPayload{Type: "enabled", BudgetTokens: tokens}
-				// Budget thinking requires temperature=1.0 and rejects top_p.
+			additionalModelFields.Thinking = &converseThinkingPayload{Type: "enabled", BudgetTokens: tokens}
+			if reasoning.ClaudeSupportsEffortWithBudget(input.ModelID, reasoning.ProviderBedrock) {
+				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
+				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
+			}
+			// Budget thinking requires temperature=1.0 and rejects top_p.
+			if isAnthropicModelID(input.ModelID) {
+				keepTopP := input.Temperature == nil && inferenceConfig.TopP != nil &&
+					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, float64(*inferenceConfig.TopP))
 				inferenceConfig.Temperature = aws.Float32(1.0)
+				if keepTopP {
+					inferenceConfig.Temperature = nil
+				} else {
+					inferenceConfig.TopP = nil
+				}
+			}
+			return nil
+		}
+		setNova := func() {
+			effort := reasoning.NovaEffort(string(input.ReasoningConfig.GetEffort(maxTokens)))
+			familyFields = converseNovaFields{
+				ReasoningConfig: &converseNovaReasoningConfig{Type: "enabled", MaxReasoningEffort: effort},
+			}
+			if reasoning.NovaClearsInferenceConfigAt(effort) {
+				inferenceConfig.MaxTokens = nil
+				inferenceConfig.Temperature = nil
 				inferenceConfig.TopP = nil
 			}
 		}
-		switch {
-		case reasoning.ClaudeSupportsThinking(input.ModelID):
-			// Known thinking Claude: the model, not the flag, picks the mechanism.
-			if reasoning.ResolveClaudeAdaptive(input.ModelID, input.ReasoningConfig.Adaptive) {
-				setAdaptive()
-			} else {
-				setBudget()
-			}
-		case input.ReasoningConfig.Adaptive && isAnthropicModelID(input.ModelID) &&
-			!reasoning.ClaudePredatesAdaptive(input.ModelID):
-			// Unclassified — assumed newer than the table — Claude generation with an
-			// explicit adaptive request. Known pre-adaptive families are excluded so
-			// adaptive is never sent to a model (e.g. claude-3-5-haiku) that rejects it.
+		setGrok := func() {
+			effort := reasoning.GrokEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
+			familyFields = converseGrokFields{Reasoning: &converseGrokReasoning{Effort: effort}}
+		}
+		switch reasoning.ResolveMechanism(input.ModelID, input.ReasoningConfig.Adaptive,
+			isAnthropicModelID(input.ModelID), c.supportsReasoning(input.ModelID)) {
+		case reasoning.MechanismAdaptive:
 			setAdaptive()
-		case c.supportsReasoning(input.ModelID):
-			// Non-Claude reasoning model (gpt-oss, kimi): budget thinking.
-			setBudget()
+		case reasoning.MechanismBudget:
+			if err := setBudget(); err != nil {
+				return nil, err
+			}
+		case reasoning.MechanismNovaReasoningConfig:
+			setNova()
+		case reasoning.MechanismGrokEffort:
+			setGrok()
+		}
+		if familyFields != nil {
+			converseInput.AdditionalModelRequestFields = document.NewLazyDocument(familyFields)
 		}
 		if additionalModelFields.Thinking != nil {
 			converseInput.AdditionalModelRequestFields = document.NewLazyDocument(additionalModelFields)
+			if budget := additionalModelFields.Thinking.BudgetTokens; budget > 0 {
+				ceiling := reasoning.ClaudeMaxTokensForBudget(budget, maxTokens)
+				inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(ceiling))
+			}
 		}
 	case llms.ReasoningOff:
 		switch reasoning.ResolveOff(input.ModelID, reasoning.ProviderBedrock) {
@@ -206,6 +263,10 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Adaptive-only models reject sampling params even without thinking.
 	if reasoning.ClaudeRejectsSampling(input.ModelID) {
 		inferenceConfig.Temperature = nil
+		inferenceConfig.TopP = nil
+	}
+	if reasoning.ClaudeMutuallyExclusiveSampling(input.ModelID) &&
+		inferenceConfig.Temperature != nil && inferenceConfig.TopP != nil {
 		inferenceConfig.TopP = nil
 	}
 
@@ -273,12 +334,17 @@ func (a *aiMessageAccumulator) build() types.Message {
 	if a.reasoning != nil && (a.reasoning.Content != "" || len(a.reasoning.Signature) > 0) {
 		reasoningBlock := types.ReasoningContentBlockMemberReasoningText{
 			Value: types.ReasoningTextBlock{
-				Text:      ptrStringOrNil(a.reasoning.Content),
+				Text:      aws.String(a.reasoning.Content),
 				Signature: ptrStringOrNil(string(a.reasoning.Signature)),
 			},
 		}
 		content = append(content, &types.ContentBlockMemberReasoningContent{
 			Value: &reasoningBlock,
+		})
+	}
+	if a.reasoning != nil && len(a.reasoning.Redacted) > 0 {
+		content = append(content, &types.ContentBlockMemberReasoningContent{
+			Value: &types.ReasoningContentBlockMemberRedactedContent{Value: a.reasoning.Redacted},
 		})
 	}
 
@@ -529,22 +595,6 @@ func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Messa
 
 	var contentBlocks []types.ContentBlock
 
-	// For AI messages with reasoning, add reasoning blocks first
-	if msg.Role == llms.ChatMessageTypeAI && msg.Reasoning != nil {
-		// Add thinking block if present
-		if msg.Reasoning.Content != "" || len(msg.Reasoning.Signature) > 0 {
-			reasoningBlock := types.ReasoningContentBlockMemberReasoningText{
-				Value: types.ReasoningTextBlock{
-					Text:      ptrStringOrNil(msg.Reasoning.Content),
-					Signature: ptrStringOrNil(string(msg.Reasoning.Signature)),
-				},
-			}
-			contentBlocks = append(contentBlocks, &types.ContentBlockMemberReasoningContent{
-				Value: &reasoningBlock,
-			})
-		}
-	}
-
 	// Handle text content
 	if msg.Content != "" {
 		contentBlocks = append(contentBlocks, &types.ContentBlockMemberText{
@@ -593,7 +643,7 @@ func (c *ConverseClient) convertToolCallInput(args any) (any, error) {
 }
 
 // convertToolsToToolConfig converts llms.Tool to Converse ToolConfiguration
-func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool) (*types.ToolConfiguration, error) {
+func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any) (*types.ToolConfiguration, error) {
 	var converseTools []types.Tool
 
 	for _, tool := range tools {
@@ -624,8 +674,54 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool) (*types.Too
 
 	return &types.ToolConfiguration{
 		Tools:      converseTools,
-		ToolChoice: &types.ToolChoiceMemberAuto{},
+		ToolChoice: converseToolChoice(choice),
 	}, nil
+}
+
+// converseToolChoice carries the caller's choice to the wire. An unset or
+// unrecognized choice leaves the decision to the model.
+func carriesToolBlocks(messages []types.Message) bool {
+	for _, message := range messages {
+		for _, block := range message.Content {
+			switch block.(type) {
+			case *types.ContentBlockMemberToolUse, *types.ContentBlockMemberToolResult:
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func converseToolChoice(choice any) types.ToolChoice {
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		return &types.ToolChoiceMemberTool{Value: types.SpecificToolChoice{Name: &name}}
+	case llms.ToolChoiceAny:
+		return &types.ToolChoiceMemberAny{}
+	default:
+		return &types.ToolChoiceMemberAuto{}
+	}
+}
+
+type converseToolCallBuilder struct {
+	id        string
+	name      string
+	arguments strings.Builder
+}
+
+func (b *converseToolCallBuilder) streamingCall() streaming.ToolCall {
+	return streaming.ToolCall{ID: b.id, Name: b.name, Arguments: b.arguments.String()}
+}
+
+func (b *converseToolCallBuilder) toolCall() llms.ToolCall {
+	return llms.ToolCall{
+		ID:   b.id,
+		Type: "function",
+		FunctionCall: &llms.FunctionCall{
+			Name:      b.name,
+			Arguments: b.arguments.String(),
+		},
+	}
 }
 
 // handleNonStreamingResponse handles non-streaming responses
@@ -663,17 +759,19 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 // processStreamingResponse processes streaming events
 func (c *ConverseClient) processStreamingResponse(ctx context.Context, response *bedrockruntime.ConverseStreamOutput, callback streaming.Callback) (*llms.ContentResponse, error) {
 	var fullContent strings.Builder
-	var reasoningContent strings.Builder
-	var signature bytes.Buffer
+	var reasoningDeltas converseReasoningStream
 	var toolCalls []llms.ToolCall
 	var stopReason string
-	currentToolCalls := make(map[string]*streaming.ToolCall) // Track streaming tool calls by ID
+	var streamErr error
+	var usage *types.TokenUsage
+	currentToolCalls := make(map[int32]*converseToolCallBuilder) // Track streaming tool calls by content block index
 
 	defer streaming.CallWithDone(ctx, callback)
 
 	stream := response.GetStream()
 	defer stream.Close()
 
+DoStream:
 	for event := range stream.Events() {
 		switch e := event.(type) {
 		case *types.ConverseStreamOutputMemberContentBlockDelta:
@@ -687,37 +785,26 @@ func (c *ConverseClient) processStreamingResponse(ctx context.Context, response 
 							Content: delta.Value,
 						}
 						if err := callback(ctx, chunk); err != nil {
-							return nil, err
+							streamErr = err
+							break DoStream
 						}
 					}
 				case *types.ContentBlockDeltaMemberReasoningContent:
-					if callback != nil {
-						switch block := delta.Value.(type) {
-						case *types.ReasoningContentBlockDeltaMemberText:
-							reasoningContent.WriteString(block.Value)
-							chunk := streaming.Chunk{
-								Type:      streaming.ChunkTypeReasoning,
-								Reasoning: &reasoning.ContentReasoning{Content: block.Value},
-							}
-							if err := callback(ctx, chunk); err != nil {
-								return nil, err
-							}
-						case *types.ReasoningContentBlockDeltaMemberSignature:
-							if len(block.Value) > 0 {
-								signature.WriteString(block.Value)
-							}
+					text := reasoningDeltas.add(delta.Value)
+					if text != "" && callback != nil {
+						chunk := streaming.Chunk{
+							Type:      streaming.ChunkTypeReasoning,
+							Reasoning: &reasoning.ContentReasoning{Content: text},
+						}
+						if err := callback(ctx, chunk); err != nil {
+							streamErr = err
+							break DoStream
 						}
 					}
 				case *types.ContentBlockDeltaMemberToolUse:
-					// Handle tool use delta (accumulate input arguments)
 					if delta.Value.Input != nil {
-						// delta.Value.Input is already a partial JSON string
-						inputStr := *delta.Value.Input
-
-						// Find the active tool call and accumulate arguments
-						for _, toolCall := range currentToolCalls {
-							toolCall.Arguments += inputStr
-							break // Only one active tool call at a time typically
+						if builder, ok := currentToolCalls[aws.ToInt32(e.Value.ContentBlockIndex)]; ok {
+							builder.arguments.WriteString(*delta.Value.Input)
 						}
 					}
 				}
@@ -725,97 +812,141 @@ func (c *ConverseClient) processStreamingResponse(ctx context.Context, response 
 		case *types.ConverseStreamOutputMemberContentBlockStart:
 			if e.Value.Start != nil {
 				if toolUse, ok := e.Value.Start.(*types.ContentBlockStartMemberToolUse); ok {
-					// Create streaming tool call, arguments will come through delta events
-					toolCall := &streaming.ToolCall{
-						ID:        *toolUse.Value.ToolUseId,
-						Name:      *toolUse.Value.Name,
-						Arguments: "",
+					currentToolCalls[aws.ToInt32(e.Value.ContentBlockIndex)] = &converseToolCallBuilder{
+						id:   aws.ToString(toolUse.Value.ToolUseId),
+						name: aws.ToString(toolUse.Value.Name),
 					}
-
-					currentToolCalls[*toolUse.Value.ToolUseId] = toolCall
-
-					// Don't send chunk here, will send complete one in ContentBlockStop
 				}
 			}
 		case *types.ConverseStreamOutputMemberContentBlockStop:
-			// Handle tool call completion
-			for _, toolCall := range currentToolCalls {
-				// Send complete tool call through streaming
+			index := aws.ToInt32(e.Value.ContentBlockIndex)
+			if builder, ok := currentToolCalls[index]; ok {
+				delete(currentToolCalls, index)
 				if callback != nil {
-					streamChunk := streaming.Chunk{
+					chunk := streaming.Chunk{
 						Type:     streaming.ChunkTypeToolCall,
-						ToolCall: *toolCall,
+						ToolCall: builder.streamingCall(),
 					}
-					if err := callback(ctx, streamChunk); err != nil {
-						return nil, err
+					if err := callback(ctx, chunk); err != nil {
+						streamErr = err
+						break DoStream
 					}
 				}
-
-				// Convert streaming tool call to final llms.ToolCall
-				finalToolCall := llms.ToolCall{
-					ID:   toolCall.ID,
-					Type: "function",
-					FunctionCall: &llms.FunctionCall{
-						Name:      toolCall.Name,
-						Arguments: toolCall.Arguments,
-					},
-				}
-				toolCalls = append(toolCalls, finalToolCall)
+				toolCalls = append(toolCalls, builder.toolCall())
 			}
-			// Clear current tool calls after completion
-			currentToolCalls = make(map[string]*streaming.ToolCall)
 		case *types.ConverseStreamOutputMemberMessageStop:
 			// The terminal event carries the stop reason (end_turn, tool_use,
 			// max_tokens, guardrail_intervened, content_filtered, ...).
 			stopReason = string(e.Value.StopReason)
 			// Stream completed - ensure any remaining tool calls are added
-			for _, toolCall := range currentToolCalls {
-				finalToolCall := llms.ToolCall{
-					ID:   toolCall.ID,
-					Type: "function",
-					FunctionCall: &llms.FunctionCall{
-						Name:      toolCall.Name,
-						Arguments: toolCall.Arguments,
-					},
-				}
-				toolCalls = append(toolCalls, finalToolCall)
+			for _, index := range slices.Sorted(maps.Keys(currentToolCalls)) {
+				toolCalls = append(toolCalls, currentToolCalls[index].toolCall())
 			}
+			currentToolCalls = nil
+		case *types.ConverseStreamOutputMemberMetadata:
+			usage = e.Value.Usage
 		}
 	}
 
 	if err := stream.Err(); err != nil {
-		return nil, fmt.Errorf("stream error: %w", err)
-	}
-
-	var sig []byte
-	if signature.Len() > 0 {
-		sig = signature.Bytes()
+		streamErr = fmt.Errorf("stream error: %w", err)
 	}
 
 	choice := &llms.ContentChoice{
 		Content:        fullContent.String(),
 		ToolCalls:      toolCalls,
 		GenerationInfo: make(map[string]any),
-		Reasoning:      c.processReasoning(reasoningContent.String(), sig),
+		Reasoning:      reasoningDeltas.result(c),
 		StopReason:     stopReason,
+		Truncated:      llms.IsTruncated(stopReason),
 	}
+	applyConverseUsage(choice.GenerationInfo, usage)
 
 	result := &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{choice},
 	}
 
-	return result, nil
+	return result, streamErr
 }
 
-func (c *ConverseClient) processReasoning(reasoningContent string, signature []byte) *reasoning.ContentReasoning {
-	if reasoningContent == "" && len(signature) == 0 {
+func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
+	if info == nil || usage == nil {
+		return
+	}
+
+	var promptTokens int
+	if usage.InputTokens != nil {
+		info["input_tokens"] = int(*usage.InputTokens)
+		promptTokens += int(*usage.InputTokens)
+	}
+	if usage.OutputTokens != nil {
+		info["output_tokens"] = int(*usage.OutputTokens)
+		info["CompletionTokens"] = int(*usage.OutputTokens)
+	}
+	if usage.TotalTokens != nil {
+		info["total_tokens"] = int(*usage.TotalTokens)
+		info["TotalTokens"] = int(*usage.TotalTokens)
+	}
+	if usage.CacheReadInputTokens != nil {
+		info["cacheReadInputTokens"] = int(*usage.CacheReadInputTokens)
+		info["CacheReadInputTokens"] = int(*usage.CacheReadInputTokens)
+		info["PromptCachedTokens"] = int(*usage.CacheReadInputTokens)
+		promptTokens += int(*usage.CacheReadInputTokens)
+	}
+	if usage.CacheWriteInputTokens != nil {
+		info["cacheWriteInputTokens"] = int(*usage.CacheWriteInputTokens)
+		info["CacheCreationInputTokens"] = int(*usage.CacheWriteInputTokens)
+		promptTokens += int(*usage.CacheWriteInputTokens)
+	}
+	info["PromptTokens"] = promptTokens
+}
+
+func (c *ConverseClient) processReasoning(reasoningContent string, signature, redacted []byte) *reasoning.ContentReasoning {
+	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
 		return nil
 	}
 
 	return &reasoning.ContentReasoning{
 		Content:   reasoningContent,
 		Signature: signature,
+		Redacted:  redacted,
 	}
+}
+
+type converseReasoningStream struct {
+	text      strings.Builder
+	signature bytes.Buffer
+	redacted  []byte
+}
+
+func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (readableText string) {
+	switch block := delta.(type) {
+	case *types.ReasoningContentBlockDeltaMemberText:
+		a.text.WriteString(block.Value)
+		return block.Value
+	case *types.ReasoningContentBlockDeltaMemberSignature:
+		if len(block.Value) > 0 {
+			a.signature.WriteString(block.Value)
+		}
+	case *types.ReasoningContentBlockDeltaMemberRedactedContent:
+		a.redacted = append(a.redacted, block.Value...)
+	}
+	return ""
+}
+
+func (a *converseReasoningStream) result(c *ConverseClient) *reasoning.ContentReasoning {
+	var sig []byte
+	if a.signature.Len() > 0 {
+		sig = a.signature.Bytes()
+	}
+	return c.processReasoning(a.text.String(), sig, a.redacted)
+}
+
+func ensureReasoning(r *reasoning.ContentReasoning) *reasoning.ContentReasoning {
+	if r == nil {
+		return &reasoning.ContentReasoning{}
+	}
+	return r
 }
 
 // convertConverseResponse converts Converse response to ContentResponse
@@ -862,7 +993,6 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 				}
 				choice.ToolCalls = append(choice.ToolCalls, toolCall)
 			case *types.ContentBlockMemberReasoningContent:
-				// The block.Value is of type ReasoningContentBlock
 				switch content := block.Value.(type) {
 				case *types.ReasoningContentBlockMemberReasoningText:
 					reasoningText := ""
@@ -873,7 +1003,16 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 					if content.Value.Signature != nil {
 						sig = []byte(*content.Value.Signature)
 					}
-					choice.Reasoning = c.processReasoning(reasoningText, sig)
+					if reasoningText != "" || len(sig) > 0 {
+						choice.Reasoning = ensureReasoning(choice.Reasoning)
+						choice.Reasoning.Content = reasoningText
+						choice.Reasoning.Signature = sig
+					}
+				case *types.ReasoningContentBlockMemberRedactedContent:
+					if len(content.Value) > 0 {
+						choice.Reasoning = ensureReasoning(choice.Reasoning)
+						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value...)
+					}
 				}
 			}
 		}
@@ -884,32 +1023,9 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 	// distinguishes end_turn from tool_use, max_tokens, guardrail_intervened,
 	// content_filtered and malformed-output states.
 	choice.StopReason = string(response.StopReason)
+	choice.Truncated = llms.IsTruncated(string(response.StopReason))
 
-	// Add usage information
-	if response.Usage != nil {
-		if response.Usage.InputTokens != nil {
-			choice.GenerationInfo["input_tokens"] = *response.Usage.InputTokens
-			choice.GenerationInfo["PromptTokens"] = *response.Usage.InputTokens
-		}
-		if response.Usage.OutputTokens != nil {
-			choice.GenerationInfo["output_tokens"] = *response.Usage.OutputTokens
-			choice.GenerationInfo["CompletionTokens"] = *response.Usage.OutputTokens
-		}
-		if response.Usage.TotalTokens != nil {
-			choice.GenerationInfo["total_tokens"] = *response.Usage.TotalTokens
-			choice.GenerationInfo["TotalTokens"] = *response.Usage.TotalTokens
-		}
-		// Add cache metrics if available
-		if response.Usage.CacheReadInputTokens != nil {
-			choice.GenerationInfo["cacheReadInputTokens"] = *response.Usage.CacheReadInputTokens
-			choice.GenerationInfo["CacheReadInputTokens"] = *response.Usage.CacheReadInputTokens
-			choice.GenerationInfo["PromptCachedTokens"] = *response.Usage.CacheReadInputTokens
-		}
-		if response.Usage.CacheWriteInputTokens != nil {
-			choice.GenerationInfo["cacheWriteInputTokens"] = *response.Usage.CacheWriteInputTokens
-			choice.GenerationInfo["CacheCreationInputTokens"] = *response.Usage.CacheWriteInputTokens
-		}
-	}
+	applyConverseUsage(choice.GenerationInfo, response.Usage)
 
 	return &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{choice},
@@ -918,29 +1034,8 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 
 // Helper methods for model detection
 
-// supportsReasoning checks if the model supports reasoning
 func (c *ConverseClient) supportsReasoning(modelID string) bool {
-	// Claude 4+ and select non-Claude models support reasoning.
-	reasoningModels := []string{
-		"anthropic.claude-fable-5",
-		"anthropic.claude-sonnet-5",
-		"anthropic.claude-opus-5",
-		"anthropic.claude-opus-4-",
-		"anthropic.claude-sonnet-4-",
-		"anthropic.claude-haiku-4-",
-		"openai.gpt-oss-120b",
-		"openai.gpt-oss-20b",
-		"moonshot.kimi-k2-thinking",
-		"minimax.minimax-m2.5",
-		"minimax.minimax-m2.1",
-	}
-
-	for _, model := range reasoningModels {
-		if strings.Contains(modelID, model) {
-			return true
-		}
-	}
-	return false
+	return reasoning.IsReasoningModel(modelID)
 }
 
 // isAnthropicModelID reports whether the Bedrock model ID belongs to the Claude

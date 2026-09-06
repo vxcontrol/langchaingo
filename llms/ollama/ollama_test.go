@@ -37,7 +37,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 	})
 
 	// Default model for testing
-	ollamaModel := "gemma3:1b"
+	ollamaModel := "qwen3:8b"
 	if envModel := os.Getenv("OLLAMA_TEST_MODEL"); envModel != "" {
 		ollamaModel = envModel
 	}
@@ -229,10 +229,11 @@ func TestWithFormat(t *testing.T) {
 func TestStructuredOutput(t *testing.T) {
 	ctx := t.Context()
 
-	// This integration test needs a recorded trace (or a live Ollama server with
-	// HTTPRR_RECORD=.). Skip cleanly when neither is available.
-	if _, err := os.Stat("testdata/TestStructuredOutput.httprr"); err != nil && os.Getenv("HTTPRR_RECORD") == "" {
-		t.Skip("no recording; run against a local Ollama server with HTTPRR_RECORD=. to record")
+	const cassette = "testdata/TestStructuredOutput.httprr"
+	recording, err := httprr.Recording(cassette)
+	require.NoError(t, err)
+	if _, statErr := os.Stat(cassette); statErr != nil && !recording {
+		t.Skip("no recording; run against a live Ollama server with -httprecord=. to record")
 	}
 
 	llm := newTestClient(t)
