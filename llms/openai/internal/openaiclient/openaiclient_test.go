@@ -416,6 +416,8 @@ func TestSetHeadersOmitsEmptyToken(t *testing.T) {
 			req = newRequest(t)
 			client.setHeaders(req)
 			assert.Equal(t, tc.tokenValue, req.Header.Get(tc.tokenHeader))
+			assert.Empty(t, req.Header.Values(otherTokenHeader(tc.tokenHeader)),
+				"the token must reach one door only")
 		})
 	}
 }
@@ -426,4 +428,11 @@ type mockHTTPClient struct {
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.doFunc(req)
+}
+
+func otherTokenHeader(used string) string {
+	if used == "Authorization" {
+		return "api-key"
+	}
+	return "Authorization"
 }

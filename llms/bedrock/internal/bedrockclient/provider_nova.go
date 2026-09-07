@@ -443,8 +443,10 @@ DoStream:
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.MessageDelta.Usage.OutputTokens
 				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.MessageDelta.Usage.OutputTokens)
 			}
-			if resp.MessageStart.Usage.InputTokens > 0 || resp.MessageDelta.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.MessageStart.Usage.InputTokens) + int(resp.MessageDelta.Usage.OutputTokens)
+			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)
+			completion, _ := contentchoices[0].GenerationInfo["CompletionTokens"].(int)
+			if prompt > 0 || completion > 0 {
+				contentchoices[0].GenerationInfo["TotalTokens"] = prompt + completion
 			}
 		}
 	}

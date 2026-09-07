@@ -3173,6 +3173,16 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 	t.Logf("Response: %s", resp)
 }
 
+type authHeaderTap struct {
+	next          http.RoundTripper
+	authorization string
+}
+
+func (tap *authHeaderTap) RoundTrip(req *http.Request) (*http.Response, error) {
+	tap.authorization = req.Header.Get("Authorization")
+	return tap.next.RoundTrip(req)
+}
+
 // TestCreateClientWithBearerTokenCredentials tests creating a client with bearer token credentials.
 func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 	ctx := t.Context()
@@ -3195,8 +3205,9 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		return nil
 	})
 
+	tap := &authHeaderTap{next: rr}
 	httpClient := &http.Client{
-		Transport: rr,
+		Transport: tap,
 	}
 
 	region := os.Getenv("AWS_REGION")
@@ -3238,7 +3249,10 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		t.Fatal("Expected non-empty response")
 	}
 
-	t.Logf("Response: %s", resp)
+	if got, want := tap.authorization, "Bearer "+bearerToken; got != want {
+		t.Errorf("the request carried a %q credential, not the configured bearer token",
+			strings.SplitN(got, " ", 2)[0])
+	}
 }
 
 func requireUsageAddsUp(t *testing.T, info map[string]any) {
