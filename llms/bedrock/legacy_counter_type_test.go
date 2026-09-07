@@ -21,6 +21,7 @@ type counterCase struct {
 	model  string
 	whole  string
 	chunks []string
+	stop   string
 }
 
 var wantCounters = map[string]int{"PromptTokens": 5, "CompletionTokens": 3, "TotalTokens": 8}
@@ -29,6 +30,7 @@ func legacyCounterFamilies() []counterCase {
 	return []counterCase{
 		{
 			name:  "amazon",
+			stop:  "FINISH",
 			model: "amazon.titan-text-express-v1",
 			whole: `{"inputTextTokenCount":5,"results":[{"tokenCount":3,"outputText":"ok",` +
 				`"completionReason":"FINISH"}]}`,
@@ -39,14 +41,17 @@ func legacyCounterFamilies() []counterCase {
 		},
 		{
 			name:  "meta",
+			stop:  "stop",
 			model: "meta.llama3-70b-instruct-v1:0",
 			whole: `{"generation":"ok","prompt_token_count":5,"generation_token_count":3,"stop_reason":"stop"}`,
 			chunks: []string{
-				`{"generation":"ok","stop_reason":"stop","prompt_token_count":5,"generation_token_count":3}`,
+				`{"generation":"o","prompt_token_count":5,"generation_token_count":1,"stop_reason":null}`,
+				`{"generation":"k","prompt_token_count":null,"generation_token_count":3,"stop_reason":"stop"}`,
 			},
 		},
 		{
 			name:  "ai21",
+			stop:  "stop",
 			model: "ai21.jamba-1-5-large-v1:0",
 			whole: `{"id":"x","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},` +
 				`"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":3,` +
@@ -58,13 +63,17 @@ func legacyCounterFamilies() []counterCase {
 		},
 		{
 			name:  "nova",
+			stop:  "end_turn",
 			model: "amazon.nova-pro-v1:0",
 			whole: `{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},` +
 				`"stopReason":"end_turn","usage":{"inputTokens":5,"outputTokens":3,"totalTokens":8}}`,
 			chunks: []string{
-				`{"messageStart":{"role":"assistant","usage":{"inputTokens":5}}}`,
-				`{"contentBlockDelta":{"delta":{"text":"ok"}}}`,
-				`{"messageDelta":{"stopReason":"end_turn","usage":{"outputTokens":3}}}`,
+				`{"messageStart":{"role":"assistant"}}`,
+				`{"contentBlockDelta":{"delta":{"text":"ok"},"contentBlockIndex":0}}`,
+				`{"contentBlockStop":{"contentBlockIndex":0}}`,
+				`{"messageStop":{"stopReason":"end_turn"}}`,
+				`{"metadata":{"usage":{"inputTokens":5,"outputTokens":3,` +
+					`"cacheReadInputTokenCount":0,"cacheWriteInputTokenCount":0},"metrics":{}}}`,
 			},
 		},
 	}
@@ -107,6 +116,8 @@ func TestEveryLegacyFamilyReportsCountersAsInt(t *testing.T) {
 			require.Len(t, resp.Choices, 1)
 
 			assertCounters(t, resp.Choices[0].GenerationInfo)
+			assert.Equal(t, tc.stop, resp.Choices[0].StopReason,
+				"the reason the vendor gave for stopping reaches the caller on the streamed path too")
 		})
 	}
 }

@@ -187,8 +187,10 @@ DoStream:
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.GenerationTokenCount
 				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.GenerationTokenCount)
 			}
-			if resp.PromptTokenCount > 0 || resp.GenerationTokenCount > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.PromptTokenCount) + int(resp.GenerationTokenCount)
+			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)
+			completion, _ := contentchoices[0].GenerationInfo["CompletionTokens"].(int)
+			if prompt > 0 || completion > 0 {
+				contentchoices[0].GenerationInfo["TotalTokens"] = prompt + completion
 			}
 		}
 	}
