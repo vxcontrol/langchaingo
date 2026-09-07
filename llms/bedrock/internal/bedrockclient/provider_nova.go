@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -318,14 +319,21 @@ func processInputMessagesNova(messages []Message) ([]*novaTextGenerationInputMes
 				return nil, "", errors.New("multiple system prompts")
 			}
 			for _, message := range chunk {
-				c := getNovaInputContent(message)
+				c, err := getNovaInputContent(message)
+				if err != nil {
+					return nil, "", err
+				}
 				systemPrompt += c.Text
 			}
 			continue
 		}
 		content := make([]novaTextGenerationInputContent, 0, len(chunk))
 		for _, message := range chunk {
-			content = append(content, getNovaInputContent(message))
+			c, err := getNovaInputContent(message)
+			if err != nil {
+				return nil, "", err
+			}
+			content = append(content, c)
 		}
 		inputContents = append(inputContents, &novaTextGenerationInputMessage{
 			Role:    role,
@@ -355,22 +363,27 @@ func getNovaRole(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func getNovaInputContent(message Message) novaTextGenerationInputContent {
+func getNovaInputContent(message Message) (novaTextGenerationInputContent, error) {
 	var c novaTextGenerationInputContent
 	if message.Type == NovaMessageTypeText {
 		c = novaTextGenerationInputContent{
 			Text: message.Content,
 		}
 	} else if message.Type == NovaMessageTypeImage {
+		format := mimeTypeToFormat(message.MimeType)
+		if format == "" {
+			return novaTextGenerationInputContent{},
+				fmt.Errorf("%w: %s", ErrUnsupportedImageFormat, message.MimeType)
+		}
 		c = novaTextGenerationInputContent{}
 		c.Image = &novaImageInput{
-			Format: mimeTypeToFormat(message.MimeType),
+			Format: format,
 			Source: novaBinGenerationInputSource{
 				Bytes: []byte(message.Content),
 			},
 		}
 	}
-	return c
+	return c, nil
 }
 
 func mimeTypeToFormat(mimeType string) string {
