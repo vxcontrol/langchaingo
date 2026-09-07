@@ -14,6 +14,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/bedrock"
+	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 )
 
 func TestConverseSendsAPictureAsAPicture(t *testing.T) {
@@ -85,5 +86,6 @@ func TestConverseRefusesAPictureItCannotName(t *testing.T) {
 		Role:  llms.ChatMessageTypeHuman,
 		Parts: []llms.ContentPart{llms.BinaryPart("image/heic", []byte{0x00, 0x01})},
 	}})
-	require.Error(t, err, "a format the vendor has no name for must fail before the network, not travel as text")
+	require.ErrorIs(t, err, bedrockclient.ErrUnsupportedImageFormat,
+		"the door must refuse it by name; the SDK's own validation error would prove nothing about this guard")
 }
