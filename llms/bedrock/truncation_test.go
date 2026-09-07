@@ -37,7 +37,7 @@ func truncationLLMWithBody(t *testing.T, body string, opts ...bedrock.Option) *b
 		Credentials: credentials.NewStaticCredentialsProvider("unit", "test", ""),
 	}, func(o *bedrockruntime.Options) {
 		o.BaseEndpoint = aws.String(srv.URL)
-	})
+	}, signWithSigV4)
 
 	llm, err := bedrock.New(append([]bedrock.Option{bedrock.WithClient(client)}, opts...)...)
 	if err != nil {

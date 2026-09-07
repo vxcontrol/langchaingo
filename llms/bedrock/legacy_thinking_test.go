@@ -44,7 +44,7 @@ func bedrockLLMAgainst(t *testing.T, srv *httptest.Server, opts ...bedrock.Optio
 		Credentials: credentials.NewStaticCredentialsProvider("unit", "test", ""),
 	}, func(o *bedrockruntime.Options) {
 		o.BaseEndpoint = aws.String(srv.URL)
-	})
+	}, signWithSigV4)
 
 	llm, err := bedrock.New(append([]bedrock.Option{bedrock.WithClient(client)}, opts...)...)
 	require.NoError(t, err)
