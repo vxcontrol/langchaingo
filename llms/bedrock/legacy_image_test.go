@@ -77,3 +77,41 @@ func TestTheLegacyNovaDoorRefusesAPictureItCannotName(t *testing.T) {
 		"the legacy door must refuse by name what its Converse sibling refuses")
 	assert.Empty(t, *sent, "an image the door cannot name must not reach the vendor at all")
 }
+
+func TestTheLegacyNovaDoorLeavesOutASystemPromptNobodyWrote(t *testing.T) {
+	t.Parallel()
+
+	llm, sent := legacyLLMCapturing(t, novaAnswer, bedrock.WithModel("amazon.nova-lite-v1:0"))
+
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")})
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(*sent), &payload))
+
+	_, present := payload["system"]
+	assert.False(t, present,
+		"an absent system prompt leaves the key off the wire, as it does on the Converse door")
+}
+
+func TestTheLegacyNovaDoorSendsASystemPromptSomebodyWrote(t *testing.T) {
+	t.Parallel()
+
+	llm, sent := legacyLLMCapturing(t, novaAnswer, bedrock.WithModel("amazon.nova-lite-v1:0"))
+
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeSystem, "you are a hotel receptionist"),
+		llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?"),
+	})
+	require.NoError(t, err)
+
+	var payload struct {
+		System []struct {
+			Text string `json:"text"`
+		} `json:"system"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(*sent), &payload))
+	require.Len(t, payload.System, 1)
+	assert.Equal(t, "you are a hotel receptionist", payload.System[0].Text)
+}

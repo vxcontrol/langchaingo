@@ -187,7 +187,9 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	input := novaTextGenerationInput{
 		Messages:        inputContents,
 		InferenceConfig: inferenceConfig,
-		System:          []*novaSystemPrompt{{Text: systemPrompt}},
+	}
+	if systemPrompt != "" {
+		input.System = []*novaSystemPrompt{{Text: systemPrompt}}
 	}
 	return json.Marshal(input)
 }
