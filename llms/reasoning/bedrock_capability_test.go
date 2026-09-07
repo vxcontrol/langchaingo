@@ -2,10 +2,10 @@ package reasoning
 
 import "testing"
 
-func TestNovaReasoningModelIsTheSecondGenerationOnly(t *testing.T) {
+func TestOnlyNovaLiteAndSonicTakeReasoningConfig(t *testing.T) {
 	for _, model := range []string{
 		"amazon.nova-2-lite-v1:0", "us.amazon.nova-2-lite-v1:0",
-		"global.amazon.nova-2-pro-preview-20251202-v1:0",
+		"amazon.nova-2-sonic-v1:0",
 	} {
 		if !IsNovaReasoningModel(model) {
 			t.Errorf("%s takes reasoningConfig", model)
@@ -13,6 +13,7 @@ func TestNovaReasoningModelIsTheSecondGenerationOnly(t *testing.T) {
 	}
 	for _, model := range []string{
 		"amazon.nova-pro-v1:0", "us.amazon.nova-lite-v1:0", "amazon.nova-micro-v1:0",
+		"global.amazon.nova-2-pro-preview-20251202-v1:0", "us.amazon.nova-2-micro-v1:0",
 		"us.anthropic.claude-opus-5", "openai.gpt-oss-120b-1:0",
 	} {
 		if IsNovaReasoningModel(model) {
