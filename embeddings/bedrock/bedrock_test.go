@@ -22,10 +22,6 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 		req.Header.Del("Amz-Sdk-Invocation-Id")
 		req.Header.Del("Amz-Sdk-Request")
 		req.Header.Del("X-Amz-Date")
-		// Scrub the actual AWS signature to make it reproducible
-		if auth := req.Header.Get("Authorization"); auth != "" {
-			req.Header.Set("Authorization", "AWS4-HMAC-SHA256 test-api-key")
-		}
 		return nil
 	})
 
@@ -50,7 +46,9 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 		return nil, err
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, func(o *bedrockruntime.Options) {
+		o.AuthSchemePreference = []string{"sigv4"}
+	})
 	return client, nil
 }
 

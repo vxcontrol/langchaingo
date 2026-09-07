@@ -36,19 +36,19 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
 		append([]func(*config.LoadOptions) error{config.WithHTTPClient(httpClient)},
-			replayCredentials(rr)...)...)
+			replayCredentials(rr.Recording())...)...)
 	if err != nil {
 		return nil, err
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, replayClientOptions(rr.Recording())...)
 	return client, nil
 }
 
 const replayRegion = "us-east-1"
 
-func replayCredentials(rr *httprr.RecordReplay) []func(*config.LoadOptions) error {
-	if rr.Recording() {
+func replayCredentials(recording bool) []func(*config.LoadOptions) error {
+	if recording {
 		return nil
 	}
 	return []func(*config.LoadOptions) error{
@@ -56,6 +56,17 @@ func replayCredentials(rr *httprr.RecordReplay) []func(*config.LoadOptions) erro
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			"replay-access-key", "replay-secret-key", "")),
 	}
+}
+
+func replayClientOptions(recording bool) []func(*bedrockruntime.Options) {
+	if recording {
+		return nil
+	}
+	return []func(*bedrockruntime.Options){signWithSigV4}
+}
+
+func signWithSigV4(o *bedrockruntime.Options) {
+	o.AuthSchemePreference = []string{"sigv4"}
 }
 
 func TestAmazonOutputConverseAPI(t *testing.T) { //nolint:funlen
@@ -3146,14 +3157,14 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 			secretKey,
 			sessionToken,
 		)),
-	}, replayCredentials(rr)...)
+	}, replayCredentials(rr.Recording())...)
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, replayClientOptions(rr.Recording())...)
 
 	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithConverseAPI())
 	if err != nil {
@@ -3232,7 +3243,10 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, func(o *bedrockruntime.Options) {
+		o.BearerAuthTokenProvider = bearer.StaticTokenProvider{Token: bearer.Token{Value: bearerToken}}
+		o.AuthSchemePreference = []string{"httpBearerAuth"}
+	})
 
 	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithConverseAPI())
 	if err != nil {
