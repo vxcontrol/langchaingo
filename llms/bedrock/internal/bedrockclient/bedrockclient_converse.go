@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -585,6 +586,9 @@ func (c *ConverseClient) addCachePointToMessages(messages []types.Message) {
 }
 
 // convertUserOrAssistantMessage converts user or assistant messages
+// ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
+var ErrUnsupportedImageFormat = errors.New("bedrock: unsupported image mime type")
+
 func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Message, error) {
 	var role types.ConversationRole
 	if msg.Role == llms.ChatMessageTypeHuman {
@@ -595,8 +599,19 @@ func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Messa
 
 	var contentBlocks []types.ContentBlock
 
-	// Handle text content
-	if msg.Content != "" {
+	switch {
+	case msg.Type == AnthropicMessageTypeImage && msg.Content != "":
+		format := mimeTypeToFormat(msg.MimeType)
+		if format == "" {
+			return types.Message{}, fmt.Errorf("%w: %s", ErrUnsupportedImageFormat, msg.MimeType)
+		}
+		contentBlocks = append(contentBlocks, &types.ContentBlockMemberImage{
+			Value: types.ImageBlock{
+				Format: types.ImageFormat(format),
+				Source: &types.ImageSourceMemberBytes{Value: []byte(msg.Content)},
+			},
+		})
+	case msg.Content != "":
 		contentBlocks = append(contentBlocks, &types.ContentBlockMemberText{
 			Value: msg.Content,
 		})
