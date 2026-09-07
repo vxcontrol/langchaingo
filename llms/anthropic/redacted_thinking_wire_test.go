@@ -14,6 +14,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
@@ -98,4 +99,55 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 		assert.Contains(t, blocks, map[string]any{"type": "redacted_thinking", "data": encrypted},
 			"the encrypted thought goes back exactly as it came")
 	})
+}
+
+func redactedThinkingStream(t *testing.T, encrypted string) *httptest.Server {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "event: message_start\ndata: {\"type\":\"message_start\",\"message\":"+
+			"{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-opus-4-6\","+
+			"\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}\n\n")
+		_, _ = io.WriteString(w, "event: content_block_start\ndata: {\"type\":\"content_block_start\","+
+			"\"index\":0,\"content_block\":{\"type\":\"redacted_thinking\",\"data\":\""+encrypted+"\"}}\n\n")
+		_, _ = io.WriteString(w, "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n")
+		_, _ = io.WriteString(w, "event: content_block_start\ndata: {\"type\":\"content_block_start\","+
+			"\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n")
+		_, _ = io.WriteString(w, "event: content_block_delta\ndata: {\"type\":\"content_block_delta\","+
+			"\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"sixty rooms are free\"}}\n\n")
+		_, _ = io.WriteString(w, "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}\n\n")
+		_, _ = io.WriteString(w, "event: message_delta\ndata: {\"type\":\"message_delta\","+
+			"\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":9}}\n\n")
+		_, _ = io.WriteString(w, "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n")
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestAStreamedEncryptedThoughtDoesNotCostTheAnswer(t *testing.T) {
+	t.Parallel()
+
+	const encrypted = "EqQBCgIYAhIM1gbcDa9GJwZA2b"
+
+	srv := redactedThinkingStream(t, encrypted)
+
+	llm, err := anthropic.New(anthropic.WithToken("test-key"),
+		anthropic.WithBaseURL(srv.URL), anthropic.WithModel("claude-opus-4-6"))
+	require.NoError(t, err)
+
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{{
+			Role:  llms.ChatMessageTypeHuman,
+			Parts: []llms.ContentPart{llms.TextPart("how many rooms are free?")},
+		}},
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+	require.NoError(t, err, "a streamed block the door cannot read must not cost the caller the answer")
+	require.Len(t, resp.Choices, 1)
+
+	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning on the streamed leg")
+	assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted))
+	assert.False(t, resp.Choices[0].Reasoning.IsEmpty())
 }
