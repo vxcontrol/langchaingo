@@ -369,20 +369,55 @@ func TestSanitizeHTTPError(t *testing.T) {
 func TestSetHeadersOmitsEmptyToken(t *testing.T) {
 	t.Parallel()
 
-	client, err := New("", "gpt-3.5-turbo", "http://127.0.0.1:8000/v1", "", APITypeOpenAI, "", nil, "", nil, false, false, false)
-	require.NoError(t, err)
+	newRequest := func(t *testing.T) *http.Request {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8000/v1/chat/completions", http.NoBody)
+		require.NoError(t, err)
+		return req
+	}
 
-	req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8000/v1/chat/completions", http.NoBody)
-	require.NoError(t, err)
+	cases := []struct {
+		name        string
+		apiType     APIType
+		apiVersion  string
+		tokenHeader string
+		tokenValue  string
+	}{
+		{
+			name:        "a bearer door carries the token in Authorization",
+			apiType:     APITypeOpenAI,
+			tokenHeader: "Authorization",
+			tokenValue:  "Bearer secret",
+		},
+		{
+			name:        "an api-key door carries the token in api-key",
+			apiType:     APITypeAzure,
+			apiVersion:  "2023-05-15",
+			tokenHeader: "api-key",
+			tokenValue:  "secret",
+		},
+	}
 
-	client.setHeaders(req)
-	assert.Empty(t, req.Header.Get("Authorization"))
-	assert.Empty(t, req.Header.Get("api-key"))
-	assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	client.token = "secret"
-	client.setHeaders(req)
-	assert.Equal(t, "Bearer secret", req.Header.Get("Authorization"))
+			client, err := New("", "gpt-3.5-turbo", "http://127.0.0.1:8000/v1", "",
+				tc.apiType, tc.apiVersion, nil, "", nil, false, false, false)
+			require.NoError(t, err)
+
+			req := newRequest(t)
+			client.setHeaders(req)
+			assert.Empty(t, req.Header.Values("Authorization"))
+			assert.Empty(t, req.Header.Values("api-key"))
+			assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+			client.token = "secret"
+			req = newRequest(t)
+			client.setHeaders(req)
+			assert.Equal(t, tc.tokenValue, req.Header.Get(tc.tokenHeader))
+		})
+	}
 }
 
 type mockHTTPClient struct {

@@ -247,8 +247,8 @@ func TestGetDocumentsFromMatchesStableOrder(t *testing.T) {
 
 	docs, err := store.getDocumentsFromMatches(&pinecone.QueryVectorsResponse{
 		Matches: []*pinecone.ScoredVector{
-			match("The color of the chair beside the desk is beige.", 0.81),
 			match("The color of the desk is orange.", 0.81),
+			match("The color of the chair beside the desk is beige.", 0.81),
 			match("The color of the lamp beside the desk is black.", 0.90),
 			match("The color of the car is red.", 0.70),
 		},
