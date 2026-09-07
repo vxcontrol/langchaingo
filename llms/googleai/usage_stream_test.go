@@ -47,10 +47,58 @@ func TestAStreamedAnswerReportsCountersThatAddUp(t *testing.T) {
 	info := resp.Choices[0].GenerationInfo
 	assert.Equal(t, 100, info["PromptTokens"], "the prompt count is the whole prompt, cache included")
 	assert.Equal(t, 80, info["CacheReadInputTokens"])
-	assert.Equal(t, 20, info["CacheCreationInputTokens"], "the uncached remainder keeps its own field")
 	assert.Equal(t, info["TotalTokens"],
 		info["PromptTokens"].(int)+info["CompletionTokens"].(int),
 		"prompt plus completion must equal the total, as every other door reports it")
+}
+
+func TestReadingACacheIsNotWritingOne(t *testing.T) {
+	t.Parallel()
+
+	t.Run("streamed", func(t *testing.T) {
+		t.Parallel()
+
+		llm, err := New(context.Background(),
+			WithAPIKey("unit-test-key"), WithRest(),
+			WithDefaultModel("gemini-2.5-flash"),
+			WithHTTPClient(&http.Client{Transport: cachedUsageStream{}}))
+		require.NoError(t, err)
+
+		resp, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+		require.NoError(t, err)
+		require.Len(t, resp.Choices, 1)
+
+		assert.Equal(t, 0, resp.Choices[0].GenerationInfo["CacheCreationInputTokens"],
+			"the vendor reports no cache-creation counter, so the uncached remainder is not one")
+	})
+
+	t.Run("whole answer", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"candidates":[{"content":{"role":"model","parts":[{"text":"sixty rooms are free"}]},` +
+				`"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":100,` +
+				`"candidatesTokenCount":9,"totalTokenCount":109,"cachedContentTokenCount":80}}`))
+		}))
+		defer server.Close()
+
+		llm, err := New(context.Background(),
+			WithAPIKey("unit-test-key"), WithEndpoint(server.URL),
+			WithDefaultModel("gemini-2.5-flash"))
+		require.NoError(t, err)
+
+		resp, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+		require.NoError(t, err)
+		require.Len(t, resp.Choices, 1)
+
+		assert.Equal(t, 80, resp.Choices[0].GenerationInfo["CacheReadInputTokens"])
+		assert.Equal(t, 0, resp.Choices[0].GenerationInfo["CacheCreationInputTokens"],
+			"both paths answer the same on a payload that read a cache")
+	})
 }
 
 type uncachedUsageStream struct{}
