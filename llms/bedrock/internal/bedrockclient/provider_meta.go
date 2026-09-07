@@ -125,7 +125,7 @@ func createMetaCompletion(ctx context.Context,
 					// Standardized field names for cross-provider compatibility
 					"PromptTokens":     int(output.PromptTokenCount),
 					"CompletionTokens": int(output.GenerationTokenCount),
-					"TotalTokens":      output.PromptTokenCount + output.GenerationTokenCount,
+					"TotalTokens":      int(output.PromptTokenCount) + int(output.GenerationTokenCount),
 				},
 			},
 		},
@@ -181,14 +181,14 @@ DoStream:
 			// Set token counts
 			if resp.PromptTokenCount > 0 {
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.PromptTokenCount
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.PromptTokenCount
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.PromptTokenCount)
 			}
 			if resp.GenerationTokenCount > 0 {
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.GenerationTokenCount
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.GenerationTokenCount
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.GenerationTokenCount)
 			}
 			if resp.PromptTokenCount > 0 || resp.GenerationTokenCount > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.PromptTokenCount + resp.GenerationTokenCount
+				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.PromptTokenCount) + int(resp.GenerationTokenCount)
 			}
 		}
 	}

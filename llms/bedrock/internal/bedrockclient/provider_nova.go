@@ -231,7 +231,7 @@ func createNovaCompletion(ctx context.Context,
 				// Standardized field names for cross-provider compatibility
 				"PromptTokens":     int(output.Usage.InputTokens),
 				"CompletionTokens": int(output.Usage.OutputTokens),
-				"TotalTokens":      output.Usage.InputTokens + output.Usage.OutputTokens,
+				"TotalTokens":      int(output.Usage.InputTokens) + int(output.Usage.OutputTokens),
 			},
 		}
 	}
@@ -385,7 +385,7 @@ DoStream:
 			// Check for message start (contains input tokens)
 			if resp.MessageStart.Usage.InputTokens > 0 {
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.MessageStart.Usage.InputTokens
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.MessageStart.Usage.InputTokens
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.MessageStart.Usage.InputTokens)
 			}
 
 			// Check for message delta (contains stop reason and output tokens)
@@ -395,10 +395,10 @@ DoStream:
 			}
 			if resp.MessageDelta.Usage.OutputTokens > 0 {
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.MessageDelta.Usage.OutputTokens
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.MessageDelta.Usage.OutputTokens
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.MessageDelta.Usage.OutputTokens)
 			}
 			if resp.MessageStart.Usage.InputTokens > 0 || resp.MessageDelta.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.MessageStart.Usage.InputTokens + resp.MessageDelta.Usage.OutputTokens
+				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.MessageStart.Usage.InputTokens) + int(resp.MessageDelta.Usage.OutputTokens)
 			}
 		}
 	}

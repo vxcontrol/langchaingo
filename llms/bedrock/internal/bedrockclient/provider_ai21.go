@@ -358,14 +358,14 @@ DoStream:
 			// Set token counts if available
 			if resp.Usage.PromptTokens > 0 {
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.Usage.PromptTokens
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.Usage.PromptTokens
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.Usage.PromptTokens)
 			}
 			if resp.Usage.CompletionTokens > 0 {
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.Usage.CompletionTokens
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.Usage.CompletionTokens
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.Usage.CompletionTokens)
 			}
 			if resp.Usage.PromptTokens > 0 || resp.Usage.CompletionTokens > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.Usage.PromptTokens + resp.Usage.CompletionTokens
+				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.Usage.PromptTokens) + int(resp.Usage.CompletionTokens)
 			}
 		}
 	}

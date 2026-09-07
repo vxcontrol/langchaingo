@@ -138,7 +138,7 @@ func createAmazonCompletion(ctx context.Context,
 				// Standardized field names for cross-provider compatibility
 				"PromptTokens":     int(output.InputTextTokenCount),
 				"CompletionTokens": int(result.TokenCount),
-				"TotalTokens":      output.InputTextTokenCount + result.TokenCount,
+				"TotalTokens":      int(output.InputTextTokenCount) + int(result.TokenCount),
 			},
 		}
 	}
@@ -197,14 +197,14 @@ DoStream:
 			// Set token counts
 			if resp.InputTextTokenCount > 0 {
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.InputTextTokenCount
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.InputTextTokenCount
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.InputTextTokenCount)
 			}
 			if resp.OutputTextTokenCount > 0 {
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.OutputTextTokenCount
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.OutputTextTokenCount
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.OutputTextTokenCount)
 			}
 			if resp.InputTextTokenCount > 0 || resp.OutputTextTokenCount > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.InputTextTokenCount + resp.OutputTextTokenCount
+				contentchoices[0].GenerationInfo["TotalTokens"] = int(resp.InputTextTokenCount) + int(resp.OutputTextTokenCount)
 			}
 		}
 	}
