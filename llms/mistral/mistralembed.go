@@ -20,7 +20,8 @@ var (
 
 const (
 	defaultEmbeddingModel = "mistral-embed"
-	embeddingsPath        = "v1/embeddings"
+	apiVersionSegment     = "v1"
+	embeddingsSegment     = "embeddings"
 )
 
 func convertFloat64ToFloat32(input []float64) []float32 {
@@ -40,7 +41,10 @@ func (m *Model) embeddingsURL() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
 	}
-	endpoint.Path = path.Join(endpoint.Path, embeddingsPath)
+	if path.Base(endpoint.Path) != apiVersionSegment {
+		endpoint.Path = path.Join(endpoint.Path, apiVersionSegment)
+	}
+	endpoint.Path = path.Join(endpoint.Path, embeddingsSegment)
 	return endpoint.String(), nil
 }
 

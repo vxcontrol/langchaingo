@@ -37,6 +37,12 @@ func TestTheConfiguredEndpointKeepsItsPrefix(t *testing.T) {
 		"an endpoint that is a bare host still reaches the vendor's own path")
 	assert.Equal(t, "/mistral/v1/embeddings", embeddingPathOnTheWire(t, "/mistral"),
 		"a gateway prefix is part of the address the caller configured, not decoration")
+	assert.Equal(t, "/v1/embeddings", embeddingPathOnTheWire(t, "/v1"),
+		"an endpoint that already names the version does not get it twice")
+	assert.Equal(t, "/mistral/v1/embeddings", embeddingPathOnTheWire(t, "/mistral/v1"),
+		"a prefix that already names the version keeps both, and each of them once")
+	assert.Equal(t, "/openai/v1/embeddings", embeddingPathOnTheWire(t, "/openai/v1"),
+		"the same base the openai door is given resolves to the same address on this door")
 }
 
 func TestAnEmbeddingRefusalNamesWhatTheVendorSaid(t *testing.T) {
