@@ -92,14 +92,23 @@ type novaTextGenerationInput struct {
 	System []*novaSystemPrompt `json:"system,omitempty"`
 }
 
+type novaOutputContent struct {
+	Text             string                      `json:"text"`
+	ReasoningContent *novaReasoningContentOutput `json:"reasoningContent"`
+}
+
+type novaReasoningContentOutput struct {
+	ReasoningText struct {
+		Text string `json:"text"`
+	} `json:"reasoningText"`
+}
+
 // novaTextGenerationOutput is the output for the text generation for Amazon Nova Models.
 type novaTextGenerationOutput struct {
 	Output struct {
 		Message struct {
-			Content []struct {
-				Text string `json:"text"`
-			} `json:"content"`
-			Role string `json:"role"`
+			Content []novaOutputContent `json:"content"`
+			Role    string              `json:"role"`
 		} `json:"message"`
 	} `json:"output"`
 	StopReason string `json:"stopReason"`
@@ -182,6 +191,22 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	return json.Marshal(input)
 }
 
+func splitNovaReasoning(blocks []novaOutputContent) ([]novaOutputContent, *reasoning.ContentReasoning) {
+	answers := make([]novaOutputContent, 0, len(blocks))
+	var thought string
+	for _, block := range blocks {
+		if block.ReasoningContent == nil {
+			answers = append(answers, block)
+			continue
+		}
+		thought += block.ReasoningContent.ReasoningText.Text
+	}
+	if thought == "" {
+		return answers, nil
+	}
+	return answers, &reasoning.ContentReasoning{Content: thought}
+}
+
 func parseNovaResponseBody(body []byte) (*novaTextGenerationOutput, error) {
 	var output novaTextGenerationOutput
 	err := json.Unmarshal(body, &output)
@@ -230,7 +255,7 @@ func createNovaCompletion(ctx context.Context,
 		return nil, err
 	}
 
-	content := output.Output.Message.Content
+	content, contentReasoning := splitNovaReasoning(output.Output.Message.Content)
 	if len(content) == 0 {
 		return nil, errors.New("no results")
 	} else if stopReason := output.StopReason; stopReason != NovaCompletionReasonEndTurn &&
@@ -243,6 +268,7 @@ func createNovaCompletion(ctx context.Context,
 	for i, c := range content {
 		Contentchoices[i] = &llms.ContentChoice{
 			Content:    c.Text,
+			Reasoning:  contentReasoning,
 			StopReason: output.StopReason,
 			Truncated:  llms.IsTruncated(output.StopReason),
 			GenerationInfo: map[string]any{
