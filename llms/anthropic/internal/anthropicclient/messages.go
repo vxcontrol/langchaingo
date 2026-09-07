@@ -612,6 +612,11 @@ func handleContentBlockStartEvent(event map[string]interface{}, response Message
 				Thinking:  getString(cb, "thinking"),
 				Signature: getString(cb, "signature"),
 			})
+		case EventTypeRedactedThinking:
+			response.Content = append(response.Content, &RedactedThinkingContent{
+				Type: eventType,
+				Data: getString(cb, "data"),
+			})
 		default:
 			return response, fmt.Errorf("unknown content block type: %s", eventType)
 		}
