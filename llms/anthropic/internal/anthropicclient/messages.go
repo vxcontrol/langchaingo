@@ -213,12 +213,13 @@ func (tuc *ToolUseContent) DecodeStream() error {
 		return nil
 	}
 
-	err := json.Unmarshal([]byte(tuc.rawStreamInput), &tuc.Input)
-	if err != nil {
-		return err
-	}
+	return decodeExactNumbers([]byte(tuc.rawStreamInput), &tuc.Input)
+}
 
-	return nil
+func decodeExactNumbers(data []byte, v any) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	return dec.Decode(v)
 }
 
 func (tuc ToolUseContent) GetType() string {
@@ -310,7 +311,7 @@ func parseContentBlock(raw []byte) (Content, error) {
 		return tc, nil
 	case EventTypeToolUse:
 		tuc := &ToolUseContent{}
-		if err := json.Unmarshal(raw, tuc); err != nil {
+		if err := decodeExactNumbers(raw, tuc); err != nil {
 			return nil, err
 		}
 		return tuc, nil
