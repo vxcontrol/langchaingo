@@ -46,8 +46,10 @@ graph TB
 **Legacy API** (InvokeModel/InvokeModelWithResponseStream):
 - Direct access to model-specific features
 - Anthropic cache_control format support
-- Broader model compatibility
-- **Use when**: Model not supported by Converse API
+- Narrower model compatibility: seven provider families are implemented — ai21, amazon,
+  nova, anthropic, cohere, meta and deepseek. Any other model id answers
+  "unsupported provider" on this path
+- **Use when**: a provider-specific field has no Converse equivalent
 
 **Converse API** (Converse/ConverseStream):
 - Unified interface across all models
@@ -75,7 +77,7 @@ flowchart LR
 
 **Challenge**: Anthropic's prompt caching requires manual cache control wrappers on client side.
 
-**Solution**: Automatic cache point insertion for Claude 4.x models.
+**Solution**: Automatic cache point insertion for Claude 4.x and 5.x models.
 
 ```mermaid
 sequenceDiagram
@@ -98,7 +100,9 @@ sequenceDiagram
 ```
 
 **Implementation**:
-- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`, `claude-haiku-4`)
+- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`,
+  `claude-haiku-4`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-5`, `claude-fable-5`,
+  `claude-mythos-5`)
 - `applyAutomaticCaching()`: Adds `CacheControl{Type: "ephemeral", TTL: "5m"}` to last cacheable message (assistant or tool response)
 - **Why last message?** Caches conversation history before new user input
 - **TTL Options**: 5 minutes (default) or 1 hour (configurable via `EphemeralCacheOneHour()`)
@@ -192,13 +196,14 @@ configuration on this platform. The rest reason on their own and carry nothing.
 **Converse API** — a thinking configuration is sent for:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking`
   in `additionalModelRequestFields`, adaptive or budget (see below)
-- Amazon Nova 2 (Lite, Pro, Micro) — `reasoningConfig` in `additionalModelRequestFields`
+- Amazon Nova 2 Lite and Sonic — `reasoningConfig` in `additionalModelRequestFields`.
+  The vendor marks the field for those two only, so Nova 2 Pro and Micro do not get it
 - xAI Grok 4.x — `reasoning.effort` in `additionalModelRequestFields`
 
 **Legacy API** (InvokeModel) — a thinking configuration is sent for:
-- Claude: Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
+- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
   Anthropic body
-- Amazon Nova 2 (Lite, Pro, Micro) — `reasoningConfig` inside `inferenceConfig`
+- Amazon Nova 2 Lite and Sonic — `reasoningConfig` inside `inferenceConfig`
 
 **Reasoning models that take no configuration here**: OpenAI GPT OSS (120B, 20B),
 Moonshot Kimi K2-Thinking, MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM, NVIDIA
@@ -505,9 +510,10 @@ Tool arguments arrive in chunks:
 ### When to Use Legacy vs Converse API
 
 **Use Legacy API**:
-- Model doesn't support Converse API
 - Need Anthropic-specific cache_control format
 - Debugging provider-specific issues
+- Note that this path implements seven provider families only; Converse serves every
+  model in `models_list.go`
 
 **Use Converse API**:
 - Default for new implementations
@@ -518,14 +524,19 @@ Tool arguments arrive in chunks:
 ### Adding Caching Support
 
 **Criteria**:
-1. Model must support Anthropic prompt caching (currently only Claude 4.x)
+1. Model must support Anthropic prompt caching (Claude 4.x and 5.x)
 2. Add pattern to `supportsCaching()` in `bedrockllm.go`:
 ```go
 cachingPatterns := []string{
     "claude-opus-4",
     "claude-sonnet-4",
     "claude-haiku-4",
-    "claude-new-4",  // Add new model pattern
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-haiku-5",
+    "claude-fable-5",
+    "claude-mythos-5",
+    "claude-new-5",  // Add new model pattern
 }
 ```
 3. Ensure model supports minimum 1024 tokens threshold for cache activation
@@ -771,7 +782,8 @@ for the exact model IDs.
 | Claude Opus 5/4.8/4.7/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Sonnet 5/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Nova 2 Lite/Pro/Micro | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
+| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
+| Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
@@ -780,7 +792,7 @@ for the exact model IDs.
 | Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Moonshot Kimi | ✅**** | ✅ | ✅ | Some | ❌ | Converse native* |
-| MiniMax M2/M2.1/M2.5 | ✅ | ✅ (M2.5/M2.1) | ✅ | ❌ | ❌ | Converse native* |
+| MiniMax M2/M2.1/M2.5 | ✅ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
 | GLM-4.7/4.7-Flash/5 | ❌***** | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 | NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 
