@@ -1,6 +1,8 @@
 package bedrockclient
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -181,4 +183,10 @@ func validateStructuredResponse(so *llms.StructuredOutputConfig, model string, r
 		}
 	}
 	return nil
+}
+
+func decodeExactNumbers(payload []byte, into any) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	return decoder.Decode(into)
 }
