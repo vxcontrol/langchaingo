@@ -601,7 +601,6 @@ func (c *ConverseClient) addCachePointToMessages(messages []types.Message) {
 	})
 }
 
-// convertUserOrAssistantMessage converts user or assistant messages
 // ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
 var ErrUnsupportedImageFormat = errors.New("bedrock: unsupported image mime type")
 
