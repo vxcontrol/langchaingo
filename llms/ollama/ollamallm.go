@@ -437,7 +437,7 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	}
 
 	err := o.client.Chat(ctx, req, fn)
-	if err != nil && resp.Message.Content == "" && resp.Message.Thinking == "" && len(resp.Message.ToolCalls) == 0 {
+	if err != nil {
 		resp.Message = api.Message{
 			Role:      "assistant",
 			Content:   streamedResponse.String(),
