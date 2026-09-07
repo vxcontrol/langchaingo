@@ -144,12 +144,17 @@ func offByOmission(model string) bool {
 		return true
 	}
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "magistral") {
-			return true
+		for _, family := range magistralSpellings {
+			if strings.HasPrefix(form, family) {
+				return true
+			}
 		}
 	}
 	return false
 }
+
+// magistralSpellings mirrors the alias group of magistral in testdata/mistral_models.json.
+var magistralSpellings = []string{"magistral", "mistral-medium", "mistral-small", "mistral-vibe-cli"}
 
 func disablesByThinkingObject(model string) bool {
 	for _, form := range modelSpellings(model) {
