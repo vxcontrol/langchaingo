@@ -54,7 +54,7 @@ func TestTheLegacyNovaPathCarriesTheThinkingItWasAskedFor(t *testing.T) {
 		t.Parallel()
 
 		config := novaLegacyInferenceConfig(t,
-			llms.WithMaxTokens(512), llms.WithTemperature(0.4),
+			llms.WithMaxTokens(512), llms.WithTemperature(0.4), llms.WithTopP(0.9),
 			llms.WithReasoning(llms.ReasoningHigh, 0))
 
 		assert.Equal(t, map[string]any{"type": "enabled", "maxReasoningEffort": "high"},
@@ -81,4 +81,25 @@ func TestTheLegacyNovaPathCarriesTheThinkingItWasAskedFor(t *testing.T) {
 		assert.NotContains(t, config, "reasoningConfig",
 			"the door that carries the field on Converse is the same one that carries it here")
 	})
+}
+
+func TestTheLegacyNovaPathReadsTheThinkingItAskedFor(t *testing.T) {
+	t.Parallel()
+
+	const answer = `{"output":{"message":{"role":"assistant","content":[` +
+		`{"reasoningContent":{"reasoningText":{"text":"[REDACTED]"}}},` +
+		`{"text":"sixty rooms are free"}]}},` +
+		`"stopReason":"end_turn","usage":{"inputTokens":10,"outputTokens":9,"totalTokens":19}}`
+
+	llm, _ := legacyLLMCapturing(t, answer, bedrock.WithModel("us.amazon.nova-2-lite-v1:0"))
+
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithMaxTokens(512), llms.WithReasoning(llms.ReasoningMedium, 0))
+	require.NoError(t, err)
+
+	require.Len(t, resp.Choices, 1, "a thinking block is not an answer and must not become an empty choice")
+	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	require.NotNil(t, resp.Choices[0].Reasoning, "the door asked for thinking and must carry what came back")
+	assert.Equal(t, "[REDACTED]", resp.Choices[0].Reasoning.Content)
 }
