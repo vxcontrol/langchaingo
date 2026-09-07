@@ -18,6 +18,41 @@ import (
 
 const defaultModel = ModelAnthropicClaudeHaiku45
 
+func decodeToolArguments(raw string) (map[string]any, error) {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.UseNumber()
+
+	var arguments map[string]any
+	if err := decoder.Decode(&arguments); err != nil {
+		return nil, err
+	}
+	for key, value := range arguments {
+		arguments[key] = exactNumbers(value)
+	}
+	return arguments, nil
+}
+
+func exactNumbers(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, item := range typed {
+			typed[key] = exactNumbers(item)
+		}
+	case []any:
+		for i, item := range typed {
+			typed[i] = exactNumbers(item)
+		}
+	case json.Number:
+		if whole, err := typed.Int64(); err == nil {
+			return whole
+		}
+		if fraction, err := typed.Float64(); err == nil {
+			return fraction
+		}
+	}
+	return value
+}
+
 // LLM is a Bedrock LLM implementation.
 type LLM struct {
 	modelID           string
@@ -249,9 +284,11 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				}
 				var arguments map[string]any
 				if part.FunctionCall.Arguments != "" {
-					if err := json.Unmarshal([]byte(part.FunctionCall.Arguments), &arguments); err != nil {
+					decoded, err := decodeToolArguments(part.FunctionCall.Arguments)
+					if err != nil {
 						return nil, fmt.Errorf("failed to unmarshal tool call arguments: %w", err)
 					}
+					arguments = decoded
 				}
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
 					Role: m.Role,

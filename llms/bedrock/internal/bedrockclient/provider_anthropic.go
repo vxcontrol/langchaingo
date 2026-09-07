@@ -308,7 +308,7 @@ func createAnthropicCompletion(ctx context.Context,
 	}
 
 	var output anthropicTextGenerationOutput
-	err = json.Unmarshal(resp.Body, &output)
+	err = decodeExactNumbers(resp.Body, &output)
 	if err != nil {
 		return nil, err
 	}
