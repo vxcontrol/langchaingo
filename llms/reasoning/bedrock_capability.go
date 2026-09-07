@@ -5,7 +5,8 @@ import "strings"
 // IsNovaReasoningModel reports whether the Bedrock model takes Amazon Nova's
 // reasoningConfig.
 func IsNovaReasoningModel(model string) bool {
-	return strings.Contains(baseModelName(model), "amazon.nova-2")
+	base := baseModelName(model)
+	return strings.Contains(base, "amazon.nova-2-lite") || strings.Contains(base, "amazon.nova-2-sonic")
 }
 
 // NovaEffort maps a requested effort onto the three levels Nova accepts. Bedrock
