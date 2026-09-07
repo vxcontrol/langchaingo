@@ -23,6 +23,8 @@ type counterCase struct {
 	chunks []string
 }
 
+var wantCounters = map[string]int{"PromptTokens": 5, "CompletionTokens": 3, "TotalTokens": 8}
+
 func legacyCounterFamilies() []counterCase {
 	return []counterCase{
 		{
@@ -44,6 +46,17 @@ func legacyCounterFamilies() []counterCase {
 			},
 		},
 		{
+			name:  "ai21",
+			model: "ai21.jamba-1-5-large-v1:0",
+			whole: `{"id":"x","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},` +
+				`"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":3,` +
+				`"total_tokens":8},"model":"ai21.jamba-1-5-large-v1:0"}`,
+			chunks: []string{
+				`{"text":"ok","finish_reason":"stop","index":0,` +
+					`"usage":{"prompt_tokens":5,"completion_tokens":3}}`,
+			},
+		},
+		{
 			name:  "nova",
 			model: "amazon.nova-pro-v1:0",
 			whole: `{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},` +
@@ -60,8 +73,6 @@ func legacyCounterFamilies() []counterCase {
 func TestEveryLegacyFamilyReportsCountersAsInt(t *testing.T) {
 	t.Parallel()
 
-	counters := []string{"PromptTokens", "CompletionTokens", "TotalTokens"}
-
 	for _, tc := range legacyCounterFamilies() {
 		t.Run(tc.name+"/whole answer", func(t *testing.T) {
 			t.Parallel()
@@ -72,11 +83,7 @@ func TestEveryLegacyFamilyReportsCountersAsInt(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, resp.Choices, 1)
 
-			for _, key := range counters {
-				_, ok := resp.Choices[0].GenerationInfo[key].(int)
-				assert.True(t, ok, "%s must be an int, as the Claude doors report it, got %#v",
-					key, resp.Choices[0].GenerationInfo[key])
-			}
+			assertCounters(t, resp.Choices[0].GenerationInfo)
 		})
 
 		t.Run(tc.name+"/streamed", func(t *testing.T) {
@@ -99,14 +106,23 @@ func TestEveryLegacyFamilyReportsCountersAsInt(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, resp.Choices, 1)
 
-			for _, key := range counters {
-				value, present := resp.Choices[0].GenerationInfo[key]
-				if !present {
-					continue
-				}
-				_, ok := value.(int)
-				assert.True(t, ok, "%s must be an int on the streamed path too, got %#v", key, value)
-			}
+			assertCounters(t, resp.Choices[0].GenerationInfo)
 		})
+	}
+}
+
+func assertCounters(t *testing.T, info map[string]any) {
+	t.Helper()
+
+	for key, want := range wantCounters {
+		value, present := info[key]
+		if !assert.True(t, present, "%s is missing from the generation info", key) {
+			continue
+		}
+		got, ok := value.(int)
+		if !assert.True(t, ok, "%s must be an int, as the Claude doors report it, got %#v", key, value) {
+			continue
+		}
+		assert.Equal(t, want, got, "%s carries the number the vendor sent", key)
 	}
 }
