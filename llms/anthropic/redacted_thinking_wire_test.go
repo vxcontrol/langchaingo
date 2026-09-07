@@ -95,9 +95,8 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 				blocks = append(blocks, m.Content...)
 			}
 		}
-		require.NotEmpty(t, blocks, "the assistant turn must reach the wire")
-		assert.Contains(t, blocks, map[string]any{"type": "redacted_thinking", "data": encrypted},
-			"the encrypted thought goes back exactly as it came")
+		assert.Equal(t, []map[string]any{{"type": "redacted_thinking", "data": encrypted}}, blocks,
+			"the encrypted thought goes back exactly as it came, and nothing else rides with it")
 	})
 }
 
