@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -62,6 +63,11 @@ type novaSystemPrompt struct {
 	Text string `json:"text,omitempty"`
 }
 
+type novaReasoningConfigInput struct {
+	Type               string `json:"type,omitempty"`
+	MaxReasoningEffort string `json:"maxReasoningEffort,omitempty"`
+}
+
 // novaInferenceConfigInput is the input for the text generation configuration for Amazon Nova Models.
 type novaInferenceConfigInput struct {
 	// The maximum number of tokens to generate per result. Optional, default = 512
@@ -72,7 +78,8 @@ type novaInferenceConfigInput struct {
 	Temperature float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
-	StopSequences []string `json:"stopSequences,omitempty"`
+	StopSequences   []string                  `json:"stopSequences,omitempty"`
+	ReasoningConfig *novaReasoningConfigInput `json:"reasoningConfig,omitempty"`
 }
 
 // novaTextGenerationInput is the input for the text generation for Amazon Nova Models.
@@ -148,16 +155,29 @@ const (
 	NovaMessageTypeImage = "image"
 )
 
-func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemPrompt string, options llms.CallOptions) ([]byte, error) {
+func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemPrompt, modelID string,
+	options llms.CallOptions,
+) ([]byte, error) {
+	inferenceConfig := novaInferenceConfigInput{
+		MaxTokens:     options.GetMaxTokens(),
+		Temperature:   options.GetTemperature(),
+		TopP:          options.GetTopP(),
+		StopSequences: options.StopWords,
+	}
+	if options.Reasoning.ResolveMode() == llms.ReasoningOn && reasoning.IsNovaReasoningModel(modelID) {
+		effort := reasoning.NovaEffort(string(options.Reasoning.GetEffort(options.GetMaxTokens())))
+		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}
+		if reasoning.NovaClearsInferenceConfigAt(effort) {
+			inferenceConfig.MaxTokens = 0
+			inferenceConfig.Temperature = 0
+			inferenceConfig.TopP = 0
+		}
+	}
+
 	input := novaTextGenerationInput{
-		Messages: inputContents,
-		InferenceConfig: novaInferenceConfigInput{
-			MaxTokens:     options.GetMaxTokens(),
-			Temperature:   options.GetTemperature(),
-			TopP:          options.GetTopP(),
-			StopSequences: options.StopWords,
-		},
-		System: []*novaSystemPrompt{{Text: systemPrompt}},
+		Messages:        inputContents,
+		InferenceConfig: inferenceConfig,
+		System:          []*novaSystemPrompt{{Text: systemPrompt}},
 	}
 	return json.Marshal(input)
 }
@@ -179,7 +199,7 @@ func createNovaCompletion(ctx context.Context,
 		return nil, err
 	}
 
-	body, err := novaInputToJSON(inputContents, systemPrompt, options)
+	body, err := novaInputToJSON(inputContents, systemPrompt, modelID, options)
 	if err != nil {
 		return nil, err
 	}
