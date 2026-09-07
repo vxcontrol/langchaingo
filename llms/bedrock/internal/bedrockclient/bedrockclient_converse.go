@@ -282,7 +282,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 
 // aiMessageAccumulator accumulates consecutive AI messages into a single assistant message
 type aiMessageAccumulator struct {
-	textContent   string
+	textBlocks    []string
 	reasoning     *reasoning.ContentReasoning
 	toolUseBlocks []types.ContentBlock
 	cacheControl  *CacheControl
@@ -291,8 +291,8 @@ type aiMessageAccumulator struct {
 
 // addTextContent adds text content to the accumulator
 func (a *aiMessageAccumulator) addTextContent(content string, reasoningContent *reasoning.ContentReasoning) {
-	if a.textContent == "" {
-		a.textContent = content
+	if content != "" {
+		a.textBlocks = append(a.textBlocks, content)
 	}
 
 	if a.reasoning == nil && reasoningContent != nil {
@@ -349,9 +349,8 @@ func (a *aiMessageAccumulator) build() types.Message {
 		})
 	}
 
-	// Add text content if present
-	if a.textContent != "" {
-		content = append(content, &types.ContentBlockMemberText{Value: a.textContent})
+	for _, text := range a.textBlocks {
+		content = append(content, &types.ContentBlockMemberText{Value: text})
 	}
 
 	// Add all tool use blocks
@@ -380,7 +379,7 @@ func (a *aiMessageAccumulator) build() types.Message {
 
 // reset clears the accumulator
 func (a *aiMessageAccumulator) reset() {
-	a.textContent = ""
+	a.textBlocks = nil
 	a.reasoning = nil
 	a.toolUseBlocks = nil
 	a.cacheControl = nil
@@ -463,6 +462,17 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 		return nil
 	}
 
+	var humanBlocks []types.ContentBlock
+	flushHuman := func() {
+		if len(humanBlocks) > 0 {
+			converseMessages = append(converseMessages, types.Message{
+				Role:    types.ConversationRoleUser,
+				Content: humanBlocks,
+			})
+			humanBlocks = nil
+		}
+	}
+
 	for i, msg := range messages {
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
@@ -480,7 +490,6 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 				return nil, nil, err
 			}
 
-			// Convert and add user message directly
 			converseMsg, err := c.convertUserOrAssistantMessage(msg)
 			if err != nil {
 				return nil, nil, err
@@ -488,13 +497,19 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			if msg.CacheControl != nil {
 				converseMsg.Content = append(converseMsg.Content, c.createCachePointBlock(msg.CacheControl))
 			}
-			converseMessages = append(converseMessages, converseMsg)
+			humanBlocks = append(humanBlocks, converseMsg.Content...)
+
+			isLast := i == len(messages)-1
+			if isLast || messages[i+1].Role != llms.ChatMessageTypeHuman {
+				flushHuman()
+			}
 
 		case llms.ChatMessageTypeAI:
 			// Flush tool results if any before processing AI message
 			if err := flushToolResults(); err != nil {
 				return nil, nil, err
 			}
+			flushHuman()
 
 			// Accumulate AI message content and tool calls
 			if msg.ToolCall != nil {
@@ -525,6 +540,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			if err := flushAI(); err != nil {
 				return nil, nil, err
 			}
+			flushHuman()
 
 			// Accumulate tool result
 			if err := toolAccum.addToolResult(msg.ToolResult); err != nil {
