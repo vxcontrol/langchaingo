@@ -35,13 +35,27 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
-		config.WithHTTPClient(httpClient))
+		append([]func(*config.LoadOptions) error{config.WithHTTPClient(httpClient)},
+			replayCredentials(rr)...)...)
 	if err != nil {
 		return nil, err
 	}
 
 	client := bedrockruntime.NewFromConfig(cfg)
 	return client, nil
+}
+
+const replayRegion = "us-east-1"
+
+func replayCredentials(rr *httprr.RecordReplay) []func(*config.LoadOptions) error {
+	if rr.Recording() {
+		return nil
+	}
+	return []func(*config.LoadOptions) error{
+		config.WithRegion(replayRegion),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"replay-access-key", "replay-secret-key", "")),
+	}
 }
 
 func TestAmazonOutputConverseAPI(t *testing.T) { //nolint:funlen
@@ -3124,7 +3138,7 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	sessionToken := os.Getenv("AWS_SESSION_TOKEN")
 
-	opts := []func(*config.LoadOptions) error{
+	opts := append([]func(*config.LoadOptions) error{
 		config.WithHTTPClient(httpClient),
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -3132,7 +3146,7 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 			secretKey,
 			sessionToken,
 		)),
-	}
+	}, replayCredentials(rr)...)
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
@@ -3187,6 +3201,9 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 
 	region := os.Getenv("AWS_REGION")
 	bearerToken := os.Getenv("AWS_BEDROCK_BEARER_TOKEN")
+	if !rr.Recording() {
+		region, bearerToken = replayRegion, "replay-bearer-token"
+	}
 
 	opts := []func(*config.LoadOptions) error{
 		config.WithHTTPClient(httpClient),
@@ -3196,6 +3213,7 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 				Value: bearerToken,
 			},
 		}),
+		config.WithAuthSchemePreference("httpBearerAuth"),
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)

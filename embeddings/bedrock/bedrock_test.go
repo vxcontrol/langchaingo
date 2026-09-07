@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const replayRegion = "us-east-1"
+
 func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, error) {
 	// Configure request scrubbing to remove dynamic AWS headers
 	rr.ScrubReq(func(req *http.Request) error {
@@ -37,9 +39,10 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 
 	// When replaying, provide fake credentials to avoid IMDS calls
 	if !rr.Recording() {
-		cfgOpts = append(cfgOpts, config.WithCredentialsProvider(
-			&fakeCredentialsProvider{},
-		))
+		cfgOpts = append(cfgOpts,
+			config.WithRegion(replayRegion),
+			config.WithCredentialsProvider(&fakeCredentialsProvider{}),
+		)
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.Background(), cfgOpts...)
