@@ -186,14 +186,24 @@ if err != nil {
 
 ### Models Supporting Reasoning
 
-**Converse API**:
-- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
-- OpenAI GPT OSS (120B, 20B)
-- Moonshot Kimi K2-Thinking
-- MiniMax M2.5 / M2.1
+A reasoning request only reaches the wire for families that have a thinking
+configuration on this platform. The rest reason on their own and carry nothing.
 
-**Legacy API** (InvokeModel):
-- Claude: Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
+**Converse API** — a thinking configuration is sent for:
+- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking`
+  in `additionalModelRequestFields`, adaptive or budget (see below)
+- Amazon Nova 2 (Lite, Pro, Micro) — `reasoningConfig` in `additionalModelRequestFields`
+- xAI Grok 4.x — `reasoning.effort` in `additionalModelRequestFields`
+
+**Legacy API** (InvokeModel) — a thinking configuration is sent for:
+- Claude: Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
+  Anthropic body
+- Amazon Nova 2 (Lite, Pro, Micro) — `reasoningConfig` inside `inferenceConfig`
+
+**Reasoning models that take no configuration here**: OpenAI GPT OSS (120B, 20B),
+Moonshot Kimi K2-Thinking, MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM, NVIDIA
+Nemotron 3. They think without being asked, and a `WithReasoning` call on them
+changes nothing on the wire.
 
 **How the wire shape is resolved**
 
@@ -213,9 +223,10 @@ source of truth used by the first-party Anthropic provider):
   this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
   this door does not send it.
 
-Non-Claude reasoning models (GPT OSS, Kimi K2-Thinking, MiniMax M2.5/M2.1) use budget
-thinking through the Converse API. `WithReasoningDisabled()` returns a typed
-`ErrReasoningOffUnsupported` for always-on Bedrock models.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
+its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
+beside it. Grok carries an effort and nothing else. `WithReasoningDisabled()`
+returns a typed `ErrReasoningOffUnsupported` for always-on Bedrock models.
 
 ## Structured Output
 
@@ -760,10 +771,11 @@ for the exact model IDs.
 | Claude Opus 5/4.8/4.7/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Sonnet 5/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Nova 2/Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
+| Nova 2 Lite/Pro/Micro | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
+| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | Converse native* |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| DeepSeek R1 | ❌ | ❌ | ✅ | ❌ | ❌ | Converse native* |
+| DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
 | OpenAI GPT (OSS) | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
 | Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
@@ -777,6 +789,6 @@ for the exact model IDs.
 ***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  
 *****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)  
-******GLM-5 and Nemotron 3 may reason on their own, but this door sends them no thinking instruction: they are absent from the reasoning list in `supportsReasoning`, so a reasoning request on them is a no-op here.
+******GLM-5 and Nemotron 3 reason on their own, but this door sends them no thinking instruction: they belong to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on them is a no-op here.
 
 See `models_list.go` for the complete model list and detailed capabilities.
