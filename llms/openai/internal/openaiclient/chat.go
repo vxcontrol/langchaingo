@@ -513,8 +513,9 @@ type Usage struct {
 	CompletionTokens    int `json:"completion_tokens"`
 	TotalTokens         int `json:"total_tokens"`
 	PromptTokensDetails struct {
-		CachedTokens int `json:"cached_tokens"`
-		AudioTokens  int `json:"audio_tokens"`
+		CachedTokens     int `json:"cached_tokens"`
+		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
+		AudioTokens      int `json:"audio_tokens"`
 	} `json:"prompt_tokens_details"`
 	CompletionTokensDetails struct {
 		ReasoningTokens          int `json:"reasoning_tokens"`
@@ -522,6 +523,10 @@ type Usage struct {
 		AcceptedPredictionTokens int `json:"accepted_prediction_tokens"`
 		RejectedPredictionTokens int `json:"rejected_prediction_tokens"`
 	} `json:"completion_tokens_details"`
+	CostDetails struct {
+		UpstreamInferencePromptCost      *float64 `json:"upstream_inference_prompt_cost,omitempty"`
+		UpstreamInferenceCompletionsCost *float64 `json:"upstream_inference_completions_cost,omitempty"`
+	} `json:"cost_details,omitempty"`
 }
 
 // StreamedToolCall is a call to a tool.
@@ -925,10 +930,13 @@ func updateChatUsage(chatUsage *ChatUsage, streamUsage *Usage) {
 	chatUsage.TotalTokens = streamUsage.TotalTokens
 	chatUsage.PromptTokensDetails.AudioTokens = streamUsage.PromptTokensDetails.AudioTokens
 	chatUsage.PromptTokensDetails.CachedTokens = streamUsage.PromptTokensDetails.CachedTokens
+	chatUsage.PromptTokensDetails.CacheWriteTokens = streamUsage.PromptTokensDetails.CacheWriteTokens
 	chatUsage.CompletionTokensDetails.AudioTokens = streamUsage.CompletionTokensDetails.AudioTokens
 	chatUsage.CompletionTokensDetails.AcceptedPredictionTokens = streamUsage.CompletionTokensDetails.AcceptedPredictionTokens
 	chatUsage.CompletionTokensDetails.RejectedPredictionTokens = streamUsage.CompletionTokensDetails.RejectedPredictionTokens
 	chatUsage.CompletionTokensDetails.ReasoningTokens = streamUsage.CompletionTokensDetails.ReasoningTokens
+	chatUsage.CostDetails.UpstreamInferencePromptCost = streamUsage.CostDetails.UpstreamInferencePromptCost
+	chatUsage.CostDetails.UpstreamInferenceCompletionsCost = streamUsage.CostDetails.UpstreamInferenceCompletionsCost
 }
 
 func updateFunctionCall(message *ChatMessage, functionCall *FunctionCall) {
