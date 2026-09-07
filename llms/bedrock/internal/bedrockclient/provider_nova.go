@@ -130,18 +130,17 @@ type novaStreamingResponseChunk struct {
 		} `json:"delta"`
 	} `json:"contentBlockDelta"`
 	MessageStart struct {
-		Role  string `json:"role"`
-		Usage struct {
-			InputTokens int32 `json:"inputTokens"`
-		} `json:"usage"`
+		Role string `json:"role"`
 	} `json:"messageStart"`
-	MessageDelta struct {
+	MessageStop struct {
 		StopReason string `json:"stopReason"`
-		Usage      struct {
+	} `json:"messageStop"`
+	Metadata struct {
+		Usage struct {
+			InputTokens  int32 `json:"inputTokens"`
 			OutputTokens int32 `json:"outputTokens"`
 		} `json:"usage"`
-	} `json:"messageDelta"`
-	MessageStop struct{} `json:"messageStop"`
+	} `json:"metadata"`
 }
 
 // Finish reason for Nova models
@@ -443,20 +442,17 @@ DoStream:
 				}
 			}
 
-			// Check for message start (contains input tokens)
-			if resp.MessageStart.Usage.InputTokens > 0 {
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.MessageStart.Usage.InputTokens
-				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.MessageStart.Usage.InputTokens)
+			if resp.MessageStop.StopReason != "" {
+				contentchoices[0].StopReason = resp.MessageStop.StopReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.MessageStop.StopReason)
 			}
-
-			// Check for message delta (contains stop reason and output tokens)
-			if resp.MessageDelta.StopReason != "" {
-				contentchoices[0].StopReason = resp.MessageDelta.StopReason
-				contentchoices[0].Truncated = llms.IsTruncated(resp.MessageDelta.StopReason)
+			if resp.Metadata.Usage.InputTokens > 0 {
+				contentchoices[0].GenerationInfo["input_tokens"] = resp.Metadata.Usage.InputTokens
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.Metadata.Usage.InputTokens)
 			}
-			if resp.MessageDelta.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["output_tokens"] = resp.MessageDelta.Usage.OutputTokens
-				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.MessageDelta.Usage.OutputTokens)
+			if resp.Metadata.Usage.OutputTokens > 0 {
+				contentchoices[0].GenerationInfo["output_tokens"] = resp.Metadata.Usage.OutputTokens
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.Metadata.Usage.OutputTokens)
 			}
 			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)
 			completion, _ := contentchoices[0].GenerationInfo["CompletionTokens"].(int)

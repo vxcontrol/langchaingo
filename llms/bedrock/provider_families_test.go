@@ -93,7 +93,8 @@ func nonClaudeFamilies() []familyCase {
 			chunks: []string{
 				`{"contentBlockDelta":{"delta":{"text":"sixty "}}}`,
 				`{"contentBlockDelta":{"delta":{"text":"rooms"}}}`,
-				`{"messageDelta":{"stopReason":"max_tokens","usage":{"outputTokens":3}}}`,
+				`{"messageStop":{"stopReason":"max_tokens"}}`,
+				`{"metadata":{"usage":{"inputTokens":5,"outputTokens":3}}}`,
 			},
 			wantText:   "sixty rooms",
 			wantReason: "max_tokens",
