@@ -509,7 +509,6 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			if err := flushToolResults(); err != nil {
 				return nil, nil, err
 			}
-			flushHuman()
 
 			// Accumulate AI message content and tool calls
 			if msg.ToolCall != nil {
@@ -540,7 +539,6 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			if err := flushAI(); err != nil {
 				return nil, nil, err
 			}
-			flushHuman()
 
 			// Accumulate tool result
 			if err := toolAccum.addToolResult(msg.ToolResult); err != nil {
