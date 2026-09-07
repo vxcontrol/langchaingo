@@ -273,12 +273,11 @@ func namesReasoningModel(modelLower string) bool { //nolint:funlen // a flat cat
 	}
 
 	// Z-AI GLM reasoning models (Zhipu AI)
-	glm := strings.TrimPrefix(modelLower, "zai-")
-	if strings.HasPrefix(glm, "glm-4.5") ||
-		strings.HasPrefix(glm, "glm-4.6") ||
-		strings.HasPrefix(glm, "glm-4.7") ||
-		strings.HasPrefix(glm, "glm-5") ||
-		glm == "glm-latest" || glm == "glm-flash-latest" {
+	if strings.HasPrefix(modelLower, "glm-4.5") ||
+		strings.HasPrefix(modelLower, "glm-4.6") ||
+		strings.HasPrefix(modelLower, "glm-4.7") ||
+		strings.HasPrefix(modelLower, "glm-5") ||
+		modelLower == "glm-latest" || modelLower == "glm-flash-latest" {
 		return true
 	}
 
