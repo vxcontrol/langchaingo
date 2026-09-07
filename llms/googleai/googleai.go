@@ -465,12 +465,7 @@ StreamEnd:
 		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 		metadata["CacheReadInputTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 
-		if lastUsageMetadata.CachedContentTokenCount > 0 {
-			metadata["CacheCreationInputTokens"] = max(
-				int(lastUsageMetadata.PromptTokenCount-lastUsageMetadata.CachedContentTokenCount), 0)
-		} else {
-			metadata["CacheCreationInputTokens"] = 0
-		}
+		metadata["CacheCreationInputTokens"] = 0
 	}
 
 	// Carry the finish reason so structured-output validation runs on a normal
@@ -594,7 +589,6 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 			metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
 			metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
 			metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
-			// Google AI does not provide cache creation information, always 0
 			metadata["CacheCreationInputTokens"] = 0
 		}
 
