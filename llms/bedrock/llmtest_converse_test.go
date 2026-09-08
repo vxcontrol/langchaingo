@@ -98,24 +98,50 @@ func TestLLMConverse(t *testing.T) {
 	llmtest.TestLLM(t, llm)
 }
 
-func TestTheConformanceRecordingAddressesTheVendor(t *testing.T) {
+func TestTheConformanceRecordingsAddressTheVendor(t *testing.T) {
 	t.Parallel()
 
-	recorded, err := os.ReadFile(filepath.Join("testdata", "TestLLMConverse.httprr"))
-	if err != nil {
-		t.Skip("no recording for TestLLMConverse yet")
-	}
+	for _, name := range []string{"TestLLM.httprr", "TestLLMConverse.httprr"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	requests := 0
-	for _, line := range strings.Split(string(recorded), "\n") {
-		switch {
-		case strings.HasPrefix(line, "POST "):
-			requests++
-			require.Contains(t, line, awsBedrockHost,
-				"a recording made through a gateway must be stored under the vendor's own address")
-		case strings.HasPrefix(line, "Authorization:"):
-			require.Fail(t, "the recording carries a credential header")
-		}
+			recorded, err := os.ReadFile(filepath.Join("testdata", name))
+			if err != nil {
+				t.Skipf("no recording for %s yet", name)
+			}
+
+			requests := 0
+			for _, line := range strings.Split(string(recorded), "\n") {
+				switch {
+				case strings.HasPrefix(line, "POST "):
+					requests++
+					require.Contains(t, line, awsBedrockHost,
+						"a recording made through a gateway must be stored under the vendor's own address")
+				case strings.HasPrefix(line, "Authorization:"):
+					require.Fail(t, "the recording carries a credential header")
+				}
+			}
+			require.NotZero(t, requests, "the recording must hold at least one request")
+		})
 	}
-	require.NotZero(t, requests, "the recording must hold at least one request")
+}
+
+func TestTheConformanceRecordingsCoverStreaming(t *testing.T) {
+	t.Parallel()
+
+	for name, streamPath := range map[string]string{
+		"TestLLM.httprr":         "/invoke-with-response-stream",
+		"TestLLMConverse.httprr": "/converse-stream",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			recorded, err := os.ReadFile(filepath.Join("testdata", name))
+			if err != nil {
+				t.Skipf("no recording for %s yet", name)
+			}
+			require.Contains(t, string(recorded), streamPath,
+				"the suite streams on this door, so the recording has to carry a streamed turn")
+		})
+	}
 }

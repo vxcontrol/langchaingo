@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 // TestLLM tests an LLM implementation.
@@ -31,9 +32,14 @@ import (
 //	    }
 //	    llmtest.TestLLM(t, llm)
 //	}
-func TestLLM(t *testing.T, model llms.Model) {
+func TestLLM(t *testing.T, model llms.Model, opts ...Option) {
 	t.Helper()
 	t.Parallel()
+
+	var declared TestOptions
+	for _, opt := range opts {
+		opt(&declared)
+	}
 
 	// Run core tests as subtests - these should always work
 	t.Run("Core", func(t *testing.T) {
@@ -54,8 +60,7 @@ func TestLLM(t *testing.T, model llms.Model) {
 	t.Run("Capabilities", func(t *testing.T) {
 		t.Parallel()
 
-		// Test streaming if supported
-		if supportsStreaming(model) {
+		if !declared.SkipStreaming {
 			t.Run("Streaming", func(t *testing.T) {
 				t.Parallel()
 				testStreaming(t, model)
@@ -85,15 +90,6 @@ func TestLLM(t *testing.T, model llms.Model) {
 }
 
 // Capability detection functions
-
-// supportsStreaming checks if the model supports streaming
-func supportsStreaming(model llms.Model) bool {
-	// Check if model implements the streaming interface
-	_, ok := model.(interface {
-		GenerateContentStream(context.Context, []llms.MessageContent, ...llms.CallOption) (<-chan llms.ContentResponse, error)
-	})
-	return ok
-}
 
 // supportsTools probes if the model supports tool calls
 func supportsTools(model llms.Model) bool {
@@ -146,6 +142,15 @@ func TestLLMWithOptions(t *testing.T, model llms.Model, opts TestOptions, expect
 
 	// Run tests with context
 	runTestsWithContext(t, testCtx)
+}
+
+// Option declares, at the call site, what the door under test cannot do.
+type Option func(*TestOptions)
+
+// WithoutStreaming declares a door that does not deliver a streaming callback,
+// so the suite must not hold it to that contract.
+func WithoutStreaming() Option {
+	return func(o *TestOptions) { o.SkipStreaming = true }
 }
 
 // TestOptions configures test execution.
@@ -301,7 +306,6 @@ func testGenerateContentWithContext(t *testing.T, tctx *testContext) {
 
 func testStreaming(t *testing.T, model llms.Model) {
 	t.Helper()
-	ctx := context.Background()
 
 	messages := []llms.MessageContent{
 		{
@@ -312,34 +316,7 @@ func testStreaming(t *testing.T, model llms.Model) {
 		},
 	}
 
-	// Skip if model doesn't support streaming
-	streamer, ok := model.(interface {
-		GenerateContentStream(context.Context, []llms.MessageContent, ...llms.CallOption) (<-chan llms.ContentResponse, error)
-	})
-	if !ok {
-		t.Skip("Model doesn't support streaming")
-	}
-
-	stream, err := streamer.GenerateContentStream(ctx, messages, llms.WithMaxTokens(50))
-	if err != nil {
-		t.Fatalf("GenerateContentStream failed: %v", err)
-	}
-
-	var chunks []string
-	for chunk := range stream {
-		if len(chunk.Choices) > 0 {
-			chunks = append(chunks, chunk.Choices[0].Content)
-		}
-	}
-
-	if len(chunks) == 0 {
-		t.Error("No chunks received from stream")
-	}
-
-	fullContent := strings.Join(chunks, "")
-	if fullContent == "" {
-		t.Error("Stream produced no content")
-	}
+	assertStreams(t, context.Background(), model, messages, llms.WithMaxTokens(50))
 }
 
 func testStreamingWithContext(t *testing.T, tctx *testContext) {
@@ -363,29 +340,42 @@ func testStreamingWithContext(t *testing.T, tctx *testContext) {
 		}
 	}
 
-	// Skip if model doesn't support streaming
-	streamer, ok := tctx.model.(interface {
-		GenerateContentStream(context.Context, []llms.MessageContent, ...llms.CallOption) (<-chan llms.ContentResponse, error)
-	})
-	if !ok {
-		t.Skip("Model doesn't support streaming")
-	}
-
 	opts := append([]llms.CallOption{llms.WithMaxTokens(50)}, tctx.options.CallOptions...)
-	stream, err := streamer.GenerateContentStream(ctx, messages, opts...)
-	if err != nil {
-		t.Fatalf("GenerateContentStream failed: %v", err)
-	}
+	assertStreams(t, ctx, tctx.model, messages, opts...)
+}
 
-	var chunks []string
-	for chunk := range stream {
-		if len(chunk.Choices) > 0 {
-			chunks = append(chunks, chunk.Choices[0].Content)
+func assertStreams(t *testing.T, ctx context.Context, model llms.Model, messages []llms.MessageContent, opts ...llms.CallOption) {
+	t.Helper()
+
+	var mu sync.Mutex
+	var streamed strings.Builder
+	collect := llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+		if chunk.Type != streaming.ChunkTypeText {
+			return nil
 		}
+		mu.Lock()
+		defer mu.Unlock()
+		streamed.WriteString(chunk.Content)
+		return nil
+	})
+
+	resp, err := model.GenerateContent(ctx, messages, append(opts, collect)...)
+	if err != nil {
+		t.Fatalf("GenerateContent with a streaming callback failed: %v", err)
 	}
 
-	if len(chunks) == 0 {
-		t.Error("No chunks received from stream")
+	mu.Lock()
+	got := streamed.String()
+	mu.Unlock()
+
+	if got == "" {
+		t.Fatal("the door took a streaming callback and never called it with text")
+	}
+	if len(resp.Choices) == 0 {
+		t.Fatal("streaming call returned no choices")
+	}
+	if content := resp.Choices[0].Content; content != got {
+		t.Errorf("the streamed text and the returned content disagree:\n streamed: %q\n returned: %q", got, content)
 	}
 }
 
@@ -597,61 +587,33 @@ func (m *MockLLM) GenerateContent(ctx context.Context, messages []llms.MessageCo
 	m.LastMessages = messages
 	m.mu.Unlock()
 
-	if m.GenerateResponse != nil {
-		return m.GenerateResponse, m.GenerateError
-	}
-
-	// Default response
-	return &llms.ContentResponse{
-		Choices: []*llms.ContentChoice{
-			{
-				Content: "mock response",
+	response := m.GenerateResponse
+	if response == nil {
+		response = &llms.ContentResponse{
+			Choices: []*llms.ContentChoice{
+				{
+					Content: "mock response",
+				},
 			},
-		},
-	}, m.GenerateError
-}
-
-// GenerateContentStream implements streaming
-func (m *MockLLM) GenerateContentStream(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (<-chan llms.ContentResponse, error) {
-	// Create a channel and send the mock response
-	ch := make(chan llms.ContentResponse, 1)
-
-	// Capture the response under lock
-	m.mu.Lock()
-	hasResponse := m.GenerateResponse != nil
-	var response llms.ContentResponse
-	if hasResponse {
-		response = *m.GenerateResponse
+		}
 	}
-	m.mu.Unlock()
 
-	// Send the response in chunks
-	go func() {
-		defer close(ch)
-
-		// Simulate streaming by sending the response in parts
-		if hasResponse {
-			ch <- response
-		} else {
-			// Default streaming response
-			ch <- llms.ContentResponse{
-				Choices: []*llms.ContentChoice{
-					{
-						Content: "mock",
-					},
-				},
-			}
-			ch <- llms.ContentResponse{
-				Choices: []*llms.ContentChoice{
-					{
-						Content: " response",
-					},
-				},
+	opts := llms.CallOptions{}
+	for _, opt := range options {
+		opt(&opts)
+	}
+	if opts.StreamingFunc != nil && len(response.Choices) > 0 {
+		for _, part := range strings.SplitAfter(response.Choices[0].Content, " ") {
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, part); err != nil {
+				return nil, err
 			}
 		}
-	}()
+		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
+			return nil, err
+		}
+	}
 
-	return ch, nil
+	return response, m.GenerateError
 }
 
 // Verify MockLLM implements llms.Model

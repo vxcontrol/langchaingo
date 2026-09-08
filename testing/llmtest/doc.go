@@ -29,7 +29,7 @@
 //
 // The package automatically detects and tests supported capabilities:
 //   - Basic operations (Call, GenerateContent)
-//   - Streaming (if model implements streaming interface)
+//   - Streaming (unless the call site passes WithoutStreaming)
 //   - Tool/Function calling (probed with test tool)
 //   - Reasoning/Thinking mode (if supported)
 //   - Token counting (if usage information provided)
