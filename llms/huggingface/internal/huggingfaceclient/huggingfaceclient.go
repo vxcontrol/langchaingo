@@ -65,6 +65,7 @@ type InferenceRequest struct {
 	TopP        float64
 	MaxLength   int
 	Seed        int
+	Effort      string
 }
 
 type InferenceResponse struct {
@@ -77,6 +78,7 @@ func (c *Client) RunInference(ctx context.Context, request *InferenceRequest) (*
 	payload := &chatCompletionsPayload{
 		Model:    request.Model,
 		Messages: []chatMessage{{Role: "user", Content: request.Prompt}},
+		Effort:   request.Effort,
 	}
 	if request.Temperature > 0 {
 		payload.Temperature = &request.Temperature

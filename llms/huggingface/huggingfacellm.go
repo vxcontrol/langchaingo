@@ -62,6 +62,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		TopP:        opts.GetTopP(),
 		MaxLength:   opts.GetMaxLength(),
 		Seed:        opts.GetSeed(),
+		Effort:      reasoningEffort(opts),
 	})
 	if err != nil {
 		return nil, err
@@ -80,6 +81,16 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return resp, err
 	}
 	return resp, nil
+}
+
+func reasoningEffort(opts *llms.CallOptions) string {
+	if opts.Reasoning == nil {
+		return ""
+	}
+	if opts.Reasoning.ResolveMode() == llms.ReasoningOff {
+		return "none"
+	}
+	return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 }
 
 func New(opts ...Option) (*LLM, error) {

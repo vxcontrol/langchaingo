@@ -23,6 +23,7 @@ type chatCompletionsPayload struct {
 	TopP        *float64      `json:"top_p,omitempty"`
 	MaxTokens   *int          `json:"max_tokens,omitempty"`
 	Seed        *int          `json:"seed,omitempty"`
+	Effort      string        `json:"reasoning_effort,omitempty"`
 }
 
 type chatMessage struct {
