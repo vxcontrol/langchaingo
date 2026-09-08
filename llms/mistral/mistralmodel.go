@@ -155,7 +155,6 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 		chatOpts.ResponseFormat = sdk.ResponseFormatJsonObject
 	}
 	chatOpts.ToolChoice = mistralToolChoice(callOpts.ToolChoice)
-	chatOpts.Tools = make([]sdk.Tool, 0)
 	if len(callOpts.Tools) > 0 {
 		for _, tool := range callOpts.Tools {
 			chatOpts.Tools = append(chatOpts.Tools, sdk.Tool{
@@ -258,9 +257,15 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 
 	for chatResChunk := range chatResChan {
 		chunkStr := ""
-		langchainContentResponse.Choices[0].GenerationInfo["created"] = chatResChunk.Created
-		langchainContentResponse.Choices[0].GenerationInfo["model"] = chatResChunk.Model
-		langchainContentResponse.Choices[0].GenerationInfo["usage"] = chatResChunk.Usage
+		if chatResChunk.Created != 0 {
+			langchainContentResponse.Choices[0].GenerationInfo["created"] = chatResChunk.Created
+		}
+		if chatResChunk.Model != "" {
+			langchainContentResponse.Choices[0].GenerationInfo["model"] = chatResChunk.Model
+		}
+		if chatResChunk.Usage.TotalTokens != 0 {
+			langchainContentResponse.Choices[0].GenerationInfo["usage"] = chatResChunk.Usage
+		}
 		if chatResChunk.Error == nil {
 			for _, choice := range chatResChunk.Choices {
 				chunkStr += choice.Delta.Content
