@@ -34,7 +34,7 @@ func (c *capturingTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 func callThroughTransport(t *testing.T, tr *capturingTransport, opts ...Option) {
 	t.Helper()
 
-	tr.reply = `[{"generated_text":"hi"}]`
+	tr.reply = `{"choices":[{"message":{"content":"hi"},"finish_reason":"stop"}]}`
 	llm, err := New(append([]Option{
 		WithToken("t"),
 		WithModel("gpt2"),

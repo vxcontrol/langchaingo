@@ -43,9 +43,17 @@ func TestTruncationOnTheInferenceDoor(t *testing.T) {
 		reason    string
 		truncated bool
 	}{
-		{"hit the limit", `[{"generated_text":"partial","details":{"finish_reason":"length"}}]`, "length", true},
-		{"finished", `[{"generated_text":"done","details":{"finish_reason":"eos_token"}}]`, "eos_token", false},
-		{"no details", `[{"generated_text":"done"}]`, "", false},
+		{
+			"hit the limit",
+			`{"choices":[{"message":{"content":"partial"},"finish_reason":"length"}]}`,
+			"length", true,
+		},
+		{
+			"finished",
+			`{"choices":[{"message":{"content":"done"},"finish_reason":"eos_token"}]}`,
+			"eos_token", false,
+		},
+		{"no reason", `{"choices":[{"message":{"content":"done"}}]}`, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -65,8 +73,8 @@ func TestTruncationOnTheInferenceDoor(t *testing.T) {
 			if got := resp.Choices[0].Truncated; got != tc.truncated {
 				t.Errorf("Truncated = %v, want %v", got, tc.truncated)
 			}
-			if !strings.Contains(*request, `"details":true`) {
-				t.Errorf("the door reports a finish reason only when details are requested, got body: %s", *request)
+			if !strings.Contains(*request, `"messages":[{"role":"user","content":"hi"}]`) {
+				t.Errorf("the prompt must reach the request as a chat message, got body: %s", *request)
 			}
 		})
 	}
@@ -102,7 +110,7 @@ func TestTruncationOnTheRouterDoor(t *testing.T) {
 func TestFailOnTruncationOnTheInferenceDoor(t *testing.T) {
 	t.Parallel()
 
-	srv, _ := serveJSON(t, `[{"generated_text":"partial","details":{"finish_reason":"length"}}]`)
+	srv, _ := serveJSON(t, `{"choices":[{"message":{"content":"partial"},"finish_reason":"length"}]}`)
 	llm, err := New(WithToken("t"), WithURL(srv.URL), WithModel("m"))
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
@@ -151,7 +159,7 @@ func (h *recordingCallbacks) HandleLLMGenerateContentEnd(context.Context, *llms.
 func TestAnAnsweredCallClosesTheCallbackPair(t *testing.T) {
 	t.Parallel()
 
-	srv, _ := serveJSON(t, `[{"generated_text":"sixty rooms are free","details":{"finish_reason":"stop"}}]`)
+	srv, _ := serveJSON(t, `{"choices":[{"message":{"content":"sixty rooms are free"},"finish_reason":"stop"}]}`)
 	llm, err := New(WithToken("t"), WithURL(srv.URL), WithModel("m"))
 	if err != nil {
 		t.Fatalf("New() error: %v", err)

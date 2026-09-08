@@ -59,57 +59,43 @@ func WithProvider(provider string) Option {
 }
 
 type InferenceRequest struct {
-	Model             string        `json:"repositoryId"`
-	Prompt            string        `json:"prompt"`
-	Task              InferenceTask `json:"task"`
-	Temperature       float64       `json:"temperature"`
-	TopP              float64       `json:"top_p,omitempty"`
-	TopK              int           `json:"top_k,omitempty"`
-	MinLength         int           `json:"min_length,omitempty"`
-	MaxLength         int           `json:"max_length,omitempty"`
-	RepetitionPenalty float64       `json:"repetition_penalty,omitempty"`
-	Seed              int           `json:"seed,omitempty"`
+	Model       string
+	Prompt      string
+	Temperature float64
+	TopP        float64
+	MaxLength   int
+	Seed        int
 }
 
 type InferenceResponse struct {
-	Text string `json:"generated_text"`
+	Text string
 	// StopReason is the vendor's finish reason, empty when the door did not report one.
-	StopReason string `json:"finish_reason,omitempty"`
+	StopReason string
 }
 
 func (c *Client) RunInference(ctx context.Context, request *InferenceRequest) (*InferenceResponse, error) {
-	payload := &inferencePayload{
-		Model:  request.Model,
-		Inputs: request.Prompt,
-		Parameters: parameters{
-			Temperature:       request.Temperature,
-			TopP:              request.TopP,
-			TopK:              request.TopK,
-			MinLength:         request.MinLength,
-			MaxLength:         request.MaxLength,
-			RepetitionPenalty: request.RepetitionPenalty,
-			Seed:              request.Seed,
-			Details:           true,
-		},
+	payload := &chatCompletionsPayload{
+		Model:    request.Model,
+		Messages: []chatMessage{{Role: "user", Content: request.Prompt}},
 	}
-	resp, err := c.runInference(ctx, payload)
+	if request.Temperature > 0 {
+		payload.Temperature = &request.Temperature
+	}
+	if request.TopP > 0 {
+		payload.TopP = &request.TopP
+	}
+	if request.MaxLength > 0 {
+		payload.MaxTokens = &request.MaxLength
+	}
+	if request.Seed > 0 {
+		payload.Seed = &request.Seed
+	}
+
+	resp, err := c.runChatCompletions(ctx, payload)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run inference: %w", err)
 	}
-	if len(resp) == 0 {
-		return nil, ErrEmptyResponse
-	}
-	text := resp[0].Text
-	var stopReason string
-	if resp[0].Details != nil {
-		stopReason = resp[0].Details.FinishReason
-	}
-	// TODO: Add response cleaning based on Model.
-	// e.g., for gpt2, text = text[len(request.Prompt)+1:]
-	return &InferenceResponse{
-		Text:       text,
-		StopReason: stopReason,
-	}, nil
+	return resp, nil
 }
 
 // EmbeddingRequest is a request to create an embedding.

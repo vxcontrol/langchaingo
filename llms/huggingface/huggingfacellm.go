@@ -56,16 +56,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	msg0 := messages[0]
 	part := msg0.Parts[0]
 	result, err := o.client.RunInference(ctx, &huggingfaceclient.InferenceRequest{
-		Model:             opts.GetModel(),
-		Prompt:            part.(llms.TextContent).Text,
-		Task:              huggingfaceclient.InferenceTaskTextGeneration,
-		Temperature:       opts.GetTemperature(),
-		TopP:              opts.GetTopP(),
-		TopK:              opts.GetTopK(),
-		MinLength:         opts.GetMinLength(),
-		MaxLength:         opts.GetMaxLength(),
-		RepetitionPenalty: opts.GetRepetitionPenalty(),
-		Seed:              opts.GetSeed(),
+		Model:       opts.GetModel(),
+		Prompt:      part.(llms.TextContent).Text,
+		Temperature: opts.GetTemperature(),
+		TopP:        opts.GetTopP(),
+		MaxLength:   opts.GetMaxLength(),
+		Seed:        opts.GetSeed(),
 	})
 	if err != nil {
 		return nil, err
