@@ -68,6 +68,7 @@ type ConverseInput struct {
 	MaxTokens        *int
 	Temperature      *float64
 	TopP             *float64
+	TopK             *int
 	StopSequences    []string
 	Tools            []llms.Tool
 	ToolChoice       any
@@ -94,6 +95,7 @@ type converseOutputConfig struct {
 type converseAdditionalModelRequestFields struct {
 	Thinking     *converseThinkingPayload `json:"thinking,omitempty" document:"thinking,omitempty"`
 	OutputConfig *converseOutputConfig    `json:"output_config,omitempty" document:"output_config,omitempty"`
+	TopK         *int                     `json:"top_k,omitempty" document:"top_k,omitempty"`
 }
 
 type converseNovaReasoningConfig struct {
@@ -171,10 +173,10 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	}
 
 	// Add additional model fields
+	additionalModelFields := converseAdditionalModelRequestFields{}
+	var familyFields any
 	switch input.ReasoningConfig.ResolveMode() {
 	case llms.ReasoningOn:
-		additionalModelFields := converseAdditionalModelRequestFields{}
-		var familyFields any
 		maxTokens := 0 // Use 0 to let it use default maxTokens
 		if input.MaxTokens != nil {
 			maxTokens = *input.MaxTokens
@@ -241,11 +243,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		case reasoning.MechanismGrokEffort:
 			setGrok()
 		}
-		if familyFields != nil {
-			converseInput.AdditionalModelRequestFields = document.NewLazyDocument(familyFields)
-		}
 		if additionalModelFields.Thinking != nil {
-			converseInput.AdditionalModelRequestFields = document.NewLazyDocument(additionalModelFields)
 			if budget := additionalModelFields.Thinking.BudgetTokens; budget > 0 {
 				ceiling := reasoning.ClaudeMaxTokensForBudget(budget, maxTokens)
 				inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(ceiling))
@@ -254,8 +252,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	case llms.ReasoningOff:
 		switch reasoning.ResolveOff(input.ModelID, reasoning.ProviderBedrock) {
 		case reasoning.OffDisableClaude:
-			fields := converseAdditionalModelRequestFields{Thinking: &converseThinkingPayload{Type: "disabled"}}
-			converseInput.AdditionalModelRequestFields = document.NewLazyDocument(fields)
+			additionalModelFields.Thinking = &converseThinkingPayload{Type: "disabled"}
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: input.ModelID}
 		}
@@ -269,6 +266,18 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	if reasoning.ClaudeMutuallyExclusiveSampling(input.ModelID) &&
 		inferenceConfig.Temperature != nil && inferenceConfig.TopP != nil {
 		inferenceConfig.TopP = nil
+	}
+
+	if input.TopK != nil && isAnthropicModelID(input.ModelID) &&
+		additionalModelFields.Thinking == nil &&
+		!reasoning.ClaudeRejectsSampling(input.ModelID) {
+		additionalModelFields.TopK = input.TopK
+	}
+	switch {
+	case familyFields != nil:
+		converseInput.AdditionalModelRequestFields = document.NewLazyDocument(familyFields)
+	case additionalModelFields != converseAdditionalModelRequestFields{}:
+		converseInput.AdditionalModelRequestFields = document.NewLazyDocument(additionalModelFields)
 	}
 
 	// Native AWS structured output rides on the top-level OutputConfig.TextFormat,

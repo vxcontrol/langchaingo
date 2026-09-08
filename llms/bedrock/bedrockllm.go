@@ -205,6 +205,9 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 	if opts.TopP != nil {
 		input.TopP = opts.TopP
 	}
+	if opts.TopK != nil {
+		input.TopK = opts.TopK
+	}
 	if len(opts.StopWords) > 0 {
 		input.StopSequences = opts.StopWords
 	}
