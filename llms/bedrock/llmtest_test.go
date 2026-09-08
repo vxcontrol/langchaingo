@@ -18,7 +18,7 @@ func TestLLM(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, statErr := os.Stat(cassette); statErr != nil && !recording {
-		t.Skip("no httprr recording for TestLLM; re-run with -httprecord=. and real AWS credentials")
+		t.Skip("no httprr recording for TestLLM; re-run with -httprecord=. and a gateway key")
 	}
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -30,12 +30,8 @@ func TestLLM(t *testing.T) {
 		}
 	})
 
-	client, err := setUpTestWithTransport(rr)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithModel(bedrock.ModelAnthropicClaudeHaiku45))
+	llm, err := bedrock.New(bedrock.WithClient(conformanceClient(t, rr)),
+		bedrock.WithModel(bedrock.ModelAnthropicClaudeHaiku45))
 	if err != nil {
 		t.Fatalf("Failed to create Bedrock LLM: %v", err)
 	}

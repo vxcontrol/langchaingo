@@ -17,5 +17,5 @@ func TestLLM(t *testing.T) {
 		t.Fatalf("Failed to create HuggingFace LLM: %v", err)
 	}
 
-	llmtest.TestLLM(t, llm)
+	llmtest.TestLLM(t, llm, llmtest.WithoutStreaming())
 }

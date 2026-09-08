@@ -3,9 +3,11 @@ package fake
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 type LLM struct {
@@ -22,11 +24,10 @@ func NewFakeLLM(responses []string) *LLM {
 }
 
 // GenerateContent generate fake content.
-func (f *LLM) GenerateContent(_ context.Context, _ []llms.MessageContent, _ ...llms.CallOption) (*llms.ContentResponse, error) {
+func (f *LLM) GenerateContent(ctx context.Context, _ []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-
 	if len(f.responses) == 0 {
+		f.mu.Unlock()
 		return nil, errors.New("no responses configured")
 	}
 	if f.index >= len(f.responses) {
@@ -34,6 +35,23 @@ func (f *LLM) GenerateContent(_ context.Context, _ []llms.MessageContent, _ ...l
 	}
 	response := f.responses[f.index]
 	f.index++
+	f.mu.Unlock()
+
+	opts := llms.CallOptions{}
+	for _, opt := range options {
+		opt(&opts)
+	}
+	if opts.StreamingFunc != nil {
+		for _, part := range strings.SplitAfter(response, " ") {
+			if err := streaming.CallWithText(ctx, opts.StreamingFunc, part); err != nil {
+				return nil, err
+			}
+		}
+		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
+			return nil, err
+		}
+	}
+
 	return &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{{Content: response}},
 	}, nil
