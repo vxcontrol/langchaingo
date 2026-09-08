@@ -1,6 +1,7 @@
 package mistral
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
@@ -16,6 +17,8 @@ type clientOptions struct {
 	model            string
 	embeddingModel   string
 	callbacksHandler callbacks.Handler
+
+	embeddingHTTPClient *http.Client
 }
 
 type Option func(*clientOptions)
@@ -60,6 +63,14 @@ func WithModel(model string) Option {
 func WithEmbeddingModel(embeddingModel string) Option {
 	return func(o *clientOptions) {
 		o.embeddingModel = embeddingModel
+	}
+}
+
+// Sets the HTTP client the embeddings request travels on. The chat surface takes
+// no client: it is built on the vendor SDK, which makes its own.
+func WithEmbeddingHTTPClient(client *http.Client) Option {
+	return func(o *clientOptions) {
+		o.embeddingHTTPClient = client
 	}
 }
 

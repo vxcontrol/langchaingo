@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 )
 
 var (
@@ -19,7 +20,16 @@ var (
 	ErrEmbeddingFailed = errors.New("mistral: embedding request failed")
 )
 
+var retryEmbeddingStatus = map[int]bool{
+	http.StatusTooManyRequests:     true,
+	http.StatusInternalServerError: true,
+	http.StatusBadGateway:          true,
+	http.StatusServiceUnavailable:  true,
+	http.StatusGatewayTimeout:      true,
+}
+
 const (
+	retryBackoffStep      = 500 * time.Millisecond
 	defaultEmbeddingModel = "mistral-embed"
 	apiVersionSegment     = "v1"
 	embeddingsSegment     = "embeddings"
@@ -49,6 +59,56 @@ func (m *Model) embeddingsURL() (string, error) {
 	return endpoint.String(), nil
 }
 
+func (m *Model) embeddingsHTTPClient() *http.Client {
+	if m.clientOptions.embeddingHTTPClient != nil {
+		return m.clientOptions.embeddingHTTPClient
+	}
+	return &http.Client{Timeout: m.clientOptions.timeout}
+}
+
+func (m *Model) postEmbeddings(ctx context.Context, endpoint string, body []byte) (*http.Response, error) {
+	client := m.embeddingsHTTPClient()
+
+	attempts := m.clientOptions.maxRetries
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	var lastErr error
+	for attempt := range attempts {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, ctx.Err())
+			case <-time.After(time.Duration(attempt) * retryBackoffStep):
+			}
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
+		}
+		req.Header.Set("Authorization", "Bearer "+m.clientOptions.apiKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
+			continue
+		}
+		if !retryEmbeddingStatus[resp.StatusCode] {
+			return resp, nil
+		}
+
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		lastErr = fmt.Errorf("%w: %s: %s", ErrEmbeddingFailed, resp.Status, strings.TrimSpace(string(detail)))
+	}
+
+	return nil, lastErr
+}
+
 // CreateEmbedding implements the embeddings.EmbedderClient interface and creates embeddings for the given input texts.
 func (m *Model) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]float32, error) {
 	model := m.clientOptions.embeddingModel
@@ -65,17 +125,9 @@ func (m *Model) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]f
 		return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	resp, err := m.postEmbeddings(ctx, endpoint, body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
-	}
-	req.Header.Set("Authorization", "Bearer "+m.clientOptions.apiKey)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := (&http.Client{Timeout: m.clientOptions.timeout}).Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
