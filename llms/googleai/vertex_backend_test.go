@@ -14,7 +14,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-func vertexCall(t *testing.T, opts []Option, call ...llms.CallOption) (string, map[string]any, *llms.ContentResponse) {
+func vertexCall(t *testing.T, call ...llms.CallOption) (string, map[string]any, *llms.ContentResponse) {
 	t.Helper()
 
 	var gotURL, gotBody string
@@ -27,12 +27,11 @@ func vertexCall(t *testing.T, opts []Option, call ...llms.CallOption) (string, m
 	}))
 	t.Cleanup(srv.Close)
 
-	llm, err := New(context.Background(), append([]Option{
+	llm, err := New(context.Background(),
 		WithCloudProject("hotel-desk"),
 		WithCloudLocation("europe-west4"),
 		WithDefaultModel("gemini-2.5-flash"),
-		WithHTTPClient(&http.Client{Transport: &toLocalServer{host: srv.Listener.Addr().String()}}),
-	}, opts...)...)
+		WithHTTPClient(&http.Client{Transport: &toLocalServer{host: srv.Listener.Addr().String()}}))
 	require.NoError(t, err)
 
 	resp, err := llm.GenerateContent(context.Background(),
@@ -57,7 +56,7 @@ func (t *toLocalServer) RoundTrip(req *http.Request) (*http.Response, error) {
 func TestTheVertexBackendAddressesTheProjectTheCallerNamed(t *testing.T) {
 	t.Parallel()
 
-	got, _, resp := vertexCall(t, nil)
+	got, _, resp := vertexCall(t)
 
 	assert.Contains(t, got, "/projects/hotel-desk/locations/europe-west4/",
 		"the project and location the caller gave decide the address")
@@ -73,7 +72,7 @@ func TestTheVertexBackendAddressesTheProjectTheCallerNamed(t *testing.T) {
 func TestTheVertexBackendCarriesAThinkingBudget(t *testing.T) {
 	t.Parallel()
 
-	_, body, _ := vertexCall(t, nil, llms.WithReasoning(llms.ReasoningNone, 2048))
+	_, body, _ := vertexCall(t, llms.WithReasoning(llms.ReasoningNone, 2048))
 
 	config, ok := body["generationConfig"].(map[string]any)
 	require.True(t, ok, "the request carries a generation config")
@@ -98,7 +97,7 @@ func TestTheVertexBackendCarriesTheToolChoice(t *testing.T) {
 		},
 	}}
 
-	_, body, _ := vertexCall(t, nil, llms.WithTools(tools), llms.WithToolChoice("required"))
+	_, body, _ := vertexCall(t, llms.WithTools(tools), llms.WithToolChoice("required"))
 
 	config, ok := body["toolConfig"].(map[string]any)
 	require.True(t, ok, "a caller that required a tool gets a tool config on the wire")
@@ -111,7 +110,7 @@ func TestTheVertexBackendCarriesTheToolChoice(t *testing.T) {
 func TestTheVertexBackendCarriesBothPenalties(t *testing.T) {
 	t.Parallel()
 
-	_, body, _ := vertexCall(t, nil,
+	_, body, _ := vertexCall(t,
 		llms.WithFrequencyPenalty(0.7), llms.WithPresencePenalty(0.4))
 
 	config, ok := body["generationConfig"].(map[string]any)
