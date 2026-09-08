@@ -114,8 +114,7 @@ func (c *Client) RunInference(ctx context.Context, request *InferenceRequest) (*
 
 // EmbeddingRequest is a request to create an embedding.
 type EmbeddingRequest struct {
-	Options map[string]any `json:"options"`
-	Inputs  []string       `json:"inputs"`
+	Inputs []string `json:"inputs"`
 }
 
 // CreateEmbedding creates embeddings.
@@ -126,8 +125,7 @@ func (c *Client) CreateEmbedding(
 	r *EmbeddingRequest,
 ) ([][]float32, error) {
 	resp, err := c.createEmbedding(ctx, model, task, &embeddingPayload{
-		Inputs:  r.Inputs,
-		Options: r.Options,
+		Inputs: r.Inputs,
 	})
 	if err != nil {
 		return nil, err

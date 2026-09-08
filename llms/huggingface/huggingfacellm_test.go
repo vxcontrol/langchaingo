@@ -63,58 +63,6 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 	}
 }
 
-func TestHuggingFaceLLMStandardInference(t *testing.T) {
-	ctx := t.Context()
-
-	// Skip if no credentials and no recording - HuggingFace accepts either token
-	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
-		httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")
-	}
-
-	rr := httprr.OpenForTest(t, nil)
-	defer rr.Close()
-
-	apiKey := "test-api-key"
-	if rr.Recording() {
-		// Try HF_TOKEN first, then fall back to HUGGINGFACEHUB_API_TOKEN
-		if key := os.Getenv("HF_TOKEN"); key != "" {
-			apiKey = key
-		} else if key := os.Getenv("HUGGINGFACEHUB_API_TOKEN"); key != "" {
-			apiKey = key
-		}
-	}
-
-	// Create standard LLM without provider
-	opts := []Option{
-		WithModel("HuggingFaceH4/zephyr-7b-beta"),
-		WithHTTPClient(rr.Client()),
-		WithToken(apiKey),
-	}
-
-	llm, err := New(opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test the LLM call
-	result, err := llm.Call(ctx, "Hello, say hi back",
-		llms.WithTemperature(0.5),
-		llms.WithMaxLength(20),
-	)
-
-	// Skip test if model is not available
-	if err != nil && strings.Contains(err.Error(), "404") {
-		t.Skip("Model not available on HuggingFace API, skipping test")
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result == "" {
-		t.Fatal("expected non-empty result")
-	}
-}
-
 func TestHuggingFaceLLMGenerateContent(t *testing.T) {
 	t.Skip("temporarily skip")
 

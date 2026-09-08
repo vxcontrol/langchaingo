@@ -134,9 +134,6 @@ func TestClient_CreateEmbedding(t *testing.T) {
 
 	req := &EmbeddingRequest{
 		Inputs: []string{"Hello world", "How are you?"},
-		Options: map[string]any{
-			"wait_for_model": true,
-		},
 	}
 
 	embeddings, err := client.CreateEmbedding(ctx, "BAAI/bge-small-en-v1.5", "feature-extraction", req)

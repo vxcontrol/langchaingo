@@ -101,11 +101,6 @@ func New(opts ...Option) (*LLM, error) {
 		return nil, ErrMissingToken
 	}
 
-	// If a provider is specified, use the router URL
-	if options.provider != "" {
-		options.url = routerURL
-	}
-
 	var clientOpts []huggingfaceclient.Option
 	if options.httpClient != nil {
 		clientOpts = append(clientOpts, huggingfaceclient.WithHTTPClient(options.httpClient))
@@ -186,10 +181,6 @@ func (o *LLM) CreateEmbedding(
 ) ([][]float32, error) {
 	embeddings, err := o.client.CreateEmbedding(ctx, model, task, &huggingfaceclient.EmbeddingRequest{
 		Inputs: inputTexts,
-		Options: map[string]any{
-			"use_gpu":        false,
-			"wait_for_model": true,
-		},
 	})
 	if err != nil {
 		return nil, err
