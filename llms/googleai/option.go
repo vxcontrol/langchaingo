@@ -8,7 +8,6 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 
-	"cloud.google.com/go/vertexai/genai"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )
@@ -100,11 +99,10 @@ func WithCredentialsFile(credentialsFile string) Option {
 	}
 }
 
-// WithRest configures the client to use the REST API.
+// WithRest is accepted for compatibility and does nothing: the Google GenAI SDK
+// speaks REST on every backend, so there is no transport left to switch.
 func WithRest() Option {
-	return func(opts *Options) {
-		opts.ClientOptions = append(opts.ClientOptions, genai.WithREST())
-	}
+	return func(*Options) {}
 }
 
 // WithGRPCClient append a ClientOption that uses the provided gRPC client to

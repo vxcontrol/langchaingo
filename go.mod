@@ -53,7 +53,6 @@ require (
 // Cloud platforms and AI services
 require (
 	cloud.google.com/go/aiplatform v1.85.0
-	cloud.google.com/go/vertexai v0.12.0
 	github.com/aws/aws-sdk-go-v2 v1.41.5
 	github.com/aws/aws-sdk-go-v2/config v1.32.10
 	github.com/aws/aws-sdk-go-v2/service/bedrockagent v1.52.4

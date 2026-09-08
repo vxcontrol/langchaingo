@@ -147,7 +147,8 @@ func TestOptions(t *testing.T) { //nolint:funlen // comprehensive test //nolint:
 	t.Run("WithRest", func(t *testing.T) {
 		opts := &Options{}
 		WithRest()(opts)
-		assert.Len(t, opts.ClientOptions, 1)
+		assert.Empty(t, opts.ClientOptions,
+			"the SDK speaks REST on every backend, so the option has nothing to add")
 	})
 
 	t.Run("WithHTTPClient", func(t *testing.T) {
