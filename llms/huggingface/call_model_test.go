@@ -2,6 +2,7 @@ package huggingface
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,15 +14,14 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-func TestTheModelOfTheCallReachesTheRequest(t *testing.T) {
-	t.Parallel()
+func modelOnTheWire(t *testing.T, call ...llms.CallOption) string {
+	t.Helper()
 
-	var path string
+	var raw []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		_, _ = io.Copy(io.Discard, r.Body)
+		raw, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `[{"generated_text":"hi"}]`)
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"hi"},"finish_reason":"stop"}]}`)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -29,32 +29,28 @@ func TestTheModelOfTheCallReachesTheRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = llm.GenerateContent(context.Background(),
-		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-		llms.WithModel("meta-llama/Llama-3.1-8B-Instruct"))
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, call...)
 	require.NoError(t, err)
 
-	assert.Contains(t, path, "meta-llama/Llama-3.1-8B-Instruct",
+	var body struct {
+		Model string `json:"model"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &body))
+
+	return body.Model
+}
+
+func TestTheModelOfTheCallReachesTheRequest(t *testing.T) {
+	t.Parallel()
+
+	model := modelOnTheWire(t, llms.WithModel("meta-llama/Llama-3.1-8B-Instruct"))
+
+	assert.Equal(t, "meta-llama/Llama-3.1-8B-Instruct", model,
 		"the model named by the call must address the request, not the one from the constructor")
 }
 
 func TestWithoutAModelOnTheCallTheConstructorsModelIsUsed(t *testing.T) {
 	t.Parallel()
 
-	var path string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		_, _ = io.Copy(io.Discard, r.Body)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `[{"generated_text":"hi"}]`)
-	}))
-	t.Cleanup(srv.Close)
-
-	llm, err := New(WithToken("t"), WithURL(srv.URL), WithModel("gpt2"))
-	require.NoError(t, err)
-
-	_, err = llm.GenerateContent(context.Background(),
-		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
-	require.NoError(t, err)
-
-	assert.Contains(t, path, "gpt2")
+	assert.Equal(t, "gpt2", modelOnTheWire(t))
 }
