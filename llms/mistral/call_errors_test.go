@@ -55,7 +55,7 @@ func TestCallRejectsAnAnswerThatIsNotASingleChoice(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, out)
-	assert.Contains(t, err.Error(), "length of the Choices slice must be 1")
+	assert.Contains(t, err.Error(), "length of the Choices slice must be greater than or equal 1")
 	require.Len(t, rec.errs, 1)
 	assert.ErrorIs(t, rec.errs[0], err)
 }
