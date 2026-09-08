@@ -380,12 +380,8 @@ func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
-	switch toolsRule { //nolint:exhaustive // EffortToolsFree leaves the request alone
-	case reasoning.EffortToolsDisable:
-		o.writeDisableEffort(req)
-		return reasoning.OpenAIDisableEffort, nil
-	case reasoning.EffortToolsOmit:
-		sendsEffort = false
+	if toolsRule != reasoning.EffortToolsFree {
+		return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
 	}
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
 		reasoning.DashScopeTakesThinkingBudget(model) {

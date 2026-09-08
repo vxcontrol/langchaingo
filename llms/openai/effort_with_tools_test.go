@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 func weatherTool() llms.Tool {
@@ -61,16 +63,10 @@ func TestEffortAndToolsOnTheWire(t *testing.T) {
 		want   string
 		absent bool
 	}{
-		{"5.6 with tools and a level degrades to none", "gpt-5.6-sol",
-			[]llms.CallOption{tools, high}, `"reasoning_effort":"none"`, false},
 		{"5.6 with tools and no request still sends none", "gpt-5.6-sol",
 			[]llms.CallOption{tools}, `"reasoning_effort":"none"`, false},
 		{"5.6 without tools keeps the level", "gpt-5.6-sol",
 			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
-		{"5.5 with tools omits the field", "gpt-5.5",
-			[]llms.CallOption{tools, high}, `"reasoning_effort"`, true},
-		{"5.4-nano with tools omits the field", "gpt-5.4-nano",
-			[]llms.CallOption{tools, high}, `"reasoning_effort"`, true},
 		{"5.5 without tools keeps the level", "gpt-5.5",
 			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
 		{"5.2 with tools keeps the level", "gpt-5.2",
@@ -184,5 +180,61 @@ func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) {
 				t.Errorf("request body %s %s\nbody: %s", verb, tc.want, body)
 			}
 		})
+	}
+}
+
+func TestAnUnservableEffortWithToolsIsRefusedBeforeTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-5.6-sol", "gpt-5.5", "gpt-5.4-nano"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			var reached bool
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached = true
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"id":"x","choices":[]}`)
+			}))
+			t.Cleanup(srv.Close)
+
+			llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
+			if err != nil {
+				t.Fatalf("New() error: %v", err)
+			}
+			_, err = llm.GenerateContent(context.Background(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+				llms.WithTools([]llms.Tool{weatherTool()}), llms.WithReasoning(llms.ReasoningHigh, 0))
+
+			var want *reasoning.ErrEffortWithTools
+			if !errors.As(err, &want) {
+				t.Fatalf("asking %s to think alongside tools must be refused, got err=%v", model, err)
+			}
+			if reached {
+				t.Error("the refusal must come before the request leaves")
+			}
+		})
+	}
+}
+
+func TestAnExplicitNoThinkingWithToolsIsStillServed(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-5.6-sol",
+		llms.WithTools([]llms.Tool{weatherTool()}), llms.WithReasoningDisabled())
+
+	if !strings.Contains(body, `"reasoning_effort":"none"`) {
+		t.Errorf("a caller who asked not to think keeps being served\nbody: %s", body)
+	}
+}
+
+func TestAskingForTheNoneLevelWithToolsIsNotARefusal(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-5.6-sol",
+		llms.WithTools([]llms.Tool{weatherTool()}), llms.WithReasoning(llms.ReasoningNone, 0))
+
+	if !strings.Contains(body, `"reasoning_effort":"none"`) {
+		t.Errorf("a caller who named the none level asked for what the vendor serves\nbody: %s", body)
 	}
 }
