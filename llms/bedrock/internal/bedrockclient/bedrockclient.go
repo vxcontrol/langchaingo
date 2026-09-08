@@ -114,6 +114,10 @@ func (c *Client) CreateCompletion(ctx context.Context,
 			Reason:   "legacy InvokeModel structured output is only implemented for Anthropic models; use the Converse API for other providers",
 		}
 	}
+	if options.Reasoning.ResolveMode() == llms.ReasoningOff &&
+		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: modelID}
+	}
 	switch provider {
 	case "ai21":
 		return createAi21Completion(ctx, c.client, modelID, messages, options)
