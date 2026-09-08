@@ -1,0 +1,241 @@
+httprr trace v1
+376 1278
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 121
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":10},"messages":[{"content":[{"text":"Reply with 'OK' and nothing else"}],"role":"user"}]}HTTP/2.0 200 OK
+Content-Length: 257
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:44 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: 36882004-b421-45ac-9067-4f1c9c4d1987
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: cd9ab606-b141-46ac-b0f0-2fec49622e30
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":468},"output":{"message":{"content":[{"text":"OK"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":16,"outputTokens":4,"serverToolUsage":{},"totalTokens":20}}498 1281
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 243
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":1},"messages":[{"content":[{"text":"test"}],"role":"user"}],"toolConfig":{"toolChoice":{"auto":{}},"tools":[{"toolSpec":{"description":"Test tool","inputSchema":{"json":{"type":"object"}},"name":"test_tool"}}]}}HTTP/2.0 200 OK
+Content-Length: 260
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:45 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: 6d4ef555-dda0-4803-8a34-a2afa17c2446
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: 694fbac4-e980-4fc5-9d12-78ef0c2079ed
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":478},"output":{"message":{"content":[{"text":"I"}],"role":"assistant"}},"stopReason":"max_tokens","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":535,"outputTokens":1,"serverToolUsage":{},"totalTokens":536}}379 1281
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 124
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":10},"messages":[{"content":[{"text":"Reply with 'Hello' and nothing else"}],"role":"user"}]}HTTP/2.0 200 OK
+Content-Length: 260
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:45 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: 9cb307c7-ff09-4bdb-8590-c3f818b31e22
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: bac64d15-33b8-40cc-8ed4-37c393cf0264
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":510},"output":{"message":{"content":[{"text":"Hello"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":16,"outputTokens":4,"serverToolUsage":{},"totalTokens":20}}1576 1280
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 1320
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":10},"messages":[{"content":[{"text":"Say 'OK'"}],"role":"user"}],"system":[{"text":"This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. "}]}HTTP/2.0 200 OK
+Content-Length: 259
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:46 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: c9e1b352-9dfd-464c-b0b4-996e3031636e
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: 59fbd331-401b-416d-96ee-1c79939bc911
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":489},"output":{"message":{"content":[{"text":"OK"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":263,"outputTokens":4,"serverToolUsage":{},"totalTokens":267}}353 1290
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 99
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":50},"messages":[{"content":[{"text":"Count to 5"}],"role":"user"}]}HTTP/2.0 200 OK
+Content-Length: 269
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:46 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: 5f918dd9-c5c7-40ff-8ef8-9953d29e076c
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: 9ce0419a-95d0-4559-9c01-3183704f5268
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":537},"output":{"message":{"content":[{"text":"1\n2\n3\n4\n5"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":11,"outputTokens":13,"serverToolUsage":{},"totalTokens":24}}660 1407
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 405
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":100},"messages":[{"content":[{"text":"What's the weather in San Francisco?"}],"role":"user"}],"toolConfig":{"toolChoice":{"auto":{}},"tools":[{"toolSpec":{"description":"Get the weather for a location","inputSchema":{"json":{"properties":{"location":{"description":"The city and country","type":"string"}},"required":["location"],"type":"object"}},"name":"get_weather"}}]}}HTTP/2.0 200 OK
+Content-Length: 386
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:46 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: be10a41a-3a45-4b28-b484-09ca86b7390f
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: 1121f667-dccc-4106-abc1-d9f83e3d4206
+X-Litellm-Key-Spend: 3783.006034756675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.0
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.0
+X-Litellm-Response-Cost-Output: 0.0
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":707},"output":{"message":{"content":[{"toolUse":{"input":{"location":"San Francisco, USA"},"name":"get_weather","toolUseId":"tooluse_xMPXcGmIeWSRs6ujcXb2Fv","type":"tool_use"}}],"role":"assistant"}},"stopReason":"tool_use","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":574,"outputTokens":57,"serverToolUsage":{},"totalTokens":631}}1576 1371
+POST https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse HTTP/1.1
+Host: bedrock-runtime.us-east-1.amazonaws.com
+User-Agent: langchaingo-httprr
+Content-Length: 1320
+Content-Type: application/json
+
+{"inferenceConfig":{"maxTokens":10},"messages":[{"content":[{"text":"Say 'OK'"}],"role":"user"}],"system":[{"text":"This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. This is cached context. "}]}HTTP/2.0 200 OK
+Content-Length: 259
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Tue, 08 Sep 2026 00:12:48 GMT
+Server: nginx
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Amzn-Requestid: db27eeef-9c63-4d08-9cd3-a92d9516271d
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Litellm-Call-Id: 34c1b9b7-ae40-455c-95e8-7a16cdb985c8
+X-Litellm-Key-Spend: 3783.006346056675
+X-Litellm-Model-Id: 6915d127a6e715e52357ee26efbb7014dfff4de22a2094b93ac975289c1a4802
+X-Litellm-Model-Name: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+X-Litellm-Response-Cost: 0.00031130000000000003
+X-Litellm-Response-Cost-Discount-Amount: 0.0
+X-Litellm-Response-Cost-Input: 0.00028930000000000004
+X-Litellm-Response-Cost-Margin-Amount: 0.0
+X-Litellm-Response-Cost-Margin-Percent: 0.0
+X-Litellm-Response-Cost-Original: 0.00031130000000000003
+X-Litellm-Response-Cost-Output: 2.2e-05
+X-Litellm-Response-Cost-Tool-Usage: 0.0
+X-Litellm-Version: 1.99.1
+X-Xss-Protection: 1; mode=block
+
+{"metrics":{"latencyMs":460},"output":{"message":{"content":[{"text":"OK"}],"role":"assistant"}},"stopReason":"end_turn","usage":{"cacheReadInputTokenCount":0,"cacheReadInputTokens":0,"inputTokens":263,"outputTokens":4,"serverToolUsage":{},"totalTokens":267}}
