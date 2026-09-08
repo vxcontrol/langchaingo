@@ -55,33 +55,7 @@ func New(opts ...Option) (*Model, error) {
 
 // Call implements the langchaingo llms.Model interface.
 func (m *Model) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
-	callOptions := resolveDefaultOptions(sdk.DefaultChatRequestParams, m.clientOptions)
-	setCallOptions(options, callOptions)
-	mistralChatParams, err := mistralChatParamsFromCallOptions(callOptions)
-	if err != nil {
-		return "", err
-	}
-
-	messages := []sdk.ChatMessage{{
-		Role:    "user",
-		Content: prompt,
-	}}
-	res, err := m.client.Chat(callOptions.GetModel(), messages, &mistralChatParams)
-	if err != nil {
-		if m.CallbacksHandler != nil {
-			m.CallbacksHandler.HandleLLMError(ctx, err)
-		}
-		return "", err
-	}
-	if len(res.Choices) != 1 {
-		err := errors.New("unexpected response from Mistral SDK, length of the Choices slice must be 1")
-		if m.CallbacksHandler != nil {
-			m.CallbacksHandler.HandleLLMError(ctx, err)
-		}
-		return "", err
-	}
-
-	return res.Choices[0].Message.Content, nil
+	return llms.GenerateFromSinglePrompt(ctx, m, prompt, options...)
 }
 
 // GenerateContent implements the langchaingo llms.Model interface.
