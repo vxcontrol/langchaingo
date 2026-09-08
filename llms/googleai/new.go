@@ -77,9 +77,8 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 	return gi, nil
 }
 
-// ErrOptionNotHonored reports options this door cannot carry. Pass credentials
-// and gRPC connections to vertex.New, which builds a client that takes them, or
-// shape the transport with WithHTTPClient.
+// ErrOptionNotHonored reports options this door cannot carry. Shape the
+// transport with WithHTTPClient.
 type ErrOptionNotHonored struct {
 	Options []string
 }
