@@ -12,6 +12,11 @@ import (
 	"github.com/vxcontrol/langchaingo/embeddings"
 )
 
+var (
+	ErrEmptyEmbeddings = errors.New("jina: the vendor returned no embeddings")
+	ErrShortEmbeddings = errors.New("jina: fewer embeddings than inputs")
+)
+
 type Jina struct {
 	Model         string
 	InputText     []string
@@ -120,6 +125,13 @@ func (j *Jina) CreateEmbedding(ctx context.Context, texts []string) ([][]float32
 	err = json.Unmarshal(body, &embeddingResponse)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(embeddingResponse.Data) == 0 {
+		return nil, ErrEmptyEmbeddings
+	}
+	if len(embeddingResponse.Data) != len(texts) {
+		return nil, ErrShortEmbeddings
 	}
 
 	embs := make([][]float32, 0, len(embeddingResponse.Data))

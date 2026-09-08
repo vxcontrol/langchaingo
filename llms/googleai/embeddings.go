@@ -2,9 +2,15 @@ package googleai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/genai"
+)
+
+var (
+	ErrEmptyEmbeddings = errors.New("googleai: the vendor returned no embeddings")
+	ErrShortEmbeddings = errors.New("googleai: fewer embeddings than inputs")
 )
 
 // CreateEmbedding creates embeddings from texts.
@@ -29,6 +35,13 @@ func (g *GoogleAI) CreateEmbedding(ctx context.Context, texts []string) ([][]flo
 		}
 
 		results = append(results, batchResults...)
+	}
+
+	if len(results) == 0 {
+		return nil, ErrEmptyEmbeddings
+	}
+	if len(results) != len(texts) {
+		return nil, ErrShortEmbeddings
 	}
 
 	return results, nil
