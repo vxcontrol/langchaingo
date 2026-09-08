@@ -827,11 +827,8 @@ func applyAnthropicReasoning(
 	case llms.ReasoningDefault:
 		return nil
 	case llms.ReasoningOff:
-		switch reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) {
-		case reasoning.OffDisableClaude:
+		if reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffDisableClaude {
 			input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
-		case reasoning.OffUnsupported:
-			return &reasoning.ErrReasoningOffUnsupported{Model: modelID}
 		}
 		return nil
 	}
