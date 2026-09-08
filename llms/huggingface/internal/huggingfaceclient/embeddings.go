@@ -10,8 +10,7 @@ import (
 )
 
 type embeddingPayload struct {
-	Options map[string]any
-	Inputs  []string `json:"inputs"`
+	Inputs []string `json:"inputs"`
 }
 
 const defaultEmbeddingProvider = "hf-inference"
@@ -25,14 +24,7 @@ func (c *Client) embeddingProvider() string {
 
 // nolint:lll
 func (c *Client) createEmbedding(ctx context.Context, model, task string, payload *embeddingPayload) ([][]float32, error) {
-	body := map[string]any{
-		"inputs": payload.Inputs,
-	}
-	for key, value := range payload.Options {
-		body[key] = value
-	}
-
-	payloadBytes, err := json.Marshal(body)
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
