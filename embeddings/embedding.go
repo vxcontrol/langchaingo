@@ -2,11 +2,14 @@ package embeddings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/sliceutil"
 )
+
+var ErrNoEmbedding = errors.New("embeddings: the client returned no vector for the query")
 
 // NewEmbedder creates a new Embedder from the given EmbedderClient, with
 // some options that affect how embedding will be done.
@@ -61,6 +64,9 @@ func (ei *EmbedderImpl) EmbedQuery(ctx context.Context, text string) ([]float32,
 	emb, err := ei.client.CreateEmbedding(ctx, []string{text})
 	if err != nil {
 		return nil, fmt.Errorf("error embedding query: %w", err)
+	}
+	if len(emb) == 0 {
+		return nil, ErrNoEmbedding
 	}
 
 	return emb[0], nil

@@ -15,6 +15,7 @@ import (
 
 var (
 	ErrEmptyEmbeddings = errors.New("empty embeddings")
+	ErrShortEmbeddings = errors.New("mistral: fewer embeddings than inputs")
 	ErrEmbeddingFailed = errors.New("mistral: embedding request failed")
 )
 
@@ -90,6 +91,13 @@ func (m *Model) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]f
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrEmbeddingFailed, err)
+	}
+
+	if len(decoded.Data) == 0 {
+		return nil, ErrEmptyEmbeddings
+	}
+	if len(decoded.Data) != len(inputTexts) {
+		return nil, ErrShortEmbeddings
 	}
 
 	allEmbds := make([][]float32, len(decoded.Data))
