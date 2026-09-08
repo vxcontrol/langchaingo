@@ -107,3 +107,17 @@ func TestTheVertexBackendCarriesTheToolChoice(t *testing.T) {
 	assert.Equal(t, "ANY", calling["mode"],
 		"required means the vendor's ANY, not the default AUTO")
 }
+
+func TestTheVertexBackendCarriesBothPenalties(t *testing.T) {
+	t.Parallel()
+
+	_, body, _ := vertexCall(t, nil,
+		llms.WithFrequencyPenalty(0.7), llms.WithPresencePenalty(0.4))
+
+	config, ok := body["generationConfig"].(map[string]any)
+	require.True(t, ok, "the request carries a generation config")
+	assert.InDelta(t, 0.7, config["frequencyPenalty"], 1e-6,
+		"the frequency penalty the caller named reaches the vendor")
+	assert.InDelta(t, 0.4, config["presencePenalty"], 1e-6,
+		"the presence penalty the caller named reaches the vendor")
+}
