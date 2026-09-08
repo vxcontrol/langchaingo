@@ -1,6 +1,9 @@
 package reasoning
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // RejectsPenalties reports whether frequency_penalty and presence_penalty
 // must stay off the wire.
@@ -70,6 +73,18 @@ const (
 	// not equivalent.
 	EffortToolsDisable
 )
+
+type ErrEffortWithTools struct {
+	Model  string
+	Effort string
+}
+
+func (e *ErrEffortWithTools) Error() string {
+	return fmt.Sprintf(
+		"model %q rejects reasoning effort %q on a request carrying function tools; "+
+			"the vendor serves this combination on the responses API only",
+		e.Model, e.Effort)
+}
 
 // EffortWithTools reports the rule for a model. An unlisted generation stays free.
 func EffortWithTools(model string) EffortToolsRule {
