@@ -368,3 +368,54 @@ func TestMetadataSetAfterExtraBodyDoesNotDiscardIt(t *testing.T) {
 		}
 	}
 }
+
+func TestAdaptiveWithToolsNoLongerRefusesTheRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.5"} {
+		body := sendForWire(t, model,
+			llms.WithAdaptiveReasoning(llms.ReasoningNone), llms.WithTools([]llms.Tool{weatherTool()}))
+
+		if strings.Contains(body, `"reasoning_effort"`) {
+			t.Errorf("%s: the vendor serves an effort with tools on another API only: %s", model, body)
+		}
+		if !strings.Contains(body, `"tools"`) {
+			t.Errorf("%s: the request lost its tools: %s", model, body)
+		}
+	}
+}
+
+func TestAnEffortNamedAlongsideAdaptiveStillTravels(t *testing.T) {
+	t.Parallel()
+
+	body := sendForWire(t, "gpt-5.1", llms.WithAdaptiveReasoning(llms.ReasoningLow))
+	if !strings.Contains(body, `"reasoning_effort":"low"`) {
+		t.Errorf("a named effort is a depth, not a hand-off: %s", body)
+	}
+}
+
+func TestDelegatedDepthOnAModelThatWillNotReasonIsReported(t *testing.T) {
+	t.Parallel()
+
+	optIn := sendForWarnings(t, "gpt-5.1", llms.WithAdaptiveReasoning(llms.ReasoningNone))
+	w := warningFor(t, optIn, "WithAdaptiveReasoning")
+	if w.Kind != llms.WarningDrop || w.Asked != "adaptive" || w.Sent != "" {
+		t.Errorf("opt-in model warning = %+v", w)
+	}
+
+	withTools := sendForWarnings(t, "gpt-5.6",
+		llms.WithAdaptiveReasoning(llms.ReasoningNone), llms.WithTools([]llms.Tool{weatherTool()}))
+	w = warningFor(t, withTools, "WithAdaptiveReasoning")
+	if w.Kind != llms.WarningSubstitute || w.Sent != "none" {
+		t.Errorf("forced-disable warning = %+v", w)
+	}
+}
+
+func TestDelegatedDepthOnAModelThatReasonsAnywayIsSilent(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-4o", llms.WithAdaptiveReasoning(llms.ReasoningNone))
+	if len(resp.Warnings) != 0 {
+		t.Errorf("nothing was lost, got %v", resp.Warnings)
+	}
+}

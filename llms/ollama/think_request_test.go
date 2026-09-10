@@ -123,3 +123,21 @@ func TestAnEffortGPTOSSTakesIsNotAWarning(t *testing.T) {
 		require.Empty(t, resp.Warnings, "%s is in the vendor set, nothing is lost", effort)
 	}
 }
+
+func TestAdaptiveWithNoEffortLeavesTheThinkFieldOff(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5", "gpt-oss:120b", "llama3.2"} {
+		got := captureChatRequestFor(t, model, llms.WithAdaptiveReasoning(""))
+		require.NotContains(t, got, "think", "%s: the server default is the model's own choice", model)
+	}
+}
+
+func TestAdaptiveWithANamedEffortStillSetsTheLevel(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "low",
+		captureChatRequestFor(t, "glm-5", llms.WithAdaptiveReasoning(llms.ReasoningLow))["think"])
+	require.Equal(t, "high",
+		captureChatRequestFor(t, "gpt-oss:120b", llms.WithAdaptiveReasoning(llms.ReasoningMax))["think"])
+}

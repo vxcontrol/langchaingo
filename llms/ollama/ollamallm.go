@@ -305,6 +305,9 @@ func resolveThink(model string, opts llms.CallOptions) *api.ThinkValue {
 	case llms.ReasoningOff:
 		return &api.ThinkValue{Value: false}
 	case llms.ReasoningOn:
+		if opts.Reasoning.DelegatesDepth() {
+			return nil
+		}
 		effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
 		if takesOnlyGPTOSSLevels(model) {
 			return &api.ThinkValue{Value: gptOSSLevel(effort)}
