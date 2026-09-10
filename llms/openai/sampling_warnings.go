@@ -38,12 +38,12 @@ func takeSamplingSnapshot(req *openaiclient.ChatRequest) samplingSnapshot {
 }
 
 func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason string, warn *llms.Warnings) {
-	warnFloat(warn, "WithTemperature", model, reason, s.temperature, req.Temperature)
-	warnFloat(warn, "WithTopP", model, reason, s.topP, req.TopP)
-	warnInt(warn, "WithTopK", model, reason, s.topK, req.TopK)
-	warnFloat(warn, "WithMinP", model, "the model rejects min_p", s.minP, req.MinP)
-	warnFloat(warn, "WithFrequencyPenalty", model, reason, s.frequencyPenalty, req.FrequencyPenalty)
-	warnFloat(warn, "WithPresencePenalty", model, reason, s.presencePenalty, req.PresencePenalty)
+	warn.AddFloatChange("WithTemperature", model, reason, s.temperature, req.Temperature)
+	warn.AddFloatChange("WithTopP", model, reason, s.topP, req.TopP)
+	warn.AddIntChange("WithTopK", model, reason, s.topK, req.TopK)
+	warn.AddFloatChange("WithMinP", model, "the model rejects min_p", s.minP, req.MinP)
+	warn.AddFloatChange("WithFrequencyPenalty", model, reason, s.frequencyPenalty, req.FrequencyPenalty)
+	warn.AddFloatChange("WithPresencePenalty", model, reason, s.presencePenalty, req.PresencePenalty)
 
 	if s.logProbs && !req.LogProbs {
 		warn.Add(llms.Warning{
@@ -55,43 +55,6 @@ func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason st
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopLogProbs", Model: model,
 			Asked: strconv.Itoa(s.topLogProbs), Reason: reason,
-		})
-	}
-}
-
-func warnFloat(warn *llms.Warnings, option, model, reason string, before, after *float64) {
-	render := func(v *float64) string {
-		if v == nil {
-			return ""
-		}
-		return strconv.FormatFloat(*v, 'g', -1, 64)
-	}
-	addChange(warn, option, model, reason, render(before), render(after))
-}
-
-func warnInt(warn *llms.Warnings, option, model, reason string, before, after *int) {
-	render := func(v *int) string {
-		if v == nil {
-			return ""
-		}
-		return strconv.Itoa(*v)
-	}
-	addChange(warn, option, model, reason, render(before), render(after))
-}
-
-func addChange(warn *llms.Warnings, option, model, reason, before, after string) {
-	switch {
-	case before == "" || before == after:
-		return
-	case after == "":
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: option, Model: model,
-			Asked: before, Reason: reason,
-		})
-	default:
-		warn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: option, Model: model,
-			Asked: before, Sent: after, Reason: reason,
 		})
 	}
 }
