@@ -224,6 +224,7 @@ func createAnthropicCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	inputContents, systemPrompt, err := processInputMessagesAnthropic(messages)
 	if err != nil {
@@ -271,6 +272,8 @@ func createAnthropicCompletion(ctx context.Context,
 	if err := applyAnthropicStructuredOutput(&input, modelID, options.StructuredOutput); err != nil {
 		return nil, err
 	}
+
+	reportLegacyAnthropic(warn, modelID, options, &input)
 
 	body, err := json.Marshal(input)
 	if err != nil {

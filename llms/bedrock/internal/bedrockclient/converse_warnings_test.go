@@ -106,3 +106,33 @@ func TestConverseCarriesAPlainRequestWithoutWarnings(t *testing.T) {
 
 	require.Empty(t, resp.Warnings)
 }
+
+func TestConverseReportsATopKThatNeverReachesTheRequest(t *testing.T) {
+	t.Parallel()
+
+	topK := 40
+	resp := converseCall(t, &ConverseInput{
+		Messages:        humanTurn(),
+		ModelID:         "us.anthropic.claude-sonnet-4-5-v1:0",
+		TopK:            &topK,
+		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningMedium},
+	})
+
+	w, ok := converseWarningsByOption(resp.Warnings)["WithTopK"]
+	require.True(t, ok, "no top-k warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "40", w.Asked)
+}
+
+func TestConverseStaysSilentOnATopKItCarries(t *testing.T) {
+	t.Parallel()
+
+	topK := 40
+	resp := converseCall(t, &ConverseInput{
+		Messages: humanTurn(),
+		ModelID:  "us.anthropic.claude-sonnet-4-5-v1:0",
+		TopK:     &topK,
+	})
+
+	require.NotContains(t, converseWarningsByOption(resp.Warnings), "WithTopK")
+}

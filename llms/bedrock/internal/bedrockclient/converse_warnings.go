@@ -1,6 +1,7 @@
 package bedrockclient
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -58,12 +59,34 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
 		})
 	}
+	if input.TopK != nil && !converseCarriesTopK(built) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithTopK", Model: model,
+			Asked: strconv.Itoa(*input.TopK), Reason: omitted,
+		})
+	}
 	if len(input.Tools) > 0 && built.ToolConfig == nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
 			Asked: strconv.Itoa(len(input.Tools)) + " tools", Reason: omitted,
 		})
 	}
+}
+
+func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
+	if built.AdditionalModelRequestFields == nil {
+		return false
+	}
+	raw, err := built.AdditionalModelRequestFields.MarshalSmithyDocument()
+	if err != nil {
+		return false
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return false
+	}
+	_, carried := fields["top_k"]
+	return carried
 }
 
 func reportConverseFloat(warn *llms.Warnings, option, model string, asked float32, sent *float32) {

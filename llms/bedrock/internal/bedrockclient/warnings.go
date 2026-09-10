@@ -49,3 +49,60 @@ func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options 
 		})
 	}
 }
+
+func reportLegacyAnthropic(
+	warn *llms.Warnings, modelID string, options llms.CallOptions, input *anthropicTextGenerationInput,
+) {
+	const reshaped = "the door reshaped the legacy anthropic payload for this model"
+
+	if options.Temperature != nil {
+		reportLegacyFloat(warn, "WithTemperature", modelID, reshaped, *options.Temperature, input.Temperature)
+	}
+	if options.TopP != nil {
+		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
+	}
+	if options.TopK != nil && input.TopK != *options.TopK {
+		reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
+	}
+	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {
+		reportLegacyInt(warn, "WithMaxTokens", modelID, reshaped, *options.MaxTokens, input.MaxTokens)
+	}
+	if len(options.StopWords) > 0 && len(input.StopSequences) == 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithStopWords", Model: modelID,
+			Asked: strings.Join(options.StopWords, ","), Reason: reshaped,
+		})
+	}
+}
+
+func reportLegacyFloat(warn *llms.Warnings, option, modelID, reason string, asked, sent float64) {
+	if asked == sent {
+		return
+	}
+	render := func(v float64) string { return strconv.FormatFloat(v, 'g', -1, 64) }
+	if sent == 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: modelID,
+			Asked: render(asked), Reason: reason,
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: option, Model: modelID,
+		Asked: render(asked), Sent: render(sent), Reason: reason,
+	})
+}
+
+func reportLegacyInt(warn *llms.Warnings, option, modelID, reason string, asked, sent int) {
+	if sent == 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: modelID,
+			Asked: strconv.Itoa(asked), Reason: reason,
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: option, Model: modelID,
+		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: reason,
+	})
+}

@@ -37,14 +37,23 @@ func legacyClientAnswering(body string) *Client {
 
 func legacyCall(t *testing.T, model string, options llms.CallOptions) *llms.ContentResponse {
 	t.Helper()
+	return legacyCallAnswering(t, model, `{"generation":"hi","stop_reason":"stop"}`, options)
+}
+
+func legacyCallAnswering(t *testing.T, model, body string, options llms.CallOptions) *llms.ContentResponse {
+	t.Helper()
 
 	options.Model = aws.String(model)
-	resp, err := legacyClientAnswering(`{"generation":"hi","stop_reason":"stop"}`).
+	resp, err := legacyClientAnswering(body).
 		CreateCompletion(context.Background(), model,
 			[]Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}}, options)
 	require.NoError(t, err)
 	return resp
 }
+
+const anthropicLegacyBody = `{"id":"msg_1","type":"message","role":"assistant",` +
+	`"content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn",` +
+	`"usage":{"input_tokens":1,"output_tokens":1}}`
 
 func legacyWarningsByOption(warnings []llms.Warning) map[string]llms.Warning {
 	byOption := make(map[string]llms.Warning, len(warnings))
@@ -98,4 +107,38 @@ func TestAPayloadThatCarriesTopKReportsNoTopKLoss(t *testing.T) {
 		llms.CallOptions{Model: aws.String("cohere.command-text-v14"), TopK: &topK})
 	require.NoError(t, err)
 	require.NotContains(t, legacyWarningsByOption(got.Warnings), "WithTopK")
+}
+
+func TestTheLegacyAnthropicPayloadReportsWhatThinkingReshaped(t *testing.T) {
+	t.Parallel()
+
+	const model = "us.anthropic.claude-sonnet-4-5-v1:0"
+	temperature, topP, topK, maxTokens := 0.2, 0.9, 40, 1000
+	resp := legacyCallAnswering(t, model, anthropicLegacyBody, llms.CallOptions{
+		Temperature: &temperature,
+		TopP:        &topP,
+		TopK:        &topK,
+		MaxTokens:   &maxTokens,
+		Reasoning:   &llms.ReasoningConfig{Mode: llms.ReasoningOn, Tokens: 4000},
+	})
+
+	got := legacyWarningsByOption(resp.Warnings)
+	for _, option := range []string{"WithTemperature", "WithTopP", "WithTopK", "WithMaxTokens"} {
+		w, ok := got[option]
+		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
+		require.Equal(t, model, w.Model)
+		require.NotEqual(t, w.Asked, w.Sent)
+	}
+}
+
+func TestALegacyAnthropicCallThatKeepsItsValuesReportsNothing(t *testing.T) {
+	t.Parallel()
+
+	temperature, maxTokens := 0.2, 1000
+	resp := legacyCallAnswering(t, "us.anthropic.claude-sonnet-4-5-v1:0", anthropicLegacyBody, llms.CallOptions{
+		Temperature: &temperature,
+		MaxTokens:   &maxTokens,
+	})
+
+	require.Empty(t, resp.Warnings)
 }
