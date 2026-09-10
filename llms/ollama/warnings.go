@@ -62,13 +62,25 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 		return
 	}
 
-	effort := string(cfg.GetEffort(opts.GetMaxTokens()))
-	if level := (&api.ThinkValue{Value: effort}); !level.IsValid() {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
-			Asked: effort, Sent: "true",
-			Reason: "ollama takes a think level from a closed set and this effort is not in it",
-		})
+	asked := cfg.GetEffort(opts.GetMaxTokens())
+	effort := string(asked)
+	switch {
+	case takesOnlyGPTOSSLevels(model):
+		if sent := gptOSSLevel(asked); sent != effort {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: effort, Sent: sent,
+				Reason: "this model takes only low, medium or high, and ignores anything else",
+			})
+		}
+	default:
+		if level := (&api.ThinkValue{Value: effort}); !level.IsValid() {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: effort, Sent: "true",
+				Reason: "ollama takes a think level from a closed set and this effort is not in it",
+			})
+		}
 	}
 	if cfg.HasExplicitTokens() {
 		warn.Add(llms.Warning{
