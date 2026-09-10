@@ -67,12 +67,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		})
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
-		fields := converseAdditionalFields(built)
-		sent := ""
-		if oc, ok := fields["output_config"].(map[string]any); ok {
-			sent, _ = oc["effort"].(string)
-		}
-		_, thinkingSent := fields["thinking"]
+		sent, thinkingSent := converseEffortOnTheWire(built)
 		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent)
 	}
 	if kind, _ := llms.ClassifyToolChoice(input.ToolChoice); kind == llms.ToolChoiceNone &&
@@ -109,6 +104,31 @@ func converseAdditionalFields(built *bedrockruntime.ConverseInput) map[string]an
 		return nil
 	}
 	return fields
+}
+
+// converseEffortOnTheWire reads the three shapes this door writes: the Claude
+// output_config, the Nova reasoningConfig and the Grok reasoning object.
+func converseEffortOnTheWire(built *bedrockruntime.ConverseInput) (string, bool) {
+	fields := converseAdditionalFields(built)
+	nested := func(key, effortKey string) (string, bool) {
+		block, ok := fields[key].(map[string]any)
+		if !ok {
+			return "", false
+		}
+		effort, _ := block[effortKey].(string)
+		return effort, true
+	}
+	for _, shape := range []struct{ key, effortKey string }{
+		{"output_config", "effort"},
+		{"reasoningConfig", "maxReasoningEffort"},
+		{"reasoning", "effort"},
+	} {
+		if effort, present := nested(shape.key, shape.effortKey); present {
+			return effort, true
+		}
+	}
+	_, thinking := fields["thinking"]
+	return "", thinking
 }
 
 func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {

@@ -197,3 +197,40 @@ func TestConverseReportsAToolChoiceItTurnsIntoAuto(t *testing.T) {
 	require.Equal(t, "none", w.Asked)
 	require.Equal(t, "auto", w.Sent)
 }
+
+func TestConverseReadsTheEffortEveryFamilyWritesItsOwnWay(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 8192
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		want   *llms.Warning
+	}{
+		{"us.amazon.nova-2-lite-v1:0", llms.ReasoningHigh, nil},
+		{"us.xai.grok-4.3", llms.ReasoningMax, &llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Asked: "max", Sent: "xhigh",
+		}},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+
+			resp := converseCall(t, &ConverseInput{
+				Messages:        humanTurn(),
+				ModelID:         tc.model,
+				MaxTokens:       &maxTokens,
+				ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: tc.effort},
+			})
+
+			got, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+			if tc.want == nil {
+				require.False(t, ok, "the effort reached the wire, so nothing was lost: %v", resp.Warnings)
+				return
+			}
+			require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+			require.Equal(t, tc.want.Kind, got.Kind)
+			require.Equal(t, tc.want.Asked, got.Asked)
+			require.Equal(t, tc.want.Sent, got.Sent)
+		})
+	}
+}
