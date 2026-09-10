@@ -71,3 +71,41 @@ func TestDisablingThinkingOnGemini25StillSendsBudgetZero(t *testing.T) {
 			"%s answers with an error when a level is present", model)
 	}
 }
+
+func TestAdaptiveThinkingLetsTheModelChoose(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]string{
+		"gemini-2.5-flash":      `"thinkingBudget":-1`,
+		"gemini-2.5-flash-lite": `"thinkingBudget":-1`,
+		"gemini-2.5-pro":        `"thinkingBudget":-1`,
+	} {
+		body := thinkingWireFor(t, model, llms.WithAdaptiveReasoning(""), llms.WithMaxTokens(8192))
+		assert.Contains(t, body, want, "%s takes the dynamic budget sentinel", model)
+	}
+
+	for _, model := range []string{"gemini-3.5-flash", "gemini-3-flash-preview"} {
+		body := thinkingWireFor(t, model, llms.WithAdaptiveReasoning(""), llms.WithMaxTokens(8192))
+		assert.NotContains(t, body, "thinkingLevel", "%s decides its own depth", model)
+		assert.NotContains(t, body, "thinkingBudget", "%s reads no budget", model)
+		assert.Contains(t, body, `"includeThoughts":true`, "%s still returns its thought summaries", model)
+	}
+}
+
+func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		asked int
+		want  string
+	}{
+		{"gemini-2.5-pro", 50, `"thinkingBudget":128`},
+		{"gemini-2.5-flash-lite", 100, `"thinkingBudget":512`},
+		{"gemini-2.5-flash", 1, `"thinkingBudget":1`},
+	} {
+		body := thinkingWireFor(t, tc.model,
+			llms.WithReasoning(llms.ReasoningNone, tc.asked), llms.WithMaxTokens(65536))
+		assert.Contains(t, body, tc.want, "%s asked %d", tc.model, tc.asked)
+	}
+}

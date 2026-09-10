@@ -125,3 +125,22 @@ func GeminiThinkingOffByDefault(model string) bool {
 	return hasFamily(baseModelName(model), "gemini-2.5") &&
 		strings.Contains(baseModelName(model), "flash-lite")
 }
+
+// GeminiBudgetRange returns the thinking_budget bounds the vendor documents for
+// the model. An unknown model reports no bounds.
+func GeminiBudgetRange(model string) (minimum, maximum int, known bool) {
+	m := baseModelName(model)
+	if !hasFamily(m, "gemini-2.5") {
+		return 0, 0, false
+	}
+	switch {
+	case strings.Contains(m, "pro"):
+		return 128, 32768, true
+	case strings.Contains(m, "flash-lite"):
+		return 512, 24576, true
+	case strings.Contains(m, "flash"):
+		return 1, 24576, true
+	default:
+		return 0, 0, false
+	}
+}
