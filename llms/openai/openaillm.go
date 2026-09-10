@@ -112,6 +112,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	warn := &llms.Warnings{}
+	reportOpenAIUnread(warn, o.effectiveModel(opts), opts)
 	req, err := o.createChatRequest(chatMsgs, opts, warn)
 	if err != nil {
 		return nil, err

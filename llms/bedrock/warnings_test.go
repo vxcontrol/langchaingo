@@ -122,3 +122,15 @@ func TestTheConversePathReportsWhatTheLegacyPayloadWouldHaveCarried(t *testing.T
 	require.Contains(t, got, "WithFrequencyPenalty", "ConverseInput has no penalty field")
 	require.Contains(t, got, "WithCandidateCount", "ConverseInput has no candidate-count field")
 }
+
+func TestAskingForJSONOnBedrockIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := bedrockWarningsFor(t, legacyAnswer,
+		[]bedrock.Option{bedrock.WithModel("anthropic.claude-sonnet-4-5-v1:0")},
+		llms.WithJSONMode())
+
+	w, ok := bedrockWarningsByOption(resp.Warnings)["WithJSONMode"]
+	require.True(t, ok, "no json-mode warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+}

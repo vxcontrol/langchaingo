@@ -190,3 +190,21 @@ func TestAZeroTopKIsNotALoss(t *testing.T) {
 		t.Errorf("no top-k was asked for, got %v", resp.Warnings)
 	}
 }
+
+func TestOptionsThisDoorReadsNowhereAreReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-4o",
+		llms.WithCandidateCount(3), llms.WithMinLength(10),
+		llms.WithMaxLength(4096), llms.WithResponseMIMEType("application/json"))
+
+	for option, asked := range map[string]string{
+		"WithCandidateCount": "3", "WithMinLength": "10",
+		"WithMaxLength": "4096", "WithResponseMIMEType": "application/json",
+	} {
+		w := warningFor(t, resp, option)
+		if w.Kind != llms.WarningDrop || w.Asked != asked {
+			t.Errorf("%s warning = %+v", option, w)
+		}
+	}
+}

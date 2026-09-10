@@ -183,3 +183,14 @@ func TestAnEffortLoweredToWhatTheModelTakesIsReported(t *testing.T) {
 	require.Equal(t, "xhigh", w.Asked)
 	require.Equal(t, "high", w.Sent)
 }
+
+func TestAskingForJSONOnADoorThatSendsNoneIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithJSONMode())
+
+	w, ok := warningsByOption(resp.Warnings)["WithJSONMode"]
+	require.True(t, ok, "no json-mode warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "true", w.Asked)
+}

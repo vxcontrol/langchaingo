@@ -47,6 +47,9 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	if opts.LogProbs != nil && *opts.LogProbs {
 		drop("WithLogProbs", "true")
 	}
+	if opts.JSONMode {
+		drop("WithJSONMode", "true")
+	}
 }
 
 func reportAnthropicEffort(

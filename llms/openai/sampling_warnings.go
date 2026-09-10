@@ -74,6 +74,33 @@ func addNonZeroIntChange(warn *llms.Warnings, option, model, reason string, befo
 	warn.AddIntChange(option, model, reason, before, after)
 }
 
+func reportOpenAIUnread(warn *llms.Warnings, model string, opts llms.CallOptions) {
+	const unread = "the door builds no field for it"
+
+	drop := func(option, asked string) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: model,
+			Asked: asked, Reason: unread,
+		})
+	}
+	for _, o := range []struct {
+		option  string
+		value   *int
+		neutral int
+	}{
+		{"WithCandidateCount", opts.CandidateCount, 1},
+		{"WithMinLength", opts.MinLength, 0},
+		{"WithMaxLength", opts.MaxLength, 0},
+	} {
+		if o.value != nil && *o.value != o.neutral {
+			drop(o.option, strconv.Itoa(*o.value))
+		}
+	}
+	if opts.ResponseMIMEType != nil && *opts.ResponseMIMEType != "" {
+		drop("WithResponseMIMEType", *opts.ResponseMIMEType)
+	}
+}
+
 func samplingReason(model string, opts llms.CallOptions, wireEffort string) string {
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):

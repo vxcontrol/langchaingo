@@ -45,6 +45,9 @@ func reportHuggingFaceOptions(
 	dropFloat("WithPresencePenalty", opts.PresencePenalty)
 
 	reportHuggingFaceShapedOptions(opts, drop)
+	if cfg := opts.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
+		drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
+	}
 	reportHuggingFaceMessages(warn, model, messages)
 }
 

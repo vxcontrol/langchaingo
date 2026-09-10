@@ -91,3 +91,15 @@ func TestAPlainHuggingFaceCallCarriesNoWarnings(t *testing.T) {
 	resp := generateForWarnings(t, oneMessage(), llms.WithTemperature(0.2))
 	require.Empty(t, resp.Warnings)
 }
+
+func TestAThinkingTokenBudgetHasNoFieldOnThisDoor(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, oneMessage(),
+		llms.WithMaxLength(8192), llms.WithReasoning(llms.ReasoningHigh, 4096))
+
+	w, ok := hfWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "4096 tokens", w.Asked)
+}
