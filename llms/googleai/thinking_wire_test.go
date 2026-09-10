@@ -109,3 +109,20 @@ func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
 		assert.Contains(t, body, tc.want, "%s asked %d", tc.model, tc.asked)
 	}
 }
+
+func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-2.0-flash", "gemini-1.5-pro", "gemma-3-27b-it"} {
+		for name, opt := range map[string]llms.CallOption{
+			"adaptive": llms.WithAdaptiveReasoning(""),
+			"effort":   llms.WithReasoning(llms.ReasoningHigh, 0),
+			"budget":   llms.WithReasoning(llms.ReasoningNone, 4096),
+			"disabled": llms.WithReasoningDisabled(),
+		} {
+			body := thinkingWireFor(t, model, opt, llms.WithMaxTokens(16384))
+			assert.NotContains(t, body, "thinkingConfig",
+				"%s on %s: this family takes no thinking control", name, model)
+		}
+	}
+}
