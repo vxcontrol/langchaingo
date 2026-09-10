@@ -15,6 +15,9 @@ const (
 	ProviderBedrock
 	ProviderOpenAI
 	ProviderGoogleAI
+
+	// providerCount must stay last: a new provider goes above it.
+	providerCount
 )
 
 // OffWire is how a provider expresses "thinking off" for a given model. It is the
