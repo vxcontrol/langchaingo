@@ -536,7 +536,7 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 	if !thinkingRuns(model, opts, wireEffort) {
 		return false
 	}
-	return reasoning.OpenAIReasoningCapsFor(model).Known || reasoning.ClaudeSupportsThinking(model)
+	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
 }
 
 // thinkingRuns reports whether the model reasons on this request: an effort

@@ -42,6 +42,12 @@ func openAIProperName(model string) bool {
 	return false
 }
 
+// RejectsSamplingWhileThinking reports whether a thinking request must travel
+// without the caller's temperature and top_p.
+func RejectsSamplingWhileThinking(model string) bool {
+	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
 	return isClaudeModel(model)

@@ -274,3 +274,49 @@ func TestTheNeutralOptionAndTheDoorOptionAreTheSame(t *testing.T) {
 		}
 	}
 }
+
+func TestAVendorThatKeepsSamplingWhileThinkingKeepsIt(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5.3", "zai/glm-5.3", "kimi-k3"} {
+		body := sendForWire(t, model,
+			llms.WithTemperature(0.2), llms.WithTopP(0.9),
+			llms.WithReasoning(llms.ReasoningHigh, 0))
+
+		if !strings.Contains(body, `"temperature":0.2`) {
+			t.Errorf("%s: the caller's temperature did not reach the wire: %s", model, body)
+		}
+		if !strings.Contains(body, `"top_p":0.9`) {
+			t.Errorf("%s: the caller's top_p did not reach the wire: %s", model, body)
+		}
+	}
+}
+
+func TestOpenAIsOwnReasoningModelsStillLoseTheirSampling(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-5.1", "o3-mini", "gpt-5-pro"} {
+		body := sendForWire(t, model,
+			llms.WithTemperature(0.2), llms.WithTopP(0.9),
+			llms.WithReasoning(llms.ReasoningHigh, 0))
+
+		if strings.Contains(body, `"temperature":0.2`) {
+			t.Errorf("%s: this endpoint refuses a sampling temperature while thinking: %s", model, body)
+		}
+		if strings.Contains(body, `"top_p"`) {
+			t.Errorf("%s: this endpoint refuses top_p while thinking: %s", model, body)
+		}
+	}
+}
+
+func TestClaudeOnThisDoorStillLosesItsSampling(t *testing.T) {
+	t.Parallel()
+
+	body := sendForWire(t, "claude-sonnet-4-5",
+		llms.WithTemperature(0.2), llms.WithTopP(0.9),
+		llms.WithReasoning(llms.ReasoningHigh, 4096))
+
+	if strings.Contains(body, `"temperature":0.2`) {
+		t.Errorf("thinking claude takes temperature 1: %s", body)
+	}
+}
