@@ -320,3 +320,36 @@ func TestClaudeOnThisDoorStillLosesItsSampling(t *testing.T) {
 		t.Errorf("thinking claude takes temperature 1: %s", body)
 	}
 }
+
+func TestMinPStaysOffOpenAIsOwnEndpoint(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-4o", "o3-mini", "gpt-5.1", "chatgpt-4o-latest"} {
+		if body := sendForWire(t, model, llms.WithMinP(0.05)); strings.Contains(body, `"min_p"`) {
+			t.Errorf("%s: this endpoint refuses the whole request on min_p: %s", model, body)
+		}
+	}
+
+	resp := sendForWarnings(t, "gpt-4o", llms.WithMinP(0.05))
+	w := warningFor(t, resp, "WithMinP")
+	if w.Kind != llms.WarningDrop || w.Asked != "0.05" {
+		t.Errorf("min-p warning = %+v", w)
+	}
+}
+
+func TestAVendorThatTakesMinPStillGetsIt(t *testing.T) {
+	t.Parallel()
+
+	body := sendForWire(t, "zai/glm-4.5-air", llms.WithMinP(0.05))
+	if !strings.Contains(body, `"min_p":0.05`) {
+		t.Errorf("this vendor takes min_p; the wire lost it: %s", body)
+	}
+}
+
+func TestAZeroMinPIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	if resp := sendForWarnings(t, "gpt-4o", llms.WithMinP(0)); len(resp.Warnings) != 0 {
+		t.Errorf("no min-p was asked for, got %v", resp.Warnings)
+	}
+}
