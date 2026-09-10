@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -110,7 +111,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	req, err := o.createChatRequest(chatMsgs, opts)
+	warn := &llms.Warnings{}
+	req, err := o.createChatRequest(chatMsgs, opts, warn)
 	if err != nil {
 		return nil, err
 	}
@@ -120,13 +122,13 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		if result == nil || len(result.Choices) == 0 {
 			return nil, err
 		}
-		return o.processResponse(result), err
+		return o.processResponse(result, warn), err
 	}
 	if len(result.Choices) == 0 {
 		return nil, ErrEmptyResponse
 	}
 
-	response := o.processResponse(result)
+	response := o.processResponse(result, warn)
 
 	if refusal, choice := refusalFrom(result); refusal != nil {
 		if opts.StructuredOutput != nil {
@@ -254,7 +256,9 @@ func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
 }
 
 // createChatRequest creates an OpenAI chat request with the given parameters.
-func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) (*openaiclient.ChatRequest, error) {
+func (o *LLM) createChatRequest(
+	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings,
+) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
 		Model:                opts.GetModel(),
 		StopWords:            opts.StopWords,
@@ -326,11 +330,11 @@ func (o *LLM) createChatRequest(chatMsgs []*ChatMessage, opts llms.CallOptions) 
 		return nil, err
 	}
 
-	wireEffort, err := o.setReasoning(req, opts)
+	wireEffort, err := o.setReasoning(req, opts, warn)
 	if err != nil {
 		return nil, err
 	}
-	o.applySamplingPolicy(req, opts, wireEffort)
+	o.applySamplingPolicy(req, opts, wireEffort, warn)
 
 	return req, nil
 }
@@ -357,7 +361,9 @@ func wireEffortOf(sent bool, effort llms.ReasoningEffort) string {
 }
 
 // setReasoning writes the reasoning fields and reports the effort that reached the wire.
-func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions) (string, error) {
+func (o *LLM) setReasoning(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings,
+) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
 	if len(opts.Tools) > 0 {
@@ -397,16 +403,17 @@ func (o *LLM) setReasoning(req *openaiclient.ChatRequest, opts llms.CallOptions)
 		effortBudget = llms.ReasoningEffortBudget(reasoningEffort, opts.GetMaxTokens())
 	}
 
-	return o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget), nil
+	return o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn}), nil
 }
 
 func (o *LLM) writeEffort(
 	req *openaiclient.ChatRequest, sends bool, effort llms.ReasoningEffort, budget, effortBudget int,
+	wc warnCtx,
 ) string {
 	if !o.client.ModernReasoningFormat {
 		if sends {
 			req.ReasoningEffort = &effort
-			o.raiseAnswerLimitForBudget(req, effortBudget)
+			o.raiseAnswerLimitForBudget(req, effortBudget, wc)
 		}
 		return wireEffortOf(sends, effort)
 	}
@@ -414,20 +421,27 @@ func (o *LLM) writeEffort(
 	switch {
 	case o.client.UseReasoningMaxTokens && budget > 0:
 		req.Reasoning = &openaiclient.ReasoningOptions{MaxTokens: budget}
-		o.raiseAnswerLimitForBudget(req, budget)
+		o.raiseAnswerLimitForBudget(req, budget, wc)
 	case sends:
 		req.Reasoning = &openaiclient.ReasoningOptions{Effort: effort}
-		o.raiseAnswerLimitForBudget(req, effortBudget)
+		o.raiseAnswerLimitForBudget(req, effortBudget, wc)
 	}
 	return wireEffortOf(sends, effort)
 }
 
-func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget int) {
+func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget int, wc warnCtx) {
 	for _, limit := range []**int{&req.MaxCompletionTokens, &req.MaxTokens} {
 		if *limit == nil || **limit <= 0 {
 			continue
 		}
 		raised := reasoning.ClaudeMaxTokensForBudget(budget, **limit)
+		if raised != **limit {
+			wc.sink.Add(llms.Warning{
+				Kind: llms.WarningClamp, Option: "WithMaxTokens", Model: wc.model,
+				Asked: strconv.Itoa(**limit), Sent: strconv.Itoa(raised),
+				Reason: "the answer limit was raised to leave room for the thinking budget",
+			})
+		}
 		*limit = &raised
 	}
 }
@@ -460,7 +474,17 @@ func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
 	}
 }
 
-func (o *LLM) applySamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string) {
+func (o *LLM) applySamplingPolicy(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
+) {
+	model := o.effectiveModel(opts)
+	before := takeSamplingSnapshot(req)
+	reason := samplingReason(model, opts, wireEffort)
+	o.enforceSamplingPolicy(req, opts, wireEffort)
+	before.report(req, model, reason, warn)
+}
+
+func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string) {
 	model := o.effectiveModel(opts)
 	if reasoning.RejectsMinP(model) {
 		req.MinP = nil
@@ -561,7 +585,9 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 }
 
 // processResponse processes the OpenAI API response into a ContentResponse.
-func (o *LLM) processResponse(result *openaiclient.ChatCompletionResponse) *llms.ContentResponse {
+func (o *LLM) processResponse(
+	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings,
+) *llms.ContentResponse {
 	choices := make([]*llms.ContentChoice, len(result.Choices))
 
 	for i, c := range result.Choices {
@@ -583,7 +609,7 @@ func (o *LLM) processResponse(result *openaiclient.ChatCompletionResponse) *llms
 		o.processToolCalls(choices[i], c)
 	}
 
-	return &llms.ContentResponse{Choices: choices}
+	return &llms.ContentResponse{Choices: choices, Warnings: warn.List()}
 }
 
 func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {

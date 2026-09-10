@@ -961,7 +961,7 @@ func TestCreateChatRequest_ReasoningModelTemperature(t *testing.T) {
 				Temperature: &tt.temperature,
 			}
 
-			req, err := llm.createChatRequest([]*ChatMessage{}, opts)
+			req, err := llm.createChatRequest([]*ChatMessage{}, opts, nil)
 			require.NoError(t, err)
 			require.NotNil(t, req.Temperature)
 			if req.Temperature != nil {
