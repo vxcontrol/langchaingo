@@ -2,6 +2,7 @@ package googleai
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -34,6 +35,27 @@ func thinkingWireFor(t *testing.T, model string, opts ...llms.CallOption) string
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, opts...)
 	require.NoError(t, err)
 	return body
+}
+
+func thinkingConfigFor(t *testing.T, model string, opts ...llms.CallOption) map[string]any {
+	t.Helper()
+
+	var body struct {
+		GenerationConfig struct {
+			ThinkingConfig map[string]any `json:"thinkingConfig"`
+		} `json:"generationConfig"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(thinkingWireFor(t, model, opts...)), &body))
+	return body.GenerationConfig.ThinkingConfig
+}
+
+func budgetOnTheWire(t *testing.T, model string, opts ...llms.CallOption) float64 {
+	t.Helper()
+
+	tc := thinkingConfigFor(t, model, opts...)
+	budget, ok := tc["thinkingBudget"].(float64)
+	require.True(t, ok, "no thinkingBudget for %s, got %v", model, tc)
+	return budget
 }
 
 func TestNoThinkingBudgetReachesAGemini3Model(t *testing.T) {
@@ -75,13 +97,9 @@ func TestDisablingThinkingOnGemini25StillSendsBudgetZero(t *testing.T) {
 func TestAdaptiveThinkingLetsTheModelChoose(t *testing.T) {
 	t.Parallel()
 
-	for model, want := range map[string]string{
-		"gemini-2.5-flash":      `"thinkingBudget":-1`,
-		"gemini-2.5-flash-lite": `"thinkingBudget":-1`,
-		"gemini-2.5-pro":        `"thinkingBudget":-1`,
-	} {
-		body := thinkingWireFor(t, model, llms.WithAdaptiveReasoning(""), llms.WithMaxTokens(8192))
-		assert.Contains(t, body, want, "%s takes the dynamic budget sentinel", model)
+	for _, model := range []string{"gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"} {
+		budget := budgetOnTheWire(t, model, llms.WithAdaptiveReasoning(""), llms.WithMaxTokens(8192))
+		assert.Equal(t, float64(-1), budget, "%s takes the dynamic budget sentinel", model)
 	}
 
 	for _, model := range []string{"gemini-3.5-flash", "gemini-3-flash-preview"} {
@@ -98,15 +116,18 @@ func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
 	for _, tc := range []struct {
 		model string
 		asked int
-		want  string
+		want  float64
 	}{
-		{"gemini-2.5-pro", 50, `"thinkingBudget":128`},
-		{"gemini-2.5-flash-lite", 100, `"thinkingBudget":512`},
-		{"gemini-2.5-flash", 1, `"thinkingBudget":1`},
+		{"gemini-2.5-pro", 50, 128},
+		{"gemini-2.5-pro", 40000, 32768},
+		{"gemini-2.5-flash-lite", 100, 512},
+		{"gemini-2.5-flash-lite", 30000, 24576},
+		{"gemini-2.5-flash", 1, 1},
+		{"gemini-2.5-flash", 30000, 24576},
 	} {
-		body := thinkingWireFor(t, tc.model,
+		budget := budgetOnTheWire(t, tc.model,
 			llms.WithReasoning(llms.ReasoningNone, tc.asked), llms.WithMaxTokens(65536))
-		assert.Contains(t, body, tc.want, "%s asked %d", tc.model, tc.asked)
+		assert.Equal(t, tc.want, budget, "%s asked %d", tc.model, tc.asked)
 	}
 }
 
@@ -125,4 +146,17 @@ func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {
 				"%s on %s: this family takes no thinking control", name, model)
 		}
 	}
+}
+
+func TestAdaptiveWithANamedEffortStillHonoursThatEffort(t *testing.T) {
+	t.Parallel()
+
+	budget := budgetOnTheWire(t, "gemini-2.5-flash",
+		llms.WithAdaptiveReasoning(llms.ReasoningHigh), llms.WithMaxTokens(8192))
+	assert.Greater(t, budget, float64(0), "a named effort is a depth, not a hand-off")
+
+	tc := thinkingConfigFor(t, "gemini-3.5-flash",
+		llms.WithAdaptiveReasoning(llms.ReasoningMedium), llms.WithMaxTokens(8192))
+	assert.Equal(t, "MEDIUM", tc["thinkingLevel"])
+	assert.NotContains(t, tc, "thinkingBudget")
 }
