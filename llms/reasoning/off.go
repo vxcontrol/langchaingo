@@ -15,6 +15,7 @@ const (
 	ProviderBedrock
 	ProviderOpenAI
 	ProviderGoogleAI
+	ProviderOllama
 
 	// providerCount must stay last: a new provider goes above it.
 	providerCount
@@ -41,6 +42,8 @@ const (
 	OffDisableDashScope
 	// OffDisableThinkingObject → thinking:{type:"disabled"} on an OpenAI-shaped door.
 	OffDisableThinkingObject
+	// OffDisableThinkBool → Ollama think:false.
+	OffDisableThinkBool
 	// OffUnsupported: a known mandatory-thinking model that cannot be disabled
 	// (adaptive-only Claude, OpenAI o-series). The adapter returns a typed error.
 	OffUnsupported
@@ -77,6 +80,11 @@ func ResolveOff(model string, p Provider) OffWire {
 	}
 
 	switch p {
+	case ProviderOllama:
+		if takesOnlyOllamaLevels(model) {
+			return OffUnsupported
+		}
+		return OffDisableThinkBool
 	case ProviderGoogleAI:
 		if !GeminiCanDisable(model) {
 			return OffUnsupported
@@ -91,30 +99,7 @@ func ResolveOff(model string, p Provider) OffWire {
 		}
 		return OffZeroBudget
 	case ProviderOpenAI:
-		if !IsReasoningModel(model) {
-			return OffOmit // non-reasoning model does not think
-		}
-		if mandatoryThinking(model) {
-			return OffUnsupported
-		}
-		if offByOmission(model) {
-			return OffOmit
-		}
-		if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) {
-			return OffDisableDashScope
-		}
-		if disablesByThinkingObject(model) {
-			return OffDisableThinkingObject
-		}
-		// The disable token rides on the effort field, so a door that refuses that
-		// field cannot express "off" at all.
-		if caps := OpenAIReasoningCapsFor(model); caps.Known && !caps.CanDisable {
-			return OffUnsupported
-		}
-		if !AcceptsEffortWire(model) {
-			return OffUnsupported
-		}
-		return OffEffortNone
+		return openAIOffWire(model)
 	default:
 		if mandatoryThinking(model) {
 			return OffUnsupported
@@ -171,6 +156,42 @@ func disablesByThinkingObject(model string) bool {
 			if hasGeneration(form, generation) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func openAIOffWire(model string) OffWire {
+	if !IsReasoningModel(model) {
+		return OffOmit // non-reasoning model does not think
+	}
+	if mandatoryThinking(model) {
+		return OffUnsupported
+	}
+	if offByOmission(model) {
+		return OffOmit
+	}
+	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) {
+		return OffDisableDashScope
+	}
+	if disablesByThinkingObject(model) {
+		return OffDisableThinkingObject
+	}
+	// The disable token rides on the effort field, so a door that refuses that
+	// field cannot express "off" at all.
+	if caps := OpenAIReasoningCapsFor(model); caps.Known && !caps.CanDisable {
+		return OffUnsupported
+	}
+	if !AcceptsEffortWire(model) {
+		return OffUnsupported
+	}
+	return OffEffortNone
+}
+
+func takesOnlyOllamaLevels(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "gpt-oss") {
+			return true
 		}
 	}
 	return false

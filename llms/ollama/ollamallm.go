@@ -352,7 +352,8 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		return nil, fmt.Errorf("error creating ollama options: %w", err)
 	}
 
-	if opts.Reasoning.IsDisabled() && takesOnlyGPTOSSLevels(model) {
+	if opts.Reasoning.IsDisabled() &&
+		reasoning.ResolveOff(model, reasoning.ProviderOllama) == reasoning.OffUnsupported {
 		return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 	}
 
