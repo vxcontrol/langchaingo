@@ -11,6 +11,8 @@ import (
 )
 
 func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOptions, tc *genai.ThinkingConfig) {
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+
 	if opts.N != nil && *opts.N != 1 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithN", Model: model,
@@ -112,3 +114,5 @@ func reportGoogleAIDisableFloor(warn *llms.Warnings, model string, tc *genai.Thi
 		Reason: "this model has no off switch, only a lowest thinking level",
 	})
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

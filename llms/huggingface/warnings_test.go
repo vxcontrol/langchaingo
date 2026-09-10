@@ -103,3 +103,14 @@ func TestAThinkingTokenBudgetHasNoFieldOnThisDoor(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "4096 tokens", w.Asked)
 }
+
+func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, oneMessage(), llms.WithExtraBody(map[string]any{"enable_thinking": false, "chat_template_kwargs": map[string]any{}}))
+
+	w, ok := hfWarningsByOption(resp.Warnings)["WithExtraBody"]
+	require.True(t, ok, "no extra-body warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
+}

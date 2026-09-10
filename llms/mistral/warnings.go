@@ -10,6 +10,8 @@ import (
 func reportMistralUnread(warn *llms.Warnings, model string, opts *llms.CallOptions) {
 	const unread = "the door's request has no field for it"
 
+	warn.AddUnreadExtraBody(model, *opts, extraBodyUnread)
+
 	drop := func(option, asked string) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: option, Model: model,
@@ -85,3 +87,5 @@ func reportMistralOptions(warn *llms.Warnings, model string, opts *llms.CallOpti
 		})
 	}
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

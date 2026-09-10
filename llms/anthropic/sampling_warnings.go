@@ -12,6 +12,8 @@ import (
 func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOptions) {
 	const unread = "the door builds no field for it"
 
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+
 	drop := func(option, asked string) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: option, Model: model,
@@ -159,3 +161,5 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 		return "the model does not accept this combination of sampling parameters"
 	}
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

@@ -118,3 +118,14 @@ func TestAZeroTopKIsNotALoss(t *testing.T) {
 	resp := generateForWarnings(t, llms.WithTopK(0))
 	require.Empty(t, resp.Warnings)
 }
+
+func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithExtraBody(map[string]any{"enable_thinking": false, "chat_template_kwargs": map[string]any{}}))
+
+	w, ok := ollamaWarningsByOption(resp.Warnings)["WithExtraBody"]
+	require.True(t, ok, "no extra-body warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
+}

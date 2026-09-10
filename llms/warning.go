@@ -2,7 +2,9 @@ package llms
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 // WarningKind names what a door did to a caller option on the way to the wire.
@@ -86,6 +88,23 @@ func (w *Warnings) addChange(option, model, reason, before, after string) {
 			Asked: before, Sent: after, Reason: reason,
 		})
 	}
+}
+
+// AddUnreadExtraBody records the WithExtraBody fields a door cannot merge.
+func (w *Warnings) AddUnreadExtraBody(model string, opts CallOptions, reason string) {
+	extraBody := ExtraBody(opts)
+	if len(extraBody) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(extraBody))
+	for key := range extraBody {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	w.Add(Warning{
+		Kind: WarningDrop, Option: "WithExtraBody", Model: model,
+		Asked: strings.Join(keys, ", "), Reason: reason,
+	})
 }
 
 func (w *Warnings) List() []Warning {
