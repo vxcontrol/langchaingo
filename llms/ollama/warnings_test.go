@@ -12,15 +12,20 @@ import (
 
 func generateForWarnings(t *testing.T, callOpts ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
+	return generateForWarningsOn(t, "glm-5", callOpts...)
+}
+
+func generateForWarningsOn(t *testing.T, model string, callOpts ...llms.CallOption) *llms.ContentResponse {
+	t.Helper()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/x-ndjson")
-		_, _ = w.Write([]byte(`{"model":"glm-5","message":{"role":"assistant","content":"hi"},` +
+		_, _ = w.Write([]byte(`{"model":"` + model + `","message":{"role":"assistant","content":"hi"},` +
 			`"done":true,"done_reason":"stop"}` + "\n"))
 	}))
 	t.Cleanup(srv.Close)
 
-	llm, err := New(WithServerURL(srv.URL), WithModel("glm-5"))
+	llm, err := New(WithServerURL(srv.URL), WithModel(model))
 	require.NoError(t, err)
 
 	resp, err := llm.GenerateContent(t.Context(),
