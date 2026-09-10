@@ -320,6 +320,9 @@ type CallOptions struct {
 	// Deprecated: Use ToolChoice instead.
 	FunctionCallBehavior FunctionCallBehavior `json:"function_call,omitempty"`
 
+	// ExtraBody holds provider-specific request-body fields set by WithExtraBody.
+	ExtraBody map[string]any `json:"extra_body,omitempty"`
+
 	// Metadata is a map of metadata to include in the request.
 	// The meaning of this field is specific to the backend in use.
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
@@ -923,25 +926,16 @@ func WithWebSearch(options *WebSearchOptions) CallOption {
 	}
 }
 
-const extraBodyKey = "openai:extra_body"
-
 // WithExtraBody carries provider-specific fields to merge into the request body.
 // A door that builds its request through a vendor SDK cannot merge them and
 // reports the loss through the response warnings instead.
 func WithExtraBody(extraBody map[string]any) CallOption {
 	return func(o *CallOptions) {
-		if o.Metadata == nil {
-			o.Metadata = make(map[string]any)
-		}
-		o.Metadata[extraBodyKey] = extraBody
+		o.ExtraBody = extraBody
 	}
 }
 
 // ExtraBody returns the fields WithExtraBody attached, or nil.
 func ExtraBody(opts CallOptions) map[string]any {
-	if opts.Metadata == nil {
-		return nil
-	}
-	extraBody, _ := opts.Metadata[extraBodyKey].(map[string]any)
-	return extraBody
+	return opts.ExtraBody
 }

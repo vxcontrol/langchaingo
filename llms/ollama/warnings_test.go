@@ -129,3 +129,16 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestMetadataSetAfterExtraBodyStillReportsTheLoss(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithExtraBody(map[string]any{"enable_thinking": false}),
+		llms.WithMetadata(map[string]any{"user": "u1"}))
+
+	w, ok := ollamaWarningsByOption(resp.Warnings)["WithExtraBody"]
+	require.True(t, ok, "no extra-body warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "enable_thinking", w.Asked)
+}

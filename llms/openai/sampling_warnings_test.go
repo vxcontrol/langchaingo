@@ -353,3 +353,18 @@ func TestAZeroMinPIsNotALoss(t *testing.T) {
 		t.Errorf("no min-p was asked for, got %v", resp.Warnings)
 	}
 }
+
+func TestMetadataSetAfterExtraBodyDoesNotDiscardIt(t *testing.T) {
+	t.Parallel()
+
+	fields := map[string]any{"enable_thinking": false}
+	orders := map[string][]llms.CallOption{
+		"extra body first": {llms.WithExtraBody(fields), llms.WithMetadata(map[string]any{"user": "u1"})},
+		"metadata first":   {llms.WithMetadata(map[string]any{"user": "u1"}), llms.WithExtraBody(fields)},
+	}
+	for name, opts := range orders {
+		if body := sendForWire(t, "gpt-4o", opts...); !strings.Contains(body, `"enable_thinking":false`) {
+			t.Errorf("%s: the extra body did not reach the wire: %s", name, body)
+		}
+	}
+}
