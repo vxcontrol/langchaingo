@@ -135,20 +135,38 @@ func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"qwen3-max", "claude-sonnet-4-5"} {
-		t.Run(model, func(t *testing.T) {
-			t.Parallel()
+	resp := sendForWarnings(t, "qwen3-max",
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
-			resp := sendForWarnings(t, model,
-				llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
+	w := warningFor(t, resp, "WithReasoning")
+	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
+		t.Fatalf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+	}
+	if w.Sent == w.Asked || w.Sent == "" {
+		t.Errorf("reasoning warning reports no cut: %+v", w)
+	}
+}
 
-			w := warningFor(t, resp, "WithReasoning")
-			if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
-				t.Fatalf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
-			}
-			if w.Sent == w.Asked || w.Sent == "" {
-				t.Errorf("reasoning warning reports no cut: %+v", w)
-			}
-		})
+func TestABudgetThisDoorPutsOnNoFieldIsReportedAsDropped(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "claude-sonnet-4-5",
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
+
+	w := warningFor(t, resp, "WithReasoning")
+	if w.Kind != llms.WarningDrop || w.Asked != "30000 tokens" || w.Sent != "" {
+		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+	}
+}
+
+func TestAnEffortReplacedByABudgetIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "qwen3.8-plus",
+		llms.WithMaxTokens(8192), llms.WithReasoning(llms.ReasoningHigh, 4096))
+
+	w := warningFor(t, resp, "WithReasoning")
+	if w.Kind != llms.WarningDrop || w.Asked != "high" || w.Sent != "" {
+		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
 }

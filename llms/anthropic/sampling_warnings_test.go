@@ -154,3 +154,16 @@ func TestAThinkingMechanismTheModelDoesNotOfferIsReported(t *testing.T) {
 	require.Equal(t, "adaptive", w.Asked)
 	require.Equal(t, "enabled", w.Sent)
 }
+
+func TestAskingForWhatTheDoorAlreadyDoesIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithMaxTokens(4096),
+		llms.WithLogProbs(false), llms.WithN(1), llms.WithCandidateCount(1),
+		llms.WithTopLogProbs(0), llms.WithFrequencyPenalty(0),
+	)
+
+	require.Empty(t, resp.Warnings,
+		"a single choice with no logprobs and no penalty is what the door sends anyway")
+}

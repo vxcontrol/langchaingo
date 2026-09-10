@@ -136,3 +136,21 @@ func TestConverseStaysSilentOnATopKItCarries(t *testing.T) {
 
 	require.NotContains(t, converseWarningsByOption(resp.Warnings), "WithTopK")
 }
+
+func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 4096
+	resp := converseCall(t, &ConverseInput{
+		Messages:        humanTurn(),
+		ModelID:         "us.anthropic.claude-sonnet-4-5-v1:0",
+		MaxTokens:       &maxTokens,
+		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Tokens: 30000},
+	})
+
+	w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "30000 tokens", w.Asked)
+	require.NotEqual(t, w.Asked, w.Sent)
+}

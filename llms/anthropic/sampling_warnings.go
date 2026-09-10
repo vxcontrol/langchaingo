@@ -26,24 +26,25 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 		{"WithFrequencyPenalty", opts.FrequencyPenalty},
 		{"WithPresencePenalty", opts.PresencePenalty},
 	} {
-		if o.value != nil {
+		if o.value != nil && *o.value != 0 {
 			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
 		}
 	}
 	for _, o := range []struct {
-		option string
-		value  *int
+		option  string
+		value   *int
+		neutral int
 	}{
-		{"WithN", opts.N},
-		{"WithCandidateCount", opts.CandidateCount},
-		{"WithTopLogProbs", opts.TopLogProbs},
+		{"WithN", opts.N, 1},
+		{"WithCandidateCount", opts.CandidateCount, 1},
+		{"WithTopLogProbs", opts.TopLogProbs, 0},
 	} {
-		if o.value != nil {
+		if o.value != nil && *o.value != o.neutral {
 			drop(o.option, strconv.Itoa(*o.value))
 		}
 	}
-	if opts.LogProbs != nil {
-		drop("WithLogProbs", strconv.FormatBool(*opts.LogProbs))
+	if opts.LogProbs != nil && *opts.LogProbs {
+		drop("WithLogProbs", "true")
 	}
 }
 

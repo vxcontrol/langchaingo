@@ -67,6 +67,13 @@ func reportLegacyAnthropic(
 	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {
 		reportLegacyInt(warn, "WithMaxTokens", modelID, reshaped, *options.MaxTokens, input.MaxTokens)
 	}
+	if cfg := options.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
+		sent := 0
+		if input.Thinking != nil {
+			sent = input.Thinking.BudgetTokens
+		}
+		reportThinkingBudget(warn, modelID, cfg.Tokens, sent)
+	}
 	if len(options.StopWords) > 0 && len(input.StopSequences) == 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithStopWords", Model: modelID,
@@ -104,5 +111,24 @@ func reportLegacyInt(warn *llms.Warnings, option, modelID, reason string, asked,
 	warn.Add(llms.Warning{
 		Kind: llms.WarningClamp, Option: option, Model: modelID,
 		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: reason,
+	})
+}
+
+func reportThinkingBudget(warn *llms.Warnings, modelID string, asked, sent int) {
+	if asked <= 0 || sent == asked {
+		return
+	}
+	if sent <= 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+			Asked:  strconv.Itoa(asked) + " tokens",
+			Reason: "the door puts no thinking budget on the request for this model",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithReasoning", Model: modelID,
+		Asked: strconv.Itoa(asked) + " tokens", Sent: strconv.Itoa(sent) + " tokens",
+		Reason: "the thinking budget is capped by the answer limit and by what the model records",
 	})
 }

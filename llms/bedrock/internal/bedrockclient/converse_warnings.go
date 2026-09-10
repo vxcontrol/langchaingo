@@ -65,6 +65,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Asked: strconv.Itoa(*input.TopK), Reason: omitted,
 		})
 	}
+	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
+		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
+	}
 	if len(input.Tools) > 0 && built.ToolConfig == nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
@@ -73,20 +76,36 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 	}
 }
 
-func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
+func converseAdditionalFields(built *bedrockruntime.ConverseInput) map[string]any {
 	if built.AdditionalModelRequestFields == nil {
-		return false
+		return nil
 	}
 	raw, err := built.AdditionalModelRequestFields.MarshalSmithyDocument()
 	if err != nil {
-		return false
+		return nil
 	}
 	var fields map[string]any
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return false
+		return nil
 	}
-	_, carried := fields["top_k"]
+	return fields
+}
+
+func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
+	_, carried := converseAdditionalFields(built)["top_k"]
 	return carried
+}
+
+func converseThinkingBudget(built *bedrockruntime.ConverseInput) int {
+	thinking, ok := converseAdditionalFields(built)["thinking"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	budget, ok := thinking["budget_tokens"].(float64)
+	if !ok {
+		return 0
+	}
+	return int(budget)
 }
 
 func reportConverseFloat(warn *llms.Warnings, option, model string, asked float32, sent *float32) {

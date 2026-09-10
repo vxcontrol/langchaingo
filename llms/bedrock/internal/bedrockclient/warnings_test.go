@@ -142,3 +142,20 @@ func TestALegacyAnthropicCallThatKeepsItsValuesReportsNothing(t *testing.T) {
 
 	require.Empty(t, resp.Warnings)
 }
+
+func TestTheLegacyDoorReportsAThinkingBudgetItCut(t *testing.T) {
+	t.Parallel()
+
+	const model = "us.anthropic.claude-sonnet-4-5-v1:0"
+	maxTokens := 4096
+	resp := legacyCallAnswering(t, model, anthropicLegacyBody, llms.CallOptions{
+		MaxTokens: &maxTokens,
+		Reasoning: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Tokens: 30000},
+	})
+
+	w, ok := legacyWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "30000 tokens", w.Asked)
+	require.NotEqual(t, w.Asked, w.Sent)
+}

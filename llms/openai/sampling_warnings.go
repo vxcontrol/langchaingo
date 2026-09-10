@@ -70,15 +70,35 @@ func samplingReason(model string, opts llms.CallOptions, wireEffort string) stri
 	}
 }
 
-func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent string, sends bool) {
+func reportOpenAIReasoning(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, req *openaiclient.ChatRequest) {
 	if cfg == nil {
 		return
 	}
+	effort, budget := "", 0
+	if req.ReasoningEffort != nil {
+		effort = string(*req.ReasoningEffort)
+	}
+	if req.ThinkingBudget != nil {
+		budget = *req.ThinkingBudget
+	}
+	if req.Reasoning != nil {
+		if req.Reasoning.Effort != "" {
+			effort = string(req.Reasoning.Effort)
+		}
+		if req.Reasoning.MaxTokens > 0 {
+			budget = req.Reasoning.MaxTokens
+		}
+	}
+	reportOpenAIEffort(warn, model, cfg, effort)
+	reportOpenAIBudget(warn, model, cfg, budget)
+}
+
+func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent string) {
 	asked := string(cfg.Effort)
 	switch {
 	case asked == "" || asked == string(llms.ReasoningNone):
 		return
-	case !sends:
+	case sent == "" || sent == reasoning.OpenAIDisableEffort:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
 			Asked: asked, Reason: "the door sends no effort field on this model",
@@ -93,7 +113,7 @@ func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningCo
 }
 
 func reportOpenAIBudget(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent int) {
-	if cfg == nil || !cfg.HasExplicitTokens() || sent == cfg.Tokens {
+	if !cfg.HasExplicitTokens() || sent == cfg.Tokens {
 		return
 	}
 	switch {

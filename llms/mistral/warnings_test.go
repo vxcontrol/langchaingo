@@ -83,3 +83,27 @@ func TestAPlainMistralCallCarriesNoWarnings(t *testing.T) {
 	resp := generateForWarnings(t, llms.WithTemperature(0.2))
 	require.Empty(t, resp.Warnings)
 }
+
+func TestTheSamplingOptionsThisDoorHasNoFieldForAreReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithTopK(40), llms.WithMinP(0.1), llms.WithMinLength(2),
+		llms.WithN(3), llms.WithCandidateCount(2), llms.WithTopLogProbs(4),
+		llms.WithLogProbs(true), llms.WithRepetitionPenalty(1.1),
+		llms.WithFrequencyPenalty(0.5), llms.WithPresencePenalty(0.25),
+	)
+
+	got := mistralWarningsByOption(resp.Warnings)
+	for option, asked := range map[string]string{
+		"WithTopK": "40", "WithMinP": "0.1", "WithMinLength": "2",
+		"WithN": "3", "WithCandidateCount": "2", "WithTopLogProbs": "4",
+		"WithLogProbs": "true", "WithRepetitionPenalty": "1.1",
+		"WithFrequencyPenalty": "0.5", "WithPresencePenalty": "0.25",
+	} {
+		w, ok := got[option]
+		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, w.Kind)
+		require.Equal(t, asked, w.Asked)
+	}
+}

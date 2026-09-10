@@ -390,27 +390,28 @@ func (o *LLM) setReasoning(
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
-	reportOpenAIEffort(warn, model, opts.Reasoning, string(reasoningEffort), sendsEffort)
 	if toolsRule != reasoning.EffortToolsFree {
 		return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
 	}
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
 		reasoning.DashScopeTakesThinkingBudget(model) {
 		req.ThinkingBudget = &reasoningTokens
-		reportOpenAIBudget(warn, model, opts.Reasoning, reasoningTokens)
+		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
 	budget := 0
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 {
 		budget = reasoning.ClaudeClampBudget(model, reasoningTokens)
 	}
-	reportOpenAIBudget(warn, model, opts.Reasoning, budget)
+
 	effortBudget := 0
 	if reasoning.ClaudeSpendsThinkingBudget(model) {
 		effortBudget = llms.ReasoningEffortBudget(reasoningEffort, opts.GetMaxTokens())
 	}
 
-	return o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn}), nil
+	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
+	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
+	return wire, nil
 }
 
 func (o *LLM) writeEffort(

@@ -197,3 +197,29 @@ func TestAWarmCacheReturnsItsAnswerWhenTheConsumerGivesUp(t *testing.T) {
 	require.Len(t, resp.Choices, 1)
 	require.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 }
+
+func TestACachedAnswerDoesNotCarryTheFirstCallsWarnings(t *testing.T) {
+	t.Parallel()
+
+	answer := &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "sixty rooms are free"}},
+		Warnings: []llms.Warning{{
+			Kind: llms.WarningDrop, Option: "WithStreamingFunc", Model: "m",
+			Asked: "a callback", Reason: "the door builds no field for it",
+		}},
+	}
+	inner := newMockLLM(answer, nil)
+	llm := New(inner, newMockCache())
+	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")}
+
+	first, err := llm.GenerateContent(context.Background(), msgs,
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+	require.NoError(t, err)
+	require.Len(t, first.Warnings, 1, "the call that reached the door keeps its own warning")
+
+	second, err := llm.GenerateContent(context.Background(), msgs)
+	require.NoError(t, err)
+	require.Equal(t, 1, inner.called, "the second call is a cache hit")
+	require.Empty(t, second.Warnings,
+		"a caller that passed no streaming callback must not be told one was dropped")
+}

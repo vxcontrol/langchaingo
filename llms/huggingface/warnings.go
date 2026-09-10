@@ -19,12 +19,12 @@ func reportHuggingFaceOptions(
 		})
 	}
 	dropFloat := func(option string, v *float64) {
-		if v != nil {
+		if v != nil && *v != 0 {
 			drop(option, strconv.FormatFloat(*v, 'g', -1, 64))
 		}
 	}
 	dropInt := func(option string, v *int) {
-		if v != nil {
+		if v != nil && *v != 0 {
 			drop(option, strconv.Itoa(*v))
 		}
 	}
@@ -32,8 +32,13 @@ func reportHuggingFaceOptions(
 	dropInt("WithMaxTokens", opts.MaxTokens)
 	dropInt("WithTopK", opts.TopK)
 	dropInt("WithMinLength", opts.MinLength)
-	dropInt("WithN", opts.N)
-	dropInt("WithCandidateCount", opts.CandidateCount)
+	dropCount := func(option string, v *int) {
+		if v != nil && *v != 1 {
+			drop(option, strconv.Itoa(*v))
+		}
+	}
+	dropCount("WithN", opts.N)
+	dropCount("WithCandidateCount", opts.CandidateCount)
 	dropInt("WithTopLogProbs", opts.TopLogProbs)
 	dropFloat("WithMinP", opts.MinP)
 	dropFloat("WithRepetitionPenalty", opts.RepetitionPenalty)
@@ -45,8 +50,8 @@ func reportHuggingFaceOptions(
 }
 
 func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, asked string)) {
-	if opts.LogProbs != nil {
-		drop("WithLogProbs", strconv.FormatBool(*opts.LogProbs))
+	if opts.LogProbs != nil && *opts.LogProbs {
+		drop("WithLogProbs", "true")
 	}
 	if len(opts.StopWords) > 0 {
 		drop("WithStopWords", strconv.Itoa(len(opts.StopWords))+" words")

@@ -12,32 +12,32 @@ import (
 func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOptions) {
 	const unread = "the door builds no field for it"
 
-	if opts.MinP != nil {
+	if opts.MinP != nil && *opts.MinP != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
 			Asked:  strconv.FormatFloat(*opts.MinP, 'g', -1, 64),
 			Reason: "the door sends only the min_p set on the client",
 		})
 	}
-	if opts.LogProbs != nil {
+	if opts.LogProbs != nil && *opts.LogProbs {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithLogProbs", Model: model,
-			Asked: strconv.FormatBool(*opts.LogProbs), Reason: unread,
+			Asked: "true", Reason: unread,
 		})
 	}
-	if opts.TopLogProbs != nil {
+	if opts.TopLogProbs != nil && *opts.TopLogProbs != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopLogProbs", Model: model,
 			Asked: strconv.Itoa(*opts.TopLogProbs), Reason: unread,
 		})
 	}
-	if opts.N != nil {
+	if opts.N != nil && *opts.N != 1 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithN", Model: model,
 			Asked: strconv.Itoa(*opts.N), Reason: unread,
 		})
 	}
-	if opts.CandidateCount != nil {
+	if opts.CandidateCount != nil && *opts.CandidateCount != 1 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
 			Asked: strconv.Itoa(*opts.CandidateCount), Reason: unread,
