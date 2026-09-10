@@ -46,11 +46,17 @@ func (c *ConverseClient) CreateCompletionConverse(ctx context.Context, input *Co
 		return nil, fmt.Errorf("failed to build converse input: %w", err)
 	}
 
+	warn := &llms.Warnings{}
+	reportConverseInput(warn, input, converseInput)
+
 	var resp *llms.ContentResponse
 	if input.StreamingFunc != nil {
 		resp, err = c.handleStreamingResponse(ctx, converseInput, input.StreamingFunc)
 	} else {
 		resp, err = c.handleNonStreamingResponse(ctx, converseInput)
+	}
+	if resp != nil {
+		resp.Warnings = warn.List()
 	}
 	if err != nil {
 		return resp, err
