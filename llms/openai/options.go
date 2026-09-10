@@ -61,20 +61,9 @@ func isLegacyMaxTokensField(opts *llms.CallOptions) bool {
 //	    }),
 //	)
 func WithExtraBody(extraBody map[string]any) llms.CallOption {
-	return func(opts *llms.CallOptions) {
-		if opts.Metadata == nil {
-			opts.Metadata = make(map[string]any)
-		}
-		opts.Metadata["openai:extra_body"] = extraBody
-	}
+	return llms.WithExtraBody(extraBody)
 }
 
 func getExtraBody(opts *llms.CallOptions) map[string]any {
-	if opts.Metadata == nil {
-		return nil
-	}
-	if extraBody, ok := opts.Metadata["openai:extra_body"].(map[string]any); ok {
-		return extraBody
-	}
-	return nil
+	return llms.ExtraBody(*opts)
 }

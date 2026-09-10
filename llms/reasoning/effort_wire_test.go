@@ -55,10 +55,15 @@ func TestRejectsMinP(t *testing.T) {
 		{"us.anthropic.claude-opus-4-6-v1:0", true},
 		{"claude-opus-4-7", true},
 		{"claude-haiku-4-5", true},
-		{"gpt-5.5", false},
+		{"gpt-5.5", true},
+		{"gpt-4o", true},
+		{"o3-mini", true},
+		{"chatgpt-4o-latest", true},
+		{"gpt-oss-120b", false},
 		{"grok-4.6", false},
 		{"qwen3-32b", false},
 		{"deepseek-v3.2", false},
+		{"zai/glm-5.3", false},
 	} {
 		if got := RejectsMinP(tc.model); got != tc.reject {
 			t.Errorf("RejectsMinP(%q) = %v, want %v", tc.model, got, tc.reject)

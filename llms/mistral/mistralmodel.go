@@ -84,10 +84,18 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 		return nil, err
 	}
 
+	warn := &llms.Warnings{}
+	reportMistralOptions(warn, callOptions.GetModel(), callOptions)
+
 	if callOptions.StreamingFunc != nil {
-		return generateStreamingContent(ctx, m, callOptions, messages, chatOpts)
+		resp, err = generateStreamingContent(ctx, m, callOptions, messages, chatOpts)
+	} else {
+		resp, err = generateNonStreamingContent(m, callOptions, messages, chatOpts)
 	}
-	return generateNonStreamingContent(m, callOptions, messages, chatOpts)
+	if resp != nil {
+		resp.Warnings = warn.List()
+	}
+	return resp, err
 }
 
 func setCallOptions(options []llms.CallOption, callOpts *llms.CallOptions) {

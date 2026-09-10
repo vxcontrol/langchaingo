@@ -172,6 +172,9 @@ func (g *GoogleAI) GenerateContent(
 		},
 	}
 
+	warn := &llms.Warnings{}
+	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+
 	var response *llms.ContentResponse
 
 	if len(messages) == 1 {
@@ -182,6 +185,9 @@ func (g *GoogleAI) GenerateContent(
 		response, err = g.generateFromSingleMessage(ctx, opts.GetModel(), theMessage.Parts, config, &opts)
 	} else {
 		response, err = g.generateFromMessages(ctx, opts.GetModel(), messages, config, &opts)
+	}
+	if response != nil {
+		response.Warnings = warn.List()
 	}
 	if err != nil {
 		return response, err
@@ -1109,8 +1115,14 @@ func resolveTemperature(model string, clientOpts Options) float64 {
 func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens int) (*genai.ThinkingConfig, error) {
 	switch cfg.ResolveMode() {
 	case llms.ReasoningOn:
+		if !reasoning.GeminiSupportsThinking(model) {
+			return nil, nil
+		}
 		if reasoning.GeminiTogglesThinkingByLevel(model) {
 			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
+		}
+		if cfg.DelegatesDepth() {
+			return adaptiveThinkingConfig(model), nil
 		}
 		// An effort with no explicit token budget maps to the qualitative
 		// thinking_level on Gemini 3.x (its native control, where thinking_budget is
@@ -1120,7 +1132,7 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 				return &genai.ThinkingConfig{ThinkingLevel: level, IncludeThoughts: true}, nil
 			}
 		}
-		if budget := int32(cfg.GetTokens(maxTokens)); budget > 0 {
+		if budget := geminiBudgetInRange(model, cfg.GetTokens(maxTokens)); budget > 0 {
 			return &genai.ThinkingConfig{ThinkingBudget: &budget, IncludeThoughts: true}, nil
 		}
 		return nil, &reasoning.ErrEffortHasNoBudget{Model: model, Effort: string(cfg.GetEffort(maxTokens))}
@@ -1136,6 +1148,24 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		}
 	}
 	return nil, nil
+}
+
+const geminiDynamicBudget = -1
+
+func adaptiveThinkingConfig(model string) *genai.ThinkingConfig {
+	if reasoning.GeminiUsesThinkingLevel(model) {
+		return &genai.ThinkingConfig{IncludeThoughts: true}
+	}
+	dynamic := int32(geminiDynamicBudget)
+	return &genai.ThinkingConfig{ThinkingBudget: &dynamic, IncludeThoughts: true}
+}
+
+func geminiBudgetInRange(model string, budget int) int32 {
+	minimum, maximum, known := reasoning.GeminiBudgetRange(model)
+	if !known || budget <= 0 {
+		return int32(budget)
+	}
+	return int32(min(max(budget, minimum), maximum))
 }
 
 // checkEmptyStream reports an output limit too small to start an answer.

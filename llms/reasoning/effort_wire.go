@@ -16,9 +16,41 @@ func RejectsPenalties(model string) bool {
 	return false
 }
 
+// RejectsTopK reports whether top_k must stay off the wire.
+func RejectsTopK(model string) bool {
+	return openAIProperName(model)
+}
+
+// RejectsRepetitionPenalty reports whether repetition_penalty must stay off the wire.
+func RejectsRepetitionPenalty(model string) bool {
+	return openAIProperName(model)
+}
+
+// openAIProperName reports whether the name belongs to OpenAI's own catalogue
+// rather than to another vendor this door serves.
+func openAIProperName(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "gpt-oss") {
+			return false
+		}
+		if strings.HasPrefix(form, "gpt-") || strings.HasPrefix(form, "chatgpt-") ||
+			strings.HasPrefix(form, "o1") || strings.HasPrefix(form, "o3") ||
+			strings.HasPrefix(form, "o4-") {
+			return true
+		}
+	}
+	return false
+}
+
+// RejectsSamplingWhileThinking reports whether a thinking request must travel
+// without the caller's temperature and top_p.
+func RejectsSamplingWhileThinking(model string) bool {
+	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
-	return isClaudeModel(model)
+	return isClaudeModel(model) || openAIProperName(model)
 }
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as

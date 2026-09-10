@@ -165,7 +165,7 @@ const (
 )
 
 func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemPrompt, modelID string,
-	options llms.CallOptions,
+	options llms.CallOptions, warn *llms.Warnings,
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
 		MaxTokens:     options.GetMaxTokens(),
@@ -181,6 +181,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 			inferenceConfig.Temperature = 0
 			inferenceConfig.TopP = 0
 		}
+		reportNovaReasoning(warn, modelID, options, effort)
 	}
 
 	input := novaTextGenerationInput{
@@ -220,13 +221,14 @@ func createNovaCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	inputContents, systemPrompt, err := processInputMessagesNova(messages)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := novaInputToJSON(inputContents, systemPrompt, modelID, options)
+	body, err := novaInputToJSON(inputContents, systemPrompt, modelID, options, warn)
 	if err != nil {
 		return nil, err
 	}

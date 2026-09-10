@@ -157,6 +157,9 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	} else {
 		resp, err = l.generateContentWithLegacyAPI(ctx, messages, opts)
 	}
+	if resp != nil {
+		resp.Warnings = append(resp.Warnings, unreadBedrockOptions(opts.GetModel(), l.useConverseAPI, opts)...)
+	}
 	if err != nil {
 		return resp, err
 	}

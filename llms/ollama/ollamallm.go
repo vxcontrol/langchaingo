@@ -158,6 +158,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
+	warn := &llms.Warnings{}
+	reportOllamaOptions(warn, model, opts)
+
 	if err := o.processTools(req, opts.Tools); err != nil {
 		return nil, err
 	}
@@ -168,10 +171,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		if len(partial.Choices) == 0 || isEmptyChoice(partial.Choices[0]) {
 			return nil, err
 		}
+		partial.Warnings = warn.List()
 		return partial, err
 	}
 
 	response = o.createContentResponse(resp)
+	response.Warnings = warn.List()
 
 	if err = llms.CheckTruncation(response, opts); err != nil {
 		return response, err
@@ -295,17 +300,43 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 	return tc, nil
 }
 
-func resolveThink(opts llms.CallOptions) *api.ThinkValue {
+func resolveThink(model string, opts llms.CallOptions) *api.ThinkValue {
 	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningDefault leaves the field unset
 	case llms.ReasoningOff:
 		return &api.ThinkValue{Value: false}
 	case llms.ReasoningOn:
-		if level := (&api.ThinkValue{Value: string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))}); level.IsValid() {
+		if opts.Reasoning.DelegatesDepth() {
+			return nil
+		}
+		effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
+		if takesOnlyGPTOSSLevels(model) {
+			return &api.ThinkValue{Value: gptOSSLevel(effort)}
+		}
+		if level := (&api.ThinkValue{Value: string(effort)}); level.IsValid() {
 			return level
 		}
 		return &api.ThinkValue{Value: true}
 	}
 	return nil
+}
+
+func takesOnlyGPTOSSLevels(model string) bool {
+	name := strings.ToLower(model)
+	if idx := strings.LastIndex(name, "/"); idx != -1 {
+		name = name[idx+1:]
+	}
+	return strings.HasPrefix(name, "gpt-oss")
+}
+
+func gptOSSLevel(effort llms.ReasoningEffort) string {
+	switch effort {
+	case llms.ReasoningMinimal, llms.ReasoningLow:
+		return "low"
+	case llms.ReasoningMedium:
+		return "medium"
+	default:
+		return "high"
+	}
 }
 
 // createChatRequest creates a chat request with the given parameters.
@@ -321,6 +352,10 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		return nil, fmt.Errorf("error creating ollama options: %w", err)
 	}
 
+	if opts.Reasoning.IsDisabled() && takesOnlyGPTOSSLevels(model) {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
+	}
+
 	stream := opts.StreamingFunc != nil
 
 	req := &api.ChatRequest{
@@ -330,7 +365,7 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
-		Think:    resolveThink(opts),
+		Think:    resolveThink(model, opts),
 	}
 
 	keepAlive := o.options.keepAlive

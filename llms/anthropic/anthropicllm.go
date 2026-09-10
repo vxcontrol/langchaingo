@@ -265,6 +265,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 	}
 
+	warn := &llms.Warnings{}
 	temperature, topP, topK, maxTokens := opts.Temperature, opts.TopP, opts.TopK, opts.GetMaxTokens()
 	switch {
 	case thinking != nil && thinking.Type == "adaptive":
@@ -296,6 +297,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		topP = nil
 	}
 
+	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
+
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),
 		Messages:      chatMessages,
@@ -319,13 +322,13 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		if result == nil {
 			return nil, wrapped
 		}
-		partial, buildErr := processAnthropicResponse(result)
+		partial, buildErr := processAnthropicResponse(result, warn)
 		if buildErr != nil {
 			return nil, wrapped
 		}
 		return partial, wrapped
 	}
-	response, err := processAnthropicResponse(result)
+	response, err := processAnthropicResponse(result, warn)
 	if err != nil {
 		return response, err
 	}
@@ -369,7 +372,9 @@ func anthropicRefusal(result *anthropicclient.MessageResponsePayload) *ErrModelR
 }
 
 // processAnthropicResponse converts Anthropic API response to standard ContentResponse
-func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*llms.ContentResponse, error) {
+func processAnthropicResponse(
+	result *anthropicclient.MessageResponsePayload, warn *llms.Warnings,
+) (*llms.ContentResponse, error) {
 	if result == nil {
 		return nil, ErrEmptyResponse
 	}
@@ -459,7 +464,7 @@ func processAnthropicResponse(result *anthropicclient.MessageResponsePayload) (*
 		},
 	}
 
-	response := &llms.ContentResponse{Choices: []*llms.ContentChoice{choice}}
+	response := &llms.ContentResponse{Choices: []*llms.ContentChoice{choice}, Warnings: warn.List()}
 	if result.StopReason == "refusal" {
 		return response, anthropicRefusal(result)
 	}

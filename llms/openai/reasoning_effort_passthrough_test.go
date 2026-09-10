@@ -71,7 +71,7 @@ func TestReasoningEffortPassthroughToWire(t *testing.T) {
 
 // WithAdaptiveReasoning with no explicit effort must not silently disable
 // reasoning here: it defaults to high, matching the Anthropic/Bedrock paths.
-func TestAdaptiveReasoningNoEffortDefaultsToHighOnWire(t *testing.T) {
+func TestAdaptiveReasoningWithNoEffortSendsNoEffort(t *testing.T) {
 	t.Parallel()
 
 	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
@@ -98,8 +98,8 @@ func TestAdaptiveReasoningNoEffortDefaultsToHighOnWire(t *testing.T) {
 	); err != nil {
 		t.Fatalf("GenerateContent() error: %v", err)
 	}
-	if !strings.Contains(body, `"reasoning_effort":"high"`) {
-		t.Fatalf("adaptive-no-effort must send reasoning_effort=high, got body: %s", body)
+	if strings.Contains(body, `"reasoning_effort"`) {
+		t.Fatalf("adaptive with no effort asks the model to choose, got body: %s", body)
 	}
 }
 

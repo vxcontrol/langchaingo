@@ -252,14 +252,25 @@ func TestMinPStaysOffTheWireForClaude(t *testing.T) {
 		absent: []string{`"min_p"`},
 	}, {
 		name:    "a thinking model of another vendor keeps min_p",
-		model:   "gpt-5.5",
+		model:   "zai/glm-5.3",
 		opts:    []llms.CallOption{minP, high},
 		present: []string{`"min_p":0.05`},
 	}, {
-		name:    "a plain model keeps min_p",
-		model:   "gpt-4o",
+		name:    "a plain model of another vendor keeps min_p",
+		model:   "zai/glm-4.5-air",
 		opts:    []llms.CallOption{minP},
 		present: []string{`"min_p":0.05`},
+	}, {
+		name:   "OpenAI's own endpoint refuses the whole request on min_p",
+		model:  "gpt-4o",
+		opts:   []llms.CallOption{minP},
+		absent: []string{`"min_p"`},
+	}, {
+		name:    "thinking does not put min_p back for OpenAI either",
+		model:   "gpt-5.5",
+		opts:    []llms.CallOption{minP, high},
+		present: []string{`"reasoning_effort":"high"`},
+		absent:  []string{`"min_p"`},
 	}})
 }
 

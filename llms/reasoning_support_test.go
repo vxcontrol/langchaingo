@@ -196,20 +196,25 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		}
 	})
 
-	t.Run("Gemini Flash-Lite is off until asked", func(t *testing.T) {
-		for _, model := range []string{"gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"} {
+	t.Run("only Gemini 2.5 Flash-Lite is off until asked", func(t *testing.T) {
+		lite := ReasoningSupportFor("gemini-2.5-flash-lite", reasoning.ProviderGoogleAI)
+		eq(t, "2.5 Flash-Lite Supported", lite.Supported, true)
+		eq(t, "2.5 Flash-Lite CannotDisable", lite.CannotDisable, false)
+		if lite.DefaultOn == nil || *lite.DefaultOn {
+			t.Errorf("gemini-2.5-flash-lite DefaultOn = %v, want false", lite.DefaultOn)
+		}
+		for _, model := range []string{"gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.6-flash"} {
 			s := ReasoningSupportFor(model, reasoning.ProviderGoogleAI)
 			eq(t, model+" Supported", s.Supported, true)
 			eq(t, model+" CannotDisable", s.CannotDisable, false)
-			if s.DefaultOn == nil || *s.DefaultOn {
-				t.Errorf("%s DefaultOn = %v, want false", model, s.DefaultOn)
+			if s.DefaultOn == nil || !*s.DefaultOn {
+				t.Errorf("%s DefaultOn = %v, want true", model, s.DefaultOn)
 			}
 		}
-		flash := ReasoningSupportFor("gemini-3.6-flash", reasoning.ProviderGoogleAI)
-		if flash.DefaultOn == nil || !*flash.DefaultOn {
-			t.Errorf("gemini-3.6-flash DefaultOn = %v, want true", flash.DefaultOn)
+		for _, model := range []string{"gemini-3.7-flash", "gemini-3.8-flash"} {
+			s := ReasoningSupportFor(model, reasoning.ProviderGoogleAI)
+			eq(t, model+" CannotDisable", s.CannotDisable, true)
 		}
-		eq(t, "gemini-3.6-flash CannotDisable", flash.CannotDisable, true)
 	})
 
 	t.Run("Gemini 2.5 disable hint is model-dependent", func(t *testing.T) {

@@ -131,6 +131,12 @@ func (r *ReasoningConfig) HasExplicitTokens() bool {
 	return r != nil && r.Tokens != 0
 }
 
+// DelegatesDepth reports whether the caller handed the depth decision to the
+// model: adaptive with no effort and no budget of its own.
+func (r *ReasoningConfig) DelegatesDepth() bool {
+	return r != nil && r.Adaptive && r.Effort == ReasoningNone && !r.HasExplicitTokens()
+}
+
 func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	if r == nil {
 		return ReasoningNone
@@ -319,6 +325,9 @@ type CallOptions struct {
 	// `{"name": "my_function"}`
 	// Deprecated: Use ToolChoice instead.
 	FunctionCallBehavior FunctionCallBehavior `json:"function_call,omitempty"`
+
+	// ExtraBody holds provider-specific request-body fields set by WithExtraBody.
+	ExtraBody map[string]any `json:"extra_body,omitempty"`
 
 	// Metadata is a map of metadata to include in the request.
 	// The meaning of this field is specific to the backend in use.
@@ -921,4 +930,18 @@ func WithWebSearch(options *WebSearchOptions) CallOption {
 			o.WebSearchOptions = options
 		}
 	}
+}
+
+// WithExtraBody carries provider-specific fields to merge into the request body.
+// A door that builds its request through a vendor SDK cannot merge them and
+// reports the loss through the response warnings instead.
+func WithExtraBody(extraBody map[string]any) CallOption {
+	return func(o *CallOptions) {
+		o.ExtraBody = extraBody
+	}
+}
+
+// ExtraBody returns the fields WithExtraBody attached, or nil.
+func ExtraBody(opts CallOptions) map[string]any {
+	return opts.ExtraBody
 }
