@@ -99,7 +99,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 		warn.Add(llms.Warning{
 			Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
 			Asked: strconv.Itoa(cfg.Tokens), Sent: strconv.Itoa(sent),
-			Reason: "the thinking budget is capped at two thirds of the answer limit",
+			Reason: "the thinking budget is held inside the model's range and below two thirds of the answer limit",
 		})
 	}
 }
