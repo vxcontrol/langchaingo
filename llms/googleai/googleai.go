@@ -172,6 +172,9 @@ func (g *GoogleAI) GenerateContent(
 		},
 	}
 
+	warn := &llms.Warnings{}
+	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+
 	var response *llms.ContentResponse
 
 	if len(messages) == 1 {
@@ -182,6 +185,9 @@ func (g *GoogleAI) GenerateContent(
 		response, err = g.generateFromSingleMessage(ctx, opts.GetModel(), theMessage.Parts, config, &opts)
 	} else {
 		response, err = g.generateFromMessages(ctx, opts.GetModel(), messages, config, &opts)
+	}
+	if response != nil {
+		response.Warnings = warn.List()
 	}
 	if err != nil {
 		return response, err
