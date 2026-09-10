@@ -50,7 +50,7 @@ func RejectsSamplingWhileThinking(model string) bool {
 
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
-	return isClaudeModel(model)
+	return isClaudeModel(model) || openAIProperName(model)
 }
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as
