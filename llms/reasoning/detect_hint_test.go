@@ -63,7 +63,7 @@ func TestNonTextModalitiesAreNotGuessedAsReasoning(t *testing.T) {
 	}
 }
 
-func TestFlashLiteIsRecognisedOnlyWithinTheGoogleFamilies(t *testing.T) {
+func TestOnlyTheGemini25FlashLiteLeavesThinkingOff(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -71,10 +71,10 @@ func TestFlashLiteIsRecognisedOnlyWithinTheGoogleFamilies(t *testing.T) {
 		want  bool
 	}{
 		{"gemini-2.5-flash-lite", true},
-		{"gemini-3.1-flash-lite", true},
-		{"gemini-3.5-flash-lite", true},
-		{"gemma-4-flash-lite", true},
 		{"models/gemini-2.5-flash-lite-preview-06-17", true},
+		{"gemini-3.1-flash-lite", false},
+		{"gemini-3.5-flash-lite", false},
+		{"gemma-4-flash-lite", false},
 		{"some-flash-lite-thing", false},
 		{"llama-4-flash-lite", false},
 		{"gemini-2.5-flash", false},

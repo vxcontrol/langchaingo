@@ -111,7 +111,7 @@ func GeminiCanDisable(model string) bool {
 		return true
 	}
 	if hasFamily(m, "gemini-3") {
-		return geminiBudgetZeroDisables(m)
+		return GeminiAcceptsMinimalLevel(m)
 	}
 	if hasFamily(m, "gemini-2.5") && strings.Contains(m, "pro") {
 		return false
@@ -119,22 +119,9 @@ func GeminiCanDisable(model string) bool {
 	return true
 }
 
-func geminiBudgetZeroDisables(model string) bool {
-	if strings.Contains(model, "pro") {
-		return false
-	}
-	if hasFamily(model, "gemini-3.5") {
-		return true
-	}
-	return !strings.HasPrefix(model, "gemini-3.")
-}
-
 // GeminiThinkingOffByDefault reports whether the model leaves thinking off until
 // asked, so omitting the thinking config already yields "off".
 func GeminiThinkingOffByDefault(model string) bool {
-	m := baseModelName(model)
-	if !strings.Contains(m, "flash-lite") {
-		return false
-	}
-	return strings.Contains(m, "gemini") || strings.Contains(m, "gemma")
+	return hasFamily(baseModelName(model), "gemini-2.5") &&
+		strings.Contains(baseModelName(model), "flash-lite")
 }

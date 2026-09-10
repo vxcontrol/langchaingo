@@ -51,7 +51,14 @@ func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOpti
 
 func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOptions, tc *genai.ThinkingConfig) {
 	cfg := opts.Reasoning
-	if cfg == nil || cfg.ResolveMode() != llms.ReasoningOn {
+	if cfg == nil {
+		return
+	}
+	if cfg.ResolveMode() == llms.ReasoningOff {
+		reportGoogleAIDisableFloor(warn, model, tc)
+		return
+	}
+	if cfg.ResolveMode() != llms.ReasoningOn {
 		return
 	}
 
@@ -93,4 +100,15 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 			Reason: "the thinking budget is capped at two thirds of the answer limit",
 		})
 	}
+}
+
+func reportGoogleAIDisableFloor(warn *llms.Warnings, model string, tc *genai.ThinkingConfig) {
+	if tc == nil || tc.ThinkingLevel == "" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+		Asked: "off", Sent: strings.ToLower(string(tc.ThinkingLevel)),
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
 }
