@@ -1121,7 +1121,7 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		if reasoning.GeminiTogglesThinkingByLevel(model) {
 			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
 		}
-		if cfg.Adaptive && cfg.Effort == "" && !cfg.HasExplicitTokens() {
+		if cfg.DelegatesDepth() {
 			return adaptiveThinkingConfig(model), nil
 		}
 		// An effort with no explicit token budget maps to the qualitative

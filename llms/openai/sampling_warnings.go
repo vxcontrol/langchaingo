@@ -175,3 +175,18 @@ func reportOpenAIBudget(warn *llms.Warnings, model string, cfg *llms.ReasoningCo
 		})
 	}
 }
+
+func reportDelegatedDepth(warn *llms.Warnings, model string, delegated bool, sent string) {
+	if !delegated {
+		return
+	}
+	kind := llms.WarningDrop
+	if sent != "" {
+		kind = llms.WarningSubstitute
+	}
+	warn.Add(llms.Warning{
+		Kind: kind, Option: "WithAdaptiveReasoning", Model: model,
+		Asked: "adaptive", Sent: sent,
+		Reason: "this model does not reason unless an effort asks it to, and none was named",
+	})
+}

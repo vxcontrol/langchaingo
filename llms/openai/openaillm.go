@@ -383,11 +383,20 @@ func (o *LLM) setReasoning(
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
-	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
+	mode := opts.Reasoning.ResolveMode()
+	delegated := opts.Reasoning.DelegatesDepth()
+	if delegated {
+		mode = llms.ReasoningDefault
+	}
+	switch mode { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
 	case llms.ReasoningDefault:
 		if toolsRule == reasoning.EffortToolsDisable {
 			o.writeDisableEffort(req)
+			reportDelegatedDepth(warn, model, delegated, reasoning.OpenAIDisableEffort)
 			return reasoning.OpenAIDisableEffort, nil
+		}
+		if delegated && reasoning.OpenAIThinkingOptIn(model) {
+			reportDelegatedDepth(warn, model, delegated, "")
 		}
 		return "", nil
 	case llms.ReasoningOff:
