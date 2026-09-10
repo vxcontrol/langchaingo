@@ -47,6 +47,18 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	}
 }
 
+func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
+	cfg := opts.Reasoning
+	if cfg == nil || !cfg.Adaptive || thinking == nil || thinking.Type == "adaptive" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithAdaptiveReasoning", Model: model,
+		Asked: "adaptive", Sent: thinking.Type,
+		Reason: "the door takes the thinking mechanism from the model, not from the preference",
+	})
+}
+
 func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
 	cfg := opts.Reasoning
 	if cfg == nil || !cfg.HasExplicitTokens() {
@@ -81,6 +93,7 @@ func reportAnthropicSampling(
 ) {
 	reportAnthropicUnread(warn, model, opts)
 	reportAnthropicBudget(warn, model, opts, thinking)
+	reportAnthropicMechanism(warn, model, opts, thinking)
 
 	reason := anthropicSamplingReason(model, thinking)
 	warn.AddFloatChange("WithTemperature", model, reason, opts.Temperature, temperature)

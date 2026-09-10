@@ -142,3 +142,15 @@ func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	require.Equal(t, "30000 tokens", w.Asked)
 	require.NotEqual(t, w.Asked, w.Sent)
 }
+
+func TestAThinkingMechanismTheModelDoesNotOfferIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithAdaptiveReasoning(llms.ReasoningHigh))
+
+	w, ok := warningsByOption(resp.Warnings)["WithAdaptiveReasoning"]
+	require.True(t, ok, "no mechanism warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningSubstitute, w.Kind)
+	require.Equal(t, "adaptive", w.Asked)
+	require.Equal(t, "enabled", w.Sent)
+}
