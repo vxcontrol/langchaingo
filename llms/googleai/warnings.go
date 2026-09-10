@@ -2,6 +2,7 @@ package googleai
 
 import (
 	"strconv"
+	"strings"
 
 	"google.golang.org/genai"
 
@@ -21,14 +22,14 @@ func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOpti
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithLogProbs", Model: model,
 			Asked:  strconv.FormatBool(*opts.LogProbs),
-			Reason: "the door's generation config carries no logprobs field",
+			Reason: "the door never sets logprobs on the generation config it builds",
 		})
 	}
 	if opts.TopLogProbs != nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopLogProbs", Model: model,
 			Asked:  strconv.Itoa(*opts.TopLogProbs),
-			Reason: "the door's generation config carries no logprobs field",
+			Reason: "the door never sets logprobs on the generation config it builds",
 		})
 	}
 	reportGoogleAIThinking(warn, model, opts, tc)
@@ -41,15 +42,18 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 	}
 
 	if reasoning.GeminiTogglesThinkingByLevel(model) {
+		sent := string(genai.ThinkingLevelHigh)
 		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
 		if cfg.HasExplicitTokens() {
 			asked = strconv.Itoa(cfg.Tokens) + " tokens"
 		}
-		warn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
-			Asked: asked, Sent: string(genai.ThinkingLevelHigh),
-			Reason: "the door drives this family by thinking level and sends its top level whatever was asked",
-		})
+		if !strings.EqualFold(asked, sent) {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: asked, Sent: sent,
+				Reason: "the door drives this family by thinking level and sends its top level whatever was asked",
+			})
+		}
 		return
 	}
 

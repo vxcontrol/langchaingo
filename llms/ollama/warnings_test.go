@@ -77,8 +77,8 @@ func TestAThinkingTokenBudgetHasNowhereToGoOnOllama(t *testing.T) {
 
 	resp := generateForWarnings(t, llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningHigh, 2048))
 
-	w, ok := ollamaWarningsByOption(resp.Warnings)["WithReasoningTokens"]
-	require.True(t, ok, "no reasoning-tokens warning in %v", resp.Warnings)
+	w, ok := ollamaWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "2048", w.Asked)
 }

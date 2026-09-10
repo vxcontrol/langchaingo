@@ -13,7 +13,10 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		return
 	}
 	model := input.ModelID
-	const reshaped = "the door did not put it on the converse request"
+	const (
+		omitted   = "the door left it off the converse request"
+		different = "the door put a different value on the converse request"
+	)
 
 	cfg := built.InferenceConfig
 	if input.Temperature != nil {
@@ -21,14 +24,14 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.Temperature
 		}
-		reportConverseFloat(warn, "WithTemperature", model, reshaped, float32(*input.Temperature), sent)
+		reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
 	}
 	if input.TopP != nil {
 		sent := (*float32)(nil)
 		if cfg != nil {
 			sent = cfg.TopP
 		}
-		reportConverseFloat(warn, "WithTopP", model, reshaped, float32(*input.TopP), sent)
+		reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
 	}
 	if input.MaxTokens != nil && *input.MaxTokens > 0 {
 		var sent *int32
@@ -39,42 +42,43 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		case sent == nil:
 			warn.Add(llms.Warning{
 				Kind: llms.WarningDrop, Option: "WithMaxTokens", Model: model,
-				Asked: strconv.Itoa(*input.MaxTokens), Reason: reshaped,
+				Asked: strconv.Itoa(*input.MaxTokens), Reason: omitted,
 			})
 		case int(*sent) != *input.MaxTokens:
 			warn.Add(llms.Warning{
 				Kind: llms.WarningClamp, Option: "WithMaxTokens", Model: model,
 				Asked: strconv.Itoa(*input.MaxTokens), Sent: strconv.FormatInt(int64(*sent), 10),
-				Reason: reshaped,
+				Reason: different,
 			})
 		}
 	}
 	if len(input.StopSequences) > 0 && (cfg == nil || len(cfg.StopSequences) == 0) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithStopWords", Model: model,
-			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: reshaped,
+			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
 		})
 	}
 	if len(input.Tools) > 0 && built.ToolConfig == nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
-			Asked: strconv.Itoa(len(input.Tools)) + " tools", Reason: reshaped,
+			Asked: strconv.Itoa(len(input.Tools)) + " tools", Reason: omitted,
 		})
 	}
 }
 
-func reportConverseFloat(warn *llms.Warnings, option, model, reason string, asked float32, sent *float32) {
+func reportConverseFloat(warn *llms.Warnings, option, model string, asked float32, sent *float32) {
 	render := func(v float32) string { return strconv.FormatFloat(float64(v), 'g', -1, 32) }
 	switch {
 	case sent == nil:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: option, Model: model,
-			Asked: render(asked), Reason: reason,
+			Asked: render(asked), Reason: "the door left it off the converse request",
 		})
 	case *sent != asked:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: option, Model: model,
-			Asked: render(asked), Sent: render(*sent), Reason: reason,
+			Asked: render(asked), Sent: render(*sent),
+			Reason: "the door put a different value on the converse request",
 		})
 	}
 }

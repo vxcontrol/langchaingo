@@ -72,7 +72,7 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 	}
 	if cfg.HasExplicitTokens() {
 		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithReasoningTokens", Model: model,
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
 			Asked:  strconv.Itoa(cfg.Tokens),
 			Reason: "ollama expresses thinking as a level, so a token budget has nowhere to go",
 		})

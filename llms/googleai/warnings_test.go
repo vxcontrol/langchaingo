@@ -85,6 +85,16 @@ func TestAFamilyDrivenByLevelReportsTheLevelItSubstitutes(t *testing.T) {
 	require.Equal(t, "HIGH", w.Sent)
 }
 
+func TestTheLevelThisFamilyRunsAtIsNotASubstitution(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, "gemma-4-27b-it",
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningHigh, 0))
+
+	require.Empty(t, resp.Warnings,
+		"the caller asked for the level the door sends, so nothing was substituted")
+}
+
 func TestAPlainGoogleCallCarriesNoWarnings(t *testing.T) {
 	t.Parallel()
 
