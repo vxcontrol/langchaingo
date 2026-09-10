@@ -11,6 +11,8 @@ func reportHuggingFaceOptions(
 ) {
 	const unread = "the door builds no field for it"
 
+	warn.AddUnreadExtraBody(model, *opts, extraBodyUnread)
+
 	drop := func(option, asked string) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: option, Model: model,
@@ -103,3 +105,5 @@ func reportHuggingFaceMessages(warn *llms.Warnings, model string, messages []llm
 		})
 	}
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

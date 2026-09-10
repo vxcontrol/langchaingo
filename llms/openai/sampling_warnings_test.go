@@ -244,3 +244,33 @@ func TestAVendorThatTakesTopKStillGetsIt(t *testing.T) {
 		t.Errorf("glm takes top_k and answered 200 to it; the wire lost it: %s", body)
 	}
 }
+
+func TestTheDoorThatMergesExtraBodyReportsNoLoss(t *testing.T) {
+	t.Parallel()
+
+	extra := llms.WithExtraBody(map[string]any{"enable_thinking": false})
+
+	body := sendForWire(t, "gpt-4o", extra)
+	if !strings.Contains(body, `"enable_thinking":false`) {
+		t.Errorf("extra body did not reach the wire: %s", body)
+	}
+
+	resp := sendForWarnings(t, "gpt-4o", extra)
+	if len(resp.Warnings) != 0 {
+		t.Errorf("this door merges extra body, nothing is lost, got %v", resp.Warnings)
+	}
+}
+
+func TestTheNeutralOptionAndTheDoorOptionAreTheSame(t *testing.T) {
+	t.Parallel()
+
+	fields := map[string]any{"enable_thinking": false}
+	for name, opt := range map[string]llms.CallOption{
+		"neutral": llms.WithExtraBody(fields),
+		"door":    WithExtraBody(fields),
+	} {
+		if body := sendForWire(t, "gpt-4o", opt); !strings.Contains(body, `"enable_thinking":false`) {
+			t.Errorf("%s option lost the fields: %s", name, body)
+		}
+	}
+}

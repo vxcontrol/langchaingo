@@ -22,6 +22,10 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 	carriesCandidateCount := !converse && legacyCarriesCandidateCount[provider]
 
 	var warnings []llms.Warning
+	var extra llms.Warnings
+	extra.AddUnreadExtraBody(model, opts, extraBodyUnread)
+	warnings = append(warnings, extra.List()...)
+
 	drop := func(option, asked string) {
 		warnings = append(warnings, llms.Warning{
 			Kind: llms.WarningDrop, Option: option, Model: model,
@@ -64,3 +68,5 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 	}
 	return warnings
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

@@ -11,6 +11,8 @@ import (
 func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOptions) {
 	const unread = "the door builds no field for it"
 
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+
 	if opts.MinP != nil && *opts.MinP != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
@@ -90,3 +92,5 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 		})
 	}
 }
+
+const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

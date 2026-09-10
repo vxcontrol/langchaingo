@@ -134,3 +134,29 @@ func TestAskingForJSONOnBedrockIsReported(t *testing.T) {
 	require.True(t, ok, "no json-mode warning in %v", resp.Warnings)
 	require.Equal(t, llms.WarningDrop, w.Kind)
 }
+
+func TestExtraBodyNeitherBedrockDoorCanMergeIsReported(t *testing.T) {
+	t.Parallel()
+
+	for _, door := range []struct {
+		name   string
+		answer string
+		opts   []bedrock.Option
+	}{
+		{"legacy", legacyAnswer, []bedrock.Option{bedrock.WithModel("anthropic.claude-sonnet-4-5-v1:0")}},
+		{"converse", converseAnswer, []bedrock.Option{
+			bedrock.WithModel("anthropic.claude-sonnet-4-5-v1:0"), bedrock.WithConverseAPI(),
+		}},
+	} {
+		t.Run(door.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := bedrockWarningsByOption(bedrockWarningsFor(t, door.answer, door.opts,
+				llms.WithExtraBody(map[string]any{"enable_thinking": false, "chat_template_kwargs": map[string]any{}})).Warnings)
+			w, ok := got["WithExtraBody"]
+			require.True(t, ok, "no extra-body warning on the %s door", door.name)
+			require.Equal(t, llms.WarningDrop, w.Kind)
+			require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
+		})
+	}
+}

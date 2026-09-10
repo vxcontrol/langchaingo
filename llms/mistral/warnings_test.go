@@ -107,3 +107,14 @@ func TestTheSamplingOptionsThisDoorHasNoFieldForAreReported(t *testing.T) {
 		require.Equal(t, asked, w.Asked)
 	}
 }
+
+func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithExtraBody(map[string]any{"enable_thinking": false, "chat_template_kwargs": map[string]any{}}))
+
+	w, ok := mistralWarningsByOption(resp.Warnings)["WithExtraBody"]
+	require.True(t, ok, "no extra-body warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
+}
