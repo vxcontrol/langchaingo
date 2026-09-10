@@ -118,24 +118,35 @@ func (c *Client) CreateCompletion(ctx context.Context,
 		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported {
 		return nil, &reasoning.ErrReasoningOffUnsupported{Model: modelID}
 	}
+	warn := &llms.Warnings{}
+	reportLegacyOptions(warn, provider, modelID, options)
+
+	var (
+		resp *llms.ContentResponse
+		err  error
+	)
 	switch provider {
 	case "ai21":
-		return createAi21Completion(ctx, c.client, modelID, messages, options)
+		resp, err = createAi21Completion(ctx, c.client, modelID, messages, options)
 	case "amazon":
-		return createAmazonCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createAmazonCompletion(ctx, c.client, modelID, messages, options)
 	case "nova":
-		return createNovaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createNovaCompletion(ctx, c.client, modelID, messages, options)
 	case "anthropic":
-		return createAnthropicCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createAnthropicCompletion(ctx, c.client, modelID, messages, options)
 	case "cohere":
-		return createCohereCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createCohereCompletion(ctx, c.client, modelID, messages, options)
 	case "meta":
-		return createMetaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createMetaCompletion(ctx, c.client, modelID, messages, options)
 	case "deepseek":
-		return createDeepSeekCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createDeepSeekCompletion(ctx, c.client, modelID, messages, options)
 	default:
 		return nil, errors.New("unsupported provider")
 	}
+	if resp != nil {
+		resp.Warnings = warn.List()
+	}
+	return resp, err
 }
 
 // Helper function to process input text chat
