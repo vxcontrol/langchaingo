@@ -284,12 +284,21 @@ func (o *LLM) createChatRequest(
 		ExtraBody:            getExtraBody(&opts),
 	}
 
-	if model := o.effectiveModel(opts); reasoning.RejectsPenalties(model) {
+	model := o.effectiveModel(opts)
+	if reasoning.RejectsPenalties(model) {
 		const refused = "the door does not send the penalties on this model family"
 		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
 		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
 		req.FrequencyPenalty = nil
 		req.PresencePenalty = nil
+	}
+	if reasoning.RejectsTopK(model) && req.TopK != nil {
+		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
+		req.TopK = nil
+	}
+	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
+		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
+		req.RepetitionPenalty = nil
 	}
 
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {

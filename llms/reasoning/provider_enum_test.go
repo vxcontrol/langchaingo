@@ -36,3 +36,18 @@ func TestEveryMistralModelDisablesByOmission(t *testing.T) {
 		}
 	}
 }
+
+func TestOnlyOpenAIsOwnCatalogueRefusesTopK(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-4o", "gpt-5.4-nano", "o3", "o4-mini", "chatgpt-4o-latest"} {
+		if !RejectsTopK(model) {
+			t.Errorf("%q is OpenAI's own name; its endpoint fails the call on top_k", model)
+		}
+	}
+	for _, model := range []string{"gpt-oss:20b", "gpt-oss-120b", "zai/glm-4.5-air", "qwen3-max", "grok-4"} {
+		if RejectsTopK(model) {
+			t.Errorf("%q is not an OpenAI name and must not inherit its refusal", model)
+		}
+	}
+}
