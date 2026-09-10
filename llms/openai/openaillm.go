@@ -283,7 +283,10 @@ func (o *LLM) createChatRequest(
 		ExtraBody:            getExtraBody(&opts),
 	}
 
-	if reasoning.RejectsPenalties(o.effectiveModel(opts)) {
+	if model := o.effectiveModel(opts); reasoning.RejectsPenalties(model) {
+		const refused = "the door does not send the penalties on this model family"
+		warn.AddFloatChange("WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
+		warn.AddFloatChange("WithPresencePenalty", model, refused, req.PresencePenalty, nil)
 		req.FrequencyPenalty = nil
 		req.PresencePenalty = nil
 	}
@@ -382,22 +385,26 @@ func (o *LLM) setReasoning(
 	}
 
 	acceptsEffort := reasoning.AcceptsEffortWire(model)
-	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(string(opts.Reasoning.GetEffort(opts.GetMaxTokens())))
+	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
+	reportOpenAIEffort(warn, model, opts.Reasoning, string(reasoningEffort), sendsEffort)
 	if toolsRule != reasoning.EffortToolsFree {
 		return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
 	}
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
 		reasoning.DashScopeTakesThinkingBudget(model) {
 		req.ThinkingBudget = &reasoningTokens
+		reportOpenAIBudget(warn, model, opts.Reasoning, reasoningTokens)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
 	budget := 0
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 {
 		budget = reasoning.ClaudeClampBudget(model, reasoningTokens)
 	}
+	reportOpenAIBudget(warn, model, opts.Reasoning, budget)
 	effortBudget := 0
 	if reasoning.ClaudeSpendsThinkingBudget(model) {
 		effortBudget = llms.ReasoningEffortBudget(reasoningEffort, opts.GetMaxTokens())

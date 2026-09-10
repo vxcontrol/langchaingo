@@ -78,3 +78,77 @@ func TestAnUntouchedRequestCarriesNoWarnings(t *testing.T) {
 		t.Errorf("want no warnings on a model that keeps sampling, got %v", resp.Warnings)
 	}
 }
+
+func TestPenaltiesRefusedByTheFamilyAreReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "grok-4",
+		llms.WithFrequencyPenalty(0.7), llms.WithPresencePenalty(0.4))
+
+	for option, asked := range map[string]string{
+		"WithFrequencyPenalty": "0.7", "WithPresencePenalty": "0.4",
+	} {
+		w := warningFor(t, resp, option)
+		if w.Kind != llms.WarningDrop || w.Asked != asked || w.Sent != "" {
+			t.Errorf("%s warning = %+v", option, w)
+		}
+	}
+}
+
+func TestAnEffortLoweredToWhatTheModelTakesIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-5.1", llms.WithReasoning(llms.ReasoningXHigh, 0))
+
+	w := warningFor(t, resp, "WithReasoning")
+	if w.Kind != llms.WarningClamp || w.Asked != "xhigh" || w.Sent != "high" {
+		t.Errorf("reasoning warning = %+v", w)
+	}
+}
+
+func TestAnEffortOnAModelThatSendsNoneIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-4o", llms.WithReasoning(llms.ReasoningHigh, 0))
+
+	w := warningFor(t, resp, "WithReasoning")
+	if w.Kind != llms.WarningDrop || w.Asked != "high" || w.Sent != "" {
+		t.Errorf("reasoning warning = %+v", w)
+	}
+}
+
+func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "claude-sonnet-4-5",
+		llms.WithMaxTokens(1000), llms.WithReasoning(llms.ReasoningMedium, 4096))
+
+	w := warningFor(t, resp, "WithMaxTokens")
+	if w.Kind != llms.WarningClamp || w.Asked != "1000" {
+		t.Errorf("max-tokens warning = %+v", w)
+	}
+	if w.Sent == w.Asked {
+		t.Errorf("max-tokens warning reports no change: %+v", w)
+	}
+}
+
+func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"qwen3-max", "claude-sonnet-4-5"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			resp := sendForWarnings(t, model,
+				llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
+
+			w := warningFor(t, resp, "WithReasoning")
+			if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
+				t.Fatalf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+			}
+			if w.Sent == w.Asked || w.Sent == "" {
+				t.Errorf("reasoning warning reports no cut: %+v", w)
+			}
+		})
+	}
+}

@@ -69,3 +69,45 @@ func samplingReason(model string, opts llms.CallOptions, wireEffort string) stri
 		return "the model does not accept this combination of sampling parameters"
 	}
 }
+
+func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent string, sends bool) {
+	if cfg == nil {
+		return
+	}
+	asked := string(cfg.Effort)
+	switch {
+	case asked == "" || asked == string(llms.ReasoningNone):
+		return
+	case !sends:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked: asked, Reason: "the door sends no effort field on this model",
+		})
+	case asked != sent:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
+			Asked: asked, Sent: sent,
+			Reason: "the door sends only the efforts it records this model as accepting",
+		})
+	}
+}
+
+func reportOpenAIBudget(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent int) {
+	if cfg == nil || !cfg.HasExplicitTokens() || sent == cfg.Tokens {
+		return
+	}
+	switch {
+	case sent <= 0:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked:  strconv.Itoa(cfg.Tokens) + " tokens",
+			Reason: "the door sends no thinking budget on this model",
+		})
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
+			Asked: strconv.Itoa(cfg.Tokens) + " tokens", Sent: strconv.Itoa(sent) + " tokens",
+			Reason: "the thinking budget is capped by the answer limit and by what the model records",
+		})
+	}
+}
