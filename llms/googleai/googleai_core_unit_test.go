@@ -1049,13 +1049,18 @@ var productionGeminiModels = []struct {
 	togglesByLevel    bool // on/off only, through thinking_level: high or minimal
 	disable           disableWire
 }{
-	{name: "gemini-3.5-flash", usesThinkingLevel: true, disable: disableZeroBudget},
+	{name: "gemini-3.8-flash", usesThinkingLevel: true, disable: disableUnsupported},
+	{name: "gemini-3.7-flash", usesThinkingLevel: true, disable: disableUnsupported},
+	{name: "gemini-3.6-flash", usesThinkingLevel: true, disable: disableMinimalLevel},
+	{name: "gemini-3.5-flash", usesThinkingLevel: true, disable: disableMinimalLevel},
+	{name: "gemini-3.5-flash-lite", usesThinkingLevel: true, disable: disableMinimalLevel},
 	{name: "gemini-3.1-pro-preview", usesThinkingLevel: true, disable: disableUnsupported},
 	{name: "gemini-3.1-pro-preview-customtools", usesThinkingLevel: true, disable: disableUnsupported},
-	{name: "gemini-3.1-flash-lite", usesThinkingLevel: true, disable: disableOmit},
+	{name: "gemini-3.1-flash-lite", usesThinkingLevel: true, disable: disableMinimalLevel},
+	{name: "gemini-3-flash-preview", usesThinkingLevel: true, disable: disableMinimalLevel},
 	{name: "gemini-2.5-pro", usesThinkingLevel: false, disable: disableUnsupported},
 	{name: "gemini-2.5-flash", usesThinkingLevel: false, disable: disableZeroBudget},
-	{name: "gemini-2.5-flash-lite", usesThinkingLevel: false, disable: disableOmit},
+	{name: "gemini-2.5-flash-lite", usesThinkingLevel: false, disable: disableZeroBudget},
 	{name: "gemma-4-31b-it", usesThinkingLevel: false, togglesByLevel: true, disable: disableMinimalLevel},
 	{name: "gemma-4-26b-a4b-it", usesThinkingLevel: false, togglesByLevel: true, disable: disableMinimalLevel},
 }
@@ -1134,7 +1139,7 @@ func TestResolveThinkingConfig(t *testing.T) { //nolint:funlen
 	})
 
 	t.Run("off on non-disablable model errors, no budget zero", func(t *testing.T) {
-		for _, model := range []string{"gemini-2.5-pro", "gemini-3.1-pro", "gemini-3.6-flash", "gemini-3.7-flash"} {
+		for _, model := range []string{"gemini-2.5-pro", "gemini-3.1-pro", "gemini-3.7-flash", "gemini-3.8-flash"} {
 			tc, err := resolveThinkingConfig(model, &llms.ReasoningConfig{Mode: llms.ReasoningOff}, 1000)
 			var offErr *reasoning.ErrReasoningOffUnsupported
 			require.ErrorAs(t, err, &offErr, "off on %s must be unsupported", model)
@@ -1227,7 +1232,7 @@ func TestResolveThinkingConfig(t *testing.T) { //nolint:funlen
 func TestProductionGeminiModels_ThinkingConfig(t *testing.T) {
 	t.Parallel()
 
-	require.Len(t, productionGeminiModels, 9, "models.yml currently lists 9 models; update this table when the catalog changes")
+	require.Len(t, productionGeminiModels, 14, "models.yml currently lists 14 models; update this table when the catalog changes")
 
 	for _, m := range productionGeminiModels {
 		t.Run(m.name, func(t *testing.T) {

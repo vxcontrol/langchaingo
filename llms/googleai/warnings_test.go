@@ -131,3 +131,27 @@ func TestAThinkingLevelTheModelDoesNotTakeIsReported(t *testing.T) {
 	require.Equal(t, "minimal", w.Asked)
 	require.Equal(t, "LOW", w.Sent)
 }
+
+func TestADisableThisModelCanOnlyApproximateIsReported(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview"} {
+		resp := generateForWarnings(t, model, llms.WithReasoningDisabled())
+
+		w, ok := googleWarningsByOption(resp.Warnings)["WithReasoningDisabled"]
+		require.True(t, ok, "no disable warning for %s in %v", model, resp.Warnings)
+		require.Equal(t, llms.WarningSubstitute, w.Kind)
+		require.Equal(t, "off", w.Asked)
+		require.Equal(t, "minimal", w.Sent)
+		require.Equal(t, model, w.Model)
+	}
+}
+
+func TestADisableThatReallyTurnsThinkingOffIsNotAWarning(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-2.5-flash", "gemini-2.5-flash-lite"} {
+		resp := generateForWarnings(t, model, llms.WithReasoningDisabled())
+		require.Empty(t, resp.Warnings, "%s takes budget zero, nothing is lost", model)
+	}
+}

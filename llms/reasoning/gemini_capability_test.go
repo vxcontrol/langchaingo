@@ -42,8 +42,9 @@ func TestGeminiCanDisable(t *testing.T) {
 		{"gemini-3.1-pro-preview", false},
 		{"gemini-3.5-flash", true},
 		{"gemini-3.5-pro", false},
-		{"gemini-3.6-flash", false},
+		{"gemini-3.6-flash", true},
 		{"gemini-3.7-flash", false},
+		{"gemini-3.8-flash", false},
 		{"some-unknown-google-model", true}, // optimistic
 	}
 	for _, tc := range cases {
@@ -110,20 +111,23 @@ func TestGeminiFamilyBoundary(t *testing.T) {
 	}
 }
 
-func TestGeminiFlashLiteDisablesByOmitting(t *testing.T) {
+func TestTheDisableWireFollowsTheGenerationOfTheModel(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		model      string
 		canDisable bool
 		off        OffWire
 	}{
-		{"gemini-2.5-flash-lite", true, OffOmit},
-		{"gemini-3.1-flash-lite", true, OffOmit},
-		{"gemini-3.5-flash-lite", true, OffOmit},
+		{"gemini-2.5-flash-lite", true, OffZeroBudget},
 		{"gemini-2.5-flash", true, OffZeroBudget},
 		{"gemini-2.5-pro", false, OffUnsupported},
+		{"gemini-3.1-flash-lite", true, OffMinimalLevel},
+		{"gemini-3.5-flash-lite", true, OffMinimalLevel},
+		{"gemini-3.6-flash", true, OffMinimalLevel},
+		{"gemini-3-flash-preview", true, OffMinimalLevel},
+		{"gemini-3.7-flash", false, OffUnsupported},
+		{"gemini-3.8-flash", false, OffUnsupported},
 		{"gemini-3.1-pro-preview", false, OffUnsupported},
-		{"gemini-3.6-flash", false, OffUnsupported},
 	}
 	for _, tc := range cases {
 		if got := GeminiCanDisable(tc.model); got != tc.canDisable {
