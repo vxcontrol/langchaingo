@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 
 	"github.com/vxcontrol/langchaingo/llms"
 )
@@ -64,6 +65,25 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Kind: llms.WarningDrop, Option: "WithTopK", Model: model,
 			Asked: strconv.Itoa(*input.TopK), Reason: omitted,
 		})
+	}
+	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
+		fields := converseAdditionalFields(built)
+		sent := ""
+		if oc, ok := fields["output_config"].(map[string]any); ok {
+			sent, _ = oc["effort"].(string)
+		}
+		_, thinkingSent := fields["thinking"]
+		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent)
+	}
+	if kind, _ := llms.ClassifyToolChoice(input.ToolChoice); kind == llms.ToolChoiceNone &&
+		built.ToolConfig != nil && built.ToolConfig.ToolChoice != nil {
+		if _, auto := built.ToolConfig.ToolChoice.(*types.ToolChoiceMemberAuto); auto {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: model,
+				Asked: "none", Sent: "auto",
+				Reason: "the door builds no none for the converse tool config",
+			})
+		}
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))

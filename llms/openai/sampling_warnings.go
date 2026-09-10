@@ -41,9 +41,9 @@ func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason st
 	warn.AddFloatChange("WithTemperature", model, reason, s.temperature, req.Temperature)
 	warn.AddFloatChange("WithTopP", model, reason, s.topP, req.TopP)
 	warn.AddIntChange("WithTopK", model, reason, s.topK, req.TopK)
-	warn.AddFloatChange("WithMinP", model, "the model rejects min_p", s.minP, req.MinP)
-	warn.AddFloatChange("WithFrequencyPenalty", model, reason, s.frequencyPenalty, req.FrequencyPenalty)
-	warn.AddFloatChange("WithPresencePenalty", model, reason, s.presencePenalty, req.PresencePenalty)
+	addNonZeroChange(warn, "WithMinP", model, "the model rejects min_p", s.minP, req.MinP)
+	addNonZeroChange(warn, "WithFrequencyPenalty", model, reason, s.frequencyPenalty, req.FrequencyPenalty)
+	addNonZeroChange(warn, "WithPresencePenalty", model, reason, s.presencePenalty, req.PresencePenalty)
 
 	if s.logProbs && !req.LogProbs {
 		warn.Add(llms.Warning{
@@ -57,6 +57,14 @@ func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason st
 			Asked: strconv.Itoa(s.topLogProbs), Reason: reason,
 		})
 	}
+}
+
+// addNonZeroChange is for options whose zero asks for nothing — unlike temperature.
+func addNonZeroChange(warn *llms.Warnings, option, model, reason string, before, after *float64) {
+	if before == nil || *before == 0 {
+		return
+	}
+	warn.AddFloatChange(option, model, reason, before, after)
 }
 
 func samplingReason(model string, opts llms.CallOptions, wireEffort string) string {

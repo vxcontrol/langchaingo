@@ -118,3 +118,16 @@ func TestSamplingOptionsWithNoGoogleFieldAreReported(t *testing.T) {
 		require.Equal(t, asked, w.Asked)
 	}
 }
+
+func TestAThinkingLevelTheModelDoesNotTakeIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, "gemini-3-pro-preview",
+		llms.WithMaxTokens(8192), llms.WithReasoning(llms.ReasoningMinimal, 0))
+
+	w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningSubstitute, w.Kind)
+	require.Equal(t, "minimal", w.Asked)
+	require.Equal(t, "LOW", w.Sent)
+}

@@ -170,3 +170,14 @@ func TestAnEffortReplacedByABudgetIsReported(t *testing.T) {
 		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
 }
+
+func TestAZeroPenaltyIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "grok-4",
+		llms.WithFrequencyPenalty(0), llms.WithPresencePenalty(0))
+
+	if len(resp.Warnings) != 0 {
+		t.Errorf("no penalty was asked for, got %v", resp.Warnings)
+	}
+}

@@ -15,8 +15,11 @@ const warningsTestModel = "claude-sonnet-4-5"
 
 func generateForWarnings(t *testing.T, callOpts ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
+	return generateForModel(t, warningsTestModel, callOpts...)
+}
 
-	const model = warningsTestModel
+func generateForModel(t *testing.T, model string, callOpts ...llms.CallOption) *llms.ContentResponse {
+	t.Helper()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.ReadAll(r.Body)
@@ -166,4 +169,17 @@ func TestAskingForWhatTheDoorAlreadyDoesIsNotALoss(t *testing.T) {
 
 	require.Empty(t, resp.Warnings,
 		"a single choice with no logprobs and no penalty is what the door sends anyway")
+}
+
+func TestAnEffortLoweredToWhatTheModelTakesIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForModel(t, "claude-sonnet-4-6",
+		llms.WithMaxTokens(8192), llms.WithAdaptiveReasoning(llms.ReasoningXHigh))
+
+	w, ok := warningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "xhigh", w.Asked)
+	require.Equal(t, "high", w.Sent)
 }

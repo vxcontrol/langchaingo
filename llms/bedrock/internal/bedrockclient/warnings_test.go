@@ -159,3 +159,20 @@ func TestTheLegacyDoorReportsAThinkingBudgetItCut(t *testing.T) {
 	require.Equal(t, "30000 tokens", w.Asked)
 	require.NotEqual(t, w.Asked, w.Sent)
 }
+
+func TestTheLegacyDoorReportsAnEffortItLowered(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-opus-4-6-v1:0"
+	maxTokens := 8000
+	resp := legacyCallAnswering(t, model, anthropicLegacyBody, llms.CallOptions{
+		MaxTokens: &maxTokens,
+		Reasoning: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
+	})
+
+	w, ok := legacyWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "xhigh", w.Asked)
+	require.Equal(t, "high", w.Sent)
+}

@@ -154,3 +154,21 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 	require.Equal(t, "30000 tokens", w.Asked)
 	require.NotEqual(t, w.Asked, w.Sent)
 }
+
+func TestConverseReportsAnEffortItLowered(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 8000
+	resp := converseCall(t, &ConverseInput{
+		Messages:        humanTurn(),
+		ModelID:         "anthropic.claude-opus-4-6-v1:0",
+		MaxTokens:       &maxTokens,
+		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
+	})
+
+	w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "xhigh", w.Asked)
+	require.Equal(t, "high", w.Sent)
+}

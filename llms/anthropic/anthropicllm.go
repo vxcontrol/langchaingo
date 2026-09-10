@@ -297,7 +297,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		topP = nil
 	}
 
-	reportAnthropicSampling(warn, model, *opts, thinking, temperature, topP, topK, maxTokens)
+	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
 
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),

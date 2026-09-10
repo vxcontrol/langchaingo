@@ -2,6 +2,7 @@ package anthropic
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
@@ -48,6 +49,36 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	}
 }
 
+func reportAnthropicEffort(
+	warn *llms.Warnings, model string, opts llms.CallOptions,
+	thinking *anthropicclient.ThinkingPayload, outputConfig *anthropicclient.OutputConfig,
+) {
+	cfg := opts.Reasoning
+	if cfg == nil || cfg.Effort == "" || cfg.Effort == llms.ReasoningNone {
+		return
+	}
+	asked := string(cfg.Effort)
+	sent := ""
+	if outputConfig != nil {
+		sent = outputConfig.Effort
+	}
+	switch {
+	case sent == "" && thinking != nil:
+		return
+	case sent == "":
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked: asked, Reason: "the door puts no thinking on the request for this model",
+		})
+	case !strings.EqualFold(asked, sent):
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
+			Asked: asked, Sent: sent,
+			Reason: "the door sends only the efforts it records this model as accepting",
+		})
+	}
+}
+
 func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
 	cfg := opts.Reasoning
 	if cfg == nil || !cfg.Adaptive || thinking == nil || thinking.Type == "adaptive" {
@@ -89,12 +120,13 @@ func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOpti
 
 func reportAnthropicSampling(
 	warn *llms.Warnings, model string, opts llms.CallOptions,
-	thinking *anthropicclient.ThinkingPayload,
+	thinking *anthropicclient.ThinkingPayload, outputConfig *anthropicclient.OutputConfig,
 	temperature, topP *float64, topK *int, maxTokens int,
 ) {
 	reportAnthropicUnread(warn, model, opts)
 	reportAnthropicBudget(warn, model, opts, thinking)
 	reportAnthropicMechanism(warn, model, opts, thinking)
+	reportAnthropicEffort(warn, model, opts, thinking, outputConfig)
 
 	reason := anthropicSamplingReason(model, thinking)
 	warn.AddFloatChange("WithTemperature", model, reason, opts.Temperature, temperature)

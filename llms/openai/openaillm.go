@@ -285,8 +285,8 @@ func (o *LLM) createChatRequest(
 
 	if model := o.effectiveModel(opts); reasoning.RejectsPenalties(model) {
 		const refused = "the door does not send the penalties on this model family"
-		warn.AddFloatChange("WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
-		warn.AddFloatChange("WithPresencePenalty", model, refused, req.PresencePenalty, nil)
+		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
+		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
 		req.FrequencyPenalty = nil
 		req.PresencePenalty = nil
 	}

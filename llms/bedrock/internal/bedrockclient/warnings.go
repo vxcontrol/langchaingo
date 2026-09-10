@@ -67,6 +67,13 @@ func reportLegacyAnthropic(
 	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {
 		reportLegacyInt(warn, "WithMaxTokens", modelID, reshaped, *options.MaxTokens, input.MaxTokens)
 	}
+	if cfg := options.Reasoning; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
+		sent := ""
+		if input.OutputConfig != nil {
+			sent = input.OutputConfig.Effort
+		}
+		reportEffortClamp(warn, modelID, string(cfg.Effort), sent, input.Thinking != nil)
+	}
 	if cfg := options.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
 		sent := 0
 		if input.Thinking != nil {
@@ -131,4 +138,22 @@ func reportThinkingBudget(warn *llms.Warnings, modelID string, asked, sent int) 
 		Asked: strconv.Itoa(asked) + " tokens", Sent: strconv.Itoa(sent) + " tokens",
 		Reason: "the thinking budget is capped by the answer limit and by what the model records",
 	})
+}
+
+func reportEffortClamp(warn *llms.Warnings, modelID, asked, sent string, thinkingSent bool) {
+	switch {
+	case sent == "" && thinkingSent:
+		return
+	case sent == "":
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+			Asked: asked, Reason: "the door puts no thinking on the request for this model",
+		})
+	case !strings.EqualFold(asked, sent):
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: modelID,
+			Asked: asked, Sent: sent,
+			Reason: "the door sends only the efforts it records this model as accepting",
+		})
+	}
 }

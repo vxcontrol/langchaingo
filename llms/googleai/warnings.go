@@ -71,6 +71,18 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 		return
 	}
 
+	if tc != nil && tc.ThinkingLevel != "" {
+		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
+		if cfg.Effort != "" && !strings.EqualFold(asked, string(tc.ThinkingLevel)) {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: asked, Sent: string(tc.ThinkingLevel),
+				Reason: "the door sends only the thinking levels it records this model as accepting",
+			})
+		}
+		return
+	}
+
 	if !cfg.HasExplicitTokens() || tc == nil || tc.ThinkingBudget == nil {
 		return
 	}
