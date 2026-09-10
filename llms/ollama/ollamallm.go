@@ -158,6 +158,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
+	warn := &llms.Warnings{}
+	reportOllamaOptions(warn, model, opts)
+
 	if err := o.processTools(req, opts.Tools); err != nil {
 		return nil, err
 	}
@@ -168,10 +171,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		if len(partial.Choices) == 0 || isEmptyChoice(partial.Choices[0]) {
 			return nil, err
 		}
+		partial.Warnings = warn.List()
 		return partial, err
 	}
 
 	response = o.createContentResponse(resp)
+	response.Warnings = warn.List()
 
 	if err = llms.CheckTruncation(response, opts); err != nil {
 		return response, err
