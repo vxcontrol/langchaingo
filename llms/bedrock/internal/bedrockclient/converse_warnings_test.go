@@ -172,3 +172,28 @@ func TestConverseReportsAnEffortItLowered(t *testing.T) {
 	require.Equal(t, "xhigh", w.Asked)
 	require.Equal(t, "high", w.Sent)
 }
+
+func TestConverseReportsAToolChoiceItTurnsIntoAuto(t *testing.T) {
+	t.Parallel()
+
+	resp := converseCall(t, &ConverseInput{
+		Messages: []Message{
+			{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"},
+			{Role: llms.ChatMessageTypeAI, Type: "tool_use", ToolCall: &ToolCall{
+				ID: "t1", Name: "get_weather", Arguments: map[string]any{},
+			}},
+			{Role: llms.ChatMessageTypeTool, Type: "tool_result", ToolResult: &ToolResult{
+				ToolCallID: "t1", ToolName: "get_weather", Content: "sunny",
+			}},
+		},
+		ModelID:    "anthropic.claude-sonnet-4-5-v1:0",
+		Tools:      []llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "get_weather"}}},
+		ToolChoice: "none",
+	})
+
+	w, ok := converseWarningsByOption(resp.Warnings)["WithToolChoice"]
+	require.True(t, ok, "no tool-choice warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningSubstitute, w.Kind)
+	require.Equal(t, "none", w.Asked)
+	require.Equal(t, "auto", w.Sent)
+}
