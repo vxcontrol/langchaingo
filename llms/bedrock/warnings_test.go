@@ -88,3 +88,37 @@ func TestABedrockCallThatSetsNothingExtraCarriesNoSuchWarnings(t *testing.T) {
 
 	require.Empty(t, resp.Warnings)
 }
+
+func TestAPayloadThatCarriesThePenaltiesReportsNoLoss(t *testing.T) {
+	t.Parallel()
+
+	const ai21Answer = `{"completions":[{"data":{"text":"ok"},"finishReason":{"reason":"endoftext"}}]}`
+
+	resp := bedrockWarningsFor(t, ai21Answer,
+		[]bedrock.Option{bedrock.WithModel("ai21.j2-ultra-v1")},
+		llms.WithRepetitionPenalty(1.1), llms.WithFrequencyPenalty(0.3),
+		llms.WithPresencePenalty(0.7), llms.WithCandidateCount(3),
+		llms.WithMinP(0.05),
+	)
+
+	got := bedrockWarningsByOption(resp.Warnings)
+	for _, option := range []string{
+		"WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty", "WithCandidateCount",
+	} {
+		require.NotContains(t, got, option, "the ai21 payload carries it: %v", resp.Warnings)
+	}
+	require.Contains(t, got, "WithMinP", "no payload carries min-p")
+}
+
+func TestTheConversePathReportsWhatTheLegacyPayloadWouldHaveCarried(t *testing.T) {
+	t.Parallel()
+
+	resp := bedrockWarningsFor(t, converseAnswer,
+		[]bedrock.Option{bedrock.WithModel("ai21.jamba-1-5-large-v1:0"), bedrock.WithConverseAPI()},
+		llms.WithFrequencyPenalty(0.3), llms.WithCandidateCount(3),
+	)
+
+	got := bedrockWarningsByOption(resp.Warnings)
+	require.Contains(t, got, "WithFrequencyPenalty", "ConverseInput has no penalty field")
+	require.Contains(t, got, "WithCandidateCount", "ConverseInput has no candidate-count field")
+}

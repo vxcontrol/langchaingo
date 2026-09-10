@@ -36,7 +36,7 @@ func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options 
 			})
 		}
 	}
-	if !legacyCarriesTopK[provider] && options.TopK != nil {
+	if !legacyCarriesTopK[provider] && options.TopK != nil && *options.TopK != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopK", Model: modelID,
 			Asked: strconv.Itoa(*options.TopK), Reason: reason,
@@ -61,7 +61,7 @@ func reportLegacyAnthropic(
 	if options.TopP != nil {
 		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
 	}
-	if options.TopK != nil && input.TopK != *options.TopK {
+	if options.TopK != nil && *options.TopK != 0 && input.TopK != *options.TopK {
 		reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
 	}
 	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {

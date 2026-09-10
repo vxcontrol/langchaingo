@@ -14,6 +14,21 @@ const (
 	ToolChoiceNamed
 )
 
+func (k ToolChoiceKind) String() string {
+	switch k {
+	case ToolChoiceAuto:
+		return "auto"
+	case ToolChoiceNone:
+		return "none"
+	case ToolChoiceAny:
+		return "any"
+	case ToolChoiceNamed:
+		return "a named tool"
+	default:
+		return "unset"
+	}
+}
+
 // ClassifyToolChoice reads every spelling the doors accept and reports what was
 // asked, naming the tool when the caller picked one.
 func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {

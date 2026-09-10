@@ -89,3 +89,27 @@ func TestAPlainOllamaCallCarriesNoWarnings(t *testing.T) {
 	resp := generateForWarnings(t, llms.WithTemperature(0.2))
 	require.Empty(t, resp.Warnings)
 }
+
+func TestAToolChoiceOfAutoIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithToolChoice("auto"))
+	require.Empty(t, resp.Warnings, "auto is what the door does with no tool choice at all")
+}
+
+func TestADroppedToolChoiceIsNamedNotNumbered(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithToolChoice("none"))
+
+	w, ok := ollamaWarningsByOption(resp.Warnings)["WithToolChoice"]
+	require.True(t, ok, "no tool-choice warning in %v", resp.Warnings)
+	require.Equal(t, "none", w.Asked)
+}
+
+func TestAZeroTopKIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithTopK(0))
+	require.Empty(t, resp.Warnings)
+}

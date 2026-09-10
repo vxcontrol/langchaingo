@@ -4,12 +4,22 @@ import (
 	"strconv"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 )
 
-// unreadBedrockOptions covers both paths: these options reach neither the legacy
-// payloads nor ConverseInput.
-func unreadBedrockOptions(model string, opts llms.CallOptions) []llms.Warning {
-	const unread = "neither bedrock request has a field for it"
+// The legacy payloads differ per provider; the Converse request has none of
+// these fields at all.
+var (
+	legacyCarriesPenalties      = map[string]bool{"ai21": true}
+	legacyCarriesCandidateCount = map[string]bool{"ai21": true, "cohere": true}
+)
+
+func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []llms.Warning {
+	const unread = "the bedrock request for this model has no field for it"
+
+	provider := bedrockclient.GetProvider(model)
+	carriesPenalties := !converse && legacyCarriesPenalties[provider]
+	carriesCandidateCount := !converse && legacyCarriesCandidateCount[provider]
 
 	var warnings []llms.Warning
 	drop := func(option, asked string) {
@@ -19,15 +29,16 @@ func unreadBedrockOptions(model string, opts llms.CallOptions) []llms.Warning {
 		})
 	}
 	for _, o := range []struct {
-		option string
-		value  *float64
+		option  string
+		value   *float64
+		carried bool
 	}{
-		{"WithMinP", opts.MinP},
-		{"WithRepetitionPenalty", opts.RepetitionPenalty},
-		{"WithFrequencyPenalty", opts.FrequencyPenalty},
-		{"WithPresencePenalty", opts.PresencePenalty},
+		{"WithMinP", opts.MinP, false},
+		{"WithRepetitionPenalty", opts.RepetitionPenalty, carriesPenalties},
+		{"WithFrequencyPenalty", opts.FrequencyPenalty, carriesPenalties},
+		{"WithPresencePenalty", opts.PresencePenalty, carriesPenalties},
 	} {
-		if o.value != nil && *o.value != 0 {
+		if !o.carried && o.value != nil && *o.value != 0 {
 			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
 		}
 	}
@@ -35,12 +46,13 @@ func unreadBedrockOptions(model string, opts llms.CallOptions) []llms.Warning {
 		option  string
 		value   *int
 		neutral int
+		carried bool
 	}{
-		{"WithN", opts.N, 1},
-		{"WithCandidateCount", opts.CandidateCount, 1},
-		{"WithTopLogProbs", opts.TopLogProbs, 0},
+		{"WithN", opts.N, 1, false},
+		{"WithCandidateCount", opts.CandidateCount, 1, carriesCandidateCount},
+		{"WithTopLogProbs", opts.TopLogProbs, 0, false},
 	} {
-		if o.value != nil && *o.value != o.neutral {
+		if !o.carried && o.value != nil && *o.value != o.neutral {
 			drop(o.option, strconv.Itoa(*o.value))
 		}
 	}

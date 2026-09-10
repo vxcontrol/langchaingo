@@ -1,7 +1,6 @@
 package huggingface
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -62,10 +61,11 @@ func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, as
 	if len(opts.Functions) > 0 {
 		drop("WithFunctions", strconv.Itoa(len(opts.Functions))+" functions")
 	}
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
+	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
+		kind != llms.ToolChoiceAuto {
 		asked := name
 		if asked == "" {
-			asked = fmt.Sprintf("kind %d", kind)
+			asked = kind.String()
 		}
 		drop("WithToolChoice", asked)
 	}

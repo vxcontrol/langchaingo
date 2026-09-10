@@ -1,7 +1,6 @@
 package ollama
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/ollama/ollama/api"
@@ -43,10 +42,11 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 			Asked: strconv.Itoa(*opts.CandidateCount), Reason: unread,
 		})
 	}
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
+	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
+		kind != llms.ToolChoiceAuto {
 		asked := name
 		if asked == "" {
-			asked = fmt.Sprintf("kind %d", kind)
+			asked = kind.String()
 		}
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithToolChoice", Model: model,

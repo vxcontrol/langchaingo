@@ -60,7 +60,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
 		})
 	}
-	if input.TopK != nil && !converseCarriesTopK(built) {
+	if input.TopK != nil && *input.TopK != 0 && !converseCarriesTopK(built) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopK", Model: model,
 			Asked: strconv.Itoa(*input.TopK), Reason: omitted,

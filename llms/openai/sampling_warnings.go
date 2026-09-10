@@ -40,7 +40,7 @@ func takeSamplingSnapshot(req *openaiclient.ChatRequest) samplingSnapshot {
 func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason string, warn *llms.Warnings) {
 	warn.AddFloatChange("WithTemperature", model, reason, s.temperature, req.Temperature)
 	warn.AddFloatChange("WithTopP", model, reason, s.topP, req.TopP)
-	warn.AddIntChange("WithTopK", model, reason, s.topK, req.TopK)
+	addNonZeroIntChange(warn, "WithTopK", model, reason, s.topK, req.TopK)
 	addNonZeroChange(warn, "WithMinP", model, "the model rejects min_p", s.minP, req.MinP)
 	addNonZeroChange(warn, "WithFrequencyPenalty", model, reason, s.frequencyPenalty, req.FrequencyPenalty)
 	addNonZeroChange(warn, "WithPresencePenalty", model, reason, s.presencePenalty, req.PresencePenalty)
@@ -65,6 +65,13 @@ func addNonZeroChange(warn *llms.Warnings, option, model, reason string, before,
 		return
 	}
 	warn.AddFloatChange(option, model, reason, before, after)
+}
+
+func addNonZeroIntChange(warn *llms.Warnings, option, model, reason string, before, after *int) {
+	if before == nil || *before == 0 {
+		return
+	}
+	warn.AddIntChange(option, model, reason, before, after)
 }
 
 func samplingReason(model string, opts llms.CallOptions, wireEffort string) string {

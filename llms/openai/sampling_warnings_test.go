@@ -181,3 +181,12 @@ func TestAZeroPenaltyIsNotALoss(t *testing.T) {
 		t.Errorf("no penalty was asked for, got %v", resp.Warnings)
 	}
 }
+
+func TestAZeroTopKIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-5", llms.WithTopK(0))
+	if len(resp.Warnings) != 0 {
+		t.Errorf("no top-k was asked for, got %v", resp.Warnings)
+	}
+}

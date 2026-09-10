@@ -131,7 +131,9 @@ func reportAnthropicSampling(
 	reason := anthropicSamplingReason(model, thinking)
 	warn.AddFloatChange("WithTemperature", model, reason, opts.Temperature, temperature)
 	warn.AddFloatChange("WithTopP", model, reason, opts.TopP, topP)
-	warn.AddIntChange("WithTopK", model, reason, opts.TopK, topK)
+	if opts.TopK != nil && *opts.TopK != 0 {
+		warn.AddIntChange("WithTopK", model, reason, opts.TopK, topK)
+	}
 
 	if asked := opts.GetMaxTokens(); asked > 0 && maxTokens != asked {
 		warn.Add(llms.Warning{
