@@ -1,0 +1,85 @@
+package mistral
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/llms"
+)
+
+func generateForWarnings(t *testing.T, call ...llms.CallOption) *llms.ContentResponse {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"x","object":"chat.completion","created":1,"model":"mistral-small-latest",`+
+			`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],`+
+			`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	m, err := New(WithAPIKey("k"), WithEndpoint(srv.URL), WithModel("mistral-small-latest"))
+	require.NoError(t, err)
+
+	resp, err := m.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, call...)
+	require.NoError(t, err)
+	return resp
+}
+
+func mistralWarningsByOption(warnings []llms.Warning) map[string]llms.Warning {
+	byOption := make(map[string]llms.Warning, len(warnings))
+	for _, w := range warnings {
+		byOption[w.Option] = w
+	}
+	return byOption
+}
+
+func TestTheDoorReportsEveryIntentItCannotCarry(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithToolChoice(llms.ToolChoice{
+			Type: "function", Function: &llms.FunctionReference{Name: "get_weather"},
+		}),
+		llms.WithStopWords([]string{"STOP"}),
+		llms.WithStructuredOutput(llms.StructuredOutputConfig{
+			Name: "answer", Schema: json.RawMessage(`{"type":"object"}`),
+		}),
+		llms.WithReasoning(llms.ReasoningHigh, 0),
+	)
+
+	got := mistralWarningsByOption(resp.Warnings)
+	for option, asked := range map[string]string{
+		"WithToolChoice": "get_weather", "WithStopWords": "STOP",
+		"WithStructuredOutput": "answer", "WithReasoning": "high",
+	} {
+		w, ok := got[option]
+		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, w.Kind)
+		require.Equal(t, asked, w.Asked)
+		require.Equal(t, "mistral-small-latest", w.Model)
+	}
+}
+
+func TestSwitchingThinkingOffOnMistralIsNotALoss(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithReasoningDisabled())
+	require.Empty(t, resp.Warnings,
+		"every mistral model disables by omission, so sending no field is the off wire, not a dropped intent")
+}
+
+func TestAPlainMistralCallCarriesNoWarnings(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithTemperature(0.2))
+	require.Empty(t, resp.Warnings)
+}
