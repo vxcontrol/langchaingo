@@ -52,6 +52,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(opts)
 	}
 
+	warn := &llms.Warnings{}
+	reportHuggingFaceOptions(warn, opts.GetModel(), opts, messages)
+
 	// Assume we get a single text message
 	msg0 := messages[0]
 	part := msg0.Parts[0]
@@ -76,6 +79,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 				Truncated:  llms.IsTruncated(result.StopReason),
 			},
 		},
+		Warnings: warn.List(),
 	}
 	if err = llms.CheckTruncation(resp, *opts); err != nil {
 		return resp, err
