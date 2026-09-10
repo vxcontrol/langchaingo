@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -206,5 +207,40 @@ func TestOptionsThisDoorReadsNowhereAreReported(t *testing.T) {
 		if w.Kind != llms.WarningDrop || w.Asked != asked {
 			t.Errorf("%s warning = %+v", option, w)
 		}
+	}
+}
+
+func TestFieldsThisEndpointRefusesStayOffTheWire(t *testing.T) {
+	t.Parallel()
+
+	body := sendForWire(t, "gpt-4o", llms.WithTopK(7), llms.WithRepetitionPenalty(1.1))
+
+	for _, field := range []string{`"top_k"`, `"repetition_penalty"`} {
+		if strings.Contains(body, field) {
+			t.Errorf("%s reached the wire; OpenAI answers 400 on it: %s", field, body)
+		}
+	}
+}
+
+func TestAFieldTheEndpointRefusesIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "gpt-4o", llms.WithTopK(7), llms.WithRepetitionPenalty(1.1))
+
+	for option, asked := range map[string]string{"WithTopK": "7", "WithRepetitionPenalty": "1.1"} {
+		w := warningFor(t, resp, option)
+		if w.Kind != llms.WarningDrop || w.Asked != asked {
+			t.Errorf("%s warning = %+v", option, w)
+		}
+	}
+}
+
+func TestAVendorThatTakesTopKStillGetsIt(t *testing.T) {
+	t.Parallel()
+
+	body := sendForWire(t, "zai/glm-4.5-air", llms.WithTopK(7))
+
+	if !strings.Contains(body, `"top_k":7`) {
+		t.Errorf("glm takes top_k and answered 200 to it; the wire lost it: %s", body)
 	}
 }
