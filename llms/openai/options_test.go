@@ -183,7 +183,7 @@ func TestWebSearchOptionsConversion(t *testing.T) {
 }
 
 func TestWithExtraBody(t *testing.T) {
-	t.Run("sets extra body in metadata", func(t *testing.T) {
+	t.Run("sets extra body in its own field", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		extraBody := map[string]any{
 			"enable_thinking": false,
@@ -192,26 +192,31 @@ func TestWithExtraBody(t *testing.T) {
 
 		WithExtraBody(extraBody)(opts)
 
-		require.NotNil(t, opts.Metadata)
-		stored, ok := opts.Metadata["openai:extra_body"].(map[string]any)
-		require.True(t, ok)
+		stored := llms.ExtraBody(*opts)
+		require.NotNil(t, stored)
 		assert.Equal(t, false, stored["enable_thinking"])
 		assert.Equal(t, "value", stored["custom_param"])
+	})
+
+	t.Run("metadata set afterwards does not discard it", func(t *testing.T) {
+		opts := &llms.CallOptions{}
+		WithExtraBody(map[string]any{"a": 1})(opts)
+		llms.WithMetadata(map[string]any{"user": "u1"})(opts)
+
+		assert.Equal(t, map[string]any{"a": 1}, llms.ExtraBody(*opts))
+		assert.Equal(t, "u1", opts.Metadata["user"])
 	})
 
 	t.Run("nil extra body is handled", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		WithExtraBody(nil)(opts)
-		require.NotNil(t, opts.Metadata)
+		assert.Nil(t, llms.ExtraBody(*opts))
 	})
 
 	t.Run("empty extra body is handled", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		WithExtraBody(map[string]any{})(opts)
-		require.NotNil(t, opts.Metadata)
-		stored, ok := opts.Metadata["openai:extra_body"].(map[string]any)
-		require.True(t, ok)
-		assert.Empty(t, stored)
+		assert.Empty(t, llms.ExtraBody(*opts))
 	})
 }
 
@@ -231,25 +236,17 @@ func TestGetExtraBody(t *testing.T) {
 	})
 
 	t.Run("returns extra body when present", func(t *testing.T) {
-		extraBody := map[string]any{"key": "value"}
-		opts := &llms.CallOptions{
-			Metadata: map[string]any{
-				"openai:extra_body": extraBody,
-			},
-		}
+		opts := &llms.CallOptions{ExtraBody: map[string]any{"key": "value"}}
 		result := getExtraBody(opts)
 		require.NotNil(t, result)
 		assert.Equal(t, "value", result["key"])
 	})
 
-	t.Run("returns nil for wrong type", func(t *testing.T) {
+	t.Run("a metadata key of the old name is not read", func(t *testing.T) {
 		opts := &llms.CallOptions{
-			Metadata: map[string]any{
-				"openai:extra_body": "not a map",
-			},
+			Metadata: map[string]any{"openai:extra_body": map[string]any{"key": "value"}},
 		}
-		result := getExtraBody(opts)
-		assert.Nil(t, result)
+		assert.Nil(t, getExtraBody(opts))
 	})
 }
 
