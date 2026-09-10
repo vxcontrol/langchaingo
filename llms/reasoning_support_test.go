@@ -476,3 +476,21 @@ func TestTheHintNamesTheMechanismTheDoorActuallyUses(t *testing.T) {
 		})
 	}
 }
+
+func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"deepseek-r1:7b", "qwen3:8b", "magistral-small:24b"} {
+		if ReasoningSupportFor(model, reasoning.ProviderOllama).CannotDisable {
+			t.Errorf("%s: the hint hides an off control the ollama door sends", model)
+		}
+	}
+
+	if !ReasoningSupportFor("deepseek-r1", reasoning.ProviderOpenAI).CannotDisable {
+		t.Error("deepseek-r1 on its vendor door refuses an off, the hint should say so")
+	}
+
+	if !ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderOllama).CannotDisable {
+		t.Error("gpt-oss ignores booleans and its trace cannot be disabled: the hint must say so")
+	}
+}

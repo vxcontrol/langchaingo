@@ -72,6 +72,15 @@ func TestThinkReachesTheWire(t *testing.T) {
 	})
 }
 
+func TestOffReachesTheWireForNamesTheirOwnVendorCannotDisable(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"deepseek-r1:7b", "magistral-small:24b"} {
+		got := captureChatRequestFor(t, model, llms.WithReasoningDisabled())
+		require.Equal(t, false, got["think"], "model %s", model)
+	}
+}
+
 func TestGPTOSSNeverGetsAThinkValueItIgnores(t *testing.T) {
 	t.Parallel()
 

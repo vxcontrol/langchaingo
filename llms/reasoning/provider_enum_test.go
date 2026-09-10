@@ -11,6 +11,7 @@ func TestEveryProviderConstantHasADoorThatPassesIt(t *testing.T) {
 		ProviderBedrock:   "llms/bedrock",
 		ProviderOpenAI:    "llms/openai",
 		ProviderGoogleAI:  "llms/googleai",
+		ProviderOllama:    "llms/ollama",
 	}
 
 	if len(doors) != int(providerCount) {
@@ -20,6 +21,29 @@ func TestEveryProviderConstantHasADoorThatPassesIt(t *testing.T) {
 	for p := ProviderUnknown; p < providerCount; p++ {
 		if doors[p] == "" {
 			t.Errorf("provider %d has no door listed", int(p))
+		}
+	}
+}
+
+func TestOllamaDisablesByBooleanEvenForNamesOtherVendorsServeAsMandatory(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"deepseek-r1:7b", "qwen3:8b", "magistral-small:24b"} {
+		if got := ResolveOff(model, ProviderOllama); got != OffDisableThinkBool {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v, want OffDisableThinkBool", model, got)
+		}
+		if same := ResolveOff(model, ProviderUnknown); same == OffDisableThinkBool {
+			t.Errorf("ResolveOff(%q, ProviderUnknown) already answers for the ollama door", model)
+		}
+	}
+}
+
+func TestOllamaRefusesToDisableTheFamilyThatIgnoresBooleans(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-oss:120b", "gpt-oss:20b", "library/gpt-oss:120b"} {
+		if got := ResolveOff(model, ProviderOllama); got != OffUnsupported {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v, want OffUnsupported", model, got)
 		}
 	}
 }
