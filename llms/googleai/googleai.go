@@ -1115,6 +1115,9 @@ func resolveTemperature(model string, clientOpts Options) float64 {
 func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens int) (*genai.ThinkingConfig, error) {
 	switch cfg.ResolveMode() {
 	case llms.ReasoningOn:
+		if !reasoning.GeminiSupportsThinking(model) {
+			return nil, nil
+		}
 		if reasoning.GeminiTogglesThinkingByLevel(model) {
 			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
 		}

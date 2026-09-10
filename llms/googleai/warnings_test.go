@@ -166,3 +166,25 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestAskingAModelThatDoesNotThinkToThinkIsReported(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-2.0-flash", "gemma-3-27b-it"} {
+		resp := generateForWarnings(t, model, llms.WithReasoning(llms.ReasoningHigh, 0))
+
+		w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.True(t, ok, "no warning for %s in %v", model, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, w.Kind)
+		require.Equal(t, "high", w.Asked)
+	}
+}
+
+func TestDisablingThinkingOnAFamilyWhoseFloorIsOffIsNotAWarning(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemma-4-31b-it", "gemma-4-26b-a4b-it", "models/gemma-4-31b-it"} {
+		resp := generateForWarnings(t, model, llms.WithReasoningDisabled())
+		require.Empty(t, resp.Warnings, "%s: minimal is this family's off position", model)
+	}
+}

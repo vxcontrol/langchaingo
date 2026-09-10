@@ -63,6 +63,17 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 	if cfg.ResolveMode() != llms.ReasoningOn {
 		return
 	}
+	if !reasoning.GeminiSupportsThinking(model) {
+		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
+		if cfg.HasExplicitTokens() {
+			asked = strconv.Itoa(cfg.Tokens) + " tokens"
+		}
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked: asked, Reason: "this model does not think, so the door sends no thinking config",
+		})
+		return
+	}
 
 	if reasoning.GeminiTogglesThinkingByLevel(model) {
 		sent := string(genai.ThinkingLevelHigh)
@@ -105,7 +116,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 }
 
 func reportGoogleAIDisableFloor(warn *llms.Warnings, model string, tc *genai.ThinkingConfig) {
-	if tc == nil || tc.ThinkingLevel == "" {
+	if tc == nil || tc.ThinkingLevel == "" || reasoning.GeminiTogglesThinkingByLevel(model) {
 		return
 	}
 	warn.Add(llms.Warning{
