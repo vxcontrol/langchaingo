@@ -8,11 +8,80 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
+func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOptions) {
+	const unread = "the door builds no field for it"
+
+	drop := func(option, asked string) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: model,
+			Asked: asked, Reason: unread,
+		})
+	}
+	for _, o := range []struct {
+		option string
+		value  *float64
+	}{
+		{"WithMinP", opts.MinP},
+		{"WithRepetitionPenalty", opts.RepetitionPenalty},
+		{"WithFrequencyPenalty", opts.FrequencyPenalty},
+		{"WithPresencePenalty", opts.PresencePenalty},
+	} {
+		if o.value != nil {
+			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
+		}
+	}
+	for _, o := range []struct {
+		option string
+		value  *int
+	}{
+		{"WithN", opts.N},
+		{"WithCandidateCount", opts.CandidateCount},
+		{"WithTopLogProbs", opts.TopLogProbs},
+	} {
+		if o.value != nil {
+			drop(o.option, strconv.Itoa(*o.value))
+		}
+	}
+	if opts.LogProbs != nil {
+		drop("WithLogProbs", strconv.FormatBool(*opts.LogProbs))
+	}
+}
+
+func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
+	cfg := opts.Reasoning
+	if cfg == nil || !cfg.HasExplicitTokens() {
+		return
+	}
+	sent := 0
+	if thinking != nil {
+		sent = thinking.Budget
+	}
+	if sent == cfg.Tokens {
+		return
+	}
+	if sent <= 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked:  strconv.Itoa(cfg.Tokens) + " tokens",
+			Reason: "the door sends no thinking budget on this model",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
+		Asked: strconv.Itoa(cfg.Tokens) + " tokens", Sent: strconv.Itoa(sent) + " tokens",
+		Reason: "the thinking budget is capped by the answer limit and by what the model records",
+	})
+}
+
 func reportAnthropicSampling(
 	warn *llms.Warnings, model string, opts llms.CallOptions,
 	thinking *anthropicclient.ThinkingPayload,
 	temperature, topP *float64, topK *int, maxTokens int,
 ) {
+	reportAnthropicUnread(warn, model, opts)
+	reportAnthropicBudget(warn, model, opts, thinking)
+
 	reason := anthropicSamplingReason(model, thinking)
 	warn.AddFloatChange("WithTemperature", model, reason, opts.Temperature, temperature)
 	warn.AddFloatChange("WithTopP", model, reason, opts.TopP, topP)

@@ -101,3 +101,20 @@ func TestAPlainGoogleCallCarriesNoWarnings(t *testing.T) {
 	resp := generateForWarnings(t, "gemini-2.5-flash", llms.WithTemperature(0.2))
 	require.Empty(t, resp.Warnings)
 }
+
+func TestSamplingOptionsWithNoGoogleFieldAreReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, "gemini-2.5-flash",
+		llms.WithMinP(0.05), llms.WithRepetitionPenalty(1.1))
+
+	got := googleWarningsByOption(resp.Warnings)
+	for option, asked := range map[string]string{
+		"WithMinP": "0.05", "WithRepetitionPenalty": "1.1",
+	} {
+		w, ok := got[option]
+		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, w.Kind)
+		require.Equal(t, asked, w.Asked)
+	}
+}

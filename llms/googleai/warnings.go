@@ -18,6 +18,20 @@ func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOpti
 			Reason: "the door sends candidate_count and never reads n",
 		})
 	}
+	if opts.MinP != nil {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
+			Asked:  strconv.FormatFloat(*opts.MinP, 'g', -1, 64),
+			Reason: "the door's generation config has no min-p field to set",
+		})
+	}
+	if opts.RepetitionPenalty != nil {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithRepetitionPenalty", Model: model,
+			Asked:  strconv.FormatFloat(*opts.RepetitionPenalty, 'g', -1, 64),
+			Reason: "the door's generation config has no repetition-penalty field to set",
+		})
+	}
 	if opts.LogProbs != nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithLogProbs", Model: model,

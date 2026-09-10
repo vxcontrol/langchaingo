@@ -11,8 +11,12 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
 )
 
-func generateForWarnings(t *testing.T, model string, callOpts ...llms.CallOption) *llms.ContentResponse {
+const warningsTestModel = "claude-sonnet-4-5"
+
+func generateForWarnings(t *testing.T, callOpts ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
+
+	const model = warningsTestModel
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.ReadAll(r.Body)
@@ -50,7 +54,7 @@ func warningsByOption(warnings []llms.Warning) map[string]llms.Warning {
 func TestThinkingTakesTheSamplingParamsAndSaysSo(t *testing.T) {
 	t.Parallel()
 
-	resp := generateForWarnings(t, "claude-sonnet-4-5",
+	resp := generateForWarnings(t,
 		llms.WithReasoning(llms.ReasoningMedium, 4096),
 		llms.WithMaxTokens(4096),
 		llms.WithTemperature(0.2),
@@ -80,7 +84,7 @@ func TestThinkingTakesTheSamplingParamsAndSaysSo(t *testing.T) {
 func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := generateForWarnings(t, "claude-sonnet-4-5",
+	resp := generateForWarnings(t,
 		llms.WithReasoning(llms.ReasoningMedium, 4096),
 		llms.WithMaxTokens(1000),
 	)
@@ -95,9 +99,46 @@ func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 func TestARequestThatKeepsItsSamplingCarriesNoWarnings(t *testing.T) {
 	t.Parallel()
 
-	resp := generateForWarnings(t, "claude-sonnet-4-5",
+	resp := generateForWarnings(t,
 		llms.WithTemperature(0.2),
 		llms.WithMaxTokens(4096),
 	)
 	require.Empty(t, resp.Warnings)
+}
+
+func TestOptionsThisDoorBuildsNoFieldForAreReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithMinP(0.05), llms.WithRepetitionPenalty(1.1),
+		llms.WithFrequencyPenalty(0.7), llms.WithPresencePenalty(0.25),
+		llms.WithN(3), llms.WithCandidateCount(2),
+		llms.WithLogProbs(true), llms.WithTopLogProbs(4),
+	)
+
+	got := warningsByOption(resp.Warnings)
+	for option, asked := range map[string]string{
+		"WithMinP": "0.05", "WithRepetitionPenalty": "1.1",
+		"WithFrequencyPenalty": "0.7", "WithPresencePenalty": "0.25",
+		"WithN": "3", "WithCandidateCount": "2",
+		"WithLogProbs": "true", "WithTopLogProbs": "4",
+	} {
+		w, ok := got[option]
+		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, w.Kind)
+		require.Equal(t, asked, w.Asked)
+	}
+}
+
+func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningMedium, 30000))
+
+	w, ok := warningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningClamp, w.Kind)
+	require.Equal(t, "30000 tokens", w.Asked)
+	require.NotEqual(t, w.Asked, w.Sent)
 }
