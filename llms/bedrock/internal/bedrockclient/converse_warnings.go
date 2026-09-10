@@ -80,6 +80,10 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
+	if thinking, ok := converseAdditionalFields(built)["thinking"].(map[string]any); ok {
+		sentType, _ := thinking["type"].(string)
+		reportMechanismSwap(warn, model, input.ReasoningConfig, sentType)
+	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
 	}

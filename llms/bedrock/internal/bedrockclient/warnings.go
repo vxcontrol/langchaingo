@@ -74,6 +74,9 @@ func reportLegacyAnthropic(
 		}
 		reportEffortClamp(warn, modelID, string(cfg.Effort), sent, input.Thinking != nil)
 	}
+	if input.Thinking != nil {
+		reportMechanismSwap(warn, modelID, options.Reasoning, input.Thinking.Type)
+	}
 	if cfg := options.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
 		sent := 0
 		if input.Thinking != nil {
@@ -156,4 +159,15 @@ func reportEffortClamp(warn *llms.Warnings, modelID, asked, sent string, thinkin
 			Reason: "the door sends only the efforts it records this model as accepting",
 		})
 	}
+}
+
+func reportMechanismSwap(warn *llms.Warnings, modelID string, cfg *llms.ReasoningConfig, sentType string) {
+	if cfg == nil || !cfg.Adaptive || sentType == "" || sentType == "adaptive" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithAdaptiveReasoning", Model: modelID,
+		Asked: "adaptive", Sent: sentType,
+		Reason: "the door takes the thinking mechanism from the model, not from the preference",
+	})
 }

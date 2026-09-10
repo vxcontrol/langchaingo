@@ -234,3 +234,23 @@ func TestConverseReadsTheEffortEveryFamilyWritesItsOwnWay(t *testing.T) {
 		})
 	}
 }
+
+func TestConverseReportsAMechanismTheModelDoesNotOffer(t *testing.T) {
+	t.Parallel()
+
+	maxTokens := 8192
+	resp := converseCall(t, &ConverseInput{
+		Messages:  humanTurn(),
+		ModelID:   "us.anthropic.claude-sonnet-4-5-v1:0",
+		MaxTokens: &maxTokens,
+		ReasoningConfig: &llms.ReasoningConfig{
+			Mode: llms.ReasoningOn, Effort: llms.ReasoningHigh, Adaptive: true,
+		},
+	})
+
+	w, ok := converseWarningsByOption(resp.Warnings)["WithAdaptiveReasoning"]
+	require.True(t, ok, "no mechanism warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningSubstitute, w.Kind)
+	require.Equal(t, "adaptive", w.Asked)
+	require.Equal(t, "enabled", w.Sent)
+}
