@@ -176,3 +176,24 @@ func TestTheLegacyDoorReportsAnEffortItLowered(t *testing.T) {
 	require.Equal(t, "xhigh", w.Asked)
 	require.Equal(t, "high", w.Sent)
 }
+
+func TestTheLegacyNovaPathReportsWhatItDrops(t *testing.T) {
+	t.Parallel()
+
+	const novaAnswer = `{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},` +
+		`"stopReason":"end_turn","usage":{"inputTokens":1,"outputTokens":1}}`
+
+	const model = "us.amazon.nova-2-lite-v1:0"
+	temperature, maxTokens := 0.2, 8192
+	resp := legacyCallAnswering(t, model, novaAnswer, llms.CallOptions{
+		Temperature: &temperature,
+		MaxTokens:   &maxTokens,
+		Reasoning:   &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningHigh, Tokens: 4096},
+	})
+
+	got := legacyWarningsByOption(resp.Warnings)
+	w, ok := got["WithReasoning"]
+	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "4096 tokens", w.Asked)
+}

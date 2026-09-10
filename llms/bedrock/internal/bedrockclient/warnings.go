@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 // A provider is listed here only where its own payload struct has the field —
@@ -169,5 +170,38 @@ func reportMechanismSwap(warn *llms.Warnings, modelID string, cfg *llms.Reasonin
 		Kind: llms.WarningSubstitute, Option: "WithAdaptiveReasoning", Model: modelID,
 		Asked: "adaptive", Sent: sentType,
 		Reason: "the door takes the thinking mechanism from the model, not from the preference",
+	})
+}
+
+func reportNovaReasoning(warn *llms.Warnings, modelID string, options llms.CallOptions, effort string) {
+	const cleared = "the nova request drops the sampling values at this reasoning effort"
+
+	if cfg := options.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+			Asked:  strconv.Itoa(cfg.Tokens) + " tokens",
+			Reason: "nova takes a reasoning effort, so a token budget has nowhere to go",
+		})
+	}
+	if !reasoning.NovaClearsInferenceConfigAt(effort) {
+		return
+	}
+	if options.MaxTokens != nil && *options.MaxTokens > 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*options.MaxTokens), Reason: cleared,
+		})
+	}
+	reportLegacyFloatDrop(warn, "WithTemperature", modelID, cleared, options.Temperature)
+	reportLegacyFloatDrop(warn, "WithTopP", modelID, cleared, options.TopP)
+}
+
+func reportLegacyFloatDrop(warn *llms.Warnings, option, modelID, reason string, asked *float64) {
+	if asked == nil {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: option, Model: modelID,
+		Asked: strconv.FormatFloat(*asked, 'g', -1, 64), Reason: reason,
 	})
 }

@@ -131,7 +131,7 @@ func (c *Client) CreateCompletion(ctx context.Context,
 	case "amazon":
 		resp, err = createAmazonCompletion(ctx, c.client, modelID, messages, options)
 	case "nova":
-		resp, err = createNovaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createNovaCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "anthropic":
 		resp, err = createAnthropicCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "cohere":
