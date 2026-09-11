@@ -14,6 +14,7 @@ var (
 	legacyCarriesTools     = map[string]bool{"anthropic": true}
 	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true}
 	legacyCarriesStopWords = map[string]bool{"meta": false}
+	legacyCarriesThinking  = map[string]bool{"anthropic": true, "nova": true}
 )
 
 func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options llms.CallOptions) {
@@ -49,6 +50,23 @@ func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options 
 			Asked: strings.Join(options.StopWords, ","), Reason: reason,
 		})
 	}
+	if !legacyCarriesThinking[provider] && options.Reasoning.ResolveMode() == llms.ReasoningOn {
+		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+}
+
+func reportThinkingUnsupported(warn *llms.Warnings, modelID string, cfg *llms.ReasoningConfig) {
+	asked := "thinking"
+	switch {
+	case cfg.HasExplicitTokens():
+		asked = strconv.Itoa(cfg.Tokens) + " tokens"
+	case cfg.Effort != "":
+		asked = string(cfg.Effort)
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+		Asked: asked, Reason: "the door puts no thinking on the request for this model",
+	})
 }
 
 func reportLegacyAnthropic(

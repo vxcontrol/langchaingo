@@ -185,6 +185,8 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 			inferenceConfig.TopP = 0
 		}
 		reportNovaReasoning(warn, modelID, options, effort)
+	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {
+		reportThinkingUnsupported(warn, modelID, options.Reasoning)
 	}
 
 	input := novaTextGenerationInput{
