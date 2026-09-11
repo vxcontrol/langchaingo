@@ -326,7 +326,7 @@ func createAnthropicCompletion(ctx context.Context,
 	var textContent string
 	var reasoningContent string
 	var signature []byte
-	var redacted []byte
+	var redacted [][]byte
 	var toolCalls []llms.ToolCall
 
 	for _, c := range output.Content {
@@ -340,7 +340,7 @@ func createAnthropicCompletion(ctx context.Context,
 			}
 		case "redacted_thinking":
 			if c.Data != "" {
-				redacted = append(redacted, []byte(c.Data)...)
+				redacted = append(redacted, []byte(c.Data))
 			}
 		case "tool_use":
 			argumentsJSON, err := json.Marshal(c.Input)
@@ -457,7 +457,7 @@ func applyAnthropicUsage(info map[string]any, usage anthropicUsage) {
 	info["ReasoningTokens"] = int(usage.OutputTokensDetails.ThinkingTokens)
 }
 
-func processReasoning(reasoningContent string, signature, redacted []byte) *reasoning.ContentReasoning {
+func processReasoning(reasoningContent string, signature []byte, redacted [][]byte) *reasoning.ContentReasoning {
 	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
 		return nil
 	}
@@ -486,6 +486,7 @@ type streamingCompletionResponseChunk struct {
 		ID    string         `json:"id"`
 		Name  string         `json:"name"`
 		Input map[string]any `json:"input"`
+		Data  string         `json:"data"`
 	} `json:"content_block"`
 	AmazonBedrockInvocationMetrics struct {
 		InputTokenCount   int32 `json:"inputTokenCount"`
@@ -526,6 +527,7 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 	var currentToolCall *streaming.ToolCall
 	var toolCalls []llms.ToolCall
 	var signature strings.Builder
+	var redacted [][]byte
 
 	var streamErr error
 
@@ -548,10 +550,15 @@ DoStream:
 				usage = mergeAnthropicUsage(usage, resp.Message.Usage, resp.Usage)
 				applyAnthropicUsage(contentchoices[0].GenerationInfo, usage)
 			case "content_block_start":
-				if resp.ContentBlock.Type == "tool_use" {
+				switch resp.ContentBlock.Type {
+				case "tool_use":
 					currentToolCall = &streaming.ToolCall{
 						ID:   resp.ContentBlock.ID,
 						Name: resp.ContentBlock.Name,
+					}
+				case "redacted_thinking":
+					if resp.ContentBlock.Data != "" {
+						redacted = append(redacted, []byte(resp.ContentBlock.Data))
 					}
 				}
 			case "content_block_delta":
@@ -634,6 +641,12 @@ DoStream:
 		}
 		contentchoices[0].Reasoning.Signature = []byte(signature.String())
 	}
+	if len(redacted) > 0 {
+		if contentchoices[0].Reasoning == nil {
+			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
+		}
+		contentchoices[0].Reasoning.Redacted = append(contentchoices[0].Reasoning.Redacted, redacted...)
+	}
 
 	contentchoices[0].Content = streamedContent.String()
 
@@ -695,9 +708,12 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 				return nil, "", errors.New("multiple system prompts")
 			}
 			for _, message := range chunk {
-				c := getAnthropicInputContent(message)
-				if c.Type != AnthropicMessageTypeText {
+				if message.Type != AnthropicMessageTypeText {
 					return nil, "", errors.New("system prompt must be text")
+				}
+				c, err := getAnthropicInputContent(message)
+				if err != nil {
+					return nil, "", err
 				}
 				systemPrompt += c.Text
 			}
@@ -718,15 +734,19 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 					}
 					content = append(content, thinkingBlock)
 				}
-				if len(message.Reasoning.Redacted) > 0 {
+				for _, block := range message.Reasoning.Redacted {
 					content = append(content, anthropicTextGenerationInputContent{
 						Type: "redacted_thinking",
-						Data: string(message.Reasoning.Redacted),
+						Data: string(block),
 					})
 				}
 			}
 			// Add regular content (text, tool_use, tool_result, etc.)
-			content = append(content, getAnthropicInputContent(message))
+			block, err := getAnthropicInputContent(message)
+			if err != nil {
+				return nil, "", err
+			}
+			content = append(content, block)
 		}
 		inputContents = append(inputContents, &anthropicTextGenerationInputMessage{
 			Role:    role,
@@ -758,7 +778,7 @@ func getAnthropicRole(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func getAnthropicInputContent(message Message) anthropicTextGenerationInputContent {
+func getAnthropicInputContent(message Message) (anthropicTextGenerationInputContent, error) {
 	var c anthropicTextGenerationInputContent
 	switch message.Type {
 	case AnthropicMessageTypeText:
@@ -773,6 +793,10 @@ func getAnthropicInputContent(message Message) anthropicTextGenerationInputConte
 			}
 		}
 	case AnthropicMessageTypeImage:
+		if mimeTypeToFormat(message.MimeType) == "" {
+			return anthropicTextGenerationInputContent{},
+				fmt.Errorf("%w: %s", ErrUnsupportedImageFormat, message.MimeType)
+		}
 		c = anthropicTextGenerationInputContent{
 			Type: message.Type,
 			Source: &anthropicBinGenerationInputSource{
@@ -805,7 +829,8 @@ func getAnthropicInputContent(message Message) anthropicTextGenerationInputConte
 			}
 		}
 	}
-	return c
+
+	return c, nil
 }
 
 // applyAnthropicReasoning resolves the thinking mechanism from the model via the

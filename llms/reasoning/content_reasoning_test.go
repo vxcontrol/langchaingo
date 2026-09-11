@@ -32,15 +32,15 @@ func TestHasContentSeparatesReasoningFromSignature(t *testing.T) {
 func TestRedactedReasoningIsCarriedButIsNotText(t *testing.T) {
 	t.Parallel()
 
-	redacted := &ContentReasoning{Redacted: []byte{0x01, 0x02, 0x03}}
+	redacted := &ContentReasoning{Redacted: [][]byte{{0x01, 0x02, 0x03}}}
 	if redacted.IsEmpty() {
 		t.Error("an encrypted block is something to carry back, so it is not empty")
 	}
 	if redacted.HasContent() {
 		t.Error("an encrypted block is not readable thinking")
 	}
-	if got := redacted.String(); !strings.Contains(got, "3 bytes") {
-		t.Errorf("String() = %q, want the encrypted size named", got)
+	if got := redacted.String(); !strings.Contains(got, "3 bytes") || !strings.Contains(got, "1 blocks") {
+		t.Errorf("String() = %q, want the encrypted size and the block count named", got)
 	}
 	if !(&ContentReasoning{}).IsEmpty() {
 		t.Error("a value with nothing in it stays empty")

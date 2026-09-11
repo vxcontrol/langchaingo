@@ -368,10 +368,12 @@ func (a *aiMessageAccumulator) build() types.Message {
 			Value: &reasoningBlock,
 		})
 	}
-	if a.reasoning != nil && len(a.reasoning.Redacted) > 0 {
-		content = append(content, &types.ContentBlockMemberReasoningContent{
-			Value: &types.ReasoningContentBlockMemberRedactedContent{Value: a.reasoning.Redacted},
-		})
+	if a.reasoning != nil {
+		for _, block := range a.reasoning.Redacted {
+			content = append(content, &types.ContentBlockMemberReasoningContent{
+				Value: &types.ReasoningContentBlockMemberRedactedContent{Value: block},
+			})
+		}
 	}
 
 	for _, text := range a.textBlocks {
@@ -524,8 +526,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			}
 			humanBlocks = append(humanBlocks, converseMsg.Content...)
 
-			isLast := i == len(messages)-1
-			if isLast || messages[i+1].Role != llms.ChatMessageTypeHuman {
+			if nextSpeakingRole(messages, i) != llms.ChatMessageTypeHuman {
 				flushHuman()
 			}
 
@@ -622,6 +623,16 @@ func (c *ConverseClient) addCachePointToMessages(messages []types.Message) {
 			Ttl:  types.CacheTTLFiveMinutes,
 		},
 	})
+}
+
+func nextSpeakingRole(messages []Message, from int) llms.ChatMessageType {
+	for _, msg := range messages[from+1:] {
+		if msg.Role != llms.ChatMessageTypeSystem {
+			return msg.Role
+		}
+	}
+
+	return ""
 }
 
 // ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
@@ -810,6 +821,34 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 }
 
 // processStreamingResponse processes streaming events
+func deliverToolCall(
+	ctx context.Context, callback streaming.Callback, builder *converseToolCallBuilder,
+) (llms.ToolCall, error) {
+	if callback != nil {
+		chunk := streaming.Chunk{Type: streaming.ChunkTypeToolCall, ToolCall: builder.streamingCall()}
+		if err := callback(ctx, chunk); err != nil {
+			return llms.ToolCall{}, err
+		}
+	}
+
+	return builder.toolCall(), nil
+}
+
+func salvageToolCalls(
+	ctx context.Context, callback streaming.Callback, pending map[int32]*converseToolCallBuilder,
+) ([]llms.ToolCall, error) {
+	calls := make([]llms.ToolCall, 0, len(pending))
+	for _, index := range slices.Sorted(maps.Keys(pending)) {
+		call, err := deliverToolCall(ctx, callback, pending[index])
+		if err != nil {
+			return calls, err
+		}
+		calls = append(calls, call)
+	}
+
+	return calls, nil
+}
+
 func (c *ConverseClient) processStreamingResponse(ctx context.Context, response *bedrockruntime.ConverseStreamOutput, callback streaming.Callback) (*llms.ContentResponse, error) {
 	var fullContent strings.Builder
 	var reasoningDeltas converseReasoningStream
@@ -875,27 +914,25 @@ DoStream:
 			index := aws.ToInt32(e.Value.ContentBlockIndex)
 			if builder, ok := currentToolCalls[index]; ok {
 				delete(currentToolCalls, index)
-				if callback != nil {
-					chunk := streaming.Chunk{
-						Type:     streaming.ChunkTypeToolCall,
-						ToolCall: builder.streamingCall(),
-					}
-					if err := callback(ctx, chunk); err != nil {
-						streamErr = err
-						break DoStream
-					}
+				call, err := deliverToolCall(ctx, callback, builder)
+				if err != nil {
+					streamErr = err
+					break DoStream
 				}
-				toolCalls = append(toolCalls, builder.toolCall())
+				toolCalls = append(toolCalls, call)
 			}
 		case *types.ConverseStreamOutputMemberMessageStop:
 			// The terminal event carries the stop reason (end_turn, tool_use,
 			// max_tokens, guardrail_intervened, content_filtered, ...).
 			stopReason = string(e.Value.StopReason)
 			// Stream completed - ensure any remaining tool calls are added
-			for _, index := range slices.Sorted(maps.Keys(currentToolCalls)) {
-				toolCalls = append(toolCalls, currentToolCalls[index].toolCall())
-			}
+			salvaged, err := salvageToolCalls(ctx, callback, currentToolCalls)
+			toolCalls = append(toolCalls, salvaged...)
 			currentToolCalls = nil
+			if err != nil {
+				streamErr = err
+				break DoStream
+			}
 		case *types.ConverseStreamOutputMemberMetadata:
 			usage = e.Value.Usage
 		}
@@ -954,7 +991,7 @@ func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
 	info["PromptTokens"] = promptTokens
 }
 
-func (c *ConverseClient) processReasoning(reasoningContent string, signature, redacted []byte) *reasoning.ContentReasoning {
+func (c *ConverseClient) processReasoning(reasoningContent string, signature []byte, redacted [][]byte) *reasoning.ContentReasoning {
 	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
 		return nil
 	}
@@ -969,7 +1006,7 @@ func (c *ConverseClient) processReasoning(reasoningContent string, signature, re
 type converseReasoningStream struct {
 	text      strings.Builder
 	signature bytes.Buffer
-	redacted  []byte
+	redacted  [][]byte
 }
 
 func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (readableText string) {
@@ -982,7 +1019,7 @@ func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (r
 			a.signature.WriteString(block.Value)
 		}
 	case *types.ReasoningContentBlockDeltaMemberRedactedContent:
-		a.redacted = append(a.redacted, block.Value...)
+		a.redacted = append(a.redacted, block.Value)
 	}
 	return ""
 }
@@ -1064,7 +1101,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 				case *types.ReasoningContentBlockMemberRedactedContent:
 					if len(content.Value) > 0 {
 						choice.Reasoning = ensureReasoning(choice.Reasoning)
-						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value...)
+						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value)
 					}
 				}
 			}

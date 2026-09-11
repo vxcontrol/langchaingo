@@ -126,7 +126,10 @@ type novaTextGenerationOutput struct {
 type novaStreamingResponseChunk struct {
 	ContentBlockDelta struct {
 		Delta struct {
-			Text string `json:"text"`
+			Text             string `json:"text"`
+			ReasoningContent *struct {
+				Text string `json:"text"`
+			} `json:"reasoningContent"`
 		} `json:"delta"`
 	} `json:"contentBlockDelta"`
 	MessageStart struct {
@@ -260,13 +263,16 @@ func createNovaCompletion(ctx context.Context,
 	}
 
 	content, contentReasoning := splitNovaReasoning(output.Output.Message.Content)
-	if len(content) == 0 {
+	if len(content) == 0 && contentReasoning == nil {
 		return nil, errors.New("no results")
 	} else if stopReason := output.StopReason; stopReason != NovaCompletionReasonEndTurn &&
 		stopReason != NovaCompletionReasonStopSequence &&
 		stopReason != NovaCompletionReasonMaxTokens &&
 		stopReason != NovaCompletionReasonContentFiltered {
 		return nil, errors.New("completed due to " + stopReason + ". Maybe try increasing max tokens")
+	}
+	if len(content) == 0 {
+		content = []novaOutputContent{{}}
 	}
 	Contentchoices := make([]*llms.ContentChoice, len(content))
 	for i, c := range content {
@@ -418,6 +424,7 @@ func parseNovaStreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
 	var streamedContent strings.Builder
+	var streamedThought strings.Builder
 	var streamErr error
 
 DoStream:
@@ -433,6 +440,18 @@ DoStream:
 			if err != nil {
 				streamErr = err
 				break DoStream
+			}
+
+			if thought := resp.ContentBlockDelta.Delta.ReasoningContent; thought != nil && thought.Text != "" {
+				streamedThought.WriteString(thought.Text)
+				chunk := streaming.Chunk{
+					Type:      streaming.ChunkTypeReasoning,
+					Reasoning: &reasoning.ContentReasoning{Content: thought.Text},
+				}
+				if err = options.StreamingFunc(ctx, chunk); err != nil {
+					streamErr = err
+					break DoStream
+				}
 			}
 
 			// Check for content delta (text chunks)
@@ -468,6 +487,9 @@ DoStream:
 	}
 
 	contentchoices[0].Content = streamedContent.String()
+	if streamedThought.Len() > 0 {
+		contentchoices[0].Reasoning = &reasoning.ContentReasoning{Content: streamedThought.String()}
+	}
 
 	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }

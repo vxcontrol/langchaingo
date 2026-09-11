@@ -25,8 +25,8 @@ type ContentReasoning struct {
 	Signature []byte `json:"signature,omitempty"`
 
 	// Redacted is reasoning the provider encrypted. It carries no readable text
-	// and travels back to the vendor unchanged.
-	Redacted []byte `json:"redacted,omitempty"`
+	// and travels back to the vendor unchanged, one block per element.
+	Redacted [][]byte `json:"redacted,omitempty"`
 }
 
 // IsEmpty reports whether there is nothing to carry back into the next turn.
@@ -52,7 +52,11 @@ func (r *ContentReasoning) String() string {
 		buf.Write(r.Signature)
 	}
 	if len(r.Redacted) > 0 {
-		fmt.Fprintf(&buf, "\nRedacted: %d bytes", len(r.Redacted))
+		size := 0
+		for _, block := range r.Redacted {
+			size += len(block)
+		}
+		fmt.Fprintf(&buf, "\nRedacted: %d blocks, %d bytes", len(r.Redacted), size)
 	}
 
 	return buf.String()
