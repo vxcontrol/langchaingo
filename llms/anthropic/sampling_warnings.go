@@ -125,3 +125,37 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+
+func reportAnthropicCompletions(warn *llms.Warnings, model string, opts llms.CallOptions) {
+	const unread = "the legacy text-completions request has no field for it"
+
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+	warn.AddUnreadOptions(model, opts, unread)
+
+	drop := func(option, asked string) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: model,
+			Asked: asked, Reason: unread,
+		})
+	}
+	if len(opts.Tools) > 0 {
+		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
+	}
+	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
+		asked := name
+		if asked == "" {
+			asked = kind.String()
+		}
+		drop("WithToolChoice", asked)
+	}
+	if opts.StructuredOutput != nil {
+		drop("WithStructuredOutput", opts.StructuredOutput.Name)
+	}
+	if cfg := opts.Reasoning; cfg != nil && cfg.ResolveMode() != llms.ReasoningDefault {
+		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
+		if cfg.HasExplicitTokens() {
+			asked = strconv.Itoa(cfg.Tokens) + " tokens"
+		}
+		drop("WithReasoning", asked)
+	}
+}

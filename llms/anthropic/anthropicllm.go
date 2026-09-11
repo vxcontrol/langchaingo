@@ -124,6 +124,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 }
 
 func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.MessageContent, opts *llms.CallOptions) (*llms.ContentResponse, error) { //nolint:lll
+	if err := opts.ValidateReasoning(); err != nil {
+		return nil, err
+	}
 	if len(messages) == 0 || len(messages[0].Parts) == 0 {
 		return nil, ErrEmptyResponse
 	}
@@ -149,6 +152,9 @@ func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.Mes
 		return nil, fmt.Errorf("anthropic: failed to create completion: %w", err)
 	}
 
+	warn := &llms.Warnings{}
+	reportAnthropicCompletions(warn, o.client.EffectiveModel(opts.GetModel()), *opts)
+
 	resp := &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{
 			{
@@ -157,6 +163,7 @@ func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.Mes
 				Truncated:  llms.IsTruncated(result.StopReason),
 			},
 		},
+		Warnings: warn.List(),
 	}
 	if err := llms.CheckTruncation(resp, *opts); err != nil {
 		return resp, err
