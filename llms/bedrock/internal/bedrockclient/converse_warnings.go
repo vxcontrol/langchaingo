@@ -81,10 +81,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	if thinking, ok := converseAdditionalFields(built)["thinking"].(map[string]any); ok {
-		sentType, _ := thinking["type"].(string)
-		reportMechanismSwap(warn, model, input.ReasoningConfig, sentType)
-	}
+	reportMechanismSwap(warn, model, input.ReasoningConfig, converseMechanismOnTheWire(built))
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
 	}
@@ -128,6 +125,28 @@ func converseEffortOnTheWire(built *bedrockruntime.ConverseInput) (string, bool)
 	}
 	_, thinking := fields["thinking"]
 	return "", thinking
+}
+
+func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
+	fields := converseAdditionalFields(built)
+	if thinking, ok := fields["thinking"].(map[string]any); ok {
+		sentType, _ := thinking["type"].(string)
+		return sentType
+	}
+	for _, shape := range []struct{ key, effortKey string }{
+		{"reasoningConfig", "maxReasoningEffort"},
+		{"reasoning", "effort"},
+	} {
+		block, ok := fields[shape.key].(map[string]any)
+		if !ok {
+			continue
+		}
+		if effort, _ := block[shape.effortKey].(string); effort != "" {
+			return "effort"
+		}
+		return ""
+	}
+	return ""
 }
 
 func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
