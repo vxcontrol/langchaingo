@@ -31,6 +31,9 @@ type Options struct {
 
 	BaseURL string
 
+	credentialsFile string
+	credentialsJSON []byte
+
 	unhonoredOnREST []string
 
 	// Set by WithDefaultTemperature; writing DefaultTemperature directly leaves
@@ -81,7 +84,7 @@ func WithCredentialsJSON(credentialsJSON []byte) Option {
 		if len(credentialsJSON) == 0 {
 			return
 		}
-		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithCredentialsJSON")
+		opts.credentialsJSON = credentialsJSON
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsJSON(credentialsJSON))
 	}
 }
@@ -94,7 +97,7 @@ func WithCredentialsFile(credentialsFile string) Option {
 		if credentialsFile == "" {
 			return
 		}
-		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithCredentialsFile")
+		opts.credentialsFile = credentialsFile
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsFile(credentialsFile))
 	}
 }

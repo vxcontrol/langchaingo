@@ -64,6 +64,11 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 	if len(clientOptions.unhonoredOnREST) > 0 {
 		return gi, &ErrOptionNotHonored{Options: clientOptions.unhonoredOnREST}
 	}
+	credentials, err := clientOptions.detectCredentials()
+	if err != nil {
+		return gi, err
+	}
+	config.Credentials = credentials
 	if clientOptions.BaseURL != "" {
 		config.HTTPOptions.BaseURL = clientOptions.BaseURL
 	}
@@ -84,5 +89,7 @@ type ErrOptionNotHonored struct {
 }
 
 func (e *ErrOptionNotHonored) Error() string {
-	return fmt.Sprintf("googleai: the Gemini API client cannot honor %s", strings.Join(e.Options, ", "))
+	return fmt.Sprintf(
+		"googleai: this client cannot honor %s; shape the transport with WithHTTPClient instead",
+		strings.Join(e.Options, ", "))
 }

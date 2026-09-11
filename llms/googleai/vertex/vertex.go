@@ -24,7 +24,9 @@ var _ llms.Model = &Vertex{}
 
 // New creates a client bound to the Vertex AI backend. The project and the
 // location come from the options, or from GOOGLE_CLOUD_PROJECT and
-// GOOGLE_CLOUD_LOCATION when the options leave them empty.
+// GOOGLE_CLOUD_LOCATION when the options leave them empty. Authentication comes
+// from googleai.WithCredentialsFile or googleai.WithCredentialsJSON, and from
+// application default credentials when neither is given.
 func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
 	resolved := googleai.DefaultOptions()
 	for _, opt := range opts {

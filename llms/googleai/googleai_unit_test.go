@@ -1112,9 +1112,7 @@ func TestNewRefusesTheOptionsThisDoorCannotCarry(t *testing.T) {
 	t.Parallel()
 
 	for name, opt := range map[string]Option{
-		"WithCredentialsFile": WithCredentialsFile("path/to/creds.json"),
-		"WithCredentialsJSON": WithCredentialsJSON([]byte(`{"type":"service_account"}`)),
-		"WithGRPCConn":        WithGRPCConn(nil),
+		"WithGRPCConn": WithGRPCConn(nil),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
