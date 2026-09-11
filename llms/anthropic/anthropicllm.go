@@ -326,6 +326,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		if buildErr != nil {
 			return nil, wrapped
 		}
+		if truncated := llms.CheckTruncation(partial, *opts); truncated != nil {
+			return partial, errors.Join(wrapped, truncated)
+		}
 		return partial, wrapped
 	}
 	response, err := processAnthropicResponse(result, warn)
