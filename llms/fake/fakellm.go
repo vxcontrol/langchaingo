@@ -42,13 +42,15 @@ func (f *LLM) GenerateContent(ctx context.Context, _ []llms.MessageContent, opti
 		opt(&opts)
 	}
 	if opts.StreamingFunc != nil {
+		var sent strings.Builder
 		for _, part := range strings.SplitAfter(response, " ") {
+			sent.WriteString(part)
 			if err := streaming.CallWithText(ctx, opts.StreamingFunc, part); err != nil {
-				return nil, err
+				return partialResponse(sent.String()), err
 			}
 		}
 		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
-			return nil, err
+			return partialResponse(sent.String()), err
 		}
 	}
 
@@ -81,4 +83,10 @@ func (f *LLM) AddResponse(response string) {
 	f.mu.Lock()
 	f.responses = append(f.responses, response)
 	f.mu.Unlock()
+}
+
+func partialResponse(content string) *llms.ContentResponse {
+	return &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: content}},
+	}
 }

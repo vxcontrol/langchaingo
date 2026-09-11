@@ -1,10 +1,16 @@
 package llmtest
 
 import (
+	"context"
+	"errors"
 	"os"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestMockLLM tests the mock implementation.
@@ -74,4 +80,32 @@ func TestOpenAIIntegration(t *testing.T) {
 	}
 
 	// Import is handled in the actual test files for each provider
+}
+
+func TestTheMockHandsBackWhatTheConsumerReceivedBeforeGivingUp(t *testing.T) {
+	t.Parallel()
+
+	mock := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "sixty rooms are free"}},
+	}}
+
+	gaveUp := errors.New("the consumer gave up")
+	delivered := 0
+	resp, err := mock.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type != streaming.ChunkTypeText {
+				return nil
+			}
+			delivered++
+			if delivered == 2 {
+				return gaveUp
+			}
+			return nil
+		}))
+
+	require.ErrorIs(t, err, gaveUp)
+	require.NotNil(t, resp, "a real door hands back the text it collected; the mock must too")
+	require.NotEmpty(t, resp.Choices)
+	assert.Equal(t, "sixty rooms ", resp.Choices[0].Content)
 }

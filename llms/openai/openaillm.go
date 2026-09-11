@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -123,7 +124,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		if result == nil || len(result.Choices) == 0 {
 			return nil, err
 		}
-		return o.processResponse(result, warn), err
+		return o.partialWithTruncation(result, warn, opts, err)
 	}
 	if len(result.Choices) == 0 {
 		return nil, ErrEmptyResponse
@@ -612,6 +613,17 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 }
 
 // processResponse processes the OpenAI API response into a ContentResponse.
+func (o *LLM) partialWithTruncation(
+	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings, opts llms.CallOptions, cause error,
+) (*llms.ContentResponse, error) {
+	partial := o.processResponse(result, warn)
+	if truncated := llms.CheckTruncation(partial, opts); truncated != nil {
+		return partial, errors.Join(cause, truncated)
+	}
+
+	return partial, cause
+}
+
 func (o *LLM) processResponse(
 	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings,
 ) *llms.ContentResponse {
