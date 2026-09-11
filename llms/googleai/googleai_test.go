@@ -1,7 +1,6 @@
 package googleai
 
 import (
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -19,25 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func scrubProxyHeaders(buf *bytes.Buffer) error {
-	const sep = "\r\n\r\n"
-	dump := buf.String()
-	end := strings.Index(dump, sep)
-	if end == -1 {
-		return nil
-	}
-	kept := make([]string, 0, strings.Count(dump[:end], "\r\n")+1)
-	for _, line := range strings.Split(dump[:end], "\r\n") {
-		if strings.HasPrefix(strings.ToLower(line), "x-litellm-") {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	buf.Reset()
-	buf.WriteString(strings.Join(kept, "\r\n") + dump[end:])
-	return nil
-}
 
 func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	t.Helper()
@@ -59,7 +39,6 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	}
 
 	rr := httprr.OpenForTest(t, transport)
-	rr.ScrubResp(scrubProxyHeaders)
 
 	// Avoid issue with different view of request bodies for Google AI SDK
 	rr.ScrubReq(httprr.JsonCompactScrubBody)
