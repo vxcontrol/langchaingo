@@ -411,7 +411,10 @@ func (o *LLM) setReasoning(
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
 	if toolsRule != reasoning.EffortToolsFree {
-		return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
+		if !o.sendsBudgetInsteadOfEffort(model, opts, reasoningTokens) {
+			return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
+		}
+		sendsEffort = false
 	}
 	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
 		reasoning.DashScopeTakesThinkingBudget(model) {
@@ -419,19 +422,31 @@ func (o *LLM) setReasoning(
 		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
-	budget := 0
-	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 {
-		budget = reasoning.ClaudeClampBudget(model, reasoningTokens)
-	}
-
-	effortBudget := 0
-	if reasoning.ClaudeSpendsThinkingBudget(model) {
-		effortBudget = llms.ReasoningEffortBudget(reasoningEffort, opts.GetMaxTokens())
-	}
-
+	budget, effortBudget := budgetsFor(model, opts, reasoningEffort, reasoningTokens)
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
 	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 	return wire, nil
+}
+
+func budgetsFor(
+	model string, opts llms.CallOptions, effort llms.ReasoningEffort, tokens int,
+) (budget, effortBudget int) {
+	if opts.Reasoning.HasExplicitTokens() && tokens > 0 {
+		budget = reasoning.ClaudeClampBudget(model, tokens)
+	}
+	if reasoning.ClaudeSpendsThinkingBudget(model) {
+		effortBudget = llms.ReasoningEffortBudget(effort, opts.GetMaxTokens())
+	}
+
+	return budget, effortBudget
+}
+
+func (o *LLM) sendsBudgetInsteadOfEffort(model string, opts llms.CallOptions, tokens int) bool {
+	if !opts.Reasoning.HasExplicitTokens() || tokens <= 0 {
+		return false
+	}
+
+	return reasoning.DashScopeTakesThinkingBudget(model) || o.client.UseReasoningMaxTokens
 }
 
 func (o *LLM) writeEffort(
@@ -652,7 +667,7 @@ func (o *LLM) processResponse(
 }
 
 func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
-	return map[string]any{
+	info := map[string]any{
 		"CompletionTokens":  usage.CompletionTokens,
 		"PromptTokens":      usage.PromptTokens,
 		"TotalTokens":       usage.TotalTokens,
@@ -666,10 +681,18 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 		"CompletionReasoningTokens":          usage.CompletionTokensDetails.ReasoningTokens,
 		"CompletionAcceptedPredictionTokens": usage.CompletionTokensDetails.AcceptedPredictionTokens,
 		"CompletionRejectedPredictionTokens": usage.CompletionTokensDetails.RejectedPredictionTokens,
-		// Special fields for OpenRouter provider
+	}
+	// Special fields for OpenRouter provider
+	for key, cost := range map[string]*float64{
 		"UpstreamInferencePromptCost":      usage.CostDetails.UpstreamInferencePromptCost,
 		"UpstreamInferenceCompletionsCost": usage.CostDetails.UpstreamInferenceCompletionsCost,
+	} {
+		if cost != nil {
+			info[key] = *cost
+		}
 	}
+
+	return info
 }
 
 // processReasoning processes reasoning content in the response.
