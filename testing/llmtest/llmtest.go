@@ -603,17 +603,25 @@ func (m *MockLLM) GenerateContent(ctx context.Context, messages []llms.MessageCo
 		opt(&opts)
 	}
 	if opts.StreamingFunc != nil && len(response.Choices) > 0 {
+		var sent strings.Builder
 		for _, part := range strings.SplitAfter(response.Choices[0].Content, " ") {
+			sent.WriteString(part)
 			if err := streaming.CallWithText(ctx, opts.StreamingFunc, part); err != nil {
-				return nil, err
+				return partialMockResponse(sent.String()), err
 			}
 		}
 		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
-			return nil, err
+			return partialMockResponse(sent.String()), err
 		}
 	}
 
 	return response, m.GenerateError
+}
+
+func partialMockResponse(content string) *llms.ContentResponse {
+	return &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: content}},
+	}
 }
 
 // Verify MockLLM implements llms.Model
