@@ -42,6 +42,7 @@ func createDeepSeekCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	// Format prompt with DeepSeek-R1 required formatting
 	prompt := formatDeepSeekPrompt(messages)
@@ -50,7 +51,7 @@ func createDeepSeekCompletion(ctx context.Context,
 		Prompt:      prompt,
 		Temperature: options.GetTemperature(),
 		TopP:        options.GetTopP(),
-		MaxTokens:   getMaxTokens(options.GetMaxTokens(), 512),
+		MaxTokens:   maxTokensOnTheWire(warn, modelID, options, 512),
 		Stop:        options.StopWords,
 	}
 

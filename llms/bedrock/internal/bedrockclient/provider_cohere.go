@@ -123,10 +123,11 @@ func createCohereCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	// Check if this is a Command R model
 	if IsCohereCommandR(modelID) {
-		return createCohereCommandRCompletion(ctx, client, modelID, messages, options)
+		return createCohereCommandRCompletion(ctx, client, modelID, messages, options, warn)
 	}
 
 	// Legacy models (command-text-v14, command-light-text-v14)
@@ -137,7 +138,7 @@ func createCohereCompletion(ctx context.Context,
 		Temperature:    options.GetTemperature(),
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
-		MaxTokens:      getMaxTokens(options.GetMaxTokens(), 20),
+		MaxTokens:      maxTokensOnTheWire(warn, modelID, options, 20),
 		StopSequences:  options.StopWords,
 		NumGenerations: options.GetCandidateCount(),
 	}
@@ -199,6 +200,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	// Convert messages to Cohere format
 	var currentMessage string
@@ -233,7 +235,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 	input := &cohereCommandRInput{
 		Message:       currentMessage,
 		ChatHistory:   chatHistory,
-		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 512),
+		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 512),
 		Temperature:   options.GetTemperature(),
 		P:             options.GetTopP(),
 		K:             options.GetTopK(),

@@ -3,6 +3,7 @@ package bedrockclient
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -127,19 +128,19 @@ func (c *Client) CreateCompletion(ctx context.Context,
 	)
 	switch provider {
 	case "ai21":
-		resp, err = createAi21Completion(ctx, c.client, modelID, messages, options)
+		resp, err = createAi21Completion(ctx, c.client, modelID, messages, options, warn)
 	case "amazon":
-		resp, err = createAmazonCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createAmazonCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "nova":
 		resp, err = createNovaCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "anthropic":
 		resp, err = createAnthropicCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "cohere":
-		resp, err = createCohereCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createCohereCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "meta":
-		resp, err = createMetaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createMetaCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "deepseek":
-		resp, err = createDeepSeekCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createDeepSeekCompletion(ctx, c.client, modelID, messages, options, warn)
 	default:
 		return nil, errors.New("unsupported provider")
 	}
@@ -178,6 +179,20 @@ func IsAi21Jamba(modelID string) bool {
 
 func IsCohereCommandR(modelID string) bool {
 	return strings.Contains(modelID, "command-r")
+}
+
+func maxTokensOnTheWire(
+	warn *llms.Warnings, modelID string, options llms.CallOptions, defaultValue int,
+) int {
+	sent := getMaxTokens(options.GetMaxTokens(), defaultValue)
+	if asked := options.MaxTokens; asked != nil && *asked <= 0 && sent != *asked {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
+			Reason: "the legacy payload has to name an answer limit, so the door named one",
+		})
+	}
+	return sent
 }
 
 func getMaxTokens(maxTokens, defaultValue int) int {
