@@ -13,6 +13,14 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
 
+	if opts.Reasoning.DelegatesDepth() {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithAdaptiveReasoning", Model: model,
+			Asked:  "adaptive",
+			Reason: "the door has no field that asks the model to choose its own depth",
+		})
+	}
+
 	if opts.MinP != nil && *opts.MinP != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
