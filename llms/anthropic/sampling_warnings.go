@@ -151,6 +151,21 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
 
+func reportAnthropicCompletionsMessages(warn *llms.Warnings, model string, messages []llms.MessageContent) {
+	total := 0
+	for _, m := range messages {
+		total += len(m.Parts)
+	}
+	if total <= 1 {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "messages", Model: model,
+		Asked: strconv.Itoa(total) + " parts", Sent: "1 part",
+		Reason: "the legacy path sends the first part of the first message as the whole prompt",
+	})
+}
+
 func reportAnthropicCompletions(warn *llms.Warnings, model string, opts llms.CallOptions) {
 	const unread = "the legacy text-completions request has no field for it"
 

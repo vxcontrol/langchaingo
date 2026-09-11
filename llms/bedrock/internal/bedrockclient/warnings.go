@@ -107,6 +107,10 @@ func reportLegacyAnthropic(
 		}
 		reportThinkingBudget(warn, modelID, cfg.Tokens, sent)
 	}
+	if cfg := options.Reasoning; cfg.ResolveMode() == llms.ReasoningOn && input.Thinking == nil &&
+		cfg.Effort == "" && !cfg.HasExplicitTokens() {
+		reportThinkingUnsupported(warn, modelID, cfg)
+	}
 	if len(options.StopWords) > 0 && len(input.StopSequences) == 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithStopWords", Model: modelID,
@@ -228,6 +232,9 @@ func reportNovaReasoning(warn *llms.Warnings, modelID string, options llms.CallO
 			Asked:  strconv.Itoa(cfg.Tokens) + " tokens",
 			Reason: "nova takes a reasoning effort, so a token budget has nowhere to go",
 		})
+	}
+	if effort != "" {
+		reportMechanismSwap(warn, modelID, options.Reasoning, "effort")
 	}
 	if !reasoning.NovaClearsInferenceConfigAt(effort) {
 		return

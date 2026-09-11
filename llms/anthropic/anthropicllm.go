@@ -153,7 +153,9 @@ func generateCompletionsContent(ctx context.Context, o *LLM, messages []llms.Mes
 	}
 
 	warn := &llms.Warnings{}
-	reportAnthropicCompletions(warn, o.client.EffectiveModel(opts.GetModel()), *opts)
+	completionsModel := o.client.EffectiveModel(opts.GetModel())
+	reportAnthropicCompletions(warn, completionsModel, *opts)
+	reportAnthropicCompletionsMessages(warn, completionsModel, messages)
 
 	resp := &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{
