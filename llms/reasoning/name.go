@@ -10,6 +10,7 @@ func modelSpellings(model string) []string {
 	if idx := strings.LastIndex(m, "/"); idx != -1 {
 		m = m[idx+1:]
 	}
+	m = stripFineTuneWrapper(m)
 
 	vendor, bare := splitPlatformPrefix(m)
 	switch {
@@ -58,4 +59,17 @@ func hasGeneration(model, generation string) bool {
 		return false
 	}
 	return rest == "" || rest[0] < '0' || rest[0] > '9'
+}
+
+func stripFineTuneWrapper(model string) string {
+	rest, ok := strings.CutPrefix(model, "ft:")
+	if !ok {
+		return model
+	}
+	base, _, _ := strings.Cut(rest, ":")
+	if base == "" {
+		return model
+	}
+
+	return base
 }
