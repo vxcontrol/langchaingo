@@ -89,6 +89,6 @@ func TestAStreamedAnswerReportsTheSameCountersAsAWholeOne(t *testing.T) {
 
 	assert.Equal(t, 13, streamed["CacheCreationInputTokens"],
 		"the cache-creation counter the vendor sent must reach the caller")
-	require.NotNil(t, streamed["UpstreamInferencePromptCost"])
-	assert.InDelta(t, 0.000063, *streamed["UpstreamInferencePromptCost"].(*float64), 1e-9)
+	require.Contains(t, streamed, "UpstreamInferencePromptCost")
+	assert.InDelta(t, 0.000063, streamed["UpstreamInferencePromptCost"], 1e-9)
 }
