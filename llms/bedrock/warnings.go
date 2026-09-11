@@ -7,19 +7,25 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 )
 
-// The legacy payloads differ per provider; the Converse request has none of
-// these fields at all.
-var (
-	legacyCarriesPenalties      = map[string]bool{"ai21": true}
-	legacyCarriesCandidateCount = map[string]bool{"ai21": true, "cohere": true}
-)
+func legacyCarriesPenalties(model string) bool {
+	return bedrockclient.GetProvider(model) == "ai21" && !bedrockclient.IsAi21Jamba(model)
+}
+
+func legacyCarriesCandidateCount(model string) bool {
+	switch bedrockclient.GetProvider(model) {
+	case "ai21":
+		return true
+	case "cohere":
+		return !bedrockclient.IsCohereCommandR(model)
+	}
+	return false
+}
 
 func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []llms.Warning {
 	const unread = "the bedrock request for this model has no field for it"
 
-	provider := bedrockclient.GetProvider(model)
-	carriesPenalties := !converse && legacyCarriesPenalties[provider]
-	carriesCandidateCount := !converse && legacyCarriesCandidateCount[provider]
+	carriesPenalties := !converse && legacyCarriesPenalties(model)
+	carriesCandidateCount := !converse && legacyCarriesCandidateCount(model)
 
 	var warnings []llms.Warning
 	var extra llms.Warnings

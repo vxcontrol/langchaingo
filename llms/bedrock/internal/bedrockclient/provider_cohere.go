@@ -125,7 +125,7 @@ func createCohereCompletion(ctx context.Context,
 	options llms.CallOptions,
 ) (*llms.ContentResponse, error) {
 	// Check if this is a Command R model
-	if strings.Contains(modelID, "command-r") {
+	if IsCohereCommandR(modelID) {
 		return createCohereCommandRCompletion(ctx, client, modelID, messages, options)
 	}
 

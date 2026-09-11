@@ -172,6 +172,14 @@ func processInputMessagesGeneric(messages []Message) string {
 	return sb.String()
 }
 
+func IsAi21Jamba(modelID string) bool {
+	return strings.Contains(modelID, "jamba")
+}
+
+func IsCohereCommandR(modelID string) bool {
+	return strings.Contains(modelID, "command-r")
+}
+
 func getMaxTokens(maxTokens, defaultValue int) int {
 	if maxTokens <= 0 {
 		return defaultValue

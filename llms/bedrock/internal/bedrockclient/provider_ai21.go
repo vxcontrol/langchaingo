@@ -154,7 +154,7 @@ func getAi21Role(role llms.ChatMessageType) (string, error) {
 
 func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions) (*llms.ContentResponse, error) {
 	// Check if this is a Jamba model (use messages API)
-	if strings.Contains(modelID, "jamba") {
+	if IsAi21Jamba(modelID) {
 		return createAi21JambaCompletion(ctx, client, modelID, messages, options)
 	}
 
