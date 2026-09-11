@@ -61,10 +61,10 @@ func WithProvider(provider string) Option {
 type InferenceRequest struct {
 	Model       string
 	Prompt      string
-	Temperature float64
-	TopP        float64
-	MaxLength   int
-	Seed        int
+	Temperature *float64
+	TopP        *float64
+	MaxTokens   *int
+	Seed        *int
 	Effort      string
 }
 
@@ -76,21 +76,13 @@ type InferenceResponse struct {
 
 func (c *Client) RunInference(ctx context.Context, request *InferenceRequest) (*InferenceResponse, error) {
 	payload := &chatCompletionsPayload{
-		Model:    request.Model,
-		Messages: []chatMessage{{Role: "user", Content: request.Prompt}},
-		Effort:   request.Effort,
-	}
-	if request.Temperature > 0 {
-		payload.Temperature = &request.Temperature
-	}
-	if request.TopP > 0 {
-		payload.TopP = &request.TopP
-	}
-	if request.MaxLength > 0 {
-		payload.MaxTokens = &request.MaxLength
-	}
-	if request.Seed > 0 {
-		payload.Seed = &request.Seed
+		Model:       request.Model,
+		Messages:    []chatMessage{{Role: "user", Content: request.Prompt}},
+		Effort:      request.Effort,
+		Temperature: request.Temperature,
+		TopP:        request.TopP,
+		MaxTokens:   request.MaxTokens,
+		Seed:        request.Seed,
 	}
 
 	resp, err := c.runChatCompletions(ctx, payload)

@@ -34,8 +34,8 @@ func chatRequestOf(t *testing.T, opts []Option) (string, map[string]any) {
 	resp, err := client.RunInference(t.Context(), &InferenceRequest{
 		Model:       "gpt2",
 		Prompt:      "hi",
-		Temperature: 0.5,
-		MaxLength:   20,
+		Temperature: ptr(0.5),
+		MaxTokens:   ptr(20),
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "stop", resp.StopReason)
@@ -63,3 +63,5 @@ func TestANamedProviderPrefixesTheChatEndpoint(t *testing.T) {
 
 	assert.Equal(t, "/nebius/v1/chat/completions", path)
 }
+
+func ptr[T any](v T) *T { return &v }
