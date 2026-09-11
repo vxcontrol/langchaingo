@@ -14,6 +14,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -674,8 +675,8 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 
 		case llms.ToolCall:
 			fc := p.FunctionCall
-			var argsMap map[string]any
-			if err := json.Unmarshal([]byte(fc.Arguments), &argsMap); err != nil {
+			argsMap, err := toolcall.Decode(fc.Arguments)
+			if err != nil {
 				return nil, err
 			}
 			genaiPart = &genai.Part{

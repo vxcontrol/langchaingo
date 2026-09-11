@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -292,9 +293,13 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 		},
 	}
 
-	err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
+	fields, err := toolcall.DecodeFields(toolCall.FunctionCall.Arguments)
 	if err != nil {
 		return api.ToolCall{}, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
+	}
+	tc.Function.Arguments = api.NewToolCallFunctionArguments()
+	for _, field := range fields {
+		tc.Function.Arguments.Set(field.Key, field.Value)
 	}
 
 	return tc, nil
