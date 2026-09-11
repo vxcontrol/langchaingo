@@ -23,7 +23,7 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 
 	warn.AddUnreadOptions(model, opts, unread,
 		"WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
-		"WithTopK", "WithSeed", "WithJSONMode")
+		"WithTopK", "WithSeed", "WithJSONMode", "WithMinP")
 	if opts.MinP != nil && *opts.MinP != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,

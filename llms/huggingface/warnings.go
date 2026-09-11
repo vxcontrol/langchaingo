@@ -28,9 +28,6 @@ func reportHuggingFaceOptions(
 }
 
 func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, asked string)) {
-	if opts.LogProbs != nil && *opts.LogProbs {
-		drop("WithLogProbs", "true")
-	}
 	if len(opts.StopWords) > 0 {
 		drop("WithStopWords", strconv.Itoa(len(opts.StopWords))+" words")
 	}
