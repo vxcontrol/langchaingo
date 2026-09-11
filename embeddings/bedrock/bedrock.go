@@ -42,15 +42,15 @@ func (b *Bedrock) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 	provider := getProvider(b.ModelID)
 
 	allEmbeds := make([][]float32, 0, len(texts))
-	var embeddings [][]float32
+	var embs [][]float32
 	var err error
 
 	for _, batch := range batchedTexts {
 		switch provider {
 		case "amazon":
-			embeddings, err = FetchAmazonTextEmbeddings(ctx, b.client, b.ModelID, batch)
+			embs, err = FetchAmazonTextEmbeddings(ctx, b.client, b.ModelID, batch)
 		case "cohere":
-			embeddings, err = FetchCohereTextEmbeddings(ctx, b.client, b.ModelID, batch, CohereInputTypeText)
+			embs, err = FetchCohereTextEmbeddings(ctx, b.client, b.ModelID, batch, CohereInputTypeText)
 		default:
 			err = errors.New("unsupported text embedding provider: " + provider)
 		}
@@ -58,7 +58,10 @@ func (b *Bedrock) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 		if err != nil {
 			return nil, err
 		}
-		allEmbeds = append(allEmbeds, embeddings...)
+		if err := embeddings.CheckEmbeddings(embs, len(batch)); err != nil {
+			return nil, err
+		}
+		allEmbeds = append(allEmbeds, embs...)
 	}
 	return allEmbeds, nil
 }
@@ -66,14 +69,14 @@ func (b *Bedrock) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 // EmbedQuery implements embeddings.Embedder
 // and generates an embedding for the supplied text.
 func (b *Bedrock) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
-	var embeddings [][]float32
+	var embs [][]float32
 	var err error
 
 	switch provider := getProvider(b.ModelID); provider {
 	case "amazon":
-		embeddings, err = FetchAmazonTextEmbeddings(ctx, b.client, b.ModelID, []string{text})
+		embs, err = FetchAmazonTextEmbeddings(ctx, b.client, b.ModelID, []string{text})
 	case "cohere":
-		embeddings, err = FetchCohereTextEmbeddings(ctx, b.client, b.ModelID, []string{text}, CohereInputTypeQuery)
+		embs, err = FetchCohereTextEmbeddings(ctx, b.client, b.ModelID, []string{text}, CohereInputTypeQuery)
 	default:
 		err = errors.New("unsupported text embedding provider: " + provider)
 	}
@@ -81,7 +84,11 @@ func (b *Bedrock) EmbedQuery(ctx context.Context, text string) ([]float32, error
 	if err != nil {
 		return nil, err
 	}
-	return embeddings[0], nil
+	if len(embs) == 0 {
+		return nil, embeddings.ErrNoEmbedding
+	}
+
+	return embs[0], nil
 }
 
 var _ embeddings.Embedder = &Bedrock{}
