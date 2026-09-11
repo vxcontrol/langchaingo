@@ -102,6 +102,10 @@ func reasoningEffort(opts *llms.CallOptions) string {
 	if opts.Reasoning.ResolveMode() == llms.ReasoningOff {
 		return "none"
 	}
+	if opts.Reasoning.DelegatesDepth() {
+		return ""
+	}
+
 	return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 }
 

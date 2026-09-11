@@ -91,11 +91,11 @@ func TestModernReasoningSendsNoBudgetItCannotCompute(t *testing.T) {
 			absent:  `"max_tokens":-`,
 		},
 		{
-			name:    "a negative budget under a mapped effort uses the effort's budget",
+			name:    "a negative budget is no budget at all, so the effort travels",
 			effort:  llms.ReasoningMedium,
 			tokens:  -5,
-			present: `"max_tokens":5461`,
-			absent:  `"effort"`,
+			present: `"effort":"medium"`,
+			absent:  `"max_tokens"`,
 		},
 		{
 			name:    "an explicit budget is sent as given",

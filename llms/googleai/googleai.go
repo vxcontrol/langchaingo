@@ -1119,11 +1119,11 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		if !reasoning.GeminiSupportsThinking(model) {
 			return nil, nil
 		}
-		if reasoning.GeminiTogglesThinkingByLevel(model) {
-			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
-		}
 		if cfg.DelegatesDepth() {
 			return adaptiveThinkingConfig(model), nil
+		}
+		if reasoning.GeminiTogglesThinkingByLevel(model) {
+			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
 		}
 		// An effort with no explicit token budget maps to the qualitative
 		// thinking_level on Gemini 3.x (its native control, where thinking_budget is
@@ -1154,7 +1154,7 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 const geminiDynamicBudget = -1
 
 func adaptiveThinkingConfig(model string) *genai.ThinkingConfig {
-	if reasoning.GeminiUsesThinkingLevel(model) {
+	if reasoning.GeminiUsesThinkingLevel(model) || reasoning.GeminiTogglesThinkingByLevel(model) {
 		return &genai.ThinkingConfig{IncludeThoughts: true}
 	}
 	dynamic := int32(geminiDynamicBudget)

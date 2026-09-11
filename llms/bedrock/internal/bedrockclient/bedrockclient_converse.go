@@ -222,6 +222,12 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			return nil
 		}
 		setNova := func() {
+			if input.ReasoningConfig.DelegatesDepth() {
+				familyFields = converseNovaFields{
+					ReasoningConfig: &converseNovaReasoningConfig{Type: "enabled"},
+				}
+				return
+			}
 			effort := reasoning.NovaEffort(string(input.ReasoningConfig.GetEffort(maxTokens)))
 			familyFields = converseNovaFields{
 				ReasoningConfig: &converseNovaReasoningConfig{Type: "enabled", MaxReasoningEffort: effort},
@@ -233,6 +239,10 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			}
 		}
 		setGrok := func() {
+			if input.ReasoningConfig.DelegatesDepth() {
+				familyFields = converseGrokFields{Reasoning: &converseGrokReasoning{}}
+				return
+			}
 			effort := reasoning.GrokEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
 			familyFields = converseGrokFields{Reasoning: &converseGrokReasoning{Effort: effort}}
 		}

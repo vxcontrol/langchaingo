@@ -396,7 +396,7 @@ func (o *LLM) setReasoning(
 			reportDelegatedDepth(warn, model, delegated, reasoning.OpenAIDisableEffort)
 			return reasoning.OpenAIDisableEffort, nil
 		}
-		if delegated && reasoning.OpenAIThinkingOptIn(model) {
+		if delegated && reasoning.ThinkingOptIn(model) {
 			reportDelegatedDepth(warn, model, delegated, "")
 		}
 		return "", nil
