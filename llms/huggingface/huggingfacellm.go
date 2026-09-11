@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -13,9 +14,11 @@ import (
 )
 
 var (
+	ErrEmptyMessages            = errors.New("huggingface: the call carried no message to send")
 	ErrEmptyResponse            = errors.New("empty response")
 	ErrMissingToken             = errors.New("missing the Hugging Face API token. Set it in the HF_TOKEN or HUGGINGFACEHUB_API_TOKEN environment variable, or save it to ~/.cache/huggingface/token") //nolint:lll
 	ErrUnexpectedResponseLength = errors.New("unexpected length of response")
+	ErrUnsupportedPart          = errors.New("huggingface: the door sends text and the message carries another part")
 )
 
 type LLM struct {
@@ -52,19 +55,24 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(opts)
 	}
 
+	if len(messages) == 0 || len(messages[0].Parts) == 0 {
+		return nil, ErrEmptyMessages
+	}
+	part, ok := messages[0].Parts[0].(llms.TextContent)
+	if !ok {
+		return nil, fmt.Errorf("%w: %T", ErrUnsupportedPart, messages[0].Parts[0])
+	}
+
 	warn := &llms.Warnings{}
 	reportHuggingFaceOptions(warn, opts.GetModel(), opts, messages)
 
-	// Assume we get a single text message
-	msg0 := messages[0]
-	part := msg0.Parts[0]
 	result, err := o.client.RunInference(ctx, &huggingfaceclient.InferenceRequest{
 		Model:       opts.GetModel(),
-		Prompt:      part.(llms.TextContent).Text,
-		Temperature: opts.GetTemperature(),
-		TopP:        opts.GetTopP(),
-		MaxLength:   opts.GetMaxLength(),
-		Seed:        opts.GetSeed(),
+		Prompt:      part.Text,
+		Temperature: opts.Temperature,
+		TopP:        opts.TopP,
+		MaxTokens:   opts.MaxTokens,
+		Seed:        opts.Seed,
 		Effort:      reasoningEffort(opts),
 	})
 	if err != nil {

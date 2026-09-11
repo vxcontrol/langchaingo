@@ -30,7 +30,7 @@ func reportHuggingFaceOptions(
 		}
 	}
 
-	dropInt("WithMaxTokens", opts.MaxTokens)
+	dropInt("WithMaxLength", opts.MaxLength)
 	dropInt("WithTopK", opts.TopK)
 	dropInt("WithMinLength", opts.MinLength)
 	dropCount := func(option string, v *int) {

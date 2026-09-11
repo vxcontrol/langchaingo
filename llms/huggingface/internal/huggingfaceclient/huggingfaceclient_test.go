@@ -88,8 +88,8 @@ func TestClient_RunInferenceWithProvider(t *testing.T) {
 	req := &InferenceRequest{
 		Model:       "deepseek-ai/DeepSeek-R1-0528",
 		Prompt:      "Hello, how are you?",
-		Temperature: 0.5,
-		MaxLength:   50,
+		Temperature: ptr(0.5),
+		MaxTokens:   ptr(50),
 	}
 
 	resp, err := client.RunInference(ctx, req)

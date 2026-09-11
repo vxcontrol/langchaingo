@@ -46,7 +46,7 @@ func TestEveryOptionWithNoFieldOnThisDoorIsReported(t *testing.T) {
 	t.Parallel()
 
 	resp := generateForWarnings(t, oneMessage(),
-		llms.WithMaxTokens(100), llms.WithTopK(5), llms.WithMinLength(2),
+		llms.WithMaxLength(100), llms.WithTopK(5), llms.WithMinLength(2),
 		llms.WithN(2), llms.WithCandidateCount(3), llms.WithTopLogProbs(4),
 		llms.WithMinP(0.1), llms.WithRepetitionPenalty(1.1),
 		llms.WithFrequencyPenalty(0.5), llms.WithPresencePenalty(0.25),
@@ -56,7 +56,7 @@ func TestEveryOptionWithNoFieldOnThisDoorIsReported(t *testing.T) {
 
 	got := hfWarningsByOption(resp.Warnings)
 	for option, asked := range map[string]string{
-		"WithMaxTokens": "100", "WithTopK": "5", "WithMinLength": "2",
+		"WithMaxLength": "100", "WithTopK": "5", "WithMinLength": "2",
 		"WithN": "2", "WithCandidateCount": "3", "WithTopLogProbs": "4",
 		"WithMinP": "0.1", "WithRepetitionPenalty": "1.1",
 		"WithFrequencyPenalty": "0.5", "WithPresencePenalty": "0.25",
