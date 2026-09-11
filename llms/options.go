@@ -134,7 +134,8 @@ func (r *ReasoningConfig) HasExplicitTokens() bool {
 // DelegatesDepth reports whether the caller handed the depth decision to the
 // model: adaptive with no effort and no budget of its own.
 func (r *ReasoningConfig) DelegatesDepth() bool {
-	return r != nil && r.Adaptive && r.Effort == ReasoningNone && !r.HasExplicitTokens()
+	return r != nil && r.Mode != ReasoningOff &&
+		r.Adaptive && r.Effort == ReasoningNone && !r.HasExplicitTokens()
 }
 
 func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
