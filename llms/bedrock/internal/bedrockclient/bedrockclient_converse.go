@@ -821,6 +821,34 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 }
 
 // processStreamingResponse processes streaming events
+func deliverToolCall(
+	ctx context.Context, callback streaming.Callback, builder *converseToolCallBuilder,
+) (llms.ToolCall, error) {
+	if callback != nil {
+		chunk := streaming.Chunk{Type: streaming.ChunkTypeToolCall, ToolCall: builder.streamingCall()}
+		if err := callback(ctx, chunk); err != nil {
+			return llms.ToolCall{}, err
+		}
+	}
+
+	return builder.toolCall(), nil
+}
+
+func salvageToolCalls(
+	ctx context.Context, callback streaming.Callback, pending map[int32]*converseToolCallBuilder,
+) ([]llms.ToolCall, error) {
+	calls := make([]llms.ToolCall, 0, len(pending))
+	for _, index := range slices.Sorted(maps.Keys(pending)) {
+		call, err := deliverToolCall(ctx, callback, pending[index])
+		if err != nil {
+			return calls, err
+		}
+		calls = append(calls, call)
+	}
+
+	return calls, nil
+}
+
 func (c *ConverseClient) processStreamingResponse(ctx context.Context, response *bedrockruntime.ConverseStreamOutput, callback streaming.Callback) (*llms.ContentResponse, error) {
 	var fullContent strings.Builder
 	var reasoningDeltas converseReasoningStream
@@ -886,27 +914,25 @@ DoStream:
 			index := aws.ToInt32(e.Value.ContentBlockIndex)
 			if builder, ok := currentToolCalls[index]; ok {
 				delete(currentToolCalls, index)
-				if callback != nil {
-					chunk := streaming.Chunk{
-						Type:     streaming.ChunkTypeToolCall,
-						ToolCall: builder.streamingCall(),
-					}
-					if err := callback(ctx, chunk); err != nil {
-						streamErr = err
-						break DoStream
-					}
+				call, err := deliverToolCall(ctx, callback, builder)
+				if err != nil {
+					streamErr = err
+					break DoStream
 				}
-				toolCalls = append(toolCalls, builder.toolCall())
+				toolCalls = append(toolCalls, call)
 			}
 		case *types.ConverseStreamOutputMemberMessageStop:
 			// The terminal event carries the stop reason (end_turn, tool_use,
 			// max_tokens, guardrail_intervened, content_filtered, ...).
 			stopReason = string(e.Value.StopReason)
 			// Stream completed - ensure any remaining tool calls are added
-			for _, index := range slices.Sorted(maps.Keys(currentToolCalls)) {
-				toolCalls = append(toolCalls, currentToolCalls[index].toolCall())
-			}
+			salvaged, err := salvageToolCalls(ctx, callback, currentToolCalls)
+			toolCalls = append(toolCalls, salvaged...)
 			currentToolCalls = nil
+			if err != nil {
+				streamErr = err
+				break DoStream
+			}
 		case *types.ConverseStreamOutputMemberMetadata:
 			usage = e.Value.Usage
 		}

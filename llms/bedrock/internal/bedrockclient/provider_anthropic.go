@@ -486,6 +486,7 @@ type streamingCompletionResponseChunk struct {
 		ID    string         `json:"id"`
 		Name  string         `json:"name"`
 		Input map[string]any `json:"input"`
+		Data  string         `json:"data"`
 	} `json:"content_block"`
 	AmazonBedrockInvocationMetrics struct {
 		InputTokenCount   int32 `json:"inputTokenCount"`
@@ -526,6 +527,7 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 	var currentToolCall *streaming.ToolCall
 	var toolCalls []llms.ToolCall
 	var signature strings.Builder
+	var redacted [][]byte
 
 	var streamErr error
 
@@ -548,10 +550,15 @@ DoStream:
 				usage = mergeAnthropicUsage(usage, resp.Message.Usage, resp.Usage)
 				applyAnthropicUsage(contentchoices[0].GenerationInfo, usage)
 			case "content_block_start":
-				if resp.ContentBlock.Type == "tool_use" {
+				switch resp.ContentBlock.Type {
+				case "tool_use":
 					currentToolCall = &streaming.ToolCall{
 						ID:   resp.ContentBlock.ID,
 						Name: resp.ContentBlock.Name,
+					}
+				case "redacted_thinking":
+					if resp.ContentBlock.Data != "" {
+						redacted = append(redacted, []byte(resp.ContentBlock.Data))
 					}
 				}
 			case "content_block_delta":
@@ -633,6 +640,12 @@ DoStream:
 			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
 		}
 		contentchoices[0].Reasoning.Signature = []byte(signature.String())
+	}
+	if len(redacted) > 0 {
+		if contentchoices[0].Reasoning == nil {
+			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
+		}
+		contentchoices[0].Reasoning.Redacted = append(contentchoices[0].Reasoning.Redacted, redacted...)
 	}
 
 	contentchoices[0].Content = streamedContent.String()
