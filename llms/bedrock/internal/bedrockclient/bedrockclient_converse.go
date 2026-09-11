@@ -368,10 +368,12 @@ func (a *aiMessageAccumulator) build() types.Message {
 			Value: &reasoningBlock,
 		})
 	}
-	if a.reasoning != nil && len(a.reasoning.Redacted) > 0 {
-		content = append(content, &types.ContentBlockMemberReasoningContent{
-			Value: &types.ReasoningContentBlockMemberRedactedContent{Value: a.reasoning.Redacted},
-		})
+	if a.reasoning != nil {
+		for _, block := range a.reasoning.Redacted {
+			content = append(content, &types.ContentBlockMemberReasoningContent{
+				Value: &types.ReasoningContentBlockMemberRedactedContent{Value: block},
+			})
+		}
 	}
 
 	for _, text := range a.textBlocks {
@@ -524,8 +526,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			}
 			humanBlocks = append(humanBlocks, converseMsg.Content...)
 
-			isLast := i == len(messages)-1
-			if isLast || messages[i+1].Role != llms.ChatMessageTypeHuman {
+			if nextSpeakingRole(messages, i) != llms.ChatMessageTypeHuman {
 				flushHuman()
 			}
 
@@ -622,6 +623,16 @@ func (c *ConverseClient) addCachePointToMessages(messages []types.Message) {
 			Ttl:  types.CacheTTLFiveMinutes,
 		},
 	})
+}
+
+func nextSpeakingRole(messages []Message, from int) llms.ChatMessageType {
+	for _, msg := range messages[from+1:] {
+		if msg.Role != llms.ChatMessageTypeSystem {
+			return msg.Role
+		}
+	}
+
+	return ""
 }
 
 // ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
@@ -954,7 +965,7 @@ func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
 	info["PromptTokens"] = promptTokens
 }
 
-func (c *ConverseClient) processReasoning(reasoningContent string, signature, redacted []byte) *reasoning.ContentReasoning {
+func (c *ConverseClient) processReasoning(reasoningContent string, signature []byte, redacted [][]byte) *reasoning.ContentReasoning {
 	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
 		return nil
 	}
@@ -969,7 +980,7 @@ func (c *ConverseClient) processReasoning(reasoningContent string, signature, re
 type converseReasoningStream struct {
 	text      strings.Builder
 	signature bytes.Buffer
-	redacted  []byte
+	redacted  [][]byte
 }
 
 func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (readableText string) {
@@ -982,7 +993,7 @@ func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (r
 			a.signature.WriteString(block.Value)
 		}
 	case *types.ReasoningContentBlockDeltaMemberRedactedContent:
-		a.redacted = append(a.redacted, block.Value...)
+		a.redacted = append(a.redacted, block.Value)
 	}
 	return ""
 }
@@ -1064,7 +1075,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 				case *types.ReasoningContentBlockMemberRedactedContent:
 					if len(content.Value) > 0 {
 						choice.Reasoning = ensureReasoning(choice.Reasoning)
-						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value...)
+						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value)
 					}
 				}
 			}

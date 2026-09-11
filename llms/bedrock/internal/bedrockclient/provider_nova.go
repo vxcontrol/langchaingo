@@ -260,13 +260,16 @@ func createNovaCompletion(ctx context.Context,
 	}
 
 	content, contentReasoning := splitNovaReasoning(output.Output.Message.Content)
-	if len(content) == 0 {
+	if len(content) == 0 && contentReasoning == nil {
 		return nil, errors.New("no results")
 	} else if stopReason := output.StopReason; stopReason != NovaCompletionReasonEndTurn &&
 		stopReason != NovaCompletionReasonStopSequence &&
 		stopReason != NovaCompletionReasonMaxTokens &&
 		stopReason != NovaCompletionReasonContentFiltered {
 		return nil, errors.New("completed due to " + stopReason + ". Maybe try increasing max tokens")
+	}
+	if len(content) == 0 {
+		content = []novaOutputContent{{}}
 	}
 	Contentchoices := make([]*llms.ContentChoice, len(content))
 	for i, c := range content {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,7 +51,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 
 		assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 		require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning")
-		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted))
+		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
 		assert.False(t, resp.Choices[0].Reasoning.IsEmpty(),
 			"a turn carrying an encrypted thought is not an empty one")
 	})
@@ -75,7 +76,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 		_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: []byte(encrypted)}),
+				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: [][]byte{[]byte(encrypted)}}),
 			}},
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 		}, llms.WithMaxTokens(64))
@@ -147,6 +148,37 @@ func TestAStreamedEncryptedThoughtDoesNotCostTheAnswer(t *testing.T) {
 
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 	require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning on the streamed leg")
-	assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted))
+	assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
 	assert.False(t, resp.Choices[0].Reasoning.IsEmpty())
+}
+
+func TestTwoEncryptedBlocksGoBackAsTwo(t *testing.T) {
+	t.Parallel()
+
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"msg_test","type":"message","role":"assistant",`+
+			`"model":"claude-opus-4-6","content":[{"type":"text","text":"ok"}],`+
+			`"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("test-key"),
+		anthropic.WithBaseURL(srv.URL), anthropic.WithModel("claude-opus-4-6"))
+	require.NoError(t, err)
+
+	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextContent{
+			Text:      "answer",
+			Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{[]byte("first"), []byte("second")}},
+		}}},
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
+	}, llms.WithMaxTokens(64))
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, strings.Count(string(body), `"type":"redacted_thinking"`),
+		"two encrypted blocks must reach the vendor as two")
 }

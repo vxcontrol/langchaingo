@@ -389,7 +389,7 @@ func processAnthropicResponse(
 	// According to Anthropic docs, there's ONE thinking block per response
 	var reasoningContent strings.Builder
 	var signature []byte
-	var redacted []byte
+	var redacted [][]byte
 
 	for _, content := range result.Content {
 		switch cv := content.(type) {
@@ -400,7 +400,7 @@ func processAnthropicResponse(
 			}
 		case *anthropicclient.RedactedThinkingContent:
 			if cv.Data != "" {
-				redacted = append(redacted, []byte(cv.Data)...)
+				redacted = append(redacted, []byte(cv.Data))
 			}
 		}
 	}
@@ -862,10 +862,10 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 		if p.Reasoning.Content != "" || len(p.Reasoning.Signature) > 0 {
 			message.Content = append(message.Content, thinkingBlock)
 		}
-		if len(p.Reasoning.Redacted) > 0 {
+		for _, block := range p.Reasoning.Redacted {
 			message.Content = append(message.Content, &anthropicclient.RedactedThinkingContent{
 				Type: anthropicclient.EventTypeRedactedThinking,
-				Data: string(p.Reasoning.Redacted),
+				Data: string(block),
 			})
 		}
 	}
