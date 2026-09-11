@@ -63,7 +63,7 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 	if opts.LogProbs != nil && *opts.LogProbs {
 		drop("WithLogProbs", "true")
 	}
-	if opts.JSONMode {
+	if opts.JSONMode && opts.StructuredOutput == nil {
 		drop("WithJSONMode", "true")
 	}
 	return warnings
