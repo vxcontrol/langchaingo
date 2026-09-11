@@ -1,72 +1,42 @@
 package bedrock
 
 import (
-	"strconv"
-
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 )
 
-// The legacy payloads differ per provider; the Converse request has none of
-// these fields at all.
-var (
-	legacyCarriesPenalties      = map[string]bool{"ai21": true}
-	legacyCarriesCandidateCount = map[string]bool{"ai21": true, "cohere": true}
-)
+func legacyCarriesPenalties(model string) bool {
+	return bedrockclient.GetProvider(model) == "ai21" && !bedrockclient.IsAi21Jamba(model)
+}
+
+func legacyCarriesCandidateCount(model string) bool {
+	switch bedrockclient.GetProvider(model) {
+	case "ai21":
+		return true
+	case "cohere":
+		return !bedrockclient.IsCohereCommandR(model)
+	}
+	return false
+}
 
 func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []llms.Warning {
 	const unread = "the bedrock request for this model has no field for it"
 
-	provider := bedrockclient.GetProvider(model)
-	carriesPenalties := !converse && legacyCarriesPenalties[provider]
-	carriesCandidateCount := !converse && legacyCarriesCandidateCount[provider]
-
-	var warnings []llms.Warning
-	var extra llms.Warnings
-	extra.AddUnreadExtraBody(model, opts, extraBodyUnread)
-	warnings = append(warnings, extra.List()...)
-
-	drop := func(option, asked string) {
-		warnings = append(warnings, llms.Warning{
-			Kind: llms.WarningDrop, Option: option, Model: model,
-			Asked: asked, Reason: unread,
-		})
-	}
-	for _, o := range []struct {
-		option  string
-		value   *float64
-		carried bool
-	}{
-		{"WithMinP", opts.MinP, false},
-		{"WithRepetitionPenalty", opts.RepetitionPenalty, carriesPenalties},
-		{"WithFrequencyPenalty", opts.FrequencyPenalty, carriesPenalties},
-		{"WithPresencePenalty", opts.PresencePenalty, carriesPenalties},
-	} {
-		if !o.carried && o.value != nil && *o.value != 0 {
-			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
+	carried := []string{"WithTopK"}
+	if !converse {
+		if legacyCarriesPenalties(model) {
+			carried = append(carried,
+				"WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty")
+		}
+		if legacyCarriesCandidateCount(model) {
+			carried = append(carried, "WithCandidateCount")
 		}
 	}
-	for _, o := range []struct {
-		option  string
-		value   *int
-		neutral int
-		carried bool
-	}{
-		{"WithN", opts.N, 1, false},
-		{"WithCandidateCount", opts.CandidateCount, 1, carriesCandidateCount},
-		{"WithTopLogProbs", opts.TopLogProbs, 0, false},
-	} {
-		if !o.carried && o.value != nil && *o.value != o.neutral {
-			drop(o.option, strconv.Itoa(*o.value))
-		}
-	}
-	if opts.LogProbs != nil && *opts.LogProbs {
-		drop("WithLogProbs", "true")
-	}
-	if opts.JSONMode {
-		drop("WithJSONMode", "true")
-	}
-	return warnings
+
+	var warn llms.Warnings
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+	warn.AddUnreadOptions(model, opts, unread, carried...)
+	return warn.List()
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

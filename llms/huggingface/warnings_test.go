@@ -114,3 +114,22 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithLogProbs(true), llms.WithMinP(0.05), llms.WithTopK(40),
+		llms.WithN(2), llms.WithCandidateCount(3), llms.WithTopLogProbs(5),
+		llms.WithMinLength(10), llms.WithMaxLength(20), llms.WithJSONMode())
+
+	seen := make(map[string]int, len(resp.Warnings))
+	for _, w := range resp.Warnings {
+		seen[w.Option]++
+	}
+	for option, count := range seen {
+		require.Equal(t, 1, count, "%s reported %d times: %v", option, count, resp.Warnings)
+	}
+	require.Contains(t, seen, "WithLogProbs", "the door builds no logprobs field")
+}

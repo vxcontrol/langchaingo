@@ -11,44 +11,7 @@ func reportMistralUnread(warn *llms.Warnings, model string, opts *llms.CallOptio
 	const unread = "the door's request has no field for it"
 
 	warn.AddUnreadExtraBody(model, *opts, extraBodyUnread)
-
-	drop := func(option, asked string) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: option, Model: model,
-			Asked: asked, Reason: unread,
-		})
-	}
-	for _, o := range []struct {
-		option string
-		value  *float64
-	}{
-		{"WithMinP", opts.MinP},
-		{"WithRepetitionPenalty", opts.RepetitionPenalty},
-		{"WithFrequencyPenalty", opts.FrequencyPenalty},
-		{"WithPresencePenalty", opts.PresencePenalty},
-	} {
-		if o.value != nil && *o.value != 0 {
-			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
-		}
-	}
-	for _, o := range []struct {
-		option  string
-		value   *int
-		neutral int
-	}{
-		{"WithTopK", opts.TopK, 0},
-		{"WithMinLength", opts.MinLength, 0},
-		{"WithTopLogProbs", opts.TopLogProbs, 0},
-		{"WithN", opts.N, 1},
-		{"WithCandidateCount", opts.CandidateCount, 1},
-	} {
-		if o.value != nil && *o.value != o.neutral {
-			drop(o.option, strconv.Itoa(*o.value))
-		}
-	}
-	if opts.LogProbs != nil && *opts.LogProbs {
-		drop("WithLogProbs", "true")
-	}
+	warn.AddUnreadOptions(model, *opts, unread, "WithSeed", "WithJSONMode")
 }
 
 func reportMistralOptions(warn *llms.Warnings, model string, opts *llms.CallOptions) {

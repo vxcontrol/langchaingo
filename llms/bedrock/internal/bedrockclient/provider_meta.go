@@ -69,6 +69,7 @@ func createMetaCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	txt := processInputMessagesGeneric(messages)
 
@@ -76,7 +77,7 @@ func createMetaCompletion(ctx context.Context,
 		Prompt:      txt,
 		Temperature: options.GetTemperature(),
 		TopP:        options.GetTopP(),
-		MaxGenLen:   getMaxTokens(options.GetMaxTokens(), 512),
+		MaxGenLen:   maxTokensOnTheWire(warn, modelID, options, 512),
 	}
 
 	body, err := json.Marshal(input)

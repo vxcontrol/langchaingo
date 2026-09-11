@@ -68,9 +68,11 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
 		sent, thinkingSent := converseEffortOnTheWire(built)
-		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent)
+		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent,
+			cfg, converseThinkingBudget(built))
 	}
-	if kind, _ := llms.ClassifyToolChoice(input.ToolChoice); kind == llms.ToolChoiceNone &&
+	choice, _ := llms.ClassifyToolChoice(input.ToolChoice)
+	if choice == llms.ToolChoiceNone &&
 		built.ToolConfig != nil && built.ToolConfig.ToolChoice != nil {
 		if _, auto := built.ToolConfig.ToolChoice.(*types.ToolChoiceMemberAuto); auto {
 			warn.Add(llms.Warning{
@@ -80,18 +82,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	if thinking, ok := converseAdditionalFields(built)["thinking"].(map[string]any); ok {
-		sentType, _ := thinking["type"].(string)
-		reportMechanismSwap(warn, model, input.ReasoningConfig, sentType)
-	}
+	reportMechanismSwap(warn, model, input.ReasoningConfig, converseMechanismOnTheWire(built))
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
-	}
-	if len(input.Tools) > 0 && built.ToolConfig == nil {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
-			Asked: strconv.Itoa(len(input.Tools)) + " tools", Reason: omitted,
-		})
 	}
 }
 
@@ -133,6 +126,28 @@ func converseEffortOnTheWire(built *bedrockruntime.ConverseInput) (string, bool)
 	}
 	_, thinking := fields["thinking"]
 	return "", thinking
+}
+
+func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
+	fields := converseAdditionalFields(built)
+	if thinking, ok := fields["thinking"].(map[string]any); ok {
+		sentType, _ := thinking["type"].(string)
+		return sentType
+	}
+	for _, shape := range []struct{ key, effortKey string }{
+		{"reasoningConfig", "maxReasoningEffort"},
+		{"reasoning", "effort"},
+	} {
+		block, ok := fields[shape.key].(map[string]any)
+		if !ok {
+			continue
+		}
+		if effort, _ := block[shape.effortKey].(string); effort != "" {
+			return "effort"
+		}
+		return ""
+	}
+	return ""
 }
 
 func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {

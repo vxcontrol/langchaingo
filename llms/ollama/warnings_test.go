@@ -142,3 +142,22 @@ func TestMetadataSetAfterExtraBodyStillReportsTheLoss(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "enable_thinking", w.Asked)
 }
+
+func TestTheOllamaDoorReportsEachOptionOnce(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t,
+		llms.WithMinP(0.05), llms.WithN(2), llms.WithCandidateCount(3),
+		llms.WithLogProbs(true), llms.WithTopLogProbs(5),
+		llms.WithMinLength(10), llms.WithMaxLength(20),
+		llms.WithVerbosity("low"), llms.WithResponseMIMEType("application/json"))
+
+	seen := make(map[string]int, len(resp.Warnings))
+	for _, w := range resp.Warnings {
+		seen[w.Option]++
+	}
+	for option, count := range seen {
+		require.Equal(t, 1, count, "%s reported %d times: %v", option, count, resp.Warnings)
+	}
+	require.Contains(t, seen, "WithMinP", "the door sends only the client's min-p")
+}

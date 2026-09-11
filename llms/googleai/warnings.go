@@ -20,34 +20,9 @@ func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOpti
 			Reason: "the door sends candidate_count and never reads n",
 		})
 	}
-	if opts.MinP != nil && *opts.MinP != 0 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
-			Asked:  strconv.FormatFloat(*opts.MinP, 'g', -1, 64),
-			Reason: "the door's generation config has no min-p field to set",
-		})
-	}
-	if opts.RepetitionPenalty != nil && *opts.RepetitionPenalty != 0 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithRepetitionPenalty", Model: model,
-			Asked:  strconv.FormatFloat(*opts.RepetitionPenalty, 'g', -1, 64),
-			Reason: "the door's generation config has no repetition-penalty field to set",
-		})
-	}
-	if opts.LogProbs != nil && *opts.LogProbs {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithLogProbs", Model: model,
-			Asked:  "true",
-			Reason: "the door never sets logprobs on the generation config it builds",
-		})
-	}
-	if opts.TopLogProbs != nil && *opts.TopLogProbs != 0 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithTopLogProbs", Model: model,
-			Asked:  strconv.Itoa(*opts.TopLogProbs),
-			Reason: "the door never sets logprobs on the generation config it builds",
-		})
-	}
+	warn.AddUnreadOptions(model, opts, "the door's generation config has no field to set",
+		"WithTopK", "WithCandidateCount", "WithSeed", "WithN",
+		"WithFrequencyPenalty", "WithPresencePenalty", "WithResponseMIMEType", "WithJSONMode")
 	reportGoogleAIThinking(warn, model, opts, tc)
 }
 

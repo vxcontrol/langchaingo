@@ -12,6 +12,7 @@ func reportHuggingFaceOptions(
 	const unread = "the door builds no field for it"
 
 	warn.AddUnreadExtraBody(model, *opts, extraBodyUnread)
+	warn.AddUnreadOptions(model, *opts, unread, "WithSeed")
 
 	drop := func(option, asked string) {
 		warn.Add(llms.Warning{
@@ -19,33 +20,6 @@ func reportHuggingFaceOptions(
 			Asked: asked, Reason: unread,
 		})
 	}
-	dropFloat := func(option string, v *float64) {
-		if v != nil && *v != 0 {
-			drop(option, strconv.FormatFloat(*v, 'g', -1, 64))
-		}
-	}
-	dropInt := func(option string, v *int) {
-		if v != nil && *v != 0 {
-			drop(option, strconv.Itoa(*v))
-		}
-	}
-
-	dropInt("WithMaxLength", opts.MaxLength)
-	dropInt("WithTopK", opts.TopK)
-	dropInt("WithMinLength", opts.MinLength)
-	dropCount := func(option string, v *int) {
-		if v != nil && *v != 1 {
-			drop(option, strconv.Itoa(*v))
-		}
-	}
-	dropCount("WithN", opts.N)
-	dropCount("WithCandidateCount", opts.CandidateCount)
-	dropInt("WithTopLogProbs", opts.TopLogProbs)
-	dropFloat("WithMinP", opts.MinP)
-	dropFloat("WithRepetitionPenalty", opts.RepetitionPenalty)
-	dropFloat("WithFrequencyPenalty", opts.FrequencyPenalty)
-	dropFloat("WithPresencePenalty", opts.PresencePenalty)
-
 	reportHuggingFaceShapedOptions(opts, drop)
 	if cfg := opts.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
 		drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
@@ -54,9 +28,6 @@ func reportHuggingFaceOptions(
 }
 
 func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, asked string)) {
-	if opts.LogProbs != nil && *opts.LogProbs {
-		drop("WithLogProbs", "true")
-	}
 	if len(opts.StopWords) > 0 {
 		drop("WithStopWords", strconv.Itoa(len(opts.StopWords))+" words")
 	}
@@ -79,12 +50,6 @@ func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, as
 	}
 	if opts.StructuredOutput != nil {
 		drop("WithStructuredOutput", opts.StructuredOutput.Name)
-	}
-	if opts.JSONMode {
-		drop("WithJSONMode", "true")
-	}
-	if opts.ResponseMIMEType != nil {
-		drop("WithResponseMIMEType", *opts.ResponseMIMEType)
 	}
 }
 

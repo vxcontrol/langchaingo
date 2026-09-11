@@ -152,10 +152,10 @@ func getAi21Role(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions) (*llms.ContentResponse, error) {
+func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	// Check if this is a Jamba model (use messages API)
-	if strings.Contains(modelID, "jamba") {
-		return createAi21JambaCompletion(ctx, client, modelID, messages, options)
+	if IsAi21Jamba(modelID) {
+		return createAi21JambaCompletion(ctx, client, modelID, messages, options, warn)
 	}
 
 	// Legacy J2 models (use prompt API)
@@ -164,7 +164,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 		Prompt:        txt,
 		Temperature:   options.GetTemperature(),
 		TopP:          options.GetTopP(),
-		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 2048),
+		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 2048),
 		StopSequences: options.StopWords,
 		CountPenalty: struct {
 			Scale float64 `json:"scale"`
@@ -232,7 +232,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 	return &llms.ContentResponse{Choices: choices}, nil
 }
 
-func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions) (*llms.ContentResponse, error) {
+func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	jambaMessages := make([]struct {
 		Role    string `json:"role"`
 		Content string `json:"content"`
@@ -249,7 +249,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 
 	inputContent := ai21JambaInput{
 		Messages:    jambaMessages,
-		MaxTokens:   getMaxTokens(options.GetMaxTokens(), 4096),
+		MaxTokens:   maxTokensOnTheWire(warn, modelID, options, 4096),
 		Temperature: options.GetTemperature(),
 		TopP:        options.GetTopP(),
 		Stop:        options.StopWords,

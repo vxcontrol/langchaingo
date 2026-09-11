@@ -246,7 +246,7 @@ func createAnthropicCompletion(ctx context.Context,
 		system = systemPrompt
 	}
 
-	maxTokens := getMaxTokens(options.GetMaxTokens(), 2048)
+	maxTokens := maxTokensOnTheWire(warn, modelID, options, 2048)
 	input := anthropicTextGenerationInput{
 		AnthropicVersion: AnthropicLatestVersion,
 		MaxTokens:        maxTokens,

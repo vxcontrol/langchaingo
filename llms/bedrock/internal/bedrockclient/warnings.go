@@ -14,6 +14,7 @@ var (
 	legacyCarriesTools     = map[string]bool{"anthropic": true}
 	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true}
 	legacyCarriesStopWords = map[string]bool{"meta": false}
+	legacyCarriesThinking  = map[string]bool{"anthropic": true, "nova": true}
 )
 
 func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options llms.CallOptions) {
@@ -49,6 +50,23 @@ func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options 
 			Asked: strings.Join(options.StopWords, ","), Reason: reason,
 		})
 	}
+	if !legacyCarriesThinking[provider] && options.Reasoning.ResolveMode() == llms.ReasoningOn {
+		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+}
+
+func reportThinkingUnsupported(warn *llms.Warnings, modelID string, cfg *llms.ReasoningConfig) {
+	asked := "thinking"
+	switch {
+	case cfg.HasExplicitTokens():
+		asked = strconv.Itoa(cfg.Tokens) + " tokens"
+	case cfg.Effort != "":
+		asked = string(cfg.Effort)
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+		Asked: asked, Reason: "the door puts no thinking on the request for this model",
+	})
 }
 
 func reportLegacyAnthropic(
@@ -73,7 +91,11 @@ func reportLegacyAnthropic(
 		if input.OutputConfig != nil {
 			sent = input.OutputConfig.Effort
 		}
-		reportEffortClamp(warn, modelID, string(cfg.Effort), sent, input.Thinking != nil)
+		sentBudget := 0
+		if input.Thinking != nil {
+			sentBudget = input.Thinking.BudgetTokens
+		}
+		reportEffortClamp(warn, modelID, string(cfg.Effort), sent, input.Thinking != nil, cfg, sentBudget)
 	}
 	if input.Thinking != nil {
 		reportMechanismSwap(warn, modelID, options.Reasoning, input.Thinking.Type)
@@ -84,6 +106,10 @@ func reportLegacyAnthropic(
 			sent = input.Thinking.BudgetTokens
 		}
 		reportThinkingBudget(warn, modelID, cfg.Tokens, sent)
+	}
+	if cfg := options.Reasoning; cfg.ResolveMode() == llms.ReasoningOn && input.Thinking == nil &&
+		cfg.Effort == "" && !cfg.HasExplicitTokens() {
+		reportThinkingUnsupported(warn, modelID, cfg)
 	}
 	if len(options.StopWords) > 0 && len(input.StopSequences) == 0 {
 		warn.Add(llms.Warning{
@@ -144,10 +170,13 @@ func reportThinkingBudget(warn *llms.Warnings, modelID string, asked, sent int) 
 	})
 }
 
-func reportEffortClamp(warn *llms.Warnings, modelID, asked, sent string, thinkingSent bool) {
+func reportEffortClamp(
+	warn *llms.Warnings, modelID, asked, sent string,
+	thinkingSent bool, cfg *llms.ReasoningConfig, sentBudget int,
+) {
 	switch {
 	case sent == "" && thinkingSent:
-		return
+		reportEffortAsBudget(warn, modelID, asked, cfg, sentBudget)
 	case sent == "":
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
@@ -160,6 +189,27 @@ func reportEffortClamp(warn *llms.Warnings, modelID, asked, sent string, thinkin
 			Reason: "the door sends only the efforts it records this model as accepting",
 		})
 	}
+}
+
+func reportEffortAsBudget(
+	warn *llms.Warnings, modelID, asked string, cfg *llms.ReasoningConfig, sentBudget int,
+) {
+	if sentBudget <= 0 {
+		return
+	}
+	if cfg != nil && cfg.HasExplicitTokens() {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: modelID,
+			Asked:  asked,
+			Reason: "the door sends the budget this model takes and has no field for the effort",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: modelID,
+		Asked: asked, Sent: strconv.Itoa(sentBudget) + " tokens",
+		Reason: "the door turns the effort into the thinking budget this model takes",
+	})
 }
 
 func reportMechanismSwap(warn *llms.Warnings, modelID string, cfg *llms.ReasoningConfig, sentType string) {
@@ -182,6 +232,9 @@ func reportNovaReasoning(warn *llms.Warnings, modelID string, options llms.CallO
 			Asked:  strconv.Itoa(cfg.Tokens) + " tokens",
 			Reason: "nova takes a reasoning effort, so a token budget has nowhere to go",
 		})
+	}
+	if effort != "" {
+		reportMechanismSwap(warn, modelID, options.Reasoning, "effort")
 	}
 	if !reasoning.NovaClearsInferenceConfigAt(effort) {
 		return

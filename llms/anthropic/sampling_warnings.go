@@ -13,45 +13,7 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	const unread = "the door builds no field for it"
 
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
-
-	drop := func(option, asked string) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: option, Model: model,
-			Asked: asked, Reason: unread,
-		})
-	}
-	for _, o := range []struct {
-		option string
-		value  *float64
-	}{
-		{"WithMinP", opts.MinP},
-		{"WithRepetitionPenalty", opts.RepetitionPenalty},
-		{"WithFrequencyPenalty", opts.FrequencyPenalty},
-		{"WithPresencePenalty", opts.PresencePenalty},
-	} {
-		if o.value != nil && *o.value != 0 {
-			drop(o.option, strconv.FormatFloat(*o.value, 'g', -1, 64))
-		}
-	}
-	for _, o := range []struct {
-		option  string
-		value   *int
-		neutral int
-	}{
-		{"WithN", opts.N, 1},
-		{"WithCandidateCount", opts.CandidateCount, 1},
-		{"WithTopLogProbs", opts.TopLogProbs, 0},
-	} {
-		if o.value != nil && *o.value != o.neutral {
-			drop(o.option, strconv.Itoa(*o.value))
-		}
-	}
-	if opts.LogProbs != nil && *opts.LogProbs {
-		drop("WithLogProbs", "true")
-	}
-	if opts.JSONMode {
-		drop("WithJSONMode", "true")
-	}
+	warn.AddUnreadOptions(model, opts, unread, "WithTopK")
 }
 
 func reportAnthropicEffort(
@@ -67,9 +29,13 @@ func reportAnthropicEffort(
 	if outputConfig != nil {
 		sent = outputConfig.Effort
 	}
+	sentBudget := 0
+	if thinking != nil {
+		sentBudget = thinking.Budget
+	}
 	switch {
 	case sent == "" && thinking != nil:
-		return
+		reportAnthropicEffortAsBudget(warn, model, asked, cfg, sentBudget)
 	case sent == "":
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
@@ -82,6 +48,27 @@ func reportAnthropicEffort(
 			Reason: "the door sends only the efforts it records this model as accepting",
 		})
 	}
+}
+
+func reportAnthropicEffortAsBudget(
+	warn *llms.Warnings, model, asked string, cfg *llms.ReasoningConfig, sentBudget int,
+) {
+	if sentBudget <= 0 {
+		return
+	}
+	if cfg.HasExplicitTokens() {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked:  asked,
+			Reason: "the door sends the budget this model takes and has no field for the effort",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+		Asked: asked, Sent: strconv.Itoa(sentBudget) + " tokens",
+		Reason: "the door turns the effort into the thinking budget this model takes",
+	})
 }
 
 func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
@@ -163,3 +150,52 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+
+func reportAnthropicCompletionsMessages(warn *llms.Warnings, model string, messages []llms.MessageContent) {
+	total := 0
+	for _, m := range messages {
+		total += len(m.Parts)
+	}
+	if total <= 1 {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "messages", Model: model,
+		Asked: strconv.Itoa(total) + " parts", Sent: "1 part",
+		Reason: "the legacy path sends the first part of the first message as the whole prompt",
+	})
+}
+
+func reportAnthropicCompletions(warn *llms.Warnings, model string, opts llms.CallOptions) {
+	const unread = "the legacy text-completions request has no field for it"
+
+	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
+	warn.AddUnreadOptions(model, opts, unread)
+
+	drop := func(option, asked string) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: option, Model: model,
+			Asked: asked, Reason: unread,
+		})
+	}
+	if len(opts.Tools) > 0 {
+		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
+	}
+	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
+		asked := name
+		if asked == "" {
+			asked = kind.String()
+		}
+		drop("WithToolChoice", asked)
+	}
+	if opts.StructuredOutput != nil {
+		drop("WithStructuredOutput", opts.StructuredOutput.Name)
+	}
+	if cfg := opts.Reasoning; cfg != nil && cfg.ResolveMode() != llms.ReasoningDefault {
+		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
+		if cfg.HasExplicitTokens() {
+			asked = strconv.Itoa(cfg.Tokens) + " tokens"
+		}
+		drop("WithReasoning", asked)
+	}
+}

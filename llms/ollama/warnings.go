@@ -21,35 +21,14 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 		})
 	}
 
+	warn.AddUnreadOptions(model, opts, unread,
+		"WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
+		"WithTopK", "WithSeed", "WithJSONMode", "WithMinP")
 	if opts.MinP != nil && *opts.MinP != 0 {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithMinP", Model: model,
 			Asked:  strconv.FormatFloat(*opts.MinP, 'g', -1, 64),
 			Reason: "the door sends only the min_p set on the client",
-		})
-	}
-	if opts.LogProbs != nil && *opts.LogProbs {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithLogProbs", Model: model,
-			Asked: "true", Reason: unread,
-		})
-	}
-	if opts.TopLogProbs != nil && *opts.TopLogProbs != 0 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithTopLogProbs", Model: model,
-			Asked: strconv.Itoa(*opts.TopLogProbs), Reason: unread,
-		})
-	}
-	if opts.N != nil && *opts.N != 1 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithN", Model: model,
-			Asked: strconv.Itoa(*opts.N), Reason: unread,
-		})
-	}
-	if opts.CandidateCount != nil && *opts.CandidateCount != 1 {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
-			Asked: strconv.Itoa(*opts.CandidateCount), Reason: unread,
 		})
 	}
 	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
