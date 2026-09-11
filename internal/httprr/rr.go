@@ -1157,6 +1157,8 @@ func getDefaultRequestScrubbers() []func(*http.Request) error {
 
 // getDefaultResponseScrubbers returns the default response scrubbing functions to remove
 // sensitive headers and tracing information from response recordings.
+const gatewayHeaderPrefix = "x-litellm-"
+
 func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 	return []func(*bytes.Buffer) error{
 		func(buf *bytes.Buffer) error {
@@ -1169,6 +1171,12 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 			// Remove Cf-Ray header (Cloudflare tracing)
 			resp.Header.Del("Cf-Ray")
 			resp.Header.Del("cf-ray")
+
+			for name := range resp.Header {
+				if strings.HasPrefix(strings.ToLower(name), gatewayHeaderPrefix) {
+					resp.Header.Del(name)
+				}
+			}
 
 			// Remove Set-Cookie headers (session tokens, etc.)
 			resp.Header.Del("Set-Cookie")
