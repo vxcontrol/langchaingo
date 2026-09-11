@@ -70,7 +70,8 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		sent, thinkingSent := converseEffortOnTheWire(built)
 		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent)
 	}
-	if kind, _ := llms.ClassifyToolChoice(input.ToolChoice); kind == llms.ToolChoiceNone &&
+	choice, _ := llms.ClassifyToolChoice(input.ToolChoice)
+	if choice == llms.ToolChoiceNone &&
 		built.ToolConfig != nil && built.ToolConfig.ToolChoice != nil {
 		if _, auto := built.ToolConfig.ToolChoice.(*types.ToolChoiceMemberAuto); auto {
 			warn.Add(llms.Warning{
@@ -86,12 +87,6 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
-	}
-	if len(input.Tools) > 0 && built.ToolConfig == nil {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
-			Asked: strconv.Itoa(len(input.Tools)) + " tools", Reason: omitted,
-		})
 	}
 }
 
