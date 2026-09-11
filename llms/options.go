@@ -128,7 +128,7 @@ func (r *ReasoningConfig) IsDisabled() bool {
 // HasExplicitTokens reports whether the caller set a token budget of its own,
 // rather than leaving the budget to be derived from an effort.
 func (r *ReasoningConfig) HasExplicitTokens() bool {
-	return r != nil && r.Tokens != 0
+	return r != nil && r.Tokens > 0
 }
 
 // DelegatesDepth reports whether the caller handed the depth decision to the
