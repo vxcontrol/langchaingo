@@ -712,7 +712,7 @@ func (o *LLM) CreateEmbedding(ctx context.Context, inputTexts []string) ([][]flo
 		return nil, ErrEmptyResponse
 	}
 	if len(inputTexts) != len(embeddings) {
-		return embeddings, ErrUnexpectedResponseLength
+		return nil, ErrUnexpectedResponseLength
 	}
 	return embeddings, nil
 }
