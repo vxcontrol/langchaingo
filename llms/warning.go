@@ -90,6 +90,78 @@ func (w *Warnings) addChange(option, model, reason, before, after string) {
 	}
 }
 
+var unreadCatalogue = []struct {
+	option string
+	asked  func(CallOptions) string
+}{
+	{"WithMinP", func(o CallOptions) string { return askedFloat(o.MinP) }},
+	{"WithRepetitionPenalty", func(o CallOptions) string { return askedFloat(o.RepetitionPenalty) }},
+	{"WithFrequencyPenalty", func(o CallOptions) string { return askedFloat(o.FrequencyPenalty) }},
+	{"WithPresencePenalty", func(o CallOptions) string { return askedFloat(o.PresencePenalty) }},
+	{"WithTopK", func(o CallOptions) string { return askedInt(o.TopK, 0) }},
+	{"WithN", func(o CallOptions) string { return askedInt(o.N, 1) }},
+	{"WithCandidateCount", func(o CallOptions) string { return askedInt(o.CandidateCount, 1) }},
+	{"WithTopLogProbs", func(o CallOptions) string { return askedInt(o.TopLogProbs, 0) }},
+	{"WithMinLength", func(o CallOptions) string { return askedInt(o.MinLength, 0) }},
+	{"WithMaxLength", func(o CallOptions) string { return askedInt(o.MaxLength, 0) }},
+	{"WithSeed", func(o CallOptions) string { return askedInt(o.Seed, 0) }},
+	{"WithVerbosity", func(o CallOptions) string { return askedString(o.Verbosity) }},
+	{"WithResponseMIMEType", func(o CallOptions) string { return askedString(o.ResponseMIMEType) }},
+	{"WithLogProbs", func(o CallOptions) string {
+		if o.LogProbs != nil && *o.LogProbs {
+			return "true"
+		}
+		return ""
+	}},
+	{"WithJSONMode", func(o CallOptions) string {
+		if o.JSONMode && o.StructuredOutput == nil {
+			return "true"
+		}
+		return ""
+	}},
+}
+
+func askedFloat(v *float64) string {
+	if v == nil || *v == 0 {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'g', -1, 64)
+}
+
+func askedInt(v *int, neutral int) string {
+	if v == nil || *v == neutral {
+		return ""
+	}
+	return strconv.Itoa(*v)
+}
+
+func askedString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+// AddUnreadOptions reports every catalogue option the caller set that this door
+// leaves off the wire. carried names the ones it does put there.
+func (w *Warnings) AddUnreadOptions(model string, opts CallOptions, reason string, carried ...string) {
+	onTheWire := make(map[string]bool, len(carried))
+	for _, option := range carried {
+		onTheWire[option] = true
+	}
+	for _, entry := range unreadCatalogue {
+		if onTheWire[entry.option] {
+			continue
+		}
+		if asked := entry.asked(opts); asked != "" {
+			w.Add(Warning{
+				Kind: WarningDrop, Option: entry.option, Model: model,
+				Asked: asked, Reason: reason,
+			})
+		}
+	}
+}
+
 // AddUnreadExtraBody records the WithExtraBody fields a door cannot merge.
 func (w *Warnings) AddUnreadExtraBody(model string, opts CallOptions, reason string) {
 	extraBody := ExtraBody(opts)

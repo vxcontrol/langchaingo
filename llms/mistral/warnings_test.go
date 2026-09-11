@@ -118,3 +118,14 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestTheMistralDoorReportsBothLengthOptionsItNeverReads(t *testing.T) {
+	t.Parallel()
+
+	got := mistralWarningsByOption(
+		generateForWarnings(t, llms.WithMinLength(10), llms.WithMaxLength(20)).Warnings)
+
+	for _, option := range []string{"WithMinLength", "WithMaxLength"} {
+		require.Contains(t, got, option, "the door's request has no field for it")
+	}
+}
