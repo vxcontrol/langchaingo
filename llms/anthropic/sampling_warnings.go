@@ -29,9 +29,13 @@ func reportAnthropicEffort(
 	if outputConfig != nil {
 		sent = outputConfig.Effort
 	}
+	sentBudget := 0
+	if thinking != nil {
+		sentBudget = thinking.Budget
+	}
 	switch {
 	case sent == "" && thinking != nil:
-		return
+		reportAnthropicEffortAsBudget(warn, model, asked, cfg, sentBudget)
 	case sent == "":
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
@@ -44,6 +48,27 @@ func reportAnthropicEffort(
 			Reason: "the door sends only the efforts it records this model as accepting",
 		})
 	}
+}
+
+func reportAnthropicEffortAsBudget(
+	warn *llms.Warnings, model, asked string, cfg *llms.ReasoningConfig, sentBudget int,
+) {
+	if sentBudget <= 0 {
+		return
+	}
+	if cfg.HasExplicitTokens() {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+			Asked:  asked,
+			Reason: "the door sends the budget this model takes and has no field for the effort",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+		Asked: asked, Sent: strconv.Itoa(sentBudget) + " tokens",
+		Reason: "the door turns the effort into the thinking budget this model takes",
+	})
 }
 
 func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {

@@ -54,6 +54,16 @@ func warningsByOption(warnings []llms.Warning) map[string]llms.Warning {
 	return byOption
 }
 
+func warningsFor(warnings []llms.Warning, option string) []llms.Warning {
+	var found []llms.Warning
+	for _, w := range warnings {
+		if w.Option == option {
+			found = append(found, w)
+		}
+	}
+	return found
+}
+
 func TestThinkingTakesTheSamplingParamsAndSaysSo(t *testing.T) {
 	t.Parallel()
 
@@ -139,11 +149,15 @@ func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	resp := generateForWarnings(t,
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningMedium, 30000))
 
-	w, ok := warningsByOption(resp.Warnings)["WithReasoning"]
-	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
-	require.Equal(t, llms.WarningClamp, w.Kind)
-	require.Equal(t, "30000 tokens", w.Asked)
-	require.NotEqual(t, w.Asked, w.Sent)
+	var clamp *llms.Warning
+	for _, w := range warningsFor(resp.Warnings, "WithReasoning") {
+		if w.Kind == llms.WarningClamp {
+			clamp = &w
+		}
+	}
+	require.NotNil(t, clamp, "no budget clamp in %v", resp.Warnings)
+	require.Equal(t, "30000 tokens", clamp.Asked)
+	require.NotEqual(t, clamp.Asked, clamp.Sent)
 }
 
 func TestAThinkingMechanismTheModelDoesNotOfferIsReported(t *testing.T) {

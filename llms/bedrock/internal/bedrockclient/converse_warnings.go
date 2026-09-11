@@ -68,7 +68,8 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
 		sent, thinkingSent := converseEffortOnTheWire(built)
-		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent)
+		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent,
+			cfg, converseThinkingBudget(built))
 	}
 	choice, _ := llms.ClassifyToolChoice(input.ToolChoice)
 	if choice == llms.ToolChoiceNone &&
