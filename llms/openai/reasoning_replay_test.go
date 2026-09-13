@@ -96,7 +96,9 @@ func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T)
 func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"qwen3.7-plus", "grok-4"} {
+	for _, model := range []string{
+		"qwen3.7-plus", "grok-4", "mistralai/mistral-small-2603", "openrouter/mistralai/mistral-medium-3-5", "magistral:24b",
+	} {
 		assert.Equal(t, []any{nil, "tool turn thought"}, replayedReasoning(t, model), model)
 	}
 }
