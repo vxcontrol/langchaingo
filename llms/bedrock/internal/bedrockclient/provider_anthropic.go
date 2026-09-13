@@ -324,9 +324,7 @@ func createAnthropicCompletion(ctx context.Context,
 
 	// Group content blocks by type for this choice
 	var textContent string
-	var reasoningContent string
-	var signature []byte
-	var redacted [][]byte
+	var thoughts reasoning.Collector
 	var toolCalls []llms.ToolCall
 
 	for _, c := range output.Content {
@@ -334,14 +332,9 @@ func createAnthropicCompletion(ctx context.Context,
 		case "text":
 			textContent += c.Text
 		case "thinking":
-			reasoningContent += c.Thinking
-			if len(c.Signature) > 0 {
-				signature = []byte(c.Signature)
-			}
+			thoughts.Thought(c.Thinking, []byte(c.Signature))
 		case "redacted_thinking":
-			if c.Data != "" {
-				redacted = append(redacted, []byte(c.Data))
-			}
+			thoughts.Encrypted([]byte(c.Data))
 		case "tool_use":
 			argumentsJSON, err := json.Marshal(c.Input)
 			if err != nil {
@@ -355,13 +348,14 @@ func createAnthropicCompletion(ctx context.Context,
 					Arguments: string(argumentsJSON),
 				},
 			})
+			thoughts.ToolCall()
 		}
 	}
 
 	// Create single choice with all content
 	choice := &llms.ContentChoice{
 		Content:        textContent,
-		Reasoning:      processReasoning(reasoningContent, signature, redacted),
+		Reasoning:      thoughts.Reasoning(),
 		ToolCalls:      toolCalls,
 		StopReason:     output.StopReason,
 		Truncated:      llms.IsTruncated(output.StopReason),
@@ -457,18 +451,6 @@ func applyAnthropicUsage(info map[string]any, usage anthropicUsage) {
 	info["ReasoningTokens"] = int(usage.OutputTokensDetails.ThinkingTokens)
 }
 
-func processReasoning(reasoningContent string, signature []byte, redacted [][]byte) *reasoning.ContentReasoning {
-	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
-		return nil
-	}
-
-	return &reasoning.ContentReasoning{
-		Content:   reasoningContent,
-		Signature: signature,
-		Redacted:  redacted,
-	}
-}
-
 type streamingCompletionResponseChunk struct {
 	Type  string `json:"type"`
 	Index int    `json:"index"`
@@ -526,8 +508,7 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 	var streamedContent strings.Builder
 	var currentToolCall *streaming.ToolCall
 	var toolCalls []llms.ToolCall
-	var signature strings.Builder
-	var redacted [][]byte
+	var thoughts streamedReasoning
 
 	var streamErr error
 
@@ -552,14 +533,14 @@ DoStream:
 			case "content_block_start":
 				switch resp.ContentBlock.Type {
 				case "tool_use":
+					thoughts.toolCall(int32(resp.Index))
 					currentToolCall = &streaming.ToolCall{
 						ID:   resp.ContentBlock.ID,
 						Name: resp.ContentBlock.Name,
 					}
 				case "redacted_thinking":
-					if resp.ContentBlock.Data != "" {
-						redacted = append(redacted, []byte(resp.ContentBlock.Data))
-					}
+					thought := thoughts.at(int32(resp.Index))
+					thought.redacted = append(thought.redacted, resp.ContentBlock.Data...)
 				}
 			case "content_block_delta":
 				switch resp.Delta.Type {
@@ -570,24 +551,21 @@ DoStream:
 						break DoStream
 					}
 				case "thinking_delta":
+					thought := thoughts.at(int32(resp.Index))
+					thought.signature.WriteString(resp.Delta.Signature)
 					if resp.Delta.Thinking != "" {
+						thought.text.WriteString(resp.Delta.Thinking)
 						chunk := streaming.Chunk{
 							Type:      streaming.ChunkTypeReasoning,
 							Reasoning: &reasoning.ContentReasoning{Content: resp.Delta.Thinking},
 						}
-						contentchoices[0].Reasoning = appendReasoning(contentchoices[0].Reasoning, resp.Delta.Thinking)
 						if err = options.StreamingFunc(ctx, chunk); err != nil {
 							streamErr = err
 							break DoStream
 						}
 					}
-					if resp.Delta.Signature != "" {
-						signature.WriteString(resp.Delta.Signature)
-					}
 				case "signature_delta":
-					if resp.Delta.Signature != "" {
-						signature.WriteString(resp.Delta.Signature)
-					}
+					thoughts.at(int32(resp.Index)).signature.WriteString(resp.Delta.Signature)
 				case "input_json_delta":
 					if currentToolCall != nil {
 						// Bedrock already sends deltas in PartialJSON, not full accumulated JSON
@@ -633,20 +611,7 @@ DoStream:
 
 	// Add tool calls to the final response
 	contentchoices[0].ToolCalls = toolCalls
-
-	// Add signature to reasoning if accumulated
-	if signature.Len() > 0 {
-		if contentchoices[0].Reasoning == nil {
-			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
-		}
-		contentchoices[0].Reasoning.Signature = []byte(signature.String())
-	}
-	if len(redacted) > 0 {
-		if contentchoices[0].Reasoning == nil {
-			contentchoices[0].Reasoning = &reasoning.ContentReasoning{}
-		}
-		contentchoices[0].Reasoning.Redacted = append(contentchoices[0].Reasoning.Redacted, redacted...)
-	}
+	contentchoices[0].Reasoning = thoughts.result()
 
 	contentchoices[0].Content = streamedContent.String()
 
@@ -665,15 +630,6 @@ DoStream:
 		}
 	}
 	return response, nil
-}
-
-func appendReasoning(reasoning *reasoning.ContentReasoning, reasoningContent string) *reasoning.ContentReasoning {
-	if reasoning == nil {
-		return processReasoning(reasoningContent, nil, nil)
-	}
-
-	reasoning.Content += reasoningContent
-	return reasoning
 }
 
 // process the input messages to anthropic supported input
@@ -720,33 +676,36 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 			continue
 		}
 		content := make([]anthropicTextGenerationInputContent, 0, len(chunk))
+		toolUses := 0
 		for _, message := range chunk {
-			// For AI messages with reasoning, add thinking blocks before text
-			if message.Role == llms.ChatMessageTypeAI && message.Reasoning != nil {
-				// Add thinking block if present
-				if message.Reasoning.Content != "" || len(message.Reasoning.Signature) > 0 {
-					thinkingBlock := anthropicTextGenerationInputContent{
-						Type:     "thinking",
-						Thinking: message.Reasoning.Content,
+			if message.Type == AnthropicMessageTypeToolUse {
+				toolUses++
+			}
+		}
+		afterToolUse := make([][]reasoning.Block, toolUses+1)
+		emitted := 0
+		for _, message := range chunk {
+			if message.Role == llms.ChatMessageTypeAI {
+				for _, thought := range message.Reasoning.Sequence() {
+					at := min(emitted+max(thought.AfterToolCalls, 0), toolUses)
+					if at == emitted {
+						content = append(content, anthropicThinkingContent(thought))
+						continue
 					}
-					if len(message.Reasoning.Signature) > 0 {
-						thinkingBlock.Signature = string(message.Reasoning.Signature)
-					}
-					content = append(content, thinkingBlock)
-				}
-				for _, block := range message.Reasoning.Redacted {
-					content = append(content, anthropicTextGenerationInputContent{
-						Type: "redacted_thinking",
-						Data: string(block),
-					})
+					afterToolUse[at] = append(afterToolUse[at], thought)
 				}
 			}
-			// Add regular content (text, tool_use, tool_result, etc.)
 			block, err := getAnthropicInputContent(message)
 			if err != nil {
 				return nil, "", err
 			}
 			content = append(content, block)
+			if message.Type == AnthropicMessageTypeToolUse {
+				emitted++
+				for _, thought := range afterToolUse[emitted] {
+					content = append(content, anthropicThinkingContent(thought))
+				}
+			}
 		}
 		inputContents = append(inputContents, &anthropicTextGenerationInputMessage{
 			Role:    role,
@@ -754,6 +713,17 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 		})
 	}
 	return inputContents, systemPrompt, nil
+}
+
+func anthropicThinkingContent(block reasoning.Block) anthropicTextGenerationInputContent {
+	if block.Redacted != nil {
+		return anthropicTextGenerationInputContent{Type: "redacted_thinking", Data: string(block.Redacted)}
+	}
+	return anthropicTextGenerationInputContent{
+		Type:      "thinking",
+		Thinking:  block.Text,
+		Signature: string(block.Signature),
+	}
 }
 
 // process the role of the message to anthropic supported role.

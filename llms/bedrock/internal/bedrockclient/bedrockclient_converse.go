@@ -997,27 +997,12 @@ func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
 	info["PromptTokens"] = promptTokens
 }
 
-type streamedThought struct {
-	text      strings.Builder
-	signature bytes.Buffer
-	redacted  []byte
-}
-
 type converseReasoningStream struct {
-	thoughts  map[int32]*streamedThought
-	toolCalls map[int32]bool
+	streamedReasoning
 }
 
 func (a *converseReasoningStream) add(index int32, delta types.ReasoningContentBlockDelta) (readableText string) {
-	if a.thoughts == nil {
-		a.thoughts = make(map[int32]*streamedThought)
-	}
-	thought, ok := a.thoughts[index]
-	if !ok {
-		thought = &streamedThought{}
-		a.thoughts[index] = thought
-	}
-
+	thought := a.at(index)
 	switch block := delta.(type) {
 	case *types.ReasoningContentBlockDeltaMemberText:
 		thought.text.WriteString(block.Value)
@@ -1028,40 +1013,6 @@ func (a *converseReasoningStream) add(index int32, delta types.ReasoningContentB
 		thought.redacted = append(thought.redacted, block.Value...)
 	}
 	return ""
-}
-
-func (a *converseReasoningStream) toolCall(index int32) {
-	if a.toolCalls == nil {
-		a.toolCalls = make(map[int32]bool)
-	}
-	a.toolCalls[index] = true
-}
-
-func (a *converseReasoningStream) result() *reasoning.ContentReasoning {
-	indexes := make([]int32, 0, len(a.thoughts)+len(a.toolCalls))
-	for index := range a.thoughts {
-		indexes = append(indexes, index)
-	}
-	for index := range a.toolCalls {
-		if _, isThought := a.thoughts[index]; !isThought {
-			indexes = append(indexes, index)
-		}
-	}
-	slices.Sort(indexes)
-
-	var thoughts reasoning.Collector
-	for _, index := range indexes {
-		thought, isThought := a.thoughts[index]
-		switch {
-		case !isThought:
-			thoughts.ToolCall()
-		case thought.redacted != nil:
-			thoughts.Encrypted(thought.redacted)
-		default:
-			thoughts.Thought(thought.text.String(), bytes.Clone(thought.signature.Bytes()))
-		}
-	}
-	return thoughts.Reasoning()
 }
 
 // convertConverseResponse converts Converse response to ContentResponse

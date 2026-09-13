@@ -37,7 +37,7 @@ func TestTheLegacyPathCarriesTheEncryptedThought(t *testing.T) {
 		assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 		require.NotNil(t, resp.Choices[0].Reasoning,
 			"a turn carrying an encrypted thought is not a turn without thought")
-		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+		assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 	})
 
 	t.Run("it goes back to the vendor unchanged", func(t *testing.T) {
