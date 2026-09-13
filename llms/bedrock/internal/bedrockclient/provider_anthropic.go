@@ -675,26 +675,22 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 			}
 			continue
 		}
-		content := make([]anthropicTextGenerationInputContent, 0, len(chunk))
+		var thoughts []reasoning.Block
 		toolUses := 0
 		for _, message := range chunk {
+			if message.Role == llms.ChatMessageTypeAI {
+				thoughts = append(thoughts, message.Reasoning.Sequence()...)
+			}
 			if message.Type == AnthropicMessageTypeToolUse {
 				toolUses++
 			}
 		}
-		afterToolUse := make([][]reasoning.Block, toolUses+1)
+		placed := reasoning.GroupByToolCalls(thoughts, toolUses)
+
+		content := make([]anthropicTextGenerationInputContent, 0, len(chunk)+len(thoughts))
+		content = appendAnthropicThinking(content, placed[0])
 		emitted := 0
 		for _, message := range chunk {
-			if message.Role == llms.ChatMessageTypeAI {
-				for _, thought := range message.Reasoning.Sequence() {
-					at := min(emitted+max(thought.AfterToolCalls, 0), toolUses)
-					if at == emitted {
-						content = append(content, anthropicThinkingContent(thought))
-						continue
-					}
-					afterToolUse[at] = append(afterToolUse[at], thought)
-				}
-			}
 			block, err := getAnthropicInputContent(message)
 			if err != nil {
 				return nil, "", err
@@ -702,9 +698,7 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 			content = append(content, block)
 			if message.Type == AnthropicMessageTypeToolUse {
 				emitted++
-				for _, thought := range afterToolUse[emitted] {
-					content = append(content, anthropicThinkingContent(thought))
-				}
+				content = appendAnthropicThinking(content, placed[emitted])
 			}
 		}
 		inputContents = append(inputContents, &anthropicTextGenerationInputMessage{
@@ -715,15 +709,21 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 	return inputContents, systemPrompt, nil
 }
 
-func anthropicThinkingContent(block reasoning.Block) anthropicTextGenerationInputContent {
-	if block.Redacted != nil {
-		return anthropicTextGenerationInputContent{Type: "redacted_thinking", Data: string(block.Redacted)}
+func appendAnthropicThinking(
+	content []anthropicTextGenerationInputContent, blocks []reasoning.Block,
+) []anthropicTextGenerationInputContent {
+	for _, block := range blocks {
+		if block.Redacted != nil {
+			content = append(content, anthropicTextGenerationInputContent{Type: "redacted_thinking", Data: string(block.Redacted)})
+			continue
+		}
+		content = append(content, anthropicTextGenerationInputContent{
+			Type:      "thinking",
+			Thinking:  block.Text,
+			Signature: string(block.Signature),
+		})
 	}
-	return anthropicTextGenerationInputContent{
-		Type:      "thinking",
-		Thinking:  block.Text,
-		Signature: string(block.Signature),
-	}
+	return content
 }
 
 // process the role of the message to anthropic supported role.

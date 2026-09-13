@@ -219,3 +219,29 @@ func TestAReplayedLegacyTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 		})
 	}
 }
+
+func TestTheLegacyDoorOpensTheTurnWithItsReasoningWhateverThePartOrder(t *testing.T) {
+	t.Parallel()
+
+	rec := &legacyRecorder{responses: []string{
+		`{"id":"msg_2","type":"message","role":"assistant","model":"m","content":[{"type":"text","text":"ok"}],` +
+			`"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`,
+	}}
+	thought := reasoning.FromBlocks([]reasoning.Block{
+		{Text: "plan", Signature: []byte("s1")},
+		{Signature: []byte("s2"), AfterToolCalls: 1},
+	})
+	_, err := rec.serve(t).GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "A", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"A"}`}},
+			llms.TextPartWithReasoning("working", thought),
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"},
+		}},
+	}, llms.WithTools(lookupTools()))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"thought plan/s1", "tool A", "thought /s2", "text working"}, rec.replayedAssistant(t, 0))
+}

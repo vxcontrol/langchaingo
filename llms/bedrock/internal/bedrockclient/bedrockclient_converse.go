@@ -320,10 +320,7 @@ func (a *aiMessageAccumulator) addTextContent(content string, reasoningContent *
 		a.textBlocks = append(a.textBlocks, content)
 	}
 
-	for _, block := range reasoningContent.Sequence() {
-		block.AfterToolCalls += len(a.toolUseBlocks)
-		a.thoughts = append(a.thoughts, block)
-	}
+	a.thoughts = append(a.thoughts, reasoningContent.Sequence()...)
 
 	a.hasAnyContent = true
 }

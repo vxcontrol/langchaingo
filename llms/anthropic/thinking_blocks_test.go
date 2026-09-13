@@ -213,3 +213,29 @@ func TestAReplayedTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 		})
 	}
 }
+
+func TestTheTurnOpensWithItsReasoningWhateverThePartOrder(t *testing.T) {
+	t.Parallel()
+
+	canned := &cannedMessages{responses: []string{messageWith(`{"type":"text","text":"ok"}`)}}
+	thought := reasoning.FromBlocks([]reasoning.Block{
+		{Text: "plan", Signature: []byte("s1")},
+		{Signature: []byte("s2"), AfterToolCalls: 1},
+	})
+	_, err := canned.serve(t).GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "A", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"A"}`}},
+			llms.TextPartWithReasoning("working", thought),
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"},
+		}},
+	}, llms.WithMaxTokens(64), llms.WithTools([]llms.Tool{lookupTool()}))
+	require.NoError(t, err)
+
+	var want []map[string]any
+	require.NoError(t, json.Unmarshal([]byte("["+thinkingJSON("plan", "s1")+","+toolUseJSON("A")+","+
+		thinkingJSON("", "s2")+`,{"type":"text","text":"working"}]`), &want))
+	assert.Equal(t, want, canned.assistantContent(t, 0))
+}

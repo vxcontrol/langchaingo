@@ -255,7 +255,6 @@ func TestAMergedConverseTurnKeepsTheReasoningOfEveryPart(t *testing.T) {
 	second := reasoning.FromBlocks([]reasoning.Block{{Text: "two", Signature: []byte("s2")}})
 
 	callA := llms.ToolCall{ID: "A", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"A"}`}}
-	callB := llms.ToolCall{ID: "B", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"B"}`}}
 	both := []string{"thought one/s1", "thought two/s2", "text t1", "text t2", "tool A"}
 
 	for name, tc := range map[string]struct {
@@ -271,10 +270,9 @@ func TestAMergedConverseTurnKeepsTheReasoningOfEveryPart(t *testing.T) {
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("t1", first)}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("t2", second), callA}},
 		}, want: both},
-		"a later message after an earlier call": {turn: []llms.MessageContent{
-			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("t1", first), callA}},
-			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("", second), callB}},
-		}, want: []string{"thought one/s1", "text t1", "tool A", "thought two/s2", "tool B"}},
+		"a tool call ahead of the reasoning part": {turn: []llms.MessageContent{
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{callA, llms.TextPartWithReasoning("t1", first)}},
+		}, want: []string{"thought one/s1", "text t1", "tool A"}},
 		"an empty reasoning ahead of a real one": {turn: []llms.MessageContent{{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
 			llms.TextPartWithReasoning("t1", &reasoning.ContentReasoning{}),
 			llms.TextPartWithReasoning("t2", second),
@@ -288,11 +286,9 @@ func TestAMergedConverseTurnKeepsTheReasoningOfEveryPart(t *testing.T) {
 				`{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},"stopReason":"end_turn"}`,
 			}}
 			history := append([]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "look it up")}, tc.turn...)
-			results := []llms.ContentPart{llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"}}
-			if tc.want[len(tc.want)-1] == "tool B" {
-				results = append(results, llms.ToolCallResponse{ToolCallID: "B", Name: "lookup", Content: "done"})
-			}
-			history = append(history, llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: results})
+			history = append(history, llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"},
+			}})
 			_, err := rec.serve(t).GenerateContent(context.Background(), history, llms.WithTools(lookupTools()))
 			require.NoError(t, err)
 
