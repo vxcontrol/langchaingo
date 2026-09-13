@@ -161,6 +161,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	warn := &llms.Warnings{}
 	reportOllamaOptions(warn, model, opts)
+	if o.servesCloud() {
+		reportOllamaCloudFormat(warn, model, opts, o.options.format)
+	}
 
 	if err := o.processTools(req, opts.Tools); err != nil {
 		return nil, err
@@ -385,19 +388,39 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 // resolveFormat picks the Ollama `format` field. A per-call structured-output
 // schema is sent as the native JSON Schema (Ollama constrains generation to it);
 // otherwise the legacy string mode is preserved unchanged — the client-level
-// format, or "json" for JSONMode.
+// format, or "json" for JSONMode. Ollama Cloud always gets the empty format.
 func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 	if so := opts.StructuredOutput; so != nil {
 		if err := opts.ValidateStructuredOutput(); err != nil {
 			return nil, err
 		}
+		if o.servesCloud() {
+			return nil, &llms.ErrStructuredOutputUnsupported{
+				Provider: providerOllama,
+				Model:    o.getModel(opts),
+				Reason:   ollamaCloudFormatReason,
+			}
+		}
 		return so.Schema, nil
+	}
+	if o.servesCloud() {
+		return json.RawMessage(`""`), nil
 	}
 	format := o.options.format
 	if opts.JSONMode {
 		format = "json"
 	}
 	return json.RawMessage(fmt.Sprintf(`"%s"`, format)), nil
+}
+
+const ollamaCloudFormatReason = "Ollama Cloud does not support structured outputs"
+
+func (o *LLM) servesCloud() bool {
+	if o.options.ollamaServerURL == nil {
+		return false
+	}
+	host := strings.ToLower(o.options.ollamaServerURL.Hostname())
+	return host == "ollama.com" || strings.HasSuffix(host, ".ollama.com")
 }
 
 // processTools adds tools to the chat request.

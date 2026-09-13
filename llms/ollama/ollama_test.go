@@ -497,6 +497,33 @@ func TestResolveFormat(t *testing.T) {
 		assert.JSONEq(t, ollamaSOSchema, string(got))
 	})
 
+	t.Run("the cloud gets the empty format whatever was asked", func(t *testing.T) {
+		t.Parallel()
+		for _, server := range []string{CloudURL, "https://api.ollama.com"} {
+			llm, err := New(WithServerURL(server), WithModel("gpt-oss:120b"), WithFormat("json"))
+			require.NoError(t, err)
+
+			got, err := llm.resolveFormat(applyOpts(llms.WithJSONMode()))
+			require.NoError(t, err)
+			assert.Equal(t, `""`, string(got), server)
+
+			_, err = llm.resolveFormat(applyOpts(
+				llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(ollamaSOSchema)}),
+			))
+			var unsup *llms.ErrStructuredOutputUnsupported
+			require.ErrorAs(t, err, &unsup, server)
+		}
+	})
+
+	t.Run("a server that only looks like the cloud keeps JSON mode", func(t *testing.T) {
+		t.Parallel()
+		llm, err := New(WithServerURL("https://notollama.com"))
+		require.NoError(t, err)
+		got, err := llm.resolveFormat(applyOpts(llms.WithJSONMode()))
+		require.NoError(t, err)
+		assert.Equal(t, `"json"`, string(got))
+	})
+
 	t.Run("invalid structured config errors", func(t *testing.T) {
 		t.Parallel()
 		llm := newUnitLLM(t)

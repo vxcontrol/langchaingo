@@ -1,13 +1,13 @@
 httprr trace v1
-361 944
+357 944
 POST https://ollama.com/api/chat HTTP/1.1
 Host: ollama.com
 User-Agent: langchaingo-httprr
-Content-Length: 184
+Content-Length: 180
 Accept: application/x-ndjson
 Content-Type: application/json
 
-{"model":"gpt-oss:120b","messages":[{"role":"user","content":"List three colors in JSON format with a 'colors' array."}],"stream":false,"format":"json","options":{"num_predict":16384}}HTTP/2.0 200 OK
+{"model":"gpt-oss:120b","messages":[{"role":"user","content":"List three colors in JSON format with a 'colors' array."}],"stream":false,"format":"","options":{"num_predict":16384}}HTTP/2.0 200 OK
 Content-Length: 415
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json
