@@ -69,7 +69,7 @@ func RejectsMinP(model string) bool {
 // earlier assistant turn, not only on the turns that called a tool.
 func ReplaysReasoningOnEveryTurn(model string) bool {
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "deepseek") {
+		if strings.HasPrefix(form, "deepseek") || strings.HasPrefix(form, "kimi-") || strings.HasPrefix(form, "glm-") {
 			return true
 		}
 	}

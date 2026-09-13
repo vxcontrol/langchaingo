@@ -71,10 +71,13 @@ func replayedReasoning(t *testing.T, model string) []any {
 	return replayed
 }
 
-func TestDeepSeekGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T) {
+func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"deepseek-v4-pro", "deepseek-flash", "deepseek/deepseek-v4-pro"} {
+	for _, model := range []string{
+		"deepseek-v4-pro", "deepseek-flash", "deepseek/deepseek-v4-pro",
+		"kimi-k3", "kimi-k2.7-code", "moonshot/kimi-k2.6", "glm-5.2", "zai/glm-5.3",
+	} {
 		assert.Equal(t, []any{"text turn thought", "tool turn thought"}, replayedReasoning(t, model), model)
 	}
 }
@@ -82,5 +85,7 @@ func TestDeepSeekGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T) {
 func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, []any{nil, "tool turn thought"}, replayedReasoning(t, "kimi-k2.6"))
+	for _, model := range []string{"qwen3.7-plus", "grok-4", "mistral-medium-latest"} {
+		assert.Equal(t, []any{nil, "tool turn thought"}, replayedReasoning(t, model), model)
+	}
 }
