@@ -689,6 +689,9 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 		content = appendAnthropicThinking(content, placed[0])
 		emitted := 0
 		for _, message := range chunk {
+			if message.Type == AnthropicMessageTypeText && message.Content == "" && message.CacheControl == nil {
+				continue
+			}
 			block, err := getAnthropicInputContent(message)
 			if err != nil {
 				return nil, "", err

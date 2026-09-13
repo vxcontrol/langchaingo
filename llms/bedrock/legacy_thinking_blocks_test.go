@@ -184,6 +184,9 @@ func TestAReplayedLegacyTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 		"an update cut off after the last call": {
 			legacyThought("plan", "s1"), `{"type":"text","text":"working"}`, legacyToolUse("A"), legacyThought("", "s2"),
 		},
+		"a call with no text around it": {
+			legacyThought("plan", "s1"), legacyToolUse("A"),
+		},
 		"an encrypted block between signed ones": {
 			legacyThought("a", "s1"), `{"type":"redacted_thinking","data":"opaque"}`, legacyThought("b", "s2"),
 			`{"type":"text","text":"working"}`, legacyToolUse("A"),
