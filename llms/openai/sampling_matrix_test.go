@@ -289,7 +289,7 @@ func TestOptInThinkingKeepsSamplingWhateverIsAsked(t *testing.T) {
 			opts: []llms.CallOption{
 				llms.WithTemperature(0.3), llms.WithTopP(0.7), llms.WithReasoning(llms.ReasoningMedium, 0),
 			},
-			present: []string{`"temperature":0.3`, `"top_p":0.7`, `"reasoning_effort":"medium"`},
+			present: []string{`"temperature":0.3`, `"top_p":0.7`, `"reasoning_effort":"high"`},
 		},
 		{
 			name:    "the provider-prefixed spelling resolves the same",

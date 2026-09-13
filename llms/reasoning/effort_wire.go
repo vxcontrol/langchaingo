@@ -105,6 +105,9 @@ func AcceptsEffortWire(model string) bool {
 		if strings.HasPrefix(form, "gpt-3.5") || strings.HasPrefix(form, "gpt-4") {
 			return false
 		}
+		if mistralWithoutReasoning(form) {
+			return false
+		}
 		if form == "grok-build-latest" {
 			return true
 		}
