@@ -1,14 +1,14 @@
 httprr trace v1
-1053 1733
+1014 1733
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 733
+Content-Length: 694
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"What's the weather in New York?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get the weather for a location","name":"getWeather","parameters":{"properties":{"location":{"description":"The location to get weather for","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+{"contents":[{"parts":[{"text":"What's the weather in New York?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get the weather for a location","name":"getWeather","parameters":{"properties":{"location":{"description":"The location to get weather for","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
 Content-Length: 1142
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'

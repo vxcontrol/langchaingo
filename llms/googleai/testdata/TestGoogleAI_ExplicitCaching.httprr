@@ -33,16 +33,16 @@ X-Xss-Protection: 0
     "totalTokenCount": 77501
   }
 }
-897 1175
+858 1175
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 577
+Content-Length: 538
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"cachedContent":"cachedContents/qiw69iqddo7e3hen30g3r994dnixycpzp7o1o6o6","contents":[{"parts":[{"text":"What are the key things to look for in a Go code review?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":200,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+{"cachedContent":"cachedContents/qiw69iqddo7e3hen30g3r994dnixycpzp7o1o6o6","contents":[{"parts":[{"text":"What are the key things to look for in a Go code review?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":200},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
 Content-Length: 763
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8

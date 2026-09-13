@@ -1,14 +1,14 @@
 httprr trace v1
-806 1058
+767 1058
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 486
+Content-Length: 447
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":24,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":24},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
 Content-Length: 468
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
@@ -52,16 +52,16 @@ X-Xss-Protection: 1; mode=block
   "modelVersion": "gemini-2.5-flash",
   "responseId": "fRyIav2wKe2cnsEPqoa7gAM"
 }
-806 1058
+767 1058
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 486
+Content-Length: 447
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":24,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":24},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
 Content-Length: 468
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
@@ -105,16 +105,16 @@ X-Xss-Protection: 1; mode=block
   "modelVersion": "gemini-2.5-flash",
   "responseId": "fxyIav2AG62L7M8P-PTAuQo"
 }
-808 9401
+769 9401
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 488
+Content-Length: 449
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":4096,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+{"contents":[{"parts":[{"text":"Describe the water cycle in full detail."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":4096},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
 Content-Length: 8808
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'

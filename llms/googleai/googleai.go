@@ -105,17 +105,18 @@ func (g *GoogleAI) GenerateContent(
 		Model:          getStringPointer(g.opts.DefaultModel),
 		CandidateCount: getIntPointer(g.opts.DefaultCandidateCount),
 		MaxTokens:      getIntPointer(g.opts.DefaultMaxTokens),
-		TopP:           getFloatPointer(g.opts.DefaultTopP),
-		TopK:           getIntPointer(g.opts.DefaultTopK),
+	}
+	if g.opts.DefaultTopP != 0 {
+		opts.TopP = getFloatPointer(g.opts.DefaultTopP)
+	}
+	if g.opts.DefaultTopK != 0 {
+		opts.TopK = getIntPointer(g.opts.DefaultTopK)
 	}
 	for _, opt := range options {
 		opt(&opts)
 	}
-
-	// Default temperature only when the caller left it unset; an explicit value is
-	// preserved.
-	if opts.Temperature == nil {
-		opts.Temperature = getFloatPointer(resolveTemperature(opts.GetModel(), g.opts))
+	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
+		opts.Temperature = &temperature
 	}
 
 	config := newGenerationConfig(opts)
@@ -1105,10 +1106,6 @@ func convertIntToFloat32Pointer(i *int) *float32 {
 // resolveTemperature returns the temperature to use when the caller left it
 // unset. Gemini 3 defaults to 1.0, the value Google recommends (lower values can
 // cause looping and degraded reasoning); other models keep the SDK-wide default.
-func resolveTemperature(model string, clientOpts Options) float64 {
-	return clientOpts.ResolveTemperature(model)
-}
-
 // resolveThinkingConfig builds the Gemini thinking config for the reasoning mode.
 // Off forces budget 0 on models that disable that way, since omitting would not
 // disable a default-on model; a model whose thinking cannot be disabled returns a
