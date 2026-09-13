@@ -271,28 +271,36 @@ Extended thinking/reasoning capabilities are model-specific features. OpenAI OSS
 ```mermaid
 flowchart TB
     A[AI Message with Reasoning] --> B{Legacy or Converse?}
-    B -->|Legacy API| C[Add thinking blocks<br/>BEFORE text content]
-    B -->|Converse API| D[Add ReasoningContent blocks<br/>with signature]
+    B -->|Legacy API| C[thinking and redacted_thinking blocks]
+    B -->|Converse API| D[reasoningContent blocks]
     C --> E[anthropicTextGenerationInputContent array]
     D --> F[types.ContentBlock array]
 ```
 
 **Why order matters?**
 
-Anthropic API spec requires thinking blocks before text blocks in assistant messages.
+A response can carry several reasoning blocks, each signed on its own, with encrypted
+blocks among them, and the vendor wants the blocks of the last assistant turn back
+unchanged and in its order. Both paths put every block back where the vendor put it:
+the blocks that came before any tool call open the turn, and a block that followed a
+tool call follows that call again.
 
 ### Signature Preservation
 
-**Challenge**: Reasoning signatures must round-trip through conversations.
-
-**Solution**: Store in `reasoning.ContentReasoning.Signature` field, re-insert on next turn.
+Every block keeps its own signature. `reasoning.ContentReasoning` carries the blocks in
+`Blocks`, in the vendor's order; a reasoning made of one plain block keeps the classic
+`Content` and `Signature` fields instead. `Sequence()` reads both shapes. `Content` joins
+the readable text of every block for display and is not what travels back when `Blocks`
+is set, so hand the reasoning back as it came:
 
 ```go
-// Receive
-choice.Reasoning.Signature = []byte(...)
+// Receive: every block with its signature and place
+for _, block := range choice.Reasoning.Sequence() {
+    _ = block.Signature
+}
 
 // Send back
-llms.TextPartWithReasoning(content, reasoning)
+llms.TextPartWithReasoning(choice.Content, choice.Reasoning)
 ```
 
 ## Message Processing Pipeline
