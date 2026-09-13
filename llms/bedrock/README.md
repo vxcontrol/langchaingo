@@ -237,7 +237,9 @@ turned off, such as Fable, Mythos or DeepSeek R1.
 ## Structured Output
 
 The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
-Anthropic models: the final response is guaranteed to be a single JSON value
+the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
+4.5; any other Claude model returns a typed `ErrStructuredOutputUnsupported` before
+the request. The final response is guaranteed to be a single JSON value
 matching the supplied JSON Schema (Draft 2020-12), validated locally against the
 original schema.
 
@@ -783,14 +785,16 @@ _(Schema-constrained structured output itself is already implemented — see the
 
 ## Supported Model Matrix
 
-Structured Output and Caching apply to Anthropic (Claude) models. See `models_list.go`
-for the exact model IDs.
+Caching applies to Anthropic (Claude) models. See `models_list.go` for the exact
+model IDs.
 
 | Provider | Tool Calling | Reasoning | Streaming | Multimodal | Caching | Structured Output |
 |----------|-------------|-----------|-----------|------------|---------|-------------------|
-| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ✅ |
-| Claude Opus 5/4.8/4.7/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Claude Sonnet 5/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 5/4.8/4.7 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
 | Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |

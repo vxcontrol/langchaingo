@@ -263,6 +263,24 @@ func ClaudeSupportsStructuredOutput(model string) bool {
 	return !containsAny(canonicalClaude(model), legacyNoStructuredClaude)
 }
 
+var bedrockStructuredClaude = []string{
+	"claude-opus-4-5", "claude-opus-4-6", "claude-sonnet-4-5", "claude-sonnet-4-6", "claude-haiku-4-5",
+}
+
+// ClaudeSupportsStructuredOutputOnBedrock reports whether Amazon Bedrock serves
+// schema constrained output for the Claude model.
+func ClaudeSupportsStructuredOutputOnBedrock(model string) bool {
+	for _, form := range modelSpellings(model) {
+		name := canonicalClaude(form)
+		for _, family := range bedrockStructuredClaude {
+			if hasGeneration(name, family) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ResolveClaudeAdaptive returns whether to send adaptive thinking (true) or
 // budget thinking (false) for a Claude model, given the caller's preference
 // (adaptivePreferred is true when the caller used WithAdaptiveReasoning).

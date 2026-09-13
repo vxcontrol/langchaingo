@@ -3,6 +3,7 @@ package bedrockclient
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -207,7 +208,7 @@ func TestConverse_StructuredOutput_CoexistsWithReasoning(t *testing.T) {
 	}), mock.Anything).Return(textOutput(`{"answer":"ok"}`, types.StopReasonEndTurn), nil)
 
 	input := &ConverseInput{
-		ModelID:          "anthropic.claude-sonnet-5-v1:0",
+		ModelID:          "anthropic.claude-sonnet-4-6",
 		Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 		ReasoningConfig:  &llms.ReasoningConfig{Mode: llms.ReasoningOn, Adaptive: true, Effort: llms.ReasoningHigh},
 		StructuredOutput: soConfig(),
@@ -306,4 +307,62 @@ func TestLegacyAnthropic_StructuredOutput_UnsupportedModel(t *testing.T) {
 	err := applyAnthropicStructuredOutput(&input, "anthropic.claude-3-sonnet-20240229-v1:0", soConfig())
 	var unsup *llms.ErrStructuredOutputUnsupported
 	require.True(t, errors.As(err, &unsup), "legacy 3.x must be unsupported, got %v", err)
+}
+
+var (
+	claudeWithoutStructuredOutputOnBedrock = []string{
+		"us.anthropic.claude-opus-4-7", "us.anthropic.claude-opus-4-8", "us.anthropic.claude-opus-5",
+		"us.anthropic.claude-sonnet-5", "us.anthropic.claude-fable-5", "us.anthropic.claude-fable-5-1",
+		"anthropic.claude-3-sonnet-20240229-v1:0",
+	}
+	claudeWithStructuredOutputOnBedrock = []string{
+		"us.anthropic.claude-opus-4-6-v1", "anthropic.claude-sonnet-4-6", "anthropic.claude-sonnet-4-5-20250929-v1:0",
+		"us.anthropic.claude-opus-4-5-20251101-v1:0", "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+	}
+)
+
+func TestConverse_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T) {
+	for _, model := range claudeWithoutStructuredOutputOnBedrock {
+		mockClient := &MockBedrockRuntimeClient{}
+		_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+			ModelID:          model,
+			Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			StructuredOutput: soConfig(),
+		})
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
+		mockClient.AssertNotCalled(t, "Converse")
+	}
+
+	for _, model := range append(slices.Clone(claudeWithStructuredOutputOnBedrock), "openai.gpt-oss-120b-1:0") {
+		mockClient := &MockBedrockRuntimeClient{}
+		var captured *bedrockruntime.ConverseInput
+		mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(in *bedrockruntime.ConverseInput) bool {
+			captured = in
+			return true
+		}), mock.Anything).Return(textOutput(`{"answer":"ok"}`, types.StopReasonEndTurn), nil)
+
+		_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+			ModelID:          model,
+			Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			StructuredOutput: soConfig(),
+		})
+		require.NoError(t, err, model)
+		require.NotNil(t, captured.OutputConfig, model)
+	}
+}
+
+func TestLegacyAnthropic_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range claudeWithoutStructuredOutputOnBedrock {
+		err := applyAnthropicStructuredOutput(&anthropicTextGenerationInput{}, model, soConfig())
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
+	}
+	for _, model := range claudeWithStructuredOutputOnBedrock {
+		input := anthropicTextGenerationInput{}
+		require.NoError(t, applyAnthropicStructuredOutput(&input, model, soConfig()), model)
+		require.NotNil(t, input.OutputConfig, model)
+	}
 }
