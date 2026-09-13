@@ -308,7 +308,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 // aiMessageAccumulator accumulates consecutive AI messages into a single assistant message
 type aiMessageAccumulator struct {
 	textBlocks    []string
-	reasoning     *reasoning.ContentReasoning
+	thoughts      []reasoning.Block
 	toolUseBlocks []types.ContentBlock
 	cacheControl  *CacheControl
 	hasAnyContent bool
@@ -320,8 +320,9 @@ func (a *aiMessageAccumulator) addTextContent(content string, reasoningContent *
 		a.textBlocks = append(a.textBlocks, content)
 	}
 
-	if a.reasoning == nil && reasoningContent != nil {
-		a.reasoning = reasoningContent
+	for _, block := range reasoningContent.Sequence() {
+		block.AfterToolCalls += len(a.toolUseBlocks)
+		a.thoughts = append(a.thoughts, block)
 	}
 
 	a.hasAnyContent = true
@@ -354,34 +355,17 @@ func (a *aiMessageAccumulator) setCacheControl(cacheControl *CacheControl) {
 
 // build creates a Converse Message from accumulated data
 func (a *aiMessageAccumulator) build() types.Message {
-	content := make([]types.ContentBlock, 0)
-
-	// Add reasoning content if present
-	if a.reasoning != nil && (a.reasoning.Content != "" || len(a.reasoning.Signature) > 0) {
-		reasoningBlock := types.ReasoningContentBlockMemberReasoningText{
-			Value: types.ReasoningTextBlock{
-				Text:      aws.String(a.reasoning.Content),
-				Signature: ptrStringOrNil(string(a.reasoning.Signature)),
-			},
-		}
-		content = append(content, &types.ContentBlockMemberReasoningContent{
-			Value: &reasoningBlock,
-		})
-	}
-	if a.reasoning != nil {
-		for _, block := range a.reasoning.Redacted {
-			content = append(content, &types.ContentBlockMemberReasoningContent{
-				Value: &types.ReasoningContentBlockMemberRedactedContent{Value: block},
-			})
-		}
-	}
+	placed := reasoning.GroupByToolCalls(a.thoughts, len(a.toolUseBlocks))
+	content := converseReasoningBlocks(placed[0])
 
 	for _, text := range a.textBlocks {
 		content = append(content, &types.ContentBlockMemberText{Value: text})
 	}
 
-	// Add all tool use blocks
-	content = append(content, a.toolUseBlocks...)
+	for i, toolUse := range a.toolUseBlocks {
+		content = append(content, toolUse)
+		content = append(content, converseReasoningBlocks(placed[i+1])...)
+	}
 
 	// Add cache point if needed
 	if a.cacheControl != nil {
@@ -404,10 +388,31 @@ func (a *aiMessageAccumulator) build() types.Message {
 	}
 }
 
+func converseReasoningBlocks(blocks []reasoning.Block) []types.ContentBlock {
+	content := make([]types.ContentBlock, 0, len(blocks))
+	for _, block := range blocks {
+		if block.Redacted != nil {
+			content = append(content, &types.ContentBlockMemberReasoningContent{
+				Value: &types.ReasoningContentBlockMemberRedactedContent{Value: block.Redacted},
+			})
+			continue
+		}
+		content = append(content, &types.ContentBlockMemberReasoningContent{
+			Value: &types.ReasoningContentBlockMemberReasoningText{
+				Value: types.ReasoningTextBlock{
+					Text:      aws.String(block.Text),
+					Signature: ptrStringOrNil(string(block.Signature)),
+				},
+			},
+		})
+	}
+	return content
+}
+
 // reset clears the accumulator
 func (a *aiMessageAccumulator) reset() {
 	a.textBlocks = nil
-	a.reasoning = nil
+	a.thoughts = nil
 	a.toolUseBlocks = nil
 	a.cacheControl = nil
 	a.hasAnyContent = false
@@ -882,7 +887,7 @@ DoStream:
 						}
 					}
 				case *types.ContentBlockDeltaMemberReasoningContent:
-					text := reasoningDeltas.add(delta.Value)
+					text := reasoningDeltas.add(aws.ToInt32(e.Value.ContentBlockIndex), delta.Value)
 					if text != "" && callback != nil {
 						chunk := streaming.Chunk{
 							Type:      streaming.ChunkTypeReasoning,
@@ -904,6 +909,7 @@ DoStream:
 		case *types.ConverseStreamOutputMemberContentBlockStart:
 			if e.Value.Start != nil {
 				if toolUse, ok := e.Value.Start.(*types.ContentBlockStartMemberToolUse); ok {
+					reasoningDeltas.toolCall(aws.ToInt32(e.Value.ContentBlockIndex))
 					currentToolCalls[aws.ToInt32(e.Value.ContentBlockIndex)] = &converseToolCallBuilder{
 						id:   aws.ToString(toolUse.Value.ToolUseId),
 						name: aws.ToString(toolUse.Value.Name),
@@ -946,7 +952,7 @@ DoStream:
 		Content:        fullContent.String(),
 		ToolCalls:      toolCalls,
 		GenerationInfo: make(map[string]any),
-		Reasoning:      reasoningDeltas.result(c),
+		Reasoning:      reasoningDeltas.result(),
 		StopReason:     stopReason,
 		Truncated:      llms.IsTruncated(stopReason),
 	}
@@ -991,52 +997,71 @@ func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
 	info["PromptTokens"] = promptTokens
 }
 
-func (c *ConverseClient) processReasoning(reasoningContent string, signature []byte, redacted [][]byte) *reasoning.ContentReasoning {
-	if reasoningContent == "" && len(signature) == 0 && len(redacted) == 0 {
-		return nil
-	}
-
-	return &reasoning.ContentReasoning{
-		Content:   reasoningContent,
-		Signature: signature,
-		Redacted:  redacted,
-	}
+type streamedThought struct {
+	text      strings.Builder
+	signature bytes.Buffer
+	redacted  []byte
 }
 
 type converseReasoningStream struct {
-	text      strings.Builder
-	signature bytes.Buffer
-	redacted  [][]byte
+	thoughts  map[int32]*streamedThought
+	toolCalls map[int32]bool
 }
 
-func (a *converseReasoningStream) add(delta types.ReasoningContentBlockDelta) (readableText string) {
+func (a *converseReasoningStream) add(index int32, delta types.ReasoningContentBlockDelta) (readableText string) {
+	if a.thoughts == nil {
+		a.thoughts = make(map[int32]*streamedThought)
+	}
+	thought, ok := a.thoughts[index]
+	if !ok {
+		thought = &streamedThought{}
+		a.thoughts[index] = thought
+	}
+
 	switch block := delta.(type) {
 	case *types.ReasoningContentBlockDeltaMemberText:
-		a.text.WriteString(block.Value)
+		thought.text.WriteString(block.Value)
 		return block.Value
 	case *types.ReasoningContentBlockDeltaMemberSignature:
-		if len(block.Value) > 0 {
-			a.signature.WriteString(block.Value)
-		}
+		thought.signature.WriteString(block.Value)
 	case *types.ReasoningContentBlockDeltaMemberRedactedContent:
-		a.redacted = append(a.redacted, block.Value)
+		thought.redacted = append(thought.redacted, block.Value...)
 	}
 	return ""
 }
 
-func (a *converseReasoningStream) result(c *ConverseClient) *reasoning.ContentReasoning {
-	var sig []byte
-	if a.signature.Len() > 0 {
-		sig = a.signature.Bytes()
+func (a *converseReasoningStream) toolCall(index int32) {
+	if a.toolCalls == nil {
+		a.toolCalls = make(map[int32]bool)
 	}
-	return c.processReasoning(a.text.String(), sig, a.redacted)
+	a.toolCalls[index] = true
 }
 
-func ensureReasoning(r *reasoning.ContentReasoning) *reasoning.ContentReasoning {
-	if r == nil {
-		return &reasoning.ContentReasoning{}
+func (a *converseReasoningStream) result() *reasoning.ContentReasoning {
+	indexes := make([]int32, 0, len(a.thoughts)+len(a.toolCalls))
+	for index := range a.thoughts {
+		indexes = append(indexes, index)
 	}
-	return r
+	for index := range a.toolCalls {
+		if _, isThought := a.thoughts[index]; !isThought {
+			indexes = append(indexes, index)
+		}
+	}
+	slices.Sort(indexes)
+
+	var thoughts reasoning.Collector
+	for _, index := range indexes {
+		thought, isThought := a.thoughts[index]
+		switch {
+		case !isThought:
+			thoughts.ToolCall()
+		case thought.redacted != nil:
+			thoughts.Encrypted(thought.redacted)
+		default:
+			thoughts.Thought(thought.text.String(), bytes.Clone(thought.signature.Bytes()))
+		}
+	}
+	return thoughts.Reasoning()
 }
 
 // convertConverseResponse converts Converse response to ContentResponse
@@ -1048,6 +1073,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 	choice := &llms.ContentChoice{
 		GenerationInfo: make(map[string]any),
 	}
+	var thoughts reasoning.Collector
 
 	// Handle different output types
 	switch output := response.Output.(type) {
@@ -1082,32 +1108,22 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 					},
 				}
 				choice.ToolCalls = append(choice.ToolCalls, toolCall)
+				thoughts.ToolCall()
 			case *types.ContentBlockMemberReasoningContent:
 				switch content := block.Value.(type) {
 				case *types.ReasoningContentBlockMemberReasoningText:
-					reasoningText := ""
-					if content.Value.Text != nil {
-						reasoningText = *content.Value.Text
-					}
 					var sig []byte
 					if content.Value.Signature != nil {
 						sig = []byte(*content.Value.Signature)
 					}
-					if reasoningText != "" || len(sig) > 0 {
-						choice.Reasoning = ensureReasoning(choice.Reasoning)
-						choice.Reasoning.Content = reasoningText
-						choice.Reasoning.Signature = sig
-					}
+					thoughts.Thought(aws.ToString(content.Value.Text), sig)
 				case *types.ReasoningContentBlockMemberRedactedContent:
-					if len(content.Value) > 0 {
-						choice.Reasoning = ensureReasoning(choice.Reasoning)
-						choice.Reasoning.Redacted = append(choice.Reasoning.Redacted, content.Value)
-					}
+					thoughts.Encrypted(content.Value)
 				}
 			}
 		}
-
 	}
+	choice.Reasoning = thoughts.Reasoning()
 
 	// The stop reason lives on the response, not inside types.Message. Surfacing it
 	// distinguishes end_turn from tool_use, max_tokens, guardrail_intervened,

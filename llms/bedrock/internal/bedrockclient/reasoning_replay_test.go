@@ -35,7 +35,8 @@ func TestSignatureOnlyReasoningKeepsTheTextField(t *testing.T) {
 	t.Run("accumulated message", func(t *testing.T) {
 		t.Parallel()
 
-		acc := &aiMessageAccumulator{reasoning: signatureOnly}
+		acc := &aiMessageAccumulator{}
+		acc.addTextContent("", signatureOnly)
 
 		block := reasoningTextOf(t, acc.build().Content)
 		require.NotNil(t, block.Text)
