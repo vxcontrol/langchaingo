@@ -288,8 +288,9 @@ tool call follows that call again.
 ### Signature Preservation
 
 Every block keeps its own signature. `reasoning.ContentReasoning` carries the blocks in
-`Blocks`, in the vendor's order; a reasoning made of one plain block keeps the classic
-`Content` and `Signature` fields instead. `Sequence()` reads both shapes. `Content` joins
+`Blocks`, in the vendor's order; a reasoning made of a single unencrypted block that came
+before any tool call keeps the classic `Content` and `Signature` fields instead.
+`Sequence()` reads both shapes. `Content` joins
 the readable text of every block for display and is not what travels back when `Blocks`
 is set, so hand the reasoning back as it came:
 
