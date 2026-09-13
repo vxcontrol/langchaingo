@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
@@ -316,6 +317,9 @@ func (g *GoogleAI) generateFromMessages(
 	if systemInstruction != nil {
 		config.SystemInstruction = systemInstruction
 	}
+	if reasoning.GeminiUsesThinkingLevel(model) {
+		signCurrentTurn(contents)
+	}
 
 	if opts.StreamingFunc == nil {
 		resp, err := g.client.Models.GenerateContent(ctx, model, contents, config)
@@ -326,6 +330,37 @@ func (g *GoogleAI) generateFromMessages(
 	}
 
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
+}
+
+// geminiSignaturePlaceholder is the value Google documents for a function call
+// whose history holds no signature, such as one carried over from another model.
+const geminiSignaturePlaceholder = "skip_thought_signature_validator"
+
+// signCurrentTurn gives the first function call of each model step in the current
+// turn the placeholder when it has no signature.
+func signCurrentTurn(contents []*genai.Content) {
+	start := -1
+	for i, content := range contents {
+		if content.Role == RoleUser && slices.ContainsFunc(content.Parts, func(part *genai.Part) bool {
+			return part.FunctionResponse == nil
+		}) {
+			start = i
+		}
+	}
+	for _, content := range contents[start+1:] {
+		if content.Role != RoleModel {
+			continue
+		}
+		for _, part := range content.Parts {
+			if part.FunctionCall == nil {
+				continue
+			}
+			if len(part.ThoughtSignature) == 0 {
+				part.ThoughtSignature = []byte(geminiSignaturePlaceholder)
+			}
+			break
+		}
+	}
 }
 
 func (g *GoogleAI) generateStreamingContent(
