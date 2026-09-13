@@ -97,7 +97,8 @@ func geminiKnownNonThinking(model string) bool {
 
 // GeminiTogglesThinkingByLevel reports whether the model expresses thinking as
 // on or off through thinking_level alone, with no budget and no level between.
-// Kept apart from GeminiUsesThinkingLevel, which also pins temperature to 1.0.
+// Kept apart from GeminiUsesThinkingLevel, which also turns on the Gemini 3
+// thought-signature placeholder.
 func GeminiTogglesThinkingByLevel(model string) bool {
 	return hasFamily(baseModelName(model), "gemma-4")
 }

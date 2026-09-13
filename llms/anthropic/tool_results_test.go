@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/anthropic"
 )
 
 func TestEveryToolResultOfOneMessageReachesTheVendor(t *testing.T) {
@@ -42,4 +43,23 @@ func TestEveryToolResultOfOneMessageReachesTheVendor(t *testing.T) {
 	}
 	assert.Equal(t, "user", last.Role)
 	assert.Equal(t, []any{"a", "b"}, ids)
+}
+
+func TestAToolMessageWithANonResultPartIsRefusedBeforeTheRequest(t *testing.T) {
+	t.Parallel()
+
+	canned := &cannedMessages{responses: []string{messageWith(`{"type":"text","text":"ok"}`)}}
+	_, err := canned.serve(t).GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "a", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: "{}"}},
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "a", Name: "lookup", Content: "1"},
+			llms.TextContent{Text: "note for the model"},
+		}},
+	}, llms.WithTools([]llms.Tool{lookupTool()}))
+
+	require.ErrorIs(t, err, anthropic.ErrInvalidContentType)
+	assert.Empty(t, canned.requests, "the refusal comes before the request")
 }

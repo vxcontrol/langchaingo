@@ -302,3 +302,35 @@ func TestAnEmptyCachedTextNeverReachesTheLegacyPayload(t *testing.T) {
 	assert.Equal(t, "tool_use", assistant[0]["type"])
 	assert.NotNil(t, assistant[0]["cache_control"], "the marker moves to the block before the empty text")
 }
+
+func TestTheMovedCacheMarkWalksPastThinkingAndKeepsItsTTL(t *testing.T) {
+	t.Parallel()
+
+	thought := reasoning.FromBlocks([]reasoning.Block{
+		{Text: "plan", Signature: []byte("s1")},
+		{Text: "next", Signature: []byte("s2"), AfterToolCalls: 1},
+	})
+	rec := &legacyRecorder{responses: []string{`{"id":"msg_2","type":"message","role":"assistant","model":"m",` +
+		`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`}}
+	_, err := rec.serve(t).GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "A", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"A"}`}},
+			bedrock.WithCacheControl(llms.TextPartWithReasoning("", thought), bedrock.EphemeralCacheOneHour()),
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"},
+		}},
+	}, llms.WithTools(lookupTools()))
+	require.NoError(t, err)
+
+	var payload struct {
+		Messages []struct {
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(rec.requests[0], &payload))
+	assistant := payload.Messages[1].Content
+	require.Equal(t, []string{"thought plan/s1", "tool A", "thought next/s2"}, legacyShape(assistant))
+	assert.Equal(t, map[string]any{"type": "ephemeral", "ttl": "1h"}, assistant[1]["cache_control"])
+}

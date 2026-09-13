@@ -1019,6 +1019,12 @@ func TestOnlyConfiguredSamplingReachesTheWire(t *testing.T) {
 			want:  map[string]float64{"temperature": 0},
 		},
 		{
+			name:  "a configured zero top_k",
+			model: "gemini-2.5-flash",
+			opts:  []Option{WithDefaultTopK(0)},
+			want:  map[string]float64{"topK": 0},
+		},
+		{
 			name:  "a configured zero top_p",
 			model: "gemini-2.5-flash",
 			opts:  []Option{WithDefaultTopP(0)},
