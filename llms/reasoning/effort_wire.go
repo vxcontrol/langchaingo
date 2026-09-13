@@ -60,6 +60,17 @@ func FixesSampling(model string) bool {
 	return false
 }
 
+// TakesNoJSONSchema reports whether the vendor's chat completions response_format
+// takes only text and json_object, so a JSON schema cannot be asked for.
+func TakesNoJSONSchema(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "deepseek") || strings.HasPrefix(form, "glm-") {
+			return true
+		}
+	}
+	return false
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
 	return isClaudeModel(model) || openAIProperName(model)
