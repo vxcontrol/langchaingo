@@ -235,13 +235,14 @@ func DefaultIsReasoningModel(model string) bool {
 }
 
 // ServedByMistral reports whether the name is one only Mistral's endpoint uses:
-// a Mistral family, or GLM spelled the way Mistral lists it (glm-5-2, zai-glm-5-2).
+// a Mistral family, or GLM spelled the way Mistral lists it (glm-5-2, zai-glm-5-2),
+// bare or behind LiteLLM's mistral/ prefix.
 func ServedByMistral(model string) bool {
-	m := strings.ToLower(model)
-	if idx := strings.LastIndex(m, "/"); idx != -1 {
-		m = m[idx+1:]
+	m := strings.TrimPrefix(strings.ToLower(model), "mistral/")
+	if strings.Contains(m, ":") {
+		return false
 	}
-	if strings.HasPrefix(m, "zai-glm") || strings.HasPrefix(m, "magistral") ||
+	if strings.HasPrefix(m, "zai-glm") || strings.HasPrefix(m, "magistral-") ||
 		mistralReasons(m) || mistralWithoutReasoning(m) {
 		return true
 	}

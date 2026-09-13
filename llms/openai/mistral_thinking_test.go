@@ -118,6 +118,37 @@ func TestTheMistralStreamHandsOverTheEndOfThinkingAndTheStartOfTheAnswer(t *test
 	assert.Equal(t, "17 times 23.", resp.Choices[0].Reasoning.Content)
 }
 
+func TestTextChunksAroundAReferenceMakeOneAnswer(t *testing.T) {
+	t.Parallel()
+
+	chunks := `[{"type":"text","text":"Paris has "},{"type":"reference","reference_ids":[0]},{"type":"text","text":"2.1M people."}]`
+
+	resp, err := mistralAnswering(t, `{"role":"assistant","content":`+chunks+`}`).GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "Population of Paris?")})
+	require.NoError(t, err)
+	assert.Equal(t, "Paris has 2.1M people.", resp.Choices[0].Content)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"id":"1","object":"chat.completion.chunk","created":1,"model":"mistral-small-latest",`+
+			`"choices":[{"index":0,"delta":{"content":`+chunks+`},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	llm, err := New(WithBaseURL(server.URL), WithToken("token"), WithModel("mistral-small-latest"))
+	require.NoError(t, err)
+	var streamed strings.Builder
+	resp, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "Population of Paris?")},
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			streamed.WriteString(chunk.Content)
+			return nil
+		}))
+	require.NoError(t, err)
+	assert.Equal(t, "Paris has 2.1M people.", streamed.String())
+	assert.Equal(t, "Paris has 2.1M people.", resp.Choices[0].Content)
+}
+
 func TestAReasoningMistralModelGetsItsThinkingBackAsAChunkOfContent(t *testing.T) {
 	t.Parallel()
 
@@ -143,7 +174,7 @@ func TestAReasoningMistralModelGetsItsThinkingBackAsAChunkOfContent(t *testing.T
 func TestAMistralModelThatDoesNotReasonGetsNoThinkingBack(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"codestral-latest", "mistral-large-latest", "ministral-8b-latest"} {
+	for _, model := range []string{"codestral-latest", "mistral-large-latest", "ministral-8b-latest", "mistral/ministral-8b-latest"} {
 		turns := assistantTurnsSent(t, model)
 		require.Len(t, turns, 2, model)
 

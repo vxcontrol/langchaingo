@@ -15,9 +15,17 @@ func TestOnlyModelsThatReasonOnMistralTakeThinkingBackInContent(t *testing.T) {
 		"codestral-latest":              false,
 		"mistral-large-latest":          false,
 		"ministral-8b-latest":           false,
+		"mistral/ministral-8b-latest":   false,
+		"mistral/codestral-latest":      false,
 		"glm-5.2":                       false,
 		"deepseek-v4-pro":               false,
 		"kimi-k3":                       false,
+
+		"mistralai/mistral-small-2603":            false,
+		"openrouter/mistralai/mistral-medium-3-5": false,
+		"mistral-medium-3.5:latest":               false,
+		"magistral:24b":                           false,
+		"magistral":                               false,
 	} {
 		if got := ReplaysThinkingInContent(model); got != want {
 			t.Errorf("ReplaysThinkingInContent(%q) = %v, want %v", model, got, want)
