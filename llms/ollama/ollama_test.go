@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -590,4 +592,47 @@ func TestValidateStructuredOutput(t *testing.T) {
 		}}}
 		require.NoError(t, llm.validateStructuredOutput(opts, resp))
 	})
+}
+
+func TestACloudModelOffloadedByALocalServerGetsNoFormat(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-oss:120b-cloud", "glm-4.6:cloud"} {
+		got := captureChatRequestFor(t, model, llms.WithJSONMode())
+		assert.Equal(t, "", got["format"], model)
+
+		_, err := sendChatRequest(t, model, llms.WithStructuredOutput(
+			llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(ollamaSOSchema)}))
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
+	}
+
+	assert.Equal(t, "json", captureChatRequestFor(t, "gpt-oss:120b", llms.WithJSONMode())["format"],
+		"a model the local server runs itself keeps JSON mode")
+}
+
+func TestTheCloudDropWarningReachesTheResponse(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]int{"gpt-oss:120b-cloud": 1, "gpt-oss:120b": 0} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			_, _ = w.Write([]byte(`{"model":"m","message":{"role":"assistant","content":"{}"},"done":true,"done_reason":"stop"}` + "\n"))
+		}))
+		llm, err := New(WithServerURL(srv.URL), WithModel(model))
+		require.NoError(t, err)
+		resp, err := llm.GenerateContent(t.Context(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithJSONMode())
+		srv.Close()
+		require.NoError(t, err)
+
+		var drops int
+		for _, w := range resp.Warnings {
+			if w.Option == "WithJSONMode" && w.Kind == llms.WarningDrop {
+				drops++
+			}
+		}
+		assert.Equal(t, want, drops, model)
+	}
 }

@@ -961,7 +961,7 @@ Models ending in `-cloud` are automatically routed to Ollama's cloud infrastruct
 | Tool Calling | ✅ | ✅ | Most models |
 | Reasoning | ✅ | ✅ | DeepSeek R1, QwQ, etc. |
 | Vision (Images) | ✅ | ❌ | llama3.2-vision, etc. |
-| JSON Mode | ✅ | ❌ | Cloud: dropped with a warning — Ollama Cloud does not support structured outputs |
+| JSON Mode | ✅ | ❌ | Cloud (ollama.com, or a `-cloud` model on a local server): dropped with a warning — Ollama Cloud does not support structured outputs |
 | Structured Output (JSON Schema) | ✅ | ❌ | Cloud: `ErrStructuredOutputUnsupported` before the request |
 | Embeddings | ✅ | ❌ | nomic-embed-text, etc. |
 | Auto Model Pull | ✅ | ❌ | Local only |
