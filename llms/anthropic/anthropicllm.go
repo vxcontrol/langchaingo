@@ -395,24 +395,15 @@ func processAnthropicResponse(
 	}
 
 	var thoughts reasoning.Collector
+	var toolCalls []llms.ToolCall
+	var textContent strings.Builder
+
 	for _, content := range result.Content {
 		switch cv := content.(type) {
 		case *anthropicclient.ThinkingContent:
 			thoughts.Thought(cv.Thinking, []byte(cv.Signature))
 		case *anthropicclient.RedactedThinkingContent:
 			thoughts.Encrypted([]byte(cv.Data))
-		case *anthropicclient.ToolUseContent:
-			thoughts.ToolCall()
-		}
-	}
-	contentReasoning := thoughts.Reasoning()
-
-	// Process content blocks to collect text and tool calls
-	var toolCalls []llms.ToolCall
-	var textContent strings.Builder
-
-	for _, content := range result.Content {
-		switch cv := content.(type) {
 		case *anthropicclient.TextContent:
 			textContent.WriteString(cv.Text)
 		case *anthropicclient.ToolUseContent:
@@ -429,8 +420,10 @@ func processAnthropicResponse(
 				},
 			}
 			toolCalls = append(toolCalls, toolCall)
+			thoughts.ToolCall()
 		}
 	}
+	contentReasoning := thoughts.Reasoning()
 
 	// Build response choice - reasoning ALWAYS goes to choice, not tool calls
 	choice := &llms.ContentChoice{

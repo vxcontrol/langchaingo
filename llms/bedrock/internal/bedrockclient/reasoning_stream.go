@@ -2,64 +2,64 @@ package bedrockclient
 
 import (
 	"bytes"
+	"maps"
 	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
-type streamedThought struct {
+type streamedBlock struct {
+	toolCall  bool
 	text      strings.Builder
 	signature bytes.Buffer
 	redacted  []byte
 }
 
 type streamedReasoning struct {
-	thoughts  map[int32]*streamedThought
-	toolCalls map[int32]bool
+	blocks map[int32]*streamedBlock
 }
 
-func (s *streamedReasoning) at(index int32) *streamedThought {
-	if s.thoughts == nil {
-		s.thoughts = make(map[int32]*streamedThought)
+func (s *streamedReasoning) at(index int32) *streamedBlock {
+	if s.blocks == nil {
+		s.blocks = make(map[int32]*streamedBlock)
 	}
-	thought, ok := s.thoughts[index]
+	block, ok := s.blocks[index]
 	if !ok {
-		thought = &streamedThought{}
-		s.thoughts[index] = thought
+		block = &streamedBlock{}
+		s.blocks[index] = block
 	}
-	return thought
+	return block
+}
+
+func (s *streamedReasoning) text(index int32, text string) {
+	s.at(index).text.WriteString(text)
+}
+
+func (s *streamedReasoning) signature(index int32, signature string) {
+	s.at(index).signature.WriteString(signature)
+}
+
+func (s *streamedReasoning) encrypted(index int32, data []byte) {
+	block := s.at(index)
+	block.redacted = append(block.redacted, data...)
 }
 
 func (s *streamedReasoning) toolCall(index int32) {
-	if s.toolCalls == nil {
-		s.toolCalls = make(map[int32]bool)
-	}
-	s.toolCalls[index] = true
+	s.at(index).toolCall = true
 }
 
 func (s *streamedReasoning) result() *reasoning.ContentReasoning {
-	indexes := make([]int32, 0, len(s.thoughts)+len(s.toolCalls))
-	for index := range s.thoughts {
-		indexes = append(indexes, index)
-	}
-	for index := range s.toolCalls {
-		if _, isThought := s.thoughts[index]; !isThought {
-			indexes = append(indexes, index)
-		}
-	}
-	slices.Sort(indexes)
-
 	var thoughts reasoning.Collector
-	for _, index := range indexes {
-		thought, isThought := s.thoughts[index]
+	for _, index := range slices.Sorted(maps.Keys(s.blocks)) {
+		block := s.blocks[index]
 		switch {
-		case !isThought:
+		case block.redacted != nil:
+			thoughts.Encrypted(block.redacted)
+		case block.text.Len() > 0 || block.signature.Len() > 0:
+			thoughts.Thought(block.text.String(), bytes.Clone(block.signature.Bytes()))
+		case block.toolCall:
 			thoughts.ToolCall()
-		case thought.redacted != nil:
-			thoughts.Encrypted(thought.redacted)
-		default:
-			thoughts.Thought(thought.text.String(), bytes.Clone(thought.signature.Bytes()))
 		}
 	}
 	return thoughts.Reasoning()

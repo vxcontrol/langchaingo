@@ -539,8 +539,7 @@ DoStream:
 						Name: resp.ContentBlock.Name,
 					}
 				case "redacted_thinking":
-					thought := thoughts.at(int32(resp.Index))
-					thought.redacted = append(thought.redacted, resp.ContentBlock.Data...)
+					thoughts.encrypted(int32(resp.Index), []byte(resp.ContentBlock.Data))
 				}
 			case "content_block_delta":
 				switch resp.Delta.Type {
@@ -551,10 +550,9 @@ DoStream:
 						break DoStream
 					}
 				case "thinking_delta":
-					thought := thoughts.at(int32(resp.Index))
-					thought.signature.WriteString(resp.Delta.Signature)
+					thoughts.signature(int32(resp.Index), resp.Delta.Signature)
 					if resp.Delta.Thinking != "" {
-						thought.text.WriteString(resp.Delta.Thinking)
+						thoughts.text(int32(resp.Index), resp.Delta.Thinking)
 						chunk := streaming.Chunk{
 							Type:      streaming.ChunkTypeReasoning,
 							Reasoning: &reasoning.ContentReasoning{Content: resp.Delta.Thinking},
@@ -565,7 +563,7 @@ DoStream:
 						}
 					}
 				case "signature_delta":
-					thoughts.at(int32(resp.Index)).signature.WriteString(resp.Delta.Signature)
+					thoughts.signature(int32(resp.Index), resp.Delta.Signature)
 				case "input_json_delta":
 					if currentToolCall != nil {
 						// Bedrock already sends deltas in PartialJSON, not full accumulated JSON

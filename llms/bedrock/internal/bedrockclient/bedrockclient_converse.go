@@ -999,15 +999,14 @@ type converseReasoningStream struct {
 }
 
 func (a *converseReasoningStream) add(index int32, delta types.ReasoningContentBlockDelta) (readableText string) {
-	thought := a.at(index)
 	switch block := delta.(type) {
 	case *types.ReasoningContentBlockDeltaMemberText:
-		thought.text.WriteString(block.Value)
+		a.text(index, block.Value)
 		return block.Value
 	case *types.ReasoningContentBlockDeltaMemberSignature:
-		thought.signature.WriteString(block.Value)
+		a.signature(index, block.Value)
 	case *types.ReasoningContentBlockDeltaMemberRedactedContent:
-		thought.redacted = append(thought.redacted, block.Value...)
+		a.encrypted(index, block.Value)
 	}
 	return ""
 }
