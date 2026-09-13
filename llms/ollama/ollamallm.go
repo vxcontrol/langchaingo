@@ -161,7 +161,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	warn := &llms.Warnings{}
 	reportOllamaOptions(warn, model, opts)
-	if o.servesCloud() {
+	if o.servesCloud(model) {
 		reportOllamaCloudFormat(warn, model, opts, o.options.format)
 	}
 
@@ -394,7 +394,7 @@ func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 		if err := opts.ValidateStructuredOutput(); err != nil {
 			return nil, err
 		}
-		if o.servesCloud() {
+		if o.servesCloud(o.getModel(opts)) {
 			return nil, &llms.ErrStructuredOutputUnsupported{
 				Provider: providerOllama,
 				Model:    o.getModel(opts),
@@ -403,7 +403,7 @@ func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 		}
 		return so.Schema, nil
 	}
-	if o.servesCloud() {
+	if o.servesCloud(o.getModel(opts)) {
 		return json.RawMessage(`""`), nil
 	}
 	format := o.options.format
@@ -415,7 +415,12 @@ func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 
 const ollamaCloudFormatReason = "Ollama Cloud does not support structured outputs"
 
-func (o *LLM) servesCloud() bool {
+// servesCloud reports whether the model runs on Ollama Cloud: reached at
+// ollama.com, or a cloud model a local server offloads, tagged "-cloud".
+func (o *LLM) servesCloud(model string) bool {
+	if _, tag, ok := strings.Cut(strings.ToLower(model), ":"); ok && (tag == "cloud" || strings.HasSuffix(tag, "-cloud")) {
+		return true
+	}
 	if o.options.ollamaServerURL == nil {
 		return false
 	}

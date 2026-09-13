@@ -35,8 +35,11 @@ type Options struct {
 
 	unhonoredOnREST []string
 
-	// Set by WithDefaultTemperature, so a configured zero still reaches the wire.
+	// Set by the WithDefault* sampling options, so a configured zero still reaches
+	// the wire.
 	temperatureFromCaller bool
+	topKFromCaller        bool
+	topPFromCaller        bool
 }
 
 func DefaultOptions() Options {
@@ -202,6 +205,7 @@ func WithDefaultTemperature(defaultTemperature float64) Option {
 func WithDefaultTopK(defaultTopK int) Option {
 	return func(opts *Options) {
 		opts.DefaultTopK = defaultTopK
+		opts.topKFromCaller = true
 	}
 }
 
@@ -209,6 +213,7 @@ func WithDefaultTopK(defaultTopK int) Option {
 func WithDefaultTopP(defaultTopP float64) Option {
 	return func(opts *Options) {
 		opts.DefaultTopP = defaultTopP
+		opts.topPFromCaller = true
 	}
 }
 

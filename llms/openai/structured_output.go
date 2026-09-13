@@ -7,6 +7,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
 )
 
@@ -97,7 +98,7 @@ func openAIStructuredOutputUnsupported(model string) string {
 		m = m[idx+1:]
 	}
 	switch {
-	case strings.HasPrefix(m, "deepseek"), strings.HasPrefix(m, "glm-"):
+	case reasoning.TakesNoJSONSchema(model):
 		return "the vendor's chat completions response_format takes only text and json_object"
 	case strings.HasPrefix(m, "gpt-3.5"):
 		return predates

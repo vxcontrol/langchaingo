@@ -107,10 +107,10 @@ func (g *GoogleAI) GenerateContent(
 		CandidateCount: getIntPointer(g.opts.DefaultCandidateCount),
 		MaxTokens:      getIntPointer(g.opts.DefaultMaxTokens),
 	}
-	if g.opts.DefaultTopP != 0 {
+	if g.opts.topPFromCaller || g.opts.DefaultTopP != 0 {
 		opts.TopP = getFloatPointer(g.opts.DefaultTopP)
 	}
-	if g.opts.DefaultTopK != 0 {
+	if g.opts.topKFromCaller || g.opts.DefaultTopK != 0 {
 		opts.TopK = getIntPointer(g.opts.DefaultTopK)
 	}
 	for _, opt := range options {
@@ -1138,9 +1138,6 @@ func convertIntToFloat32Pointer(i *int) *float32 {
 	return &f32
 }
 
-// resolveTemperature returns the temperature to use when the caller left it
-// unset. Gemini 3 defaults to 1.0, the value Google recommends (lower values can
-// cause looping and degraded reasoning); other models keep the SDK-wide default.
 // resolveThinkingConfig builds the Gemini thinking config for the reasoning mode.
 // Off forces budget 0 on models that disable that way, since omitting would not
 // disable a default-on model; a model whose thinking cannot be disabled returns a
