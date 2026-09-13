@@ -14,8 +14,9 @@ type Block struct {
 	AfterToolCalls int `json:"after_tool_calls,omitempty"`
 }
 
-// FromBlocks builds the reasoning of one response. A lone plain block comes
-// back as Content and Signature with no Blocks, so read blocks through Sequence.
+// FromBlocks builds the reasoning of one response. A lone plain block that no
+// tool call precedes comes back as Content and Signature with no Blocks, so read
+// blocks through Sequence.
 func FromBlocks(blocks []Block) *ContentReasoning {
 	switch {
 	case len(blocks) == 0:
