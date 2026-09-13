@@ -18,6 +18,17 @@ import (
 func replayedReasoning(t *testing.T, model string) []any {
 	t.Helper()
 
+	turns := assistantTurnsSent(t, model)
+	replayed := make([]any, 0, len(turns))
+	for _, turn := range turns {
+		replayed = append(replayed, turn["reasoning_content"])
+	}
+	return replayed
+}
+
+func assistantTurnsSent(t *testing.T, model string) []map[string]any {
+	t.Helper()
+
 	var body map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -61,14 +72,14 @@ func replayedReasoning(t *testing.T, model string) []any {
 	_, err = llm.GenerateContent(context.Background(), history, llms.WithTools(tools))
 	require.NoError(t, err)
 
-	var replayed []any
+	var turns []map[string]any
 	for _, raw := range body["messages"].([]any) {
 		msg := raw.(map[string]any)
 		if msg["role"] == "assistant" {
-			replayed = append(replayed, msg["reasoning_content"])
+			turns = append(turns, msg)
 		}
 	}
-	return replayed
+	return turns
 }
 
 func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T) {
@@ -85,7 +96,7 @@ func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T)
 func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"qwen3.7-plus", "grok-4", "mistral-medium-latest"} {
+	for _, model := range []string{"qwen3.7-plus", "grok-4"} {
 		assert.Equal(t, []any{nil, "tool turn thought"}, replayedReasoning(t, model), model)
 	}
 }

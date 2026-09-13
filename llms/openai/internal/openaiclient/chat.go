@@ -324,11 +324,69 @@ type ChatMessage struct { //nolint:musttag
 	// Refusal is set on a response message when the model declines to answer
 	// (Structured Outputs). It must not be validated as final JSON.
 	Refusal string `json:"refusal,omitempty"`
+
+	// Thinking goes out as a thinking chunk at the head of a content list
+	// instead of reasoning_content. Requests only.
+	Thinking string
+}
+
+type contentChunk struct {
+	Type     string         `json:"type"`
+	Text     string         `json:"text,omitempty"`
+	Thinking []contentChunk `json:"thinking,omitempty"`
+}
+
+func decodeContent(raw json.RawMessage) (text, thinking string, err error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	if raw[0] != '[' {
+		err = json.Unmarshal(raw, &text)
+		return text, "", err
+	}
+	var chunks []contentChunk
+	if err := json.Unmarshal(raw, &chunks); err != nil {
+		return "", "", err
+	}
+	var answer, thought strings.Builder
+	for _, chunk := range chunks {
+		switch chunk.Type {
+		case "text":
+			answer.WriteString(chunk.Text)
+		case "thinking":
+			for _, inner := range chunk.Thinking {
+				thought.WriteString(inner.Text)
+			}
+		}
+	}
+	return answer.String(), thought.String(), nil
+}
+
+func (m ChatMessage) contentAfterThinking() []any {
+	content := []any{contentChunk{Type: "thinking", Thinking: []contentChunk{{Type: "text", Text: m.Thinking}}}}
+	for _, part := range m.MultiContent {
+		var chunk any = part
+		if text, isText := part.(llms.TextContent); isText {
+			chunk = contentChunk{Type: "text", Text: text.Text}
+		}
+		content = append(content, chunk)
+	}
+	return content
 }
 
 func (m ChatMessage) MarshalJSON() ([]byte, error) {
 	if m.Content != "" && m.MultiContent != nil {
 		return nil, ErrContentExclusive
+	}
+	if m.Thinking != "" {
+		return json.Marshal(struct {
+			Role         string        `json:"role"`
+			Content      []any         `json:"content"`
+			Name         string        `json:"name,omitempty"`
+			ToolCalls    []ToolCall    `json:"tool_calls,omitempty"`
+			FunctionCall *FunctionCall `json:"function_call,omitempty"`
+			ToolCallID   string        `json:"tool_call_id,omitempty"`
+		}{m.Role, m.contentAfterThinking(), m.Name, m.ToolCalls, m.FunctionCall, m.ToolCallID})
 	}
 	if text, ok := isSingleTextContent(m.MultiContent); ok {
 		m.Content = text
@@ -355,6 +413,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 
 			// Refusal is response-only; never sent on a request.
 			Refusal string `json:"-"`
+
+			Thinking string `json:"-"`
 		}(m)
 		if msg.ReasoningContent == "" && msg.Reasoning != "" {
 			msg.ReasoningContent = msg.Reasoning
@@ -380,6 +440,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 
 		// Refusal is response-only; never sent on a request.
 		Refusal string `json:"-"`
+
+		Thinking string `json:"-"`
 	}(m)
 	if msg.ReasoningContent == "" && msg.Reasoning != "" {
 		msg.ReasoningContent = msg.Reasoning
@@ -396,9 +458,9 @@ func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
 }
 
 func (m *ChatMessage) UnmarshalJSON(data []byte) error {
-	msg := struct {
+	type fields struct {
 		Role         string             `json:"role"`
-		Content      string             `json:"content"`
+		Content      string             `json:"-"`
 		MultiContent []llms.ContentPart `json:"-"` // not expected in response
 		Name         string             `json:"name,omitempty"`
 		ToolCalls    []ToolCall         `json:"tool_calls,omitempty"`
@@ -415,15 +477,28 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 
 		// Refusal is populated when the model declines under Structured Outputs.
 		Refusal string `json:"refusal,omitempty"`
-	}{}
-	err := json.Unmarshal(data, &msg)
+
+		Thinking string `json:"-"`
+	}
+	var msg struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(msg.Content)
 	if err != nil {
 		return err
 	}
-	if msg.ReasoningContent == "" && msg.Reasoning != "" {
-		msg.ReasoningContent = msg.Reasoning
+	*m = ChatMessage(msg.fields)
+	m.Content = text
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = m.Reasoning
 	}
-	*m = ChatMessage(msg)
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = thinking
+	}
 	return nil
 }
 
@@ -550,6 +625,27 @@ type StreamedChatResponseChunkDelta struct {
 	// Refusal streams in when the model declines under Structured Outputs; it must
 	// be accumulated and surfaced separately from Content, never validated as JSON.
 	Refusal string `json:"refusal,omitempty"`
+}
+
+func (d *StreamedChatResponseChunkDelta) UnmarshalJSON(data []byte) error {
+	type fields StreamedChatResponseChunkDelta
+	var delta struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &delta); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(delta.Content)
+	if err != nil {
+		return err
+	}
+	*d = StreamedChatResponseChunkDelta(delta.fields)
+	d.Content = text
+	if d.ReasoningContent == "" {
+		d.ReasoningContent = thinking
+	}
+	return nil
 }
 
 // StreamedChatResponseChunk is a chunk from the stream.

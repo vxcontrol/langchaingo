@@ -90,6 +90,21 @@ func ReplaysReasoningOnEveryTurn(model string) bool {
 	return false
 }
 
+// ReplaysThinkingInContent reports, for a model Mistral serves, whether its
+// earlier assistant turns take their reasoning back, which they take only as a
+// thinking chunk at the head of content, on every turn.
+func ReplaysThinkingInContent(model string) bool {
+	if !ServedByMistral(model) {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if mistralWithoutReasoning(form) {
+			return false
+		}
+	}
+	return true
+}
+
 // UsesLegacyMaxTokens reports whether the output limit must travel as
 // max_tokens rather than max_completion_tokens.
 func UsesLegacyMaxTokens(model string) bool {
