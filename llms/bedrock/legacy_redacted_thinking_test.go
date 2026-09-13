@@ -50,7 +50,7 @@ func TestTheLegacyPathCarriesTheEncryptedThought(t *testing.T) {
 		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: [][]byte{[]byte(encrypted)}}),
+				llms.TextPartWithReasoning("", reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte(encrypted)}})),
 			}},
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 		})

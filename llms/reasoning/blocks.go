@@ -39,14 +39,10 @@ func (r *ContentReasoning) Sequence() []Block {
 		return r.Blocks
 	}
 
-	var sequence []Block
-	if r.Content != "" || len(r.Signature) > 0 {
-		sequence = append(sequence, Block{Text: r.Content, Signature: r.Signature})
+	if r.Content == "" && len(r.Signature) == 0 {
+		return nil
 	}
-	for _, data := range r.Redacted {
-		sequence = append(sequence, Block{Redacted: data})
-	}
-	return sequence
+	return []Block{{Text: r.Content, Signature: r.Signature}}
 }
 
 // GroupByToolCalls splits blocks by where they sit in a turn with toolCalls

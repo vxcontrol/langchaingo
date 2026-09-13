@@ -76,7 +76,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 		_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: [][]byte{[]byte(encrypted)}}),
+				llms.TextPartWithReasoning("", reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte(encrypted)}})),
 			}},
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 		}, llms.WithMaxTokens(64))
@@ -173,7 +173,7 @@ func TestTwoEncryptedBlocksGoBackAsTwo(t *testing.T) {
 		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextContent{
 			Text:      "answer",
-			Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{[]byte("first"), []byte("second")}},
+			Reasoning: reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte("first")}, {Redacted: []byte("second")}}),
 		}}},
 		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 	}, llms.WithMaxTokens(64))

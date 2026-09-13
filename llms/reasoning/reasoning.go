@@ -24,10 +24,6 @@ type ContentReasoning struct {
 	// Signature is the signature of the reasoning contents.
 	Signature []byte `json:"signature,omitempty"`
 
-	// Redacted is reasoning the provider encrypted. It carries no readable text
-	// and travels back to the vendor unchanged, one block per element.
-	Redacted [][]byte `json:"redacted,omitempty"`
-
 	// Blocks, when set, is what travels back to the vendor; Content then only
 	// mirrors their text.
 	Blocks []Block `json:"blocks,omitempty"`
@@ -35,7 +31,7 @@ type ContentReasoning struct {
 
 // IsEmpty reports whether there is nothing to carry back into the next turn.
 func (r *ContentReasoning) IsEmpty() bool {
-	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Redacted) == 0 && len(r.Blocks) == 0)
+	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Blocks) == 0)
 }
 
 // HasContent reports whether the model actually reasoned.
@@ -54,13 +50,6 @@ func (r *ContentReasoning) String() string {
 	if len(r.Signature) > 0 {
 		buf.WriteString("\nSignature: ")
 		buf.Write(r.Signature)
-	}
-	if len(r.Redacted) > 0 {
-		size := 0
-		for _, block := range r.Redacted {
-			size += len(block)
-		}
-		fmt.Fprintf(&buf, "\nRedacted: %d blocks, %d bytes", len(r.Redacted), size)
 	}
 	if len(r.Blocks) > 0 {
 		encrypted, size := 0, 0
@@ -101,6 +90,7 @@ func (r *ContentReasoning) UnmarshalJSON(data []byte) error {
 
 func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {
 	raw = bytes.TrimSpace(raw)
+	var encrypted [][]byte
 	switch {
 	case len(raw) == 0 || bytes.Equal(raw, []byte("null")):
 		return nil
@@ -109,17 +99,20 @@ func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {
 		if err := json.Unmarshal(raw, &block); err != nil {
 			return err
 		}
-		if len(block) > 0 {
-			r.Redacted = append(r.Redacted, block)
+		encrypted = append(encrypted, block)
+	default:
+		if err := json.Unmarshal(raw, &encrypted); err != nil {
+			return err
 		}
-		return nil
 	}
 
-	var blocks [][]byte
-	if err := json.Unmarshal(raw, &blocks); err != nil {
-		return err
+	blocks := r.Sequence()
+	for _, data := range encrypted {
+		blocks = append(blocks, Block{Redacted: data})
 	}
-	r.Redacted = append(r.Redacted, blocks...)
+	if stored := FromBlocks(blocks); stored != nil {
+		*r = *stored
+	}
 	return nil
 }
 

@@ -1393,7 +1393,7 @@ func TestConverseClient_RedactedReasoningTravelsBack(t *testing.T) {
 				Role:      llms.ChatMessageTypeAI,
 				Content:   "answer",
 				Type:      "text",
-				Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{encrypted}},
+				Reasoning: reasoning.FromBlocks([]reasoning.Block{{Redacted: encrypted}}),
 			},
 			{Role: llms.ChatMessageTypeHuman, Content: "And now?", Type: "text"},
 		},

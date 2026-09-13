@@ -61,9 +61,6 @@ func TestAHandBuiltReasoningIsOneBlock(t *testing.T) {
 		[]Block{{Signature: []byte("sig")}},
 		(&ContentReasoning{Signature: []byte("sig")}).Sequence(),
 		"a signature with its text withheld is still a block to return")
-	assert.Equal(t,
-		[]Block{{Text: "step", Signature: []byte("sig")}, {Redacted: []byte("r1")}, {Redacted: []byte("r2")}},
-		(&ContentReasoning{Content: "step", Signature: []byte("sig"), Redacted: [][]byte{[]byte("r1"), []byte("r2")}}).Sequence())
 	assert.Empty(t, (&ContentReasoning{}).Sequence())
 	assert.Empty(t, (*ContentReasoning)(nil).Sequence())
 }
