@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -278,7 +279,7 @@ func TestTheNeutralOptionAndTheDoorOptionAreTheSame(t *testing.T) {
 func TestAVendorThatKeepsSamplingWhileThinkingKeepsIt(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"glm-5.3", "zai/glm-5.3", "kimi-k3"} {
+	for _, model := range []string{"glm-5.3", "zai/glm-5.3", "kimi-k2-thinking"} {
 		body := sendForWire(t, model,
 			llms.WithTemperature(0.2), llms.WithTopP(0.9),
 			llms.WithReasoning(llms.ReasoningHigh, 0))
@@ -417,5 +418,47 @@ func TestDelegatedDepthOnAModelThatReasonsAnywayIsSilent(t *testing.T) {
 	resp := sendForWarnings(t, "gpt-4o", llms.WithAdaptiveReasoning(llms.ReasoningNone))
 	if len(resp.Warnings) != 0 {
 		t.Errorf("nothing was lost, got %v", resp.Warnings)
+	}
+}
+
+func TestKimiModelsWithFixedSamplingGetNoneOfIt(t *testing.T) {
+	t.Parallel()
+
+	sampling := []llms.CallOption{
+		llms.WithTemperature(0.3), llms.WithTopP(0.5),
+		llms.WithPresencePenalty(0.2), llms.WithFrequencyPenalty(0.1),
+	}
+	requests := map[string][]llms.CallOption{
+		"kimi-k3":                  sampling,
+		"moonshot/kimi-k3":         sampling,
+		"kimi-k2.7-code":           sampling,
+		"kimi-k2.7-code-highspeed": sampling,
+		"kimi-k2.6":                slices.Concat(sampling, []llms.CallOption{llms.WithReasoningDisabled()}),
+	}
+	for model, opts := range requests {
+		body := sendForWire(t, model, opts...)
+		for _, field := range []string{`"temperature"`, `"top_p"`, `"presence_penalty"`, `"frequency_penalty"`} {
+			if strings.Contains(body, field) {
+				t.Errorf("%s: %s is fixed by the vendor and must stay off the wire: %s", model, field, body)
+			}
+		}
+
+		resp := sendForWarnings(t, model, sampling...)
+		for _, option := range []string{"WithTemperature", "WithTopP", "WithPresencePenalty", "WithFrequencyPenalty"} {
+			if got := warningFor(t, resp, option); got.Kind != llms.WarningDrop {
+				t.Errorf("%s: %s warning = %+v", model, option, got)
+			}
+		}
+	}
+}
+
+func TestKimiModelsOutsideTheFixedListKeepTheirSampling(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"kimi-k2-thinking", "kimi-k2.7", "kimi-k30"} {
+		body := sendForWire(t, model, llms.WithTemperature(0.3), llms.WithTopP(0.5))
+		if !strings.Contains(body, `"temperature":0.3`) || !strings.Contains(body, `"top_p":0.5`) {
+			t.Errorf("%s: sampling the vendor does not fix must reach the wire: %s", model, body)
+		}
 	}
 }

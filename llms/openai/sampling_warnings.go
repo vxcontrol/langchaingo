@@ -89,6 +89,8 @@ func samplingReason(model string, opts llms.CallOptions, wireEffort string) stri
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):
 		return "the model rejects sampling parameters"
+	case reasoning.FixesSampling(model):
+		return "the model runs on fixed sampling and refuses any value for it"
 	case refusesSamplingWhileThinking(model, opts, wireEffort):
 		return "the model refuses sampling while thinking"
 	default:

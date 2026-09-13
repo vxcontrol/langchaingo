@@ -48,6 +48,18 @@ func RejectsSamplingWhileThinking(model string) bool {
 	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
 }
 
+// FixesSampling reports whether the model runs on fixed temperature, top_p and
+// penalties, so any value the caller sets for them stays off the wire.
+func FixesSampling(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
+			hasGeneration(form, "kimi-k2.7-code") {
+			return true
+		}
+	}
+	return false
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
 	return isClaudeModel(model) || openAIProperName(model)
