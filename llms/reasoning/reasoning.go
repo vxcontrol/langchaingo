@@ -239,7 +239,7 @@ func DefaultIsReasoningModel(model string) bool {
 // bare or behind LiteLLM's mistral/ prefix.
 func ServedByMistral(model string) bool {
 	m := strings.TrimPrefix(strings.ToLower(model), "mistral/")
-	if strings.Contains(m, ":") {
+	if strings.ContainsAny(m, "/:") {
 		return false
 	}
 	if strings.HasPrefix(m, "zai-glm") || strings.HasPrefix(m, "magistral-") ||
