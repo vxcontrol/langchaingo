@@ -433,10 +433,10 @@ func TestZeroConfigTemperaturePinUsesDefaultModel(t *testing.T) {
 		return body
 	}
 
-	// The pin must read the client's model, which no per-call option supplies.
+	// The policy must read the client's model, which no per-call option supplies.
 	clientModel := capture(t, WithModel("gpt-5.5"))
-	if !strings.Contains(clientModel, `"temperature":1`) {
-		t.Errorf("gpt-5.5 only accepts the default temperature, got body: %s", clientModel)
+	if strings.Contains(clientModel, `"temperature"`) {
+		t.Errorf("gpt-5.5 takes no temperature while it thinks, got body: %s", clientModel)
 	}
 
 	zeroConfig := capture(t)

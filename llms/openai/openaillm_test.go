@@ -874,30 +874,31 @@ var reasoningTemperatureCases = []struct {
 	model               string
 	temperature         float64
 	expectedTemperature float64
+	dropped             bool
 }{
 	{
-		name:                "reasoning model o1-preview with non-1.0 temperature",
-		model:               "o1-preview",
-		temperature:         0.7,
-		expectedTemperature: 1.0,
+		name:        "reasoning model o1-preview with non-1.0 temperature",
+		model:       "o1-preview",
+		temperature: 0.7,
+		dropped:     true,
 	},
 	{
-		name:                "reasoning model o1-mini with zero temperature",
-		model:               "o1-mini",
-		temperature:         0.0,
-		expectedTemperature: 1.0,
+		name:        "reasoning model o1-mini with zero temperature",
+		model:       "o1-mini",
+		temperature: 0.0,
+		dropped:     true,
 	},
 	{
-		name:                "reasoning model o3-mini with temperature 0.5",
-		model:               "o3-mini",
-		temperature:         0.5,
-		expectedTemperature: 1.0,
+		name:        "reasoning model o3-mini with temperature 0.5",
+		model:       "o3-mini",
+		temperature: 0.5,
+		dropped:     true,
 	},
 	{
-		name:                "reasoning model with temperature already 1.0",
-		model:               "o1-preview",
-		temperature:         1.0,
-		expectedTemperature: 1.0,
+		name:        "reasoning model with temperature already 1.0",
+		model:       "o1-preview",
+		temperature: 1.0,
+		dropped:     true,
 	},
 	{
 		name:                "non-reasoning model gpt-4 preserves temperature",
@@ -963,11 +964,13 @@ func TestCreateChatRequest_ReasoningModelTemperature(t *testing.T) {
 
 			req, err := llm.createChatRequest([]*ChatMessage{}, opts, nil)
 			require.NoError(t, err)
-			require.NotNil(t, req.Temperature)
-			if req.Temperature != nil {
-				assert.Equal(t, tt.expectedTemperature, *req.Temperature,
-					"Temperature should be %v for model %s", tt.expectedTemperature, tt.model)
+			if tt.dropped {
+				assert.Nil(t, req.Temperature, "model %s takes no temperature", tt.model)
+				return
 			}
+			require.NotNil(t, req.Temperature)
+			assert.Equal(t, tt.expectedTemperature, *req.Temperature,
+				"Temperature should be %v for model %s", tt.expectedTemperature, tt.model)
 		})
 	}
 }

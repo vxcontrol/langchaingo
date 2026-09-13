@@ -304,7 +304,7 @@ func TestReasoningDisabledForClaudeBehindOpenAITransport(t *testing.T) {
 	})
 }
 
-func TestTemperaturePinnedOnlyWhereTheModelDemandsIt(t *testing.T) {
+func TestTemperatureDroppedOnlyWhereTheModelRefusesIt(t *testing.T) {
 	t.Parallel()
 
 	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
@@ -341,9 +341,9 @@ func TestTemperaturePinnedOnlyWhereTheModelDemandsIt(t *testing.T) {
 		})
 	}
 	for _, model := range []string{"gpt-5", "gpt-5-mini", "gpt-5.5", "gpt-5.6-terra", "o3-mini"} {
-		t.Run("pins/"+model, func(t *testing.T) {
-			if body := send(t, model); !strings.Contains(body, `"temperature":1`) {
-				t.Fatalf("%s only accepts the default temperature, got body: %s", model, body)
+		t.Run("drops/"+model, func(t *testing.T) {
+			if body := send(t, model); strings.Contains(body, `"temperature"`) {
+				t.Fatalf("%s takes no temperature while it thinks, got body: %s", model, body)
 			}
 		})
 	}

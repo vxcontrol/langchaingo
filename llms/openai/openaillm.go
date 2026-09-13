@@ -539,7 +539,11 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 
 	switch {
 	case refusesSamplingWhileThinking(model, opts, wireEffort):
-		if req.Temperature != nil {
+		switch {
+		case req.Temperature == nil:
+		case reasoning.RejectsSamplingWhileThinking(model):
+			req.Temperature = nil
+		default:
 			temperature := 1.0
 			req.Temperature = &temperature
 		}

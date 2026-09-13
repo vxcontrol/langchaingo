@@ -57,7 +57,7 @@ func TestTheCallerLearnsWhatTheSamplingPolicyTookAway(t *testing.T) {
 		llms.WithLogProbs(true), llms.WithTopLogProbs(3))
 
 	temperature := warningFor(t, resp, "WithTemperature")
-	if temperature.Kind != llms.WarningSubstitute || temperature.Asked != "0.2" || temperature.Sent != "1" {
+	if temperature.Kind != llms.WarningDrop || temperature.Asked != "0.2" || temperature.Sent != "" {
 		t.Errorf("temperature warning = %+v", temperature)
 	}
 	if temperature.Model != "gpt-5" {
