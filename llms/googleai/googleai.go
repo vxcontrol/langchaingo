@@ -107,10 +107,10 @@ func (g *GoogleAI) GenerateContent(
 		CandidateCount: getIntPointer(g.opts.DefaultCandidateCount),
 		MaxTokens:      getIntPointer(g.opts.DefaultMaxTokens),
 	}
-	if g.opts.DefaultTopP != 0 {
+	if g.opts.topPFromCaller || g.opts.DefaultTopP != 0 {
 		opts.TopP = getFloatPointer(g.opts.DefaultTopP)
 	}
-	if g.opts.DefaultTopK != 0 {
+	if g.opts.topKFromCaller || g.opts.DefaultTopK != 0 {
 		opts.TopK = getIntPointer(g.opts.DefaultTopK)
 	}
 	for _, opt := range options {
