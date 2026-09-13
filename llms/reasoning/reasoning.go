@@ -27,11 +27,15 @@ type ContentReasoning struct {
 	// Redacted is reasoning the provider encrypted. It carries no readable text
 	// and travels back to the vendor unchanged, one block per element.
 	Redacted [][]byte `json:"redacted,omitempty"`
+
+	// Blocks, when set, is what travels back to the vendor; Content then only
+	// mirrors their text.
+	Blocks []Block `json:"blocks,omitempty"`
 }
 
 // IsEmpty reports whether there is nothing to carry back into the next turn.
 func (r *ContentReasoning) IsEmpty() bool {
-	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Redacted) == 0)
+	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Redacted) == 0 && len(r.Blocks) == 0)
 }
 
 // HasContent reports whether the model actually reasoned.
@@ -58,6 +62,16 @@ func (r *ContentReasoning) String() string {
 		}
 		fmt.Fprintf(&buf, "\nRedacted: %d blocks, %d bytes", len(r.Redacted), size)
 	}
+	if len(r.Blocks) > 0 {
+		encrypted, size := 0, 0
+		for _, block := range r.Blocks {
+			if block.Redacted != nil {
+				encrypted++
+				size += len(block.Redacted)
+			}
+		}
+		fmt.Fprintf(&buf, "\nBlocks: %d, %d encrypted (%d bytes)", len(r.Blocks), encrypted, size)
+	}
 
 	return buf.String()
 }
@@ -75,10 +89,38 @@ func (r *ContentReasoning) UnmarshalJSON(data []byte) error {
 	type Alias ContentReasoning
 	aux := &struct {
 		*Alias
+		Redacted json.RawMessage `json:"redacted,omitempty"`
 	}{
 		Alias: (*Alias)(r),
 	}
-	return json.Unmarshal(data, aux)
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	return r.readStoredRedacted(aux.Redacted)
+}
+
+func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {
+	raw = bytes.TrimSpace(raw)
+	switch {
+	case len(raw) == 0 || bytes.Equal(raw, []byte("null")):
+		return nil
+	case raw[0] == '"':
+		var block []byte
+		if err := json.Unmarshal(raw, &block); err != nil {
+			return err
+		}
+		if len(block) > 0 {
+			r.Redacted = append(r.Redacted, block)
+		}
+		return nil
+	}
+
+	var blocks [][]byte
+	if err := json.Unmarshal(raw, &blocks); err != nil {
+		return err
+	}
+	r.Redacted = append(r.Redacted, blocks...)
+	return nil
 }
 
 type ChunkContentSplitterState int
