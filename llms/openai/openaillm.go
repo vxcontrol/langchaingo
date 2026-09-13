@@ -107,7 +107,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	chatMsgs, err := o.convertMessages(messages)
+	chatMsgs, err := o.convertMessages(messages, o.effectiveModel(opts))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 }
 
 // convertMessages converts LangChain messages to OpenAI chat messages.
-func (o *LLM) convertMessages(messages []llms.MessageContent) ([]*ChatMessage, error) {
+func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
 	chatMsgs := make([]*ChatMessage, 0, len(messages))
 	for _, mc := range messages {
 		msg := &ChatMessage{MultiContent: mc.Parts}
@@ -172,8 +172,8 @@ func (o *LLM) convertMessages(messages []llms.MessageContent) ([]*ChatMessage, e
 		msg.MultiContent = newParts
 		msg.ToolCalls = toolCallsFromToolCalls(toolCalls)
 
-		// Preserve reasoning content for multi-turn conversations with tool calls
-		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant && len(toolCalls) > 0 {
+		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant &&
+			(len(toolCalls) > 0 || reasoning.ReplaysReasoningOnEveryTurn(model)) {
 			msg.ReasoningContent = extractReasoningContent(mc.Parts)
 		}
 

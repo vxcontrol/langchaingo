@@ -53,6 +53,17 @@ func RejectsMinP(model string) bool {
 	return isClaudeModel(model) || openAIProperName(model)
 }
 
+// ReplaysReasoningOnEveryTurn reports whether reasoning_content goes back on every
+// earlier assistant turn, not only on the turns that called a tool.
+func ReplaysReasoningOnEveryTurn(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "deepseek") {
+			return true
+		}
+	}
+	return false
+}
+
 // UsesLegacyMaxTokens reports whether the output limit must travel as
 // max_tokens rather than max_completion_tokens.
 func UsesLegacyMaxTokens(model string) bool {
