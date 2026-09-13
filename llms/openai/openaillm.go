@@ -172,9 +172,15 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 		msg.MultiContent = newParts
 		msg.ToolCalls = toolCallsFromToolCalls(toolCalls)
 
-		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant &&
-			(len(toolCalls) > 0 || reasoning.ReplaysReasoningOnEveryTurn(model)) {
-			msg.ReasoningContent = extractReasoningContent(mc.Parts)
+		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant {
+			switch {
+			case reasoning.ServedByMistral(model):
+				if reasoning.ReplaysThinkingInContent(model) {
+					msg.Thinking = extractReasoningContent(mc.Parts)
+				}
+			case len(toolCalls) > 0 || reasoning.ReplaysReasoningOnEveryTurn(model):
+				msg.ReasoningContent = extractReasoningContent(mc.Parts)
+			}
 		}
 
 		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {

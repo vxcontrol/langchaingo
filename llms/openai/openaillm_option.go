@@ -175,7 +175,9 @@ func WithModernReasoningFormat() Option {
 
 // WithPreserveReasoningContent sends each assistant turn's reasoning back as
 // reasoning_content: on the turns that called a tool, and on every assistant
-// turn for DeepSeek, Kimi and GLM models.
+// turn for DeepSeek, Kimi and GLM models. A model Mistral serves takes it on
+// every turn as a thinking chunk at the head of content instead, and one that
+// does not reason there takes none.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
