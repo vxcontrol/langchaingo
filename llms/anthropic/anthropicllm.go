@@ -394,35 +394,18 @@ func processAnthropicResponse(
 		return nil, ErrEmptyResponse
 	}
 
-	// Extract ALL thinking content, signature
-	// According to Anthropic docs, there's ONE thinking block per response
-	var reasoningContent strings.Builder
-	var signature []byte
-	var redacted [][]byte
-
+	var thoughts reasoning.Collector
 	for _, content := range result.Content {
 		switch cv := content.(type) {
 		case *anthropicclient.ThinkingContent:
-			reasoningContent.WriteString(cv.Thinking)
-			if len(cv.Signature) > 0 {
-				signature = []byte(cv.Signature)
-			}
+			thoughts.Thought(cv.Thinking, []byte(cv.Signature))
 		case *anthropicclient.RedactedThinkingContent:
-			if cv.Data != "" {
-				redacted = append(redacted, []byte(cv.Data))
-			}
+			thoughts.Encrypted([]byte(cv.Data))
+		case *anthropicclient.ToolUseContent:
+			thoughts.ToolCall()
 		}
 	}
-
-	// Create reasoning object
-	var contentReasoning *reasoning.ContentReasoning
-	if reasoningContent.Len() > 0 || len(signature) > 0 || len(redacted) > 0 {
-		contentReasoning = &reasoning.ContentReasoning{
-			Content:   reasoningContent.String(),
-			Signature: signature,
-			Redacted:  redacted,
-		}
-	}
+	contentReasoning := thoughts.Reasoning()
 
 	// Process content blocks to collect text and tool calls
 	var toolCalls []llms.ToolCall
@@ -851,34 +834,26 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 }
 
 func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
+	var thoughts []reasoning.Block
+	toolCalls := 0
+	for _, part := range msg.Parts {
+		switch p := part.(type) {
+		case llms.TextContent:
+			thoughts = append(thoughts, p.Reasoning.Sequence()...)
+		case llms.ToolCall:
+			if p.FunctionCall != nil {
+				toolCalls++
+			}
+		}
+	}
+	placed := reasoning.GroupByToolCalls(thoughts, toolCalls)
+
 	message := anthropicclient.ChatMessage{
 		Role:    RoleAssistant,
-		Content: []anthropicclient.Content{},
+		Content: thinkingContents(placed[0]),
 	}
 
-	for _, part := range msg.Parts {
-		p, ok := part.(llms.TextContent)
-		if !ok || p.Reasoning.IsEmpty() {
-			continue
-		}
-		thinkingBlock := &anthropicclient.ThinkingContent{
-			Type:     "thinking",
-			Thinking: p.Reasoning.Content,
-		}
-		if len(p.Reasoning.Signature) > 0 {
-			thinkingBlock.Signature = string(p.Reasoning.Signature)
-		}
-		if p.Reasoning.Content != "" || len(p.Reasoning.Signature) > 0 {
-			message.Content = append(message.Content, thinkingBlock)
-		}
-		for _, block := range p.Reasoning.Redacted {
-			message.Content = append(message.Content, &anthropicclient.RedactedThinkingContent{
-				Type: anthropicclient.EventTypeRedactedThinking,
-				Data: string(block),
-			})
-		}
-	}
-
+	emitted := 0
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
 		case llms.TextContent:
@@ -911,12 +886,33 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 				Input: inputStruct,
 			}
 			message.Content = append(message.Content, toolUse)
+			emitted++
+			message.Content = append(message.Content, thinkingContents(placed[emitted])...)
 		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
 		}
 	}
 
 	return message, nil
+}
+
+func thinkingContents(blocks []reasoning.Block) []anthropicclient.Content {
+	contents := []anthropicclient.Content{}
+	for _, block := range blocks {
+		if block.Redacted != nil {
+			contents = append(contents, &anthropicclient.RedactedThinkingContent{
+				Type: anthropicclient.EventTypeRedactedThinking,
+				Data: string(block.Redacted),
+			})
+			continue
+		}
+		thinking := &anthropicclient.ThinkingContent{Type: "thinking", Thinking: block.Text}
+		if len(block.Signature) > 0 {
+			thinking.Signature = string(block.Signature)
+		}
+		contents = append(contents, thinking)
+	}
+	return contents
 }
 
 type ToolResult struct {

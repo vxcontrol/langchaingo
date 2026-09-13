@@ -51,7 +51,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 
 		assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 		require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning")
-		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+		assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 		assert.False(t, resp.Choices[0].Reasoning.IsEmpty(),
 			"a turn carrying an encrypted thought is not an empty one")
 	})
@@ -148,7 +148,7 @@ func TestAStreamedEncryptedThoughtDoesNotCostTheAnswer(t *testing.T) {
 
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 	require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning on the streamed leg")
-	assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+	assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 	assert.False(t, resp.Choices[0].Reasoning.IsEmpty())
 }
 
