@@ -234,6 +234,37 @@ func DefaultIsReasoningModel(model string) bool {
 	return false
 }
 
+// ServedByMistral reports whether the name is one only Mistral's endpoint uses:
+// a Mistral family, or GLM spelled the way Mistral lists it (glm-5-2, zai-glm-5-2).
+func ServedByMistral(model string) bool {
+	m := strings.ToLower(model)
+	if idx := strings.LastIndex(m, "/"); idx != -1 {
+		m = m[idx+1:]
+	}
+	if strings.HasPrefix(m, "zai-glm") || strings.HasPrefix(m, "magistral") ||
+		mistralReasons(m) || mistralWithoutReasoning(m) {
+		return true
+	}
+	rest, ok := strings.CutPrefix(m, "glm-")
+	if !ok {
+		return false
+	}
+	major, minor, ok := strings.Cut(rest, "-")
+	return ok && isDigits(major) && isDigits(minor)
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 func mistralWithoutReasoning(model string) bool {
 	if mistralReasons(model) || strings.HasPrefix(model, "magistral") {
 		return false

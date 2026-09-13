@@ -124,7 +124,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		t.Parallel()
 		for _, model := range []string{
 			"deepseek-flash", "deepseek-v4-pro", "deepseek/deepseek-v4-pro", "glm-4.5-air", "zai/glm-5.3",
-			"glm-5-2", "zai-glm-5-2", "mistral/zai-glm-5-2", "zai.glm-4.7",
+			"glm-5.2", "zai.glm-4.7", "glm-5-turbo",
 		} {
 			llm := newUnitLLM(t, WithModel(model))
 			var opts llms.CallOptions
@@ -140,6 +140,19 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			req, err := llm.createChatRequest(nil, jsonMode, nil)
 			if err != nil || req.ResponseFormat == nil || req.ResponseFormat.FormatType() != "json_object" {
 				t.Fatalf("%s: JSON mode is documented and must still reach the wire, got %+v, %v", model, req, err)
+			}
+		}
+	})
+
+	t.Run("GLM served by Mistral keeps the schema Mistral documents for it", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{"glm-5-2", "zai-glm-5-2", "mistral/zai-glm-5-2"} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			req, err := llm.createChatRequest(nil, opts, nil)
+			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
+				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
 			}
 		}
 	})
