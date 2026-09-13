@@ -294,7 +294,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 			topP = nil
 		}
 		topK = nil
-		if !slices.Contains(betaHeaders, anthropicInterleavedThinkingBeta) {
+		if !slices.Contains(betaHeaders, anthropicInterleavedThinkingBeta) ||
+			!reasoning.ClaudeInterleavesOnBudget(model) {
 			maxTokens = reasoning.ClaudeMaxTokensForBudget(thinking.Budget, maxTokens)
 		}
 	case reasoning.ClaudeRejectsSampling(model):

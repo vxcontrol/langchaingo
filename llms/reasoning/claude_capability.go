@@ -228,6 +228,27 @@ func ClaudeMaxTokensForBudget(budget, maxTokens int) int {
 	return budget * 2
 }
 
+var budgetInterleavingClaude = []string{"claude-opus-4-5", "claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-1"}
+
+// ClaudeInterleavesOnBudget reports whether budget thinking on the model
+// interleaves with tool calls once the interleaved-thinking beta is on, which is
+// the only case where budget_tokens may exceed max_tokens.
+func ClaudeInterleavesOnBudget(model string) bool {
+	if claudeNamedIn(model, budgetInterleavingClaude) {
+		return true
+	}
+	for _, form := range modelSpellings(model) {
+		name := canonicalClaude(form)
+		for _, first := range []string{"claude-opus-4", "claude-sonnet-4"} {
+			rest, ok := strings.CutPrefix(name, first)
+			if ok && (rest == "" || strings.HasPrefix(rest, "-0") || strings.HasPrefix(rest, "-2025")) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // budgetEffortClaude are budget-thinking models that also accept an effort
 // output_config alongside manual thinking (introduced with Opus 4.5). Newer
 // generations use adaptive thinking, where effort is always available.
