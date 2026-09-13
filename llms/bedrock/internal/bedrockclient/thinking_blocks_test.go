@@ -17,7 +17,7 @@ func TestTwoEncryptedBlocksTravelBackAsTwo(t *testing.T) {
 		{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"},
 		{
 			Role: llms.ChatMessageTypeAI, Content: "answer", Type: "text",
-			Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{{0x01}, {0x02}}},
+			Reasoning: reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte{0x01}}, {Redacted: []byte{0x02}}}),
 		},
 	}
 

@@ -37,7 +37,7 @@ func TestTheLegacyPathCarriesTheEncryptedThought(t *testing.T) {
 		assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 		require.NotNil(t, resp.Choices[0].Reasoning,
 			"a turn carrying an encrypted thought is not a turn without thought")
-		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+		assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 	})
 
 	t.Run("it goes back to the vendor unchanged", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestTheLegacyPathCarriesTheEncryptedThought(t *testing.T) {
 		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: [][]byte{[]byte(encrypted)}}),
+				llms.TextPartWithReasoning("", reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte(encrypted)}})),
 			}},
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 		})

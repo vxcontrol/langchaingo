@@ -24,14 +24,14 @@ type ContentReasoning struct {
 	// Signature is the signature of the reasoning contents.
 	Signature []byte `json:"signature,omitempty"`
 
-	// Redacted is reasoning the provider encrypted. It carries no readable text
-	// and travels back to the vendor unchanged, one block per element.
-	Redacted [][]byte `json:"redacted,omitempty"`
+	// Blocks, when set, is what travels back to the vendor; Content then only
+	// mirrors their text.
+	Blocks []Block `json:"blocks,omitempty"`
 }
 
 // IsEmpty reports whether there is nothing to carry back into the next turn.
 func (r *ContentReasoning) IsEmpty() bool {
-	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Redacted) == 0)
+	return r == nil || (r.Content == "" && len(r.Signature) == 0 && len(r.Blocks) == 0)
 }
 
 // HasContent reports whether the model actually reasoned.
@@ -51,12 +51,15 @@ func (r *ContentReasoning) String() string {
 		buf.WriteString("\nSignature: ")
 		buf.Write(r.Signature)
 	}
-	if len(r.Redacted) > 0 {
-		size := 0
-		for _, block := range r.Redacted {
-			size += len(block)
+	if len(r.Blocks) > 0 {
+		encrypted, size := 0, 0
+		for _, block := range r.Blocks {
+			if block.Redacted != nil {
+				encrypted++
+				size += len(block.Redacted)
+			}
 		}
-		fmt.Fprintf(&buf, "\nRedacted: %d blocks, %d bytes", len(r.Redacted), size)
+		fmt.Fprintf(&buf, "\nBlocks: %d, %d encrypted (%d bytes)", len(r.Blocks), encrypted, size)
 	}
 
 	return buf.String()
@@ -75,10 +78,42 @@ func (r *ContentReasoning) UnmarshalJSON(data []byte) error {
 	type Alias ContentReasoning
 	aux := &struct {
 		*Alias
+		Redacted json.RawMessage `json:"redacted,omitempty"`
 	}{
 		Alias: (*Alias)(r),
 	}
-	return json.Unmarshal(data, aux)
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	return r.readStoredRedacted(aux.Redacted)
+}
+
+func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {
+	raw = bytes.TrimSpace(raw)
+	var encrypted [][]byte
+	switch {
+	case len(raw) == 0 || bytes.Equal(raw, []byte("null")):
+		return nil
+	case raw[0] == '"':
+		var block []byte
+		if err := json.Unmarshal(raw, &block); err != nil {
+			return err
+		}
+		encrypted = append(encrypted, block)
+	default:
+		if err := json.Unmarshal(raw, &encrypted); err != nil {
+			return err
+		}
+	}
+
+	blocks := r.Sequence()
+	for _, data := range encrypted {
+		blocks = append(blocks, Block{Redacted: data})
+	}
+	if stored := FromBlocks(blocks); stored != nil {
+		*r = *stored
+	}
+	return nil
 }
 
 type ChunkContentSplitterState int

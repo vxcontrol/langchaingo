@@ -51,7 +51,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 
 		assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 		require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning")
-		assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+		assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 		assert.False(t, resp.Choices[0].Reasoning.IsEmpty(),
 			"a turn carrying an encrypted thought is not an empty one")
 	})
@@ -76,7 +76,7 @@ func TestAnEncryptedThoughtArrivesAndTravelsBack(t *testing.T) {
 		_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Redacted: [][]byte{[]byte(encrypted)}}),
+				llms.TextPartWithReasoning("", reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte(encrypted)}})),
 			}},
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 		}, llms.WithMaxTokens(64))
@@ -148,7 +148,7 @@ func TestAStreamedEncryptedThoughtDoesNotCostTheAnswer(t *testing.T) {
 
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 	require.NotNil(t, resp.Choices[0].Reasoning, "the encrypted half is still reasoning on the streamed leg")
-	assert.Equal(t, encrypted, string(resp.Choices[0].Reasoning.Redacted[0]))
+	assert.Equal(t, []reasoning.Block{{Redacted: []byte(encrypted)}}, resp.Choices[0].Reasoning.Sequence())
 	assert.False(t, resp.Choices[0].Reasoning.IsEmpty())
 }
 
@@ -173,7 +173,7 @@ func TestTwoEncryptedBlocksGoBackAsTwo(t *testing.T) {
 		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextContent{
 			Text:      "answer",
-			Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{[]byte("first"), []byte("second")}},
+			Reasoning: reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte("first")}, {Redacted: []byte("second")}}),
 		}}},
 		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("and now?")}},
 	}, llms.WithMaxTokens(64))

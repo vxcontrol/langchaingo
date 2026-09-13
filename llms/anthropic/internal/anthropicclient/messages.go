@@ -42,9 +42,6 @@ var (
 	ErrInvalidFieldType           = fmt.Errorf("invalid field type")
 )
 
-// For correct using thinking events, use this guide:
-// https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
-// In this implementation, we don't send the thinking block to the server.
 const (
 	EventTypeText     = "text"
 	EventTypeToolUse  = "tool_use"

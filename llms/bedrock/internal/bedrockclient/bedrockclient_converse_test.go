@@ -1363,7 +1363,7 @@ func TestConverseClient_RedactedReasoningReachesTheCaller(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Choices, 1)
 	require.NotNil(t, resp.Choices[0].Reasoning, "the vendor returned a thought, encrypted or not")
-	assert.Equal(t, [][]byte{encrypted}, resp.Choices[0].Reasoning.Redacted)
+	assert.Equal(t, []reasoning.Block{{Redacted: encrypted}}, resp.Choices[0].Reasoning.Sequence())
 	assert.False(t, resp.Choices[0].Reasoning.HasContent(), "encrypted bytes are not readable thinking")
 }
 
@@ -1393,7 +1393,7 @@ func TestConverseClient_RedactedReasoningTravelsBack(t *testing.T) {
 				Role:      llms.ChatMessageTypeAI,
 				Content:   "answer",
 				Type:      "text",
-				Reasoning: &reasoning.ContentReasoning{Redacted: [][]byte{encrypted}},
+				Reasoning: reasoning.FromBlocks([]reasoning.Block{{Redacted: encrypted}}),
 			},
 			{Role: llms.ChatMessageTypeHuman, Content: "And now?", Type: "text"},
 		},
@@ -1415,19 +1415,21 @@ func TestConverseClient_RedactedReasoningTravelsBack(t *testing.T) {
 	assert.Equal(t, encrypted, got, "the replayed turn carries the encrypted block unchanged")
 }
 
-func TestConverseReasoningStreamKeepsEveryDelta(t *testing.T) {
+func TestConverseReasoningStreamKeepsEachBlockApart(t *testing.T) {
 	t.Parallel()
 
 	var acc converseReasoningStream
-	assert.Equal(t, "thinking", acc.add(&types.ReasoningContentBlockDeltaMemberText{Value: "thinking"}))
-	assert.Empty(t, acc.add(&types.ReasoningContentBlockDeltaMemberSignature{Value: "sig"}))
-	assert.Empty(t, acc.add(&types.ReasoningContentBlockDeltaMemberRedactedContent{Value: []byte{0x07, 0x08}}))
-	assert.Empty(t, acc.add(&types.ReasoningContentBlockDeltaMemberRedactedContent{Value: []byte{0x09}}))
+	assert.Equal(t, "first", acc.add(0, &types.ReasoningContentBlockDeltaMemberText{Value: "first"}))
+	assert.Empty(t, acc.add(0, &types.ReasoningContentBlockDeltaMemberSignature{Value: "s1"}))
+	assert.Empty(t, acc.add(1, &types.ReasoningContentBlockDeltaMemberRedactedContent{Value: []byte{0x07, 0x08}}))
+	assert.Empty(t, acc.add(1, &types.ReasoningContentBlockDeltaMemberRedactedContent{Value: []byte{0x09}}))
+	acc.toolCall(2)
+	assert.Equal(t, "second", acc.add(3, &types.ReasoningContentBlockDeltaMemberText{Value: "second"}))
+	assert.Empty(t, acc.add(3, &types.ReasoningContentBlockDeltaMemberSignature{Value: "s2"}))
 
-	got := acc.result(NewConverseClient(nil))
-	require.NotNil(t, got)
-	assert.Equal(t, "thinking", got.Content)
-	assert.Equal(t, []byte("sig"), got.Signature)
-	assert.Equal(t, [][]byte{{0x07, 0x08}, {0x09}}, got.Redacted,
-		"two encrypted blocks stay two: their boundary cannot be rebuilt once merged")
+	assert.Equal(t, []reasoning.Block{
+		{Text: "first", Signature: []byte("s1")},
+		{Redacted: []byte{0x07, 0x08, 0x09}},
+		{Text: "second", Signature: []byte("s2"), AfterToolCalls: 1},
+	}, acc.result().Sequence())
 }
