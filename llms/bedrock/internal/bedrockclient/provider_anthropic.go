@@ -689,7 +689,8 @@ func processInputMessagesAnthropic(messages []Message) ([]*anthropicTextGenerati
 		content = appendAnthropicThinking(content, placed[0])
 		emitted := 0
 		for _, message := range chunk {
-			if message.Type == AnthropicMessageTypeText && message.Content == "" && message.CacheControl == nil {
+			if message.Type == AnthropicMessageTypeText && message.Content == "" {
+				moveCacheMarkBack(content, message.CacheControl)
 				continue
 			}
 			block, err := getAnthropicInputContent(message)
@@ -746,6 +747,22 @@ func getAnthropicRole(role llms.ChatMessageType) (string, error) {
 		fallthrough
 	default:
 		return "", errors.New("role not supported")
+	}
+}
+
+func moveCacheMarkBack(content []anthropicTextGenerationInputContent, mark *CacheControl) {
+	if mark == nil {
+		return
+	}
+	for i := len(content) - 1; i >= 0; i-- {
+		switch content[i].Type {
+		case "thinking", "redacted_thinking":
+			continue
+		}
+		if content[i].CacheControl == nil {
+			content[i].CacheControl = &anthropicCacheControl{Type: mark.Type, TTL: mark.TTL}
+		}
+		return
 	}
 }
 

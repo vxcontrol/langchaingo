@@ -248,3 +248,57 @@ func TestTheLegacyDoorOpensTheTurnWithItsReasoningWhateverThePartOrder(t *testin
 
 	assert.Equal(t, []string{"thought plan/s1", "tool A", "thought /s2", "text working"}, rec.replayedAssistant(t, 0))
 }
+
+func TestAnEmptyCachedTextNeverReachesTheLegacyPayload(t *testing.T) {
+	t.Parallel()
+
+	thought := reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("s1")}})
+	answer := `{"id":"msg_2","type":"message","role":"assistant","model":"m","content":[{"type":"text","text":"ok"}],` +
+		`"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`
+
+	auto := &legacyRecorder{responses: []string{answer}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		auto.mu.Lock()
+		auto.requests = append(auto.requests, body)
+		auto.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, answer)
+	}))
+	t.Cleanup(srv.Close)
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(converseClaude), bedrock.WithAutomaticCaching())
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "first"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("", thought)}},
+		llms.TextParts(llms.ChatMessageTypeHuman, "second"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"thought plan/s1"}, auto.replayedAssistant(t, 0))
+	assert.NotContains(t, string(auto.requests[0]), "cache_control",
+		"a thinking block cannot carry the marker, so it goes with the empty text")
+
+	explicit := &legacyRecorder{responses: []string{answer}}
+	_, err = explicit.serve(t).GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "A", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{"q":"A"}`}},
+			bedrock.WithCacheControl(llms.TextContent{}, bedrock.EphemeralCache()),
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"},
+		}},
+	}, llms.WithTools(lookupTools()))
+	require.NoError(t, err)
+
+	var payload struct {
+		Messages []struct {
+			Role    string           `json:"role"`
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(explicit.requests[0], &payload))
+	assistant := payload.Messages[1].Content
+	require.Len(t, assistant, 1)
+	assert.Equal(t, "tool_use", assistant[0]["type"])
+	assert.NotNil(t, assistant[0]["cache_control"], "the marker moves to the block before the empty text")
+}
