@@ -1065,24 +1065,22 @@ var productionGeminiModels = []struct {
 	{name: "gemma-4-26b-a4b-it", usesThinkingLevel: false, togglesByLevel: true, disable: disableMinimalLevel},
 }
 
-func TestResolveTemperature(t *testing.T) {
+func TestDefaultTemperature(t *testing.T) {
 	t.Parallel()
 
-	sdkDefault := Options{DefaultTemperature: 0.5}
-	// Gemini 3 defaults to 1.0; everything else keeps the SDK default (0.5 here).
-	assert.Equal(t, 1.0, resolveTemperature("gemini-3.1-pro", sdkDefault))
-	assert.Equal(t, 1.0, resolveTemperature("gemini-3-flash", sdkDefault))
-	assert.Equal(t, 0.5, resolveTemperature("gemini-2.5-flash", sdkDefault))
-	assert.Equal(t, 0.5, resolveTemperature("gemini-2.5-pro", sdkDefault))
+	_, ok := DefaultOptions().defaultTemperature()
+	assert.False(t, ok, "nothing configured leaves the model's own default")
 
-	configured := DefaultOptions()
-	WithDefaultTemperature(0.2)(&configured)
-	assert.Equal(t, 0.2, resolveTemperature("gemini-3.1-pro", configured))
-	assert.Equal(t, 0.2, resolveTemperature("gemini-2.5-flash", configured))
+	written := Options{DefaultTemperature: 0.5}
+	got, ok := written.defaultTemperature()
+	assert.True(t, ok)
+	assert.InDelta(t, 0.5, got, 1e-9)
 
-	sameAsDefault := DefaultOptions()
-	WithDefaultTemperature(0.5)(&sameAsDefault)
-	assert.Equal(t, 0.5, resolveTemperature("gemini-3-flash", sameAsDefault))
+	zero := DefaultOptions()
+	WithDefaultTemperature(0)(&zero)
+	got, ok = zero.defaultTemperature()
+	assert.True(t, ok, "a configured zero is a value")
+	assert.Zero(t, got)
 }
 
 func TestResolveThinkingConfigRefusesAnEffortThatMapsToNothing(t *testing.T) {

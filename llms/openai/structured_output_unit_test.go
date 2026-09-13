@@ -120,6 +120,27 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		}
 	})
 
+	t.Run("a vendor without json_schema is refused before the request", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{"deepseek-flash", "deepseek-v4-pro", "deepseek/deepseek-v4-pro", "glm-4.5-air", "zai/glm-5.3"} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			_, err := llm.createChatRequest(nil, opts, nil)
+			var unsup *llms.ErrStructuredOutputUnsupported
+			if !errors.As(err, &unsup) {
+				t.Fatalf("%s: want ErrStructuredOutputUnsupported, got %v", model, err)
+			}
+
+			var jsonMode llms.CallOptions
+			llms.WithJSONMode()(&jsonMode)
+			req, err := llm.createChatRequest(nil, jsonMode, nil)
+			if err != nil || req.ResponseFormat == nil || req.ResponseFormat.FormatType() != "json_object" {
+				t.Fatalf("%s: JSON mode is documented and must still reach the wire, got %+v, %v", model, req, err)
+			}
+		}
+	})
+
 	t.Run("unknown model passes through", func(t *testing.T) {
 		t.Parallel()
 		llm := newUnitLLM(t, WithModel("gpt-6-ultra-preview"))

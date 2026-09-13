@@ -217,11 +217,13 @@ thinking from the model via the shared `llms/reasoning` capability tables (the s
 source of truth used by the first-party Anthropic provider):
 
 - **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` +
-  `output_config.effort`; budget thinking and sampling params are rejected. Opus 5,
+  `output_config.effort`; budget thinking and sampling params are rejected. Bedrock
+  serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher
+  effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5,
   Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8,
-  which defaults off); on Bedrock a default-on model cannot be explicitly disabled
-  (always-on there), while Opus 4.7/4.8 default off, so omitting thinking already
-  yields off.
+  which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to
+  Opus 5 and Sonnet 5 and no effort beside it; Fable 5 cannot be disabled. Opus 4.7/4.8
+  default off, so omitting thinking already yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
 - **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` +
   `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on
@@ -231,12 +233,15 @@ source of truth used by the first-party Anthropic provider):
 Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
 its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
 beside it. Grok carries an effort and nothing else. `WithReasoningDisabled()`
-returns a typed `ErrReasoningOffUnsupported` for always-on Bedrock models.
+returns a typed `ErrReasoningOffUnsupported` for a model whose thinking cannot be
+turned off, such as Fable, Mythos or DeepSeek R1.
 
 ## Structured Output
 
 The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
-Anthropic models: the final response is guaranteed to be a single JSON value
+the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
+4.5; any other Claude model returns a typed `ErrStructuredOutputUnsupported` before
+the request. The final response is guaranteed to be a single JSON value
 matching the supplied JSON Schema (Draft 2020-12), validated locally against the
 original schema.
 
@@ -782,14 +787,16 @@ _(Schema-constrained structured output itself is already implemented — see the
 
 ## Supported Model Matrix
 
-Structured Output and Caching apply to Anthropic (Claude) models. See `models_list.go`
-for the exact model IDs.
+Caching applies to Anthropic (Claude) models. See `models_list.go` for the exact
+model IDs.
 
 | Provider | Tool Calling | Reasoning | Streaming | Multimodal | Caching | Structured Output |
 |----------|-------------|-----------|-----------|------------|---------|-------------------|
-| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ✅ |
-| Claude Opus 5/4.8/4.7/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Claude Sonnet 5/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 5/4.8/4.7 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
 | Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |

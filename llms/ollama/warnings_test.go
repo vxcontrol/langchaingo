@@ -161,3 +161,31 @@ func TestTheOllamaDoorReportsEachOptionOnce(t *testing.T) {
 	}
 	require.Contains(t, seen, "WithMinP", "the door sends only the client's min-p")
 }
+
+func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name         string
+		opts         llms.CallOptions
+		clientFormat string
+		option       string
+	}{
+		{name: "per-call JSON mode", opts: llms.CallOptions{JSONMode: true}, option: "WithJSONMode"},
+		{name: "client-level format", clientFormat: "json", option: "WithFormat"},
+		{name: "nothing asked"},
+	} {
+		warn := &llms.Warnings{}
+		reportOllamaCloudFormat(warn, "gpt-oss:120b", tc.opts, tc.clientFormat)
+		got := warn.List()
+		if tc.option == "" {
+			if len(got) != 0 {
+				t.Errorf("%s: want no warning, got %v", tc.name, got)
+			}
+			continue
+		}
+		if len(got) != 1 || got[0].Kind != llms.WarningDrop || got[0].Option != tc.option {
+			t.Errorf("%s: want one drop of %s, got %v", tc.name, tc.option, got)
+		}
+	}
+}

@@ -45,9 +45,7 @@ const (
 
 	// Claude Opus 5 is Anthropic's model for complex agentic coding and enterprise work, succeeding
 	// Opus 4.8. Adaptive thinking is on by default (a breaking change from Opus 4.8, which defaulted
-	// off). Supports adaptive thinking only: budget thinking and sampling params are rejected. On
-	// Bedrock, adaptive thinking is always on and cannot be disabled, unlike the Anthropic API where
-	// it accepts an explicit disable.
+	// off). Supports adaptive thinking only: budget thinking and sampling params are rejected.
 	//
 	// Max tokens: 1M
 	// Languages: English, French, Modern Standard Arabic, Mandarin Chinese, Hindi, Spanish, Portuguese, Korean, Japanese, German, Russian, Polish, and other languages.
@@ -71,8 +69,7 @@ const (
 
 	// Claude Sonnet 5 is Anthropic's most capable Sonnet, built for coding, agents, and professional
 	// work at scale with near-Opus intelligence at Sonnet cost. Adaptive thinking is on by default;
-	// budget thinking and non-default sampling params are rejected. On Bedrock, adaptive thinking is
-	// always on and cannot be disabled, unlike the Anthropic API where it accepts an explicit disable.
+	// budget thinking and non-default sampling params are rejected.
 	//
 	// Max tokens: 1M
 	// Languages: English, French, Modern Standard Arabic, Mandarin Chinese, Hindi, Spanish, Portuguese, Korean, Japanese, German, Russian, Polish, and other languages.

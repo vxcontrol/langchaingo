@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/reasoning"
 
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -36,8 +35,7 @@ type Options struct {
 
 	unhonoredOnREST []string
 
-	// Set by WithDefaultTemperature; writing DefaultTemperature directly leaves
-	// it false and lets the Gemini 3 recommendation win.
+	// Set by WithDefaultTemperature, so a configured zero still reaches the wire.
 	temperatureFromCaller bool
 }
 
@@ -49,9 +47,6 @@ func DefaultOptions() Options {
 		DefaultEmbeddingModel: "gemini-embedding-001",
 		DefaultCandidateCount: 1,
 		DefaultMaxTokens:      llms.DefaultMaxTokens,
-		DefaultTemperature:    0.5,
-		DefaultTopK:           3,
-		DefaultTopP:           0.95,
 		HarmThreshold:         HarmBlockNone,
 	}
 }
@@ -252,12 +247,10 @@ const (
 	HarmBlockNone HarmBlockThreshold = "BLOCK_NONE"
 )
 
-// ResolveTemperature reports the temperature to send when the caller set none.
-func (o Options) ResolveTemperature(model string) float64 {
-	if !o.temperatureFromCaller && reasoning.GeminiUsesThinkingLevel(model) {
-		return 1.0
-	}
-	return o.DefaultTemperature
+// defaultTemperature reports the temperature to send when a call sets none; false
+// leaves the model's own default in force.
+func (o Options) defaultTemperature() (float64, bool) {
+	return o.DefaultTemperature, o.temperatureFromCaller || o.DefaultTemperature != 0
 }
 
 // helper to inspect incoming client options for auth options.

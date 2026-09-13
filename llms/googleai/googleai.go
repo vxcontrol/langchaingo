@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
@@ -105,17 +106,18 @@ func (g *GoogleAI) GenerateContent(
 		Model:          getStringPointer(g.opts.DefaultModel),
 		CandidateCount: getIntPointer(g.opts.DefaultCandidateCount),
 		MaxTokens:      getIntPointer(g.opts.DefaultMaxTokens),
-		TopP:           getFloatPointer(g.opts.DefaultTopP),
-		TopK:           getIntPointer(g.opts.DefaultTopK),
+	}
+	if g.opts.DefaultTopP != 0 {
+		opts.TopP = getFloatPointer(g.opts.DefaultTopP)
+	}
+	if g.opts.DefaultTopK != 0 {
+		opts.TopK = getIntPointer(g.opts.DefaultTopK)
 	}
 	for _, opt := range options {
 		opt(&opts)
 	}
-
-	// Default temperature only when the caller left it unset; an explicit value is
-	// preserved.
-	if opts.Temperature == nil {
-		opts.Temperature = getFloatPointer(resolveTemperature(opts.GetModel(), g.opts))
+	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
+		opts.Temperature = &temperature
 	}
 
 	config := newGenerationConfig(opts)
@@ -315,6 +317,9 @@ func (g *GoogleAI) generateFromMessages(
 	if systemInstruction != nil {
 		config.SystemInstruction = systemInstruction
 	}
+	if reasoning.GeminiUsesThinkingLevel(model) {
+		signCurrentTurn(contents)
+	}
 
 	if opts.StreamingFunc == nil {
 		resp, err := g.client.Models.GenerateContent(ctx, model, contents, config)
@@ -325,6 +330,37 @@ func (g *GoogleAI) generateFromMessages(
 	}
 
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
+}
+
+// geminiSignaturePlaceholder is the value Google documents for a function call
+// whose history holds no signature, such as one carried over from another model.
+const geminiSignaturePlaceholder = "skip_thought_signature_validator"
+
+// signCurrentTurn gives the first function call of each model step in the current
+// turn the placeholder when it has no signature.
+func signCurrentTurn(contents []*genai.Content) {
+	start := -1
+	for i, content := range contents {
+		if content.Role == RoleUser && slices.ContainsFunc(content.Parts, func(part *genai.Part) bool {
+			return part.FunctionResponse == nil
+		}) {
+			start = i
+		}
+	}
+	for _, content := range contents[start+1:] {
+		if content.Role != RoleModel {
+			continue
+		}
+		for _, part := range content.Parts {
+			if part.FunctionCall == nil {
+				continue
+			}
+			if len(part.ThoughtSignature) == 0 {
+				part.ThoughtSignature = []byte(geminiSignaturePlaceholder)
+			}
+			break
+		}
+	}
 }
 
 func (g *GoogleAI) generateStreamingContent(
@@ -1105,10 +1141,6 @@ func convertIntToFloat32Pointer(i *int) *float32 {
 // resolveTemperature returns the temperature to use when the caller left it
 // unset. Gemini 3 defaults to 1.0, the value Google recommends (lower values can
 // cause looping and degraded reasoning); other models keep the SDK-wide default.
-func resolveTemperature(model string, clientOpts Options) float64 {
-	return clientOpts.ResolveTemperature(model)
-}
-
 // resolveThinkingConfig builds the Gemini thinking config for the reasoning mode.
 // Off forces budget 0 on models that disable that way, since omitting would not
 // disable a default-on model; a model whose thinking cannot be disabled returns a

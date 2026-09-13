@@ -234,6 +234,20 @@ func DefaultIsReasoningModel(model string) bool {
 	return false
 }
 
+func mistralWithoutReasoning(model string) bool {
+	if mistralReasons(model) || strings.HasPrefix(model, "magistral") {
+		return false
+	}
+	for _, prefix := range []string{
+		"mistral-", "ministral-", "codestral", "devstral", "pixtral", "voxtral", "open-mistral", "open-mixtral",
+	} {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func mistralReasons(model string) bool {
 	if model == "mistral-medium" {
 		return true

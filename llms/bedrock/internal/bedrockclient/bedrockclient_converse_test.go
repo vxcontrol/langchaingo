@@ -344,44 +344,44 @@ func TestConverseClient_AdaptiveReasoning(t *testing.T) {
 }
 
 func TestConverseClient_ReasoningOffDefaultOnSendsDisabled(t *testing.T) {
-	t.Skip("Skipping test due to model not being available")
+	for _, model := range []string{"us.anthropic.claude-sonnet-5-v1:0", "us.anthropic.claude-opus-5-v1:0"} {
+		t.Run(model, func(t *testing.T) {
+			mockClient := &MockBedrockRuntimeClient{}
+			client := NewConverseClient(mockClient)
 
-	mockClient := &MockBedrockRuntimeClient{}
-	client := NewConverseClient(mockClient)
+			var capturedInput *bedrockruntime.ConverseInput
+			mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+				capturedInput = input
+				return true
+			}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+				Output: &types.ConverseOutputMemberMessage{
+					Value: types.Message{
+						Role:    types.ConversationRoleAssistant,
+						Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+					},
+				},
+			}, nil)
 
-	var capturedInput *bedrockruntime.ConverseInput
-	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
-		capturedInput = input
-		return true
-	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
-		Output: &types.ConverseOutputMemberMessage{
-			Value: types.Message{
-				Role:    types.ConversationRoleAssistant,
-				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
-			},
-		},
-	}, nil)
+			input := &ConverseInput{
+				ModelID:         model,
+				Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+				MaxTokens:       ptr(2000),
+				ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh},
+			}
 
-	input := &ConverseInput{
-		ModelID:         "us.anthropic.claude-sonnet-5-v1:0", // thinks by default
-		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
-		MaxTokens:       ptr(2000),
-		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOff},
+			_, err := client.CreateCompletionConverse(t.Context(), input)
+			require.NoError(t, err)
+
+			require.NotNil(t, capturedInput.AdditionalModelRequestFields)
+			raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
+			require.NoError(t, err)
+			var fields map[string]any
+			require.NoError(t, json.Unmarshal(raw, &fields))
+			assert.Equal(t, map[string]any{"type": "disabled"}, fields["thinking"])
+			assert.NotContains(t, fields, "output_config", "Opus 5 rejects xhigh and max next to disabled thinking")
+			mockClient.AssertExpectations(t)
+		})
 	}
-
-	_, err := client.CreateCompletionConverse(t.Context(), input)
-	assert.NoError(t, err)
-
-	if !assert.NotNil(t, capturedInput.AdditionalModelRequestFields) {
-		return
-	}
-	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
-	assert.NoError(t, err)
-	var fields map[string]any
-	assert.NoError(t, json.Unmarshal(raw, &fields))
-	thinking, _ := fields["thinking"].(map[string]any)
-	assert.Equal(t, "disabled", thinking["type"])
-	mockClient.AssertExpectations(t)
 }
 
 func TestConverseClient_ReasoningOffDefaultOffOmits(t *testing.T) {
@@ -529,7 +529,7 @@ func TestConverseClient_AdaptiveReasoningNewModelFamily(t *testing.T) {
 	thinking, _ := fields["thinking"].(map[string]any)
 	assert.Equal(t, "adaptive", thinking["type"])
 	outputConfig, _ := fields["output_config"].(map[string]any)
-	assert.Equal(t, "xhigh", outputConfig["effort"])
+	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 only")
 
 	mockClient.AssertExpectations(t)
 }

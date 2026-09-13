@@ -107,17 +107,17 @@ func TestSamplingMatrix(t *testing.T) {
 		present: []string{`"temperature":0.3`},
 		absent:  []string{`"reasoning_effort"`},
 	}, {
-		name:    "the same model is pinned once an effort is asked for",
+		name:    "the same model loses its sampling once an effort is asked for",
 		model:   "gpt-5.4",
 		opts:    []llms.CallOption{temp, topP, high},
-		present: []string{`"temperature":1`, `"reasoning_effort":"high"`},
-		absent:  []string{`"top_p"`},
+		present: []string{`"reasoning_effort":"high"`},
+		absent:  []string{`"temperature"`, `"top_p"`},
 	}, {
-		name:    "a model that thinks from the start is pinned without being asked",
+		name:    "a model that thinks from the start loses its sampling",
 		model:   "gpt-5.5",
 		opts:    []llms.CallOption{temp, topP, high},
-		present: []string{`"temperature":1`, `"reasoning_effort":"high"`},
-		absent:  []string{`"top_p"`},
+		present: []string{`"reasoning_effort":"high"`},
+		absent:  []string{`"temperature"`, `"top_p"`},
 	}, {
 		name:    "disabled thinking leaves both sampling params alone",
 		model:   "gpt-5.5",
@@ -130,11 +130,10 @@ func TestSamplingMatrix(t *testing.T) {
 		present: []string{`"temperature":0.3`, `"top_p":0.9`},
 		absent:  []string{`"reasoning_effort"`},
 	}, {
-		name:    "omitted effort pins a name that thinks by default",
-		model:   "gpt-5.5",
-		opts:    []llms.CallOption{temp, topP},
-		present: []string{`"temperature":1`},
-		absent:  []string{`"top_p"`, `"reasoning_effort"`},
+		name:   "omitted effort strips a name that thinks by default",
+		model:  "gpt-5.5",
+		opts:   []llms.CallOption{temp, topP},
+		absent: []string{`"temperature"`, `"top_p"`, `"reasoning_effort"`},
 	}, {
 		name:  "thinking takes both penalties off the wire",
 		model: "gpt-5.4",
@@ -290,7 +289,7 @@ func TestOptInThinkingKeepsSamplingWhateverIsAsked(t *testing.T) {
 			opts: []llms.CallOption{
 				llms.WithTemperature(0.3), llms.WithTopP(0.7), llms.WithReasoning(llms.ReasoningMedium, 0),
 			},
-			present: []string{`"temperature":0.3`, `"top_p":0.7`, `"reasoning_effort":"medium"`},
+			present: []string{`"temperature":0.3`, `"top_p":0.7`, `"reasoning_effort":"high"`},
 		},
 		{
 			name:    "the provider-prefixed spelling resolves the same",
@@ -330,18 +329,16 @@ func TestOnlyModelsWhoseVendorRefusesLoseTheirSampling(t *testing.T) {
 
 	runSamplingCases(t, []samplingCase{
 		{
-			name:    "o3 is pinned: the vendor accepts only the default temperature",
-			model:   "o3",
-			opts:    []llms.CallOption{llms.WithTemperature(0.25), llms.WithTopP(0.3)},
-			present: []string{`"temperature":1`},
-			absent:  []string{`"top_p"`},
+			name:   "o3 loses both: the vendor refuses sampling fields while it thinks",
+			model:  "o3",
+			opts:   []llms.CallOption{llms.WithTemperature(0.25), llms.WithTopP(0.3)},
+			absent: []string{`"temperature"`, `"top_p"`},
 		},
 		{
-			name:    "gpt-5-mini is pinned for the same reason",
-			model:   "gpt-5-mini",
-			opts:    []llms.CallOption{llms.WithTemperature(0.25), llms.WithTopP(0.3)},
-			present: []string{`"temperature":1`},
-			absent:  []string{`"top_p"`},
+			name:   "gpt-5-mini loses both for the same reason",
+			model:  "gpt-5-mini",
+			opts:   []llms.CallOption{llms.WithTemperature(0.25), llms.WithTopP(0.3)},
+			absent: []string{`"temperature"`, `"top_p"`},
 		},
 		{
 			name:    "grok keeps both: the vendor takes them alongside thinking",

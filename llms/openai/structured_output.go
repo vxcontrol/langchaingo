@@ -52,11 +52,11 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 		}
 	}
 	model := o.effectiveModel(opts)
-	if openAIStructuredOutputUnsupported(model) {
+	if reason := openAIStructuredOutputUnsupported(model); reason != "" {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerOpenAI,
 			Model:    model,
-			Reason:   "model predates Structured Outputs (json_schema)",
+			Reason:   reason,
 		}
 	}
 	if err := validateOpenAIStructuredSchema(so.Schema); err != nil {
@@ -86,24 +86,28 @@ func (o *LLM) validateStructuredResponse(result *openaiclient.ChatCompletionResp
 	return nil
 }
 
-// openAIStructuredOutputUnsupported reports models KNOWN to lack Structured Outputs
-// (json_schema). Unknown or newer names pass through so the local table never
-// blocks a future model — the API is the final arbiter.
-func openAIStructuredOutputUnsupported(model string) bool {
+// openAIStructuredOutputUnsupported names why a model KNOWN to lack Structured
+// Outputs (json_schema) cannot take one, or returns "". Unknown or newer names
+// pass through so the local table never blocks a future model.
+func openAIStructuredOutputUnsupported(model string) string {
+	const predates = "model predates Structured Outputs (json_schema)"
+
 	m := strings.ToLower(model)
 	if idx := strings.LastIndex(m, "/"); idx != -1 {
 		m = m[idx+1:]
 	}
 	switch {
+	case strings.HasPrefix(m, "deepseek"), strings.HasPrefix(m, "glm-"):
+		return "the vendor's chat completions response_format takes only text and json_object"
 	case strings.HasPrefix(m, "gpt-3.5"):
-		return true
+		return predates
 	case m == "gpt-4", strings.HasPrefix(m, "gpt-4-0"), strings.HasPrefix(m, "gpt-4-32k"), strings.HasPrefix(m, "gpt-4-turbo"):
-		return true
+		return predates
 	case m == "gpt-4o-2024-05-13":
 		// The first gpt-4o snapshot predates json_schema (added in 2024-08-06).
-		return true
+		return predates
 	default:
-		return false
+		return ""
 	}
 }
 

@@ -53,7 +53,7 @@ func TestTheLegacyDoorRefusesAnUndisableableThinking(t *testing.T) {
 
 	for _, model := range []string{
 		"us.deepseek.r1-v1:0",
-		"us.anthropic.claude-sonnet-5-v1:0",
+		"us.anthropic.claude-fable-5-1",
 	} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
@@ -85,6 +85,25 @@ func TestTheLegacyDoorServesAnOffThatOmittingAlreadyMeans(t *testing.T) {
 				require.NotErrorAs(t, err, &offErr,
 					"omitting the field already means off here, so the caller loses nothing")
 			}
+		})
+	}
+}
+
+func TestTheLegacyDoorSendsTheOffADefaultOnClaudeAccepts(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"us.anthropic.claude-sonnet-5-v1:0",
+		"us.anthropic.claude-opus-5-v1:0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			seen, err := offCall(t, model)
+
+			var offErr *reasoning.ErrReasoningOffUnsupported
+			require.NotErrorAs(t, err, &offErr, "Bedrock documents thinking disabled for this model")
+			assert.Positive(t, seen, "the call must reach the vendor")
 		})
 	}
 }

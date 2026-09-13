@@ -81,3 +81,18 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+
+func reportOllamaCloudFormat(warn *llms.Warnings, model string, opts llms.CallOptions, clientFormat string) {
+	switch {
+	case opts.JSONMode:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,
+			Asked: "true", Reason: ollamaCloudFormatReason,
+		})
+	case clientFormat != "":
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithFormat", Model: model,
+			Asked: clientFormat, Reason: ollamaCloudFormatReason,
+		})
+	}
+}

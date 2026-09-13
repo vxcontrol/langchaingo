@@ -48,9 +48,32 @@ func RejectsSamplingWhileThinking(model string) bool {
 	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
 }
 
+// FixesSampling reports whether the model runs on fixed temperature, top_p and
+// penalties, so any value the caller sets for them stays off the wire.
+func FixesSampling(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
+			hasGeneration(form, "kimi-k2.7-code") {
+			return true
+		}
+	}
+	return false
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
 	return isClaudeModel(model) || openAIProperName(model)
+}
+
+// ReplaysReasoningOnEveryTurn reports whether reasoning_content goes back on every
+// earlier assistant turn, not only on the turns that called a tool.
+func ReplaysReasoningOnEveryTurn(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "deepseek") {
+			return true
+		}
+	}
+	return false
 }
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as
@@ -80,6 +103,9 @@ func AcceptsEffortWire(model string) bool {
 			return false
 		}
 		if strings.HasPrefix(form, "gpt-3.5") || strings.HasPrefix(form, "gpt-4") {
+			return false
+		}
+		if mistralWithoutReasoning(form) {
 			return false
 		}
 		if form == "grok-build-latest" {

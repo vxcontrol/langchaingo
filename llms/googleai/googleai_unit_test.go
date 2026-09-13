@@ -102,9 +102,9 @@ func TestDefaultOptions(t *testing.T) {
 	assert.Equal(t, "gemini-embedding-001", opts.DefaultEmbeddingModel)
 	assert.Equal(t, 1, opts.DefaultCandidateCount)
 	assert.Equal(t, llms.DefaultMaxTokens, opts.DefaultMaxTokens)
-	assert.Equal(t, 0.5, opts.DefaultTemperature)
-	assert.Equal(t, 3, opts.DefaultTopK)
-	assert.Equal(t, 0.95, opts.DefaultTopP)
+	assert.Zero(t, opts.DefaultTemperature)
+	assert.Zero(t, opts.DefaultTopK)
+	assert.Zero(t, opts.DefaultTopP)
 	assert.Equal(t, HarmBlockNone, opts.HarmThreshold)
 	assert.Empty(t, opts.CloudProject)
 	assert.Empty(t, opts.CloudLocation)
@@ -994,27 +994,42 @@ func (t *captureTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	}, nil
 }
 
-func TestConfiguredDefaultTemperatureReachesTheWire(t *testing.T) {
+func TestOnlyConfiguredSamplingReachesTheWire(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		name  string
 		opts  []Option
-		want  float64
+		call  []llms.CallOption
+		want  map[string]float64
 		model string
 	}{
-		{name: "gemini-3 without a configured default", model: "gemini-3-flash", want: 1.0},
+		{name: "gemini-3 with nothing configured", model: "gemini-3-flash", want: map[string]float64{}},
+		{name: "gemini-2.5 with nothing configured", model: "gemini-2.5-flash", want: map[string]float64{}},
 		{
 			name:  "gemini-3 with a configured default",
 			model: "gemini-3-flash",
 			opts:  []Option{WithDefaultTemperature(0.2)},
-			want:  0.2,
+			want:  map[string]float64{"temperature": 0.2},
 		},
 		{
-			name:  "gemini-2.5 with a configured default",
+			name:  "a configured zero temperature",
 			model: "gemini-2.5-flash",
-			opts:  []Option{WithDefaultTemperature(0.2)},
-			want:  0.2,
+			opts:  []Option{WithDefaultTemperature(0)},
+			want:  map[string]float64{"temperature": 0},
+		},
+		{
+			name:  "configured top_k and top_p",
+			model: "gemini-2.5-flash",
+			opts:  []Option{WithDefaultTopK(40), WithDefaultTopP(0.8)},
+			want:  map[string]float64{"topK": 40, "topP": 0.8},
+		},
+		{
+			name:  "the call's own values win over the configured ones",
+			model: "gemini-2.5-flash",
+			opts:  []Option{WithDefaultTemperature(0.2), WithDefaultTopK(40)},
+			call:  []llms.CallOption{llms.WithTemperature(0.7), llms.WithTopK(5), llms.WithTopP(0.5)},
+			want:  map[string]float64{"temperature": 0.7, "topK": 5, "topP": 0.5},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1035,17 +1050,21 @@ func TestConfiguredDefaultTemperatureReachesTheWire(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = llm.GenerateContent(t.Context(),
-				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, tc.call...)
 			require.NoError(t, err)
 
 			var payload struct {
-				GenerationConfig struct {
-					Temperature *float64 `json:"temperature"`
-				} `json:"generationConfig"`
+				GenerationConfig map[string]any `json:"generationConfig"`
 			}
 			require.NoError(t, json.Unmarshal(rt.body, &payload))
-			require.NotNil(t, payload.GenerationConfig.Temperature)
-			require.InDelta(t, tc.want, *payload.GenerationConfig.Temperature, 1e-6)
+			got := map[string]float64{}
+			for _, field := range []string{"temperature", "topK", "topP"} {
+				if value, ok := payload.GenerationConfig[field].(float64); ok {
+					got[field] = value
+				}
+			}
+			assert.InDeltaMapValues(t, tc.want, got, 1e-6)
+			assert.Len(t, got, len(tc.want))
 		})
 	}
 }

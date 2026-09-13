@@ -67,10 +67,7 @@ func ResolveOff(model string, p Provider) OffWire {
 		case ClaudeThinkingAlwaysOn(model):
 			return OffUnsupported // Fable 5 / Mythos 5: thinking cannot be disabled
 		case ClaudeThinkingDefaultsOn(model):
-			// Only Anthropic-operated platforms accept thinking:{disabled} here. On
-			// Amazon Bedrock the adaptive-only default-on models (e.g. Sonnet 5) keep
-			// thinking always on, so a disable is rejected — report it as unsupported.
-			if p == ProviderBedrock || p == ProviderOpenAI {
+			if p == ProviderOpenAI {
 				return OffUnsupported
 			}
 			return OffDisableClaude

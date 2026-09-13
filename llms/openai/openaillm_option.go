@@ -173,10 +173,9 @@ func WithModernReasoningFormat() Option {
 	}
 }
 
-// WithPreserveReasoningContent enables preservation of reasoning content
-// in multi-turn conversations with tool calls. This is required for some
-// LLM providers like Moonshot that expect reasoning_content field in
-// assistant messages with tool calls.
+// WithPreserveReasoningContent sends each assistant turn's reasoning back as
+// reasoning_content: on the turns that called a tool, and on every assistant
+// turn for DeepSeek models.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
