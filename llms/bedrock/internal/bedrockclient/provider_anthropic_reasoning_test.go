@@ -204,23 +204,20 @@ func TestApplyAnthropicReasoning_AdaptiveOnBudgetOnlyDowngrades(t *testing.T) {
 func TestApplyAnthropicReasoning_OffDefaultOnSendsDisabled(t *testing.T) {
 	t.Parallel()
 
-	t.Skip("Skipping test due to model not being available")
+	for _, model := range []string{"us.anthropic.claude-sonnet-5-v1:0", "us.anthropic.claude-opus-5-v1:0"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
 
-	// Sonnet 5 thinks by default, so an explicit off must send thinking:{disabled}.
-	input := anthropicTextGenerationInput{MaxTokens: 2048}
-	err := applyAnthropicReasoning(&input,
-		&llms.ReasoningConfig{Mode: llms.ReasoningOff},
-		"us.anthropic.claude-sonnet-5-v1:0", 2048)
+			input := anthropicTextGenerationInput{MaxTokens: 2048}
+			err := applyAnthropicReasoning(&input,
+				&llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh}, model, 2048)
+			require.NoError(t, err)
 
-	require.NoError(t, err)
-	require.NotNil(t, input.Thinking)
-	assert.Equal(t, "disabled", input.Thinking.Type)
-
-	fields := marshalAnthropicInput(t, input)
-	thinking, _ := fields["thinking"].(map[string]any)
-	assert.Equal(t, "disabled", thinking["type"])
-	_, hasBudget := thinking["budget_tokens"]
-	assert.False(t, hasBudget, "disabled thinking carries no budget")
+			fields := marshalAnthropicInput(t, input)
+			assert.Equal(t, map[string]any{"type": "disabled"}, fields["thinking"])
+			assert.NotContains(t, fields, "output_config", "Opus 5 rejects xhigh and max next to disabled thinking")
+		})
+	}
 }
 
 func TestApplyAnthropicReasoning_OffDefaultOffOmits(t *testing.T) {

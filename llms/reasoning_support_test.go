@@ -75,12 +75,11 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		}
 	})
 
-	t.Run("Sonnet 5 disable hint is provider-aware", func(t *testing.T) {
-		// Disablable on the Anthropic API, not disablable on Bedrock (always on).
+	t.Run("Sonnet 5 cannot be disabled only through an OpenAI-shaped gateway", func(t *testing.T) {
 		anthropic := ReasoningSupportFor("claude-sonnet-5", reasoning.ProviderAnthropic)
 		eq(t, "CannotDisable(Anthropic)", anthropic.CannotDisable, false)
 		bedrock := ReasoningSupportFor("us.anthropic.claude-sonnet-5", reasoning.ProviderBedrock)
-		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, true)
+		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, false)
 		gateway := ReasoningSupportFor("anthropic/claude-sonnet-5", reasoning.ProviderOpenAI)
 		eq(t, "CannotDisable(OpenAI gateway)", gateway.CannotDisable, true)
 	})
@@ -93,9 +92,8 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		if s.DefaultOn == nil || !*s.DefaultOn {
 			t.Errorf("Opus 5 DefaultOn = %v, want true", s.DefaultOn)
 		}
-		// Provider-aware, same rule as Sonnet 5: not disablable on Bedrock.
 		bedrock := ReasoningSupportFor("us.anthropic.claude-opus-5", reasoning.ProviderBedrock)
-		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, true)
+		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, false)
 	})
 
 	t.Run("OpenAI o-series cannot disable", func(t *testing.T) {
@@ -325,7 +323,8 @@ func TestCannotDisableFollowsTheResolverOnEveryProvider(t *testing.T) {
 		want  bool
 	}{
 		{"claude-sonnet-5", reasoning.ProviderAnthropic, false},
-		{"claude-sonnet-5", reasoning.ProviderBedrock, true},
+		{"claude-sonnet-5", reasoning.ProviderBedrock, false},
+		{"claude-sonnet-5", reasoning.ProviderOpenAI, true},
 		{"claude-sonnet-5", reasoning.ProviderUnknown, false},
 		{"claude-fable-5", reasoning.ProviderAnthropic, true},
 		{"claude-fable-5", reasoning.ProviderBedrock, true},

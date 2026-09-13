@@ -11,13 +11,14 @@ func TestResolveOff(t *testing.T) {
 	}{
 		{"claude-fable-5", ProviderAnthropic, OffUnsupported},
 		{"us.anthropic.claude-mythos-5", ProviderBedrock, OffUnsupported},
-		{"claude-sonnet-5", ProviderAnthropic, OffDisableClaude},          // on by default, disablable on Anthropic
-		{"us.anthropic.claude-sonnet-5", ProviderBedrock, OffUnsupported}, // always on on Bedrock, not disablable
-		{"claude-opus-5", ProviderAnthropic, OffDisableClaude},            // on by default, disablable on Anthropic
-		{"us.anthropic.claude-opus-5", ProviderBedrock, OffUnsupported},   // always on on Bedrock, not disablable
-		{"claude-opus-4-8", ProviderAnthropic, OffOmit},                   // off by default
-		{"claude-sonnet-4-5", ProviderBedrock, OffOmit},                   // off by default
-		{"claude-3-5-haiku", ProviderAnthropic, OffOmit},                  // no thinking
+		{"claude-sonnet-5", ProviderAnthropic, OffDisableClaude},
+		{"us.anthropic.claude-sonnet-5", ProviderBedrock, OffDisableClaude},
+		{"anthropic/claude-sonnet-5", ProviderOpenAI, OffUnsupported},
+		{"claude-opus-5", ProviderAnthropic, OffDisableClaude},
+		{"us.anthropic.claude-opus-5", ProviderBedrock, OffDisableClaude},
+		{"claude-opus-4-8", ProviderAnthropic, OffOmit},  // off by default
+		{"claude-sonnet-4-5", ProviderBedrock, OffOmit},  // off by default
+		{"claude-3-5-haiku", ProviderAnthropic, OffOmit}, // no thinking
 		{"gemini-2.5-flash", ProviderGoogleAI, OffZeroBudget},
 		{"gemini-2.5-flash-lite", ProviderGoogleAI, OffZeroBudget},
 		{"gemini-2.5-pro", ProviderGoogleAI, OffUnsupported}, // Pro cannot disable thinking
