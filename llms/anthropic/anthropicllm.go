@@ -916,19 +916,22 @@ type ToolResult struct {
 }
 
 func handleToolMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
-	if toolCallResponse, ok := msg.Parts[0].(llms.ToolCallResponse); ok {
-		toolContent := &anthropicclient.ToolResultContent{
+	results := make([]anthropicclient.Content, 0, len(msg.Parts))
+	for _, part := range msg.Parts {
+		toolCallResponse, ok := part.(llms.ToolCallResponse)
+		if !ok {
+			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
+		}
+		results = append(results, &anthropicclient.ToolResultContent{
 			Type:      "tool_result",
 			ToolUseID: toolCallResponse.ToolCallID,
 			Content:   toolCallResponse.Content,
-		}
-
-		return anthropicclient.ChatMessage{
-			Role:    RoleUser,
-			Content: []anthropicclient.Content{toolContent},
-		}, nil
+		})
 	}
-	return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
+	if len(results) == 0 {
+		return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
+	}
+	return anthropicclient.ChatMessage{Role: RoleUser, Content: results}, nil
 }
 
 const (
