@@ -43,3 +43,16 @@ func TestMistralModelsThatDoNotReasonGetNoEffort(t *testing.T) {
 		}
 	}
 }
+
+func TestClaudeBehindTheOpenAIDoorKeepsItsTopEfforts(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"claude-sonnet-5", "anthropic/claude-opus-4-7"} {
+		for _, effort := range []llms.ReasoningEffort{llms.ReasoningXHigh, llms.ReasoningMax} {
+			body := sendForWire(t, model, llms.WithReasoning(effort, 0))
+			if !strings.Contains(body, `"reasoning_effort":"`+string(effort)+`"`) {
+				t.Errorf("%s at %s: Anthropic serves this level off Bedrock, got body: %s", model, effort, body)
+			}
+		}
+	}
+}
