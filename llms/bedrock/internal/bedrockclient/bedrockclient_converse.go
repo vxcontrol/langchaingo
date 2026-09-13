@@ -188,7 +188,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			maxTokens = *input.MaxTokens
 		}
 		setAdaptive := func() {
-			effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
+			effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "adaptive", Display: "summarized"}
 			additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			// Adaptive models reject sampling params.
@@ -205,7 +205,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			}
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "enabled", BudgetTokens: tokens}
 			if reasoning.ClaudeSupportsEffortWithBudget(input.ModelID, reasoning.ProviderBedrock) {
-				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
+				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
 				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			}
 			// Budget thinking requires temperature=1.0 and rejects top_p.

@@ -831,7 +831,7 @@ func applyAnthropicReasoning(
 
 	setAdaptive := func() {
 		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
-		input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)))}
+		input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
 		input.Temperature = 0
 		input.TopP = 0
 		input.TopK = 0
@@ -843,7 +843,7 @@ func applyAnthropicReasoning(
 		}
 		input.Thinking = &anthropicThinkingPayload{Type: "enabled", BudgetTokens: tokens}
 		if reasoning.ClaudeSupportsEffortWithBudget(modelID, reasoning.ProviderBedrock) {
-			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)))}
+			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
 		}
 		// Budget thinking requires temperature=1.0 and rejects top_p/top_k.
 		keepTopP := callerTemperature == 0 &&

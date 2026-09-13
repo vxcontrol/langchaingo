@@ -407,7 +407,7 @@ func (o *LLM) setReasoning(
 	acceptsEffort := reasoning.AcceptsEffortWire(model)
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
-	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort))
+	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
 	if toolsRule != reasoning.EffortToolsFree {

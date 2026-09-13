@@ -40,7 +40,7 @@ func TestApplyAnthropicReasoning_Adaptive(t *testing.T) {
 	assert.False(t, hasBudget, "adaptive thinking must not carry a token budget")
 
 	outputConfig, _ := fields["output_config"].(map[string]any)
-	assert.Equal(t, "xhigh", outputConfig["effort"])
+	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 only")
 
 	for _, key := range []string{"temperature", "top_p", "top_k"} {
 		_, has := fields[key]

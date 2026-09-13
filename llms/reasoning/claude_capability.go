@@ -115,6 +115,38 @@ var claudeEffortsByKind = map[ClaudeReasoningKind][]string{
 	ClaudeReasoningBudgetOnly:        {"low", "medium", "high"},
 }
 
+var bedrockTopEfforts = map[string][]string{
+	"xhigh": {"claude-opus-5"},
+	"max":   {"claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-5"},
+}
+
+func claudeEffortsOn(model string, p Provider) []string {
+	accepted := claudeEffortsByKind[ClaudeReasoningKindFor(model)]
+	if p != ProviderBedrock {
+		return accepted
+	}
+	served := make([]string, 0, len(accepted))
+	for _, level := range accepted {
+		if families, gated := bedrockTopEfforts[level]; gated && !claudeNamedIn(model, families) {
+			continue
+		}
+		served = append(served, level)
+	}
+	return served
+}
+
+func claudeNamedIn(model string, families []string) bool {
+	for _, form := range modelSpellings(model) {
+		name := canonicalClaude(form)
+		for _, family := range families {
+			if hasGeneration(name, family) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ClaudeEffortsFor returns the effort levels the model's generation accepts on
 // the given provider, or nil for a model this package does not classify.
 func ClaudeEffortsFor(model string, p Provider) []string {
@@ -122,21 +154,21 @@ func ClaudeEffortsFor(model string, p Provider) []string {
 	if kind == ClaudeReasoningBudgetOnly && !ClaudeSupportsEffortWithBudget(model, p) {
 		return nil
 	}
-	return slices.Clone(claudeEffortsByKind[kind])
+	return slices.Clone(claudeEffortsOn(model, p))
 }
 
 var claudeEffortRank = map[string]int{"minimal": 1, "low": 2, "medium": 3, "high": 4, "xhigh": 5, "max": 6}
 
-// ClaudeClampEffort moves an effort the model's generation does not accept to
+// ClaudeClampEffort moves an effort the model does not accept on the provider to
 // the nearest one it does: down to the highest accepted level below it, or up
 // to the lowest accepted level when every one of them is higher. An
 // unclassified model and an unknown level pass through unchanged.
-func ClaudeClampEffort(model, effort string) string {
+func ClaudeClampEffort(model, effort string, p Provider) string {
 	want, ok := claudeEffortRank[effort]
 	if !ok {
 		return effort
 	}
-	accepted := claudeEffortsByKind[ClaudeReasoningKindFor(model)]
+	accepted := claudeEffortsOn(model, p)
 	if len(accepted) == 0 || slices.Contains(accepted, effort) {
 		return effort
 	}
@@ -270,15 +302,7 @@ var bedrockStructuredClaude = []string{
 // ClaudeSupportsStructuredOutputOnBedrock reports whether Amazon Bedrock serves
 // schema constrained output for the Claude model.
 func ClaudeSupportsStructuredOutputOnBedrock(model string) bool {
-	for _, form := range modelSpellings(model) {
-		name := canonicalClaude(form)
-		for _, family := range bedrockStructuredClaude {
-			if hasGeneration(name, family) {
-				return true
-			}
-		}
-	}
-	return false
+	return claudeNamedIn(model, bedrockStructuredClaude)
 }
 
 // ResolveClaudeAdaptive returns whether to send adaptive thinking (true) or

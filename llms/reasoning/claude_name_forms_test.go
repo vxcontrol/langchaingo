@@ -223,8 +223,51 @@ func TestClaudeClampEffortMovesToTheNearestAcceptedLevel(t *testing.T) {
 		{"grok-4", "xhigh", "xhigh"},
 		{"claude-opus-4-6", "", ""},
 	} {
-		if got := ClaudeClampEffort(tc.model, tc.effort); got != tc.want {
+		if got := ClaudeClampEffort(tc.model, tc.effort, ProviderAnthropic); got != tc.want {
 			t.Errorf("ClaudeClampEffort(%q, %q) = %q, want %q", tc.model, tc.effort, got, tc.want)
+		}
+	}
+}
+
+func TestBedrockServesTheTopEffortsOnlyWhereItsGuideSays(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  []string
+	}{
+		{"us.anthropic.claude-opus-5", []string{"low", "medium", "high", "xhigh", "max"}},
+		{"us.anthropic.claude-opus-4-6-v1", []string{"low", "medium", "high", "max"}},
+		{"us.anthropic.claude-sonnet-4-6", []string{"low", "medium", "high", "max"}},
+		{"us.anthropic.claude-sonnet-5", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-opus-4-7", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-opus-4-8", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-fable-5", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-fable-5-1", []string{"low", "medium", "high"}},
+	} {
+		if got := ClaudeEffortsFor(tc.model, ProviderBedrock); !slices.Equal(got, tc.want) {
+			t.Errorf("ClaudeEffortsFor(%q, Bedrock) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+
+	for _, tc := range []struct{ model, effort, want string }{
+		{"us.anthropic.claude-sonnet-5", "xhigh", "high"},
+		{"us.anthropic.claude-sonnet-5", "max", "high"},
+		{"us.anthropic.claude-opus-4-7", "max", "high"},
+		{"us.anthropic.claude-fable-5-1", "xhigh", "high"},
+		{"us.anthropic.claude-opus-4-6-v1", "xhigh", "high"},
+		{"us.anthropic.claude-opus-4-6-v1", "max", "max"},
+		{"us.anthropic.claude-opus-5", "xhigh", "xhigh"},
+		{"us.anthropic.claude-opus-5", "max", "max"},
+	} {
+		if got := ClaudeClampEffort(tc.model, tc.effort, ProviderBedrock); got != tc.want {
+			t.Errorf("ClaudeClampEffort(%q, %q, Bedrock) = %q, want %q", tc.model, tc.effort, got, tc.want)
+		}
+	}
+
+	for _, model := range []string{"claude-sonnet-5", "claude-opus-4-7", "claude-fable-5-1"} {
+		if got := ClaudeClampEffort(model, "xhigh", ProviderAnthropic); got != "xhigh" {
+			t.Errorf("%s on Anthropic keeps xhigh, got %q", model, got)
 		}
 	}
 }

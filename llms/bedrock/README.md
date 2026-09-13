@@ -217,7 +217,9 @@ thinking from the model via the shared `llms/reasoning` capability tables (the s
 source of truth used by the first-party Anthropic provider):
 
 - **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` +
-  `output_config.effort`; budget thinking and sampling params are rejected. Opus 5,
+  `output_config.effort`; budget thinking and sampling params are rejected. Bedrock
+  serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher
+  effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5,
   Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8,
   which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to
   Opus 5 and Sonnet 5 and no effort beside it; Fable 5 cannot be disabled. Opus 4.7/4.8
