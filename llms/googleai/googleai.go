@@ -1138,9 +1138,6 @@ func convertIntToFloat32Pointer(i *int) *float32 {
 	return &f32
 }
 
-// resolveTemperature returns the temperature to use when the caller left it
-// unset. Gemini 3 defaults to 1.0, the value Google recommends (lower values can
-// cause looping and degraded reasoning); other models keep the SDK-wide default.
 // resolveThinkingConfig builds the Gemini thinking config for the reasoning mode.
 // Off forces budget 0 on models that disable that way, since omitting would not
 // disable a default-on model; a model whose thinking cannot be disabled returns a
