@@ -143,7 +143,7 @@ func TestAReasoningMistralModelGetsItsThinkingBackAsAChunkOfContent(t *testing.T
 func TestAMistralModelThatDoesNotReasonGetsNoThinkingBack(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"codestral-latest", "mistral-large-latest", "ministral-8b-latest"} {
+	for _, model := range []string{"codestral-latest", "mistral-large-latest", "ministral-8b-latest", "mistral/ministral-8b-latest"} {
 		turns := assistantTurnsSent(t, model)
 		require.Len(t, turns, 2, model)
 
