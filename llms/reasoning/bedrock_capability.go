@@ -34,6 +34,18 @@ func IsBedrockAlwaysReasoningModel(model string) bool {
 	return strings.Contains(baseModelName(model), "deepseek.r1")
 }
 
+// IsGptOssModel reports whether the Bedrock model is one of OpenAI's gpt-oss models.
+func IsGptOssModel(model string) bool {
+	base := baseModelName(model)
+	return strings.Contains(base, "openai.gpt-oss-120b") || strings.Contains(base, "openai.gpt-oss-20b")
+}
+
+var gptOssCaps = OpenAIReasoningCaps{Known: true, Efforts: []string{"low", "medium", "high"}}
+
+func GptOssEffort(effort string) string {
+	return gptOssCaps.ClampEffort(strings.ToLower(effort))
+}
+
 // IsGrokModel reports whether the Bedrock model belongs to the xAI Grok family,
 // which carries its effort in a reasoning object rather than a thinking one.
 func IsGrokModel(model string) bool {

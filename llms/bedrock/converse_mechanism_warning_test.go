@@ -18,6 +18,7 @@ func TestAMechanismTheConverseDoorPickedInsteadOfAdaptiveIsReported(t *testing.T
 	}{
 		{"nova", "amazon.nova-2-lite-v1:0"},
 		{"grok", "xai.grok-4-v1:0"},
+		{"gpt-oss", "openai.gpt-oss-120b-1:0"},
 		{"claude on a budget", "anthropic.claude-sonnet-4-5-v1:0"},
 	} {
 		t.Run(family.name, func(t *testing.T) {
@@ -45,6 +46,7 @@ func TestDelegatedDepthOnConverseIsNotReportedAsAPickedMechanism(t *testing.T) {
 	}{
 		{"nova", "amazon.nova-2-lite-v1:0"},
 		{"grok", "xai.grok-4-v1:0"},
+		{"gpt-oss", "openai.gpt-oss-120b-1:0"},
 	} {
 		t.Run(family.name, func(t *testing.T) {
 			t.Parallel()

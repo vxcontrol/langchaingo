@@ -191,7 +191,7 @@ if err != nil {
 ### Models Supporting Reasoning
 
 A reasoning request only reaches the wire for families that have a thinking
-configuration on this platform. The rest reason on their own and carry nothing.
+configuration on this platform. The rest carry nothing.
 
 **Converse API** — a thinking configuration is sent for:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking`
@@ -199,16 +199,17 @@ configuration on this platform. The rest reason on their own and carry nothing.
 - Amazon Nova 2 Lite and Sonic — `reasoningConfig` in `additionalModelRequestFields`.
   The vendor marks the field for those two only, so Nova 2 Pro and Micro do not get it
 - xAI Grok 4.x — `reasoning.effort` in `additionalModelRequestFields`
+- OpenAI GPT OSS 120B and 20B — `reasoning_effort` in `additionalModelRequestFields`
 
 **Legacy API** (InvokeModel) — a thinking configuration is sent for:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
   Anthropic body
 - Amazon Nova 2 Lite and Sonic — `reasoningConfig` inside `inferenceConfig`
 
-**Reasoning models that take no configuration here**: OpenAI GPT OSS (120B, 20B),
-Moonshot Kimi K2-Thinking, MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM, NVIDIA
-Nemotron 3. They think without being asked, and a `WithReasoning` call on them
-changes nothing on the wire.
+**Reasoning models that take no configuration here**: Moonshot Kimi K2-Thinking,
+MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM 4.7/4.7 Flash/5, NVIDIA Nemotron 3
+Super, Qwen3 32B, Magistral Small. AWS documents no reasoning field for them, so a
+`WithReasoning` call on them changes nothing on the wire.
 
 **How the wire shape is resolved**
 
@@ -232,9 +233,11 @@ source of truth used by the first-party Anthropic provider):
 
 Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
 its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
-beside it. Grok carries an effort and nothing else. `WithReasoningDisabled()`
-returns a typed `ErrReasoningOffUnsupported` for a model whose thinking cannot be
-turned off, such as Fable, Mythos or DeepSeek R1.
+beside it. Grok carries an effort and nothing else. GPT OSS carries only
+`reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and
+`max` fall to `high`. `WithReasoningDisabled()` returns a typed
+`ErrReasoningOffUnsupported` for a model whose thinking cannot be turned off, such as
+Fable, Mythos, GPT OSS or DeepSeek R1.
 
 ## Structured Output
 

@@ -608,7 +608,12 @@ func TestConverseClient_AdaptiveReasoningNonAnthropicModel(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotNil(t, capturedInput.InferenceConfig.Temperature, "sampling params stay when adaptive is not applied")
-	assert.Nil(t, capturedInput.AdditionalModelRequestFields,
+	require.NotNil(t, capturedInput.AdditionalModelRequestFields)
+	raw, err := capturedInput.AdditionalModelRequestFields.MarshalSmithyDocument()
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.Equal(t, map[string]any{"reasoning_effort": "high"}, fields,
 		"an Anthropic request shape does not travel to another vendor")
 }
 
@@ -1159,10 +1164,17 @@ func TestConverseBudgetPinsTemperatureOnlyForClaude(t *testing.T) {
 
 func TestConverseClient_NonClaudeThinkersTakeNoThinkingConfiguration(t *testing.T) {
 	for _, modelID := range []string{
+		"us.deepseek.r1-v1:0",
+		"qwen.qwen3-32b-v1:0",
+		"mistral.magistral-small-2509",
 		"zai.glm-4.7",
+		"zai.glm-4.7-flash",
+		"zai.glm-5",
 		"minimax.minimax-m2.5",
-		"openai.gpt-oss-120b-1:0",
+		"minimax.minimax-m2.1",
+		"minimax.minimax-m2",
 		"moonshot.kimi-k2-thinking",
+		"nvidia.nemotron-super-3-120b",
 	} {
 		t.Run(modelID, func(t *testing.T) {
 			mockClient := &MockBedrockRuntimeClient{}

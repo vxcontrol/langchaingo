@@ -211,6 +211,10 @@ func TestConverseReadsTheEffortEveryFamilyWritesItsOwnWay(t *testing.T) {
 		{"us.xai.grok-4.3", llms.ReasoningMax, &llms.Warning{
 			Kind: llms.WarningClamp, Option: "WithReasoning", Asked: "max", Sent: "xhigh",
 		}},
+		{"openai.gpt-oss-120b-1:0", llms.ReasoningLow, nil},
+		{"openai.gpt-oss-20b-1:0", llms.ReasoningMax, &llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Asked: "max", Sent: "high",
+		}},
 	} {
 		t.Run(tc.model, func(t *testing.T) {
 			t.Parallel()

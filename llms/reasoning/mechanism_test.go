@@ -35,7 +35,11 @@ func TestResolveMechanism(t *testing.T) {
 		},
 		{
 			"a non-Claude family with no mechanism of its own gets nothing",
-			"openai.gpt-oss-120b-1:0", true, false, true, reasoning.MechanismNone,
+			"zai.glm-5", true, false, true, reasoning.MechanismNone,
+		},
+		{
+			"gpt-oss takes the effort field its request body documents",
+			"openai.gpt-oss-120b-1:0", true, false, true, reasoning.MechanismGptOssEffort,
 		},
 		{
 			"a model the door does not consider reasoning gets nothing",
