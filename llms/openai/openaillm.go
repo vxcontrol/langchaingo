@@ -102,7 +102,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	sendsBudget := o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()
+	sendsBudget := (o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()) ||
+		o.sendsClaudeBudget(o.effectiveModel(opts), opts)
 	if err := llms.CheckClaudeTurnLimitsOnWire(o.effectiveModel(opts), opts, messages, sendsBudget); err != nil {
 		return nil, err
 	}
@@ -422,9 +423,7 @@ func (o *LLM) setReasoning(
 		}
 		sendsEffort = false
 	}
-	if opts.Reasoning.HasExplicitTokens() && reasoningTokens > 0 &&
-		reasoning.DashScopeTakesThinkingBudget(model) {
-		req.ThinkingBudget = &reasoningTokens
+	if o.writeVendorBudget(req, opts, reasoningTokens, warnCtx{model, warn}) {
 		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
@@ -445,6 +444,30 @@ func budgetsFor(
 	}
 
 	return budget, effortBudget
+}
+
+func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOptions, tokens int, wc warnCtx) bool {
+	if !opts.Reasoning.HasExplicitTokens() || tokens <= 0 {
+		return false
+	}
+	switch {
+	case reasoning.DashScopeTakesThinkingBudget(wc.model):
+		req.ThinkingBudget = &tokens
+	case o.sendsClaudeBudget(wc.model, opts):
+		budget := reasoning.ClaudeClampBudget(wc.model, tokens)
+		req.Thinking = &openaiclient.ThinkingOptions{Type: "enabled", BudgetTokens: budget}
+		o.raiseAnswerLimitForBudget(req, budget, wc)
+	default:
+		return false
+	}
+	return true
+}
+
+func (o *LLM) sendsClaudeBudget(model string, opts llms.CallOptions) bool {
+	return !o.client.ModernReasoningFormat &&
+		opts.Reasoning.HasExplicitTokens() &&
+		reasoning.ClaudeSpendsThinkingBudget(model) &&
+		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
 }
 
 func (o *LLM) sendsBudgetInsteadOfEffort(model string, opts llms.CallOptions, tokens int) bool {

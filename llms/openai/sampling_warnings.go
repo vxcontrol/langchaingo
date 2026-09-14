@@ -109,6 +109,9 @@ func reportOpenAIReasoning(warn *llms.Warnings, model string, cfg *llms.Reasonin
 	if req.ThinkingBudget != nil {
 		budget = *req.ThinkingBudget
 	}
+	if req.Thinking != nil && req.Thinking.BudgetTokens > 0 {
+		budget = req.Thinking.BudgetTokens
+	}
 	if req.Reasoning != nil {
 		if req.Reasoning.Effort != "" {
 			effort = string(req.Reasoning.Effort)

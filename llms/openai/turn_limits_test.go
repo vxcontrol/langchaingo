@@ -67,6 +67,16 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 		}
 	})
 
+	t.Run("a budget sent as the thinking object is refused with a forced tool", func(t *testing.T) {
+		t.Parallel()
+		err := turnLimitErr(t, "claude-opus-4-6", askedFor("hi"),
+			llms.WithReasoning(llms.ReasoningNone, 2048), forced)
+		var target *reasoning.ErrForcedToolUseWithThinking
+		if !errors.As(err, &target) {
+			t.Errorf("want ErrForcedToolUseWithThinking, got %v", err)
+		}
+	})
+
 	t.Run("an effort with no budget is not refused", func(t *testing.T) {
 		t.Parallel()
 		if err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"),

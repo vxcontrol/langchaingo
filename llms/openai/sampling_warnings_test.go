@@ -152,12 +152,23 @@ func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 func TestABudgetThisDoorPutsOnNoFieldIsReportedAsDropped(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "claude-sonnet-4-5",
+	resp := sendForWarnings(t, "anthropic/claude-sonnet-5",
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
 	w := warningFor(t, resp, "WithReasoning")
 	if w.Kind != llms.WarningDrop || w.Asked != "30000 tokens" || w.Sent != "" {
 		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+	}
+}
+
+func TestABudgetTheThinkingObjectCarriesIsNotReported(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "claude-sonnet-4-5",
+		llms.WithMaxTokens(8192), llms.WithReasoning(llms.ReasoningNone, 2048))
+
+	if len(resp.Warnings) != 0 {
+		t.Errorf("the budget reached the wire as asked, got %v", resp.Warnings)
 	}
 }
 

@@ -239,8 +239,8 @@ func TestAnswerLimitClearsTheBudgetTheThinkingWillSpend(t *testing.T) {
 		call   []llms.CallOption
 		want   string
 	}{
-		{"legacy format, effort carries the thinking", nil,
-			[]llms.CallOption{llms.WithReasoning("", 2048), llms.WithMaxTokens(512)}, `"max_completion_tokens":8192`},
+		{"legacy format, the thinking object carries the budget", nil,
+			[]llms.CallOption{llms.WithReasoning("", 2048), llms.WithMaxTokens(512)}, `"max_completion_tokens":2048`},
 		{"modern format, effort carries the thinking", modern,
 			[]llms.CallOption{llms.WithReasoning("", 2048), llms.WithMaxTokens(512)}, `"max_completion_tokens":8192`},
 		{"an effort with no budget of its own", nil,
