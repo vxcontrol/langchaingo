@@ -507,13 +507,23 @@ func TestTheHintReportsQwenThinkingOffUntilAsked(t *testing.T) {
 func TestOptInAloneDoesNotMakeTheHintReportThinkingOff(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"mistral-medium-latest", "mistral-small-latest"} {
-		if !reasoning.ThinkingOptIn(model) {
-			t.Fatalf("%s: the door no longer counts it opt-in, so the case no longer covers what it claims", model)
+	for _, tc := range []struct {
+		model             string
+		inCapabilityTable bool
+	}{
+		{"mistral-medium-latest", true},
+		{"mistral-small-latest", true},
+		{"magistral-medium-latest", false},
+		{"magistral-small-latest", false},
+	} {
+		if !reasoning.ThinkingOptIn(tc.model) || !reasoning.IsReasoningModel(tc.model) ||
+			reasoning.OpenAIReasoningCapsFor(tc.model).Known != tc.inCapabilityTable {
+			t.Fatalf("%s: no longer an opt-in reasoning model with capability table membership %v, "+
+				"so the case no longer covers what it claims", tc.model, tc.inCapabilityTable)
 		}
-		if d := ReasoningSupportFor(model, reasoning.ProviderOpenAI).DefaultOn; d != nil {
+		if d := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI).DefaultOn; d != nil {
 			t.Errorf("%s DefaultOn = %v, want nil: Mistral documents no default for reasoning_effort, and the "+
-				"door's off sends nothing, so a false here offers an off that may do nothing", model, *d)
+				"door's off sends nothing, so a false here offers an off that may do nothing", tc.model, *d)
 		}
 	}
 
