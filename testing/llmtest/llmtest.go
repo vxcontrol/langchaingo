@@ -68,7 +68,7 @@ func TestLLM(t *testing.T, model llms.Model, opts ...Option) {
 		}
 
 		// Test tool calls if supported
-		if supportsTools(model) {
+		if !declared.SkipToolCalls && supportsTools(model) {
 			t.Run("ToolCalls", func(t *testing.T) {
 				t.Parallel()
 				testToolCalls(t, model)
@@ -153,6 +153,12 @@ func WithoutStreaming() Option {
 	return func(o *TestOptions) { o.SkipStreaming = true }
 }
 
+// WithoutToolCalls declares a door that takes tools but never answers with a
+// call, so the suite must not hold it to that contract.
+func WithoutToolCalls() Option {
+	return func(o *TestOptions) { o.SkipToolCalls = true }
+}
+
 // TestOptions configures test execution.
 type TestOptions struct {
 	// Timeout for each test operation
@@ -162,6 +168,7 @@ type TestOptions struct {
 	SkipCall            bool
 	SkipGenerateContent bool
 	SkipStreaming       bool
+	SkipToolCalls       bool
 
 	// Custom test prompts
 	TestPrompt   string
@@ -379,7 +386,7 @@ func assertStreams(t *testing.T, ctx context.Context, model llms.Model, messages
 	}
 }
 
-func testToolCalls(t *testing.T, model llms.Model) {
+func testToolCalls(t testing.TB, model llms.Model) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -425,15 +432,12 @@ func testToolCalls(t *testing.T, model llms.Model) {
 		t.Fatal("No choices in response")
 	}
 
-	// Check if tool was called
 	choice := resp.Choices[0]
 	if len(choice.ToolCalls) == 0 {
-		t.Log("No tool calls in response (model may not support tools)")
-	} else {
-		toolCall := choice.ToolCalls[0]
-		if toolCall.FunctionCall.Name != "get_weather" {
-			t.Errorf("Expected get_weather tool call, got: %s", toolCall.FunctionCall.Name)
-		}
+		t.Fatalf("the door took the tools and answered without calling one: %q", choice.Content)
+	}
+	if call := choice.ToolCalls[0].FunctionCall; call == nil || call.Name != "get_weather" {
+		t.Errorf("expected a get_weather tool call, got %+v", choice.ToolCalls[0])
 	}
 }
 

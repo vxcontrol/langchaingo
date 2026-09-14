@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -29,7 +31,59 @@ func TestMockLLM(t *testing.T) {
 		},
 	}
 
-	TestLLM(t, mock)
+	TestLLM(t, mock, WithoutToolCalls())
+}
+
+type verdictRecorder struct {
+	testing.TB
+	failed atomic.Bool
+}
+
+func (r *verdictRecorder) Fail()                 { r.failed.Store(true) }
+func (r *verdictRecorder) Error(...any)          { r.Fail() }
+func (r *verdictRecorder) Errorf(string, ...any) { r.Fail() }
+func (r *verdictRecorder) FailNow()              { r.Fail(); runtime.Goexit() }
+func (r *verdictRecorder) Fatal(...any)          { r.FailNow() }
+func (r *verdictRecorder) Fatalf(string, ...any) { r.FailNow() }
+func (r *verdictRecorder) SkipNow()              { runtime.Goexit() }
+func (r *verdictRecorder) Skip(...any)           { r.SkipNow() }
+func (r *verdictRecorder) Skipf(string, ...any)  { r.SkipNow() }
+
+func failsToolCalls(t *testing.T, model llms.Model) bool {
+	t.Helper()
+
+	recorder := &verdictRecorder{TB: t}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		testToolCalls(recorder, model)
+	}()
+	<-done
+	return recorder.failed.Load()
+}
+
+func TestTheSuiteFailsADoorThatTakesToolsAndCallsNone(t *testing.T) {
+	t.Parallel()
+
+	prose := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "it is sunny in San Francisco"}},
+	}}
+
+	assert.True(t, failsToolCalls(t, prose),
+		"a door that answers in prose when the question needs the offered tool breaks the tool contract")
+}
+
+func TestTheSuitePassesADoorThatCallsTheTool(t *testing.T) {
+	t.Parallel()
+
+	caller := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{ToolCalls: []llms.ToolCall{{
+			ID: "call_1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{"location":"San Francisco, US"}`},
+		}}}},
+	}}
+
+	assert.False(t, failsToolCalls(t, caller))
 }
 
 // TestValidateLLM tests the validation function.
