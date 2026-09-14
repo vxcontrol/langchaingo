@@ -15,6 +15,13 @@ import (
 func converseCall(t *testing.T, in *ConverseInput) *llms.ContentResponse {
 	t.Helper()
 
+	resp, _ := converseCallSending(t, in)
+	return resp
+}
+
+func converseCallSending(t *testing.T, in *ConverseInput) (*llms.ContentResponse, *bedrockruntime.ConverseInput) {
+	t.Helper()
+
 	mockClient := &MockBedrockRuntimeClient{}
 	mockClient.On("Converse", mock.Anything, mock.Anything, mock.Anything).Return(
 		&bedrockruntime.ConverseOutput{
@@ -29,7 +36,10 @@ func converseCall(t *testing.T, in *ConverseInput) *llms.ContentResponse {
 
 	resp, err := NewConverseClient(mockClient).CreateCompletionConverse(context.Background(), in)
 	require.NoError(t, err)
-	return resp
+	mockClient.AssertNumberOfCalls(t, "Converse", 1)
+	sent, ok := mockClient.Calls[0].Arguments.Get(1).(*bedrockruntime.ConverseInput)
+	require.True(t, ok, "the door must hand the SDK a converse input")
+	return resp, sent
 }
 
 func converseWarningsByOption(warnings []llms.Warning) map[string]llms.Warning {
@@ -135,6 +145,22 @@ func TestConverseStaysSilentOnATopKItCarries(t *testing.T) {
 	})
 
 	require.NotContains(t, converseWarningsByOption(resp.Warnings), "WithTopK")
+}
+
+func TestConverseStaysSilentOnATopPItCarries(t *testing.T) {
+	t.Parallel()
+
+	topP, maxTokens := 0.9, 1000
+	resp, sent := converseCallSending(t, &ConverseInput{
+		Messages:  humanTurn(),
+		ModelID:   "us.anthropic.claude-sonnet-4-5-v1:0",
+		TopP:      &topP,
+		MaxTokens: &maxTokens,
+	})
+
+	require.NotNil(t, sent.InferenceConfig.TopP, "a lone top_p stays on the request")
+	require.InDelta(t, topP, *sent.InferenceConfig.TopP, 1e-6)
+	require.Empty(t, resp.Warnings)
 }
 
 func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
