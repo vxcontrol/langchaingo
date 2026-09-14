@@ -30,6 +30,14 @@ func RejectsTopK(model string) bool {
 	return openAIProperName(model)
 }
 
+func TakesNoTopK(model string) bool {
+	return onMiniMaxAPI(model, "minimax-")
+}
+
+func onMiniMaxAPI(model, family string) bool {
+	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), family)
+}
+
 // RejectsRepetitionPenalty reports whether repetition_penalty must stay off the wire.
 func RejectsRepetitionPenalty(model string) bool {
 	return openAIProperName(model)

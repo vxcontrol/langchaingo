@@ -291,22 +291,7 @@ func (o *LLM) createChatRequest(
 		ExtraBody:            getExtraBody(&opts),
 	}
 
-	model := o.effectiveModel(opts)
-	if reasoning.RejectsPenalties(model) {
-		const refused = "the door does not send the penalties on this model family"
-		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
-		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
-		req.FrequencyPenalty = nil
-		req.PresencePenalty = nil
-	}
-	if reasoning.RejectsTopK(model) && req.TopK != nil {
-		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
-		req.TopK = nil
-	}
-	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
-		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
-		req.RepetitionPenalty = nil
-	}
+	dropFieldsTheModelTakesNot(req, o.effectiveModel(opts), warn)
 
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
 		if opts.StreamingFunc == nil {
@@ -357,6 +342,28 @@ func (o *LLM) createChatRequest(
 	o.applySamplingPolicy(req, opts, wireEffort, warn)
 
 	return req, nil
+}
+
+func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model string, warn *llms.Warnings) {
+	if reasoning.RejectsPenalties(model) {
+		const refused = "the door does not send the penalties on this model family"
+		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
+		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
+		req.FrequencyPenalty = nil
+		req.PresencePenalty = nil
+	}
+	if reasoning.RejectsTopK(model) && req.TopK != nil {
+		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
+		req.TopK = nil
+	}
+	if reasoning.TakesNoTopK(model) && req.TopK != nil {
+		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
+		req.TopK = nil
+	}
+	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
+		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
+		req.RepetitionPenalty = nil
+	}
 }
 
 // effectiveModel resolves the model the request runs on: a per-call model wins,
