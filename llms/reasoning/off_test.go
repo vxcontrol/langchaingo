@@ -61,6 +61,7 @@ func TestVendorsThatDisableWithAThinkingObject(t *testing.T) {
 	for _, model := range []string{
 		"glm-4.5", "glm-4.6", "glm-4.7", "glm-5", "glm-5-turbo", "glm-5.1", "glm-5.2",
 		"minimax-m3", "deepseek-v4-flash", "deepseek-v4-pro",
+		"zai/glm-5.2", "deepseek/deepseek-v4-flash",
 	} {
 		if got := ResolveOff(model, ProviderOpenAI); got != OffDisableThinkingObject {
 			t.Errorf("ResolveOff(%q) = %v, want the thinking object: the effort token is either "+
@@ -75,6 +76,21 @@ func TestVendorsThatDisableWithAThinkingObject(t *testing.T) {
 	} {
 		if got := ResolveOff(model, ProviderOpenAI); got != want {
 			t.Errorf("ResolveOff(%q) = %v, want %v", model, got, want)
+		}
+	}
+}
+
+func TestDashScopeGuestsSpellOffWithTheDashScopeFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"dashscope/glm-5.2", "dashscope/glm-5.1", "dashscope/glm-5", "dashscope/glm-4.7",
+		"dashscope/glm-4.6", "dashscope/glm-4.5",
+		"dashscope/deepseek-v4-pro", "dashscope/deepseek-v4-flash", "dashscope/deepseek-v4-flash-0731",
+		"dashscope/kimi-k2.6",
+	} {
+		if got := ResolveOff(model, ProviderOpenAI); got != OffDisableDashScope {
+			t.Errorf("ResolveOff(%q, openai) = %v, want OffDisableDashScope", model, got)
 		}
 	}
 }

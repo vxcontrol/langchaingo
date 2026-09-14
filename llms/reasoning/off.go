@@ -158,6 +158,13 @@ func disablesByThinkingObject(model string) bool {
 	return false
 }
 
+func thinkingObjectOffOnHost(model string) OffWire {
+	if dashScopeGuestSpelling(model) != "" {
+		return OffDisableDashScope
+	}
+	return OffDisableThinkingObject
+}
+
 func openAIOffWire(model string) OffWire {
 	if !IsReasoningModel(model) {
 		return OffOmit // non-reasoning model does not think
@@ -172,7 +179,7 @@ func openAIOffWire(model string) OffWire {
 		return OffDisableDashScope
 	}
 	if disablesByThinkingObject(model) {
-		return OffDisableThinkingObject
+		return thinkingObjectOffOnHost(model)
 	}
 	// The disable token rides on the effort field, so a door that refuses that
 	// field cannot express "off" at all.
