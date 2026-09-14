@@ -1,26 +1,88 @@
 package reasoning
 
-import "testing"
+import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"maps"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+const reasoningImportPath = "github.com/vxcontrol/langchaingo/llms/reasoning"
+
+func providerConstantsPassedIn(t *testing.T, dir string) map[string]bool {
+	t.Helper()
+
+	passed := map[string]bool{}
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir() && d.Name() == "testdata":
+			return filepath.SkipDir
+		case d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go"):
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			return err
+		}
+		local := ""
+		for _, spec := range file.Imports {
+			if importPath, _ := strconv.Unquote(spec.Path.Value); importPath == reasoningImportPath {
+				local = "reasoning"
+				if spec.Name != nil {
+					local = spec.Name.Name
+				}
+			}
+		}
+		if local == "" {
+			return nil
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == local &&
+				strings.HasPrefix(sel.Sel.Name, "Provider") && sel.Sel.Name != "Provider" {
+				passed[sel.Sel.Name] = true
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("reading %s: %v", dir, err)
+	}
+	return passed
+}
 
 func TestEveryProviderConstantHasADoorThatPassesIt(t *testing.T) {
 	t.Parallel()
 
-	doors := map[Provider]string{
-		ProviderUnknown:   "callers with no door of their own",
-		ProviderAnthropic: "llms/anthropic",
-		ProviderBedrock:   "llms/bedrock",
-		ProviderOpenAI:    "llms/openai",
-		ProviderGoogleAI:  "llms/googleai",
-		ProviderOllama:    "llms/ollama",
+	doors := map[string]string{
+		"ProviderAnthropic": "../anthropic",
+		"ProviderBedrock":   "../bedrock",
+		"ProviderOpenAI":    "../openai",
+		"ProviderGoogleAI":  "../googleai",
+		"ProviderOllama":    "../ollama",
 	}
 
-	if len(doors) != int(providerCount) {
-		t.Fatalf("the enum holds %d providers, this test pairs %d of them with a door",
-			int(providerCount), len(doors))
+	if len(doors) != int(providerCount)-1 {
+		t.Fatalf("the enum holds %d door providers besides ProviderUnknown, this test pairs %d of them with a door",
+			int(providerCount)-1, len(doors))
 	}
-	for p := ProviderUnknown; p < providerCount; p++ {
-		if doors[p] == "" {
-			t.Errorf("provider %d has no door listed", int(p))
+	for constant, dir := range doors {
+		passed := providerConstantsPassedIn(t, dir)
+		if len(passed) != 1 || !passed[constant] {
+			t.Errorf("%s passes %v; it must pass %s and no other door's constant",
+				dir, slices.Sorted(maps.Keys(passed)), constant)
 		}
 	}
 }
