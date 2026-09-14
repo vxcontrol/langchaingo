@@ -2,6 +2,7 @@ package bedrock_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +17,18 @@ import (
 func bedrockWarningsFor(t *testing.T, answer string, opts []bedrock.Option, call ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
 
+	resp, _ := bedrockWarningsSending(t, answer, opts, call...)
+	return resp
+}
+
+func bedrockWarningsSending(
+	t *testing.T, answer string, opts []bedrock.Option, call ...llms.CallOption,
+) (*llms.ContentResponse, map[string]any) {
+	t.Helper()
+
+	var body []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.ReadAll(r.Body)
+		body, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, answer)
 	}))
@@ -27,7 +38,9 @@ func bedrockWarningsFor(t *testing.T, answer string, opts []bedrock.Option, call
 	resp, err := llm.GenerateContent(context.Background(),
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, call...)
 	require.NoError(t, err)
-	return resp
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal(body, &sent))
+	return resp, sent
 }
 
 func bedrockWarningsByOption(warnings []llms.Warning) map[string]llms.Warning {
@@ -94,7 +107,7 @@ func TestAPayloadThatCarriesThePenaltiesReportsNoLoss(t *testing.T) {
 
 	const ai21Answer = `{"completions":[{"data":{"text":"ok"},"finishReason":{"reason":"endoftext"}}]}`
 
-	resp := bedrockWarningsFor(t, ai21Answer,
+	resp, sent := bedrockWarningsSending(t, ai21Answer,
 		[]bedrock.Option{bedrock.WithModel("ai21.j2-ultra-v1")},
 		llms.WithRepetitionPenalty(1.1), llms.WithFrequencyPenalty(0.3),
 		llms.WithPresencePenalty(0.7), llms.WithCandidateCount(3),
@@ -108,6 +121,15 @@ func TestAPayloadThatCarriesThePenaltiesReportsNoLoss(t *testing.T) {
 		require.NotContains(t, got, option, "the ai21 payload carries it: %v", resp.Warnings)
 	}
 	require.Contains(t, got, "WithMinP", "no payload carries min-p")
+
+	for field, want := range map[string]any{
+		"countPenalty":     map[string]any{"scale": 1.1},
+		"frequencyPenalty": map[string]any{"scale": 0.3},
+		"presencePenalty":  map[string]any{"scale": 0.7},
+		"numResults":       float64(3),
+	} {
+		require.Equal(t, want, sent[field], "%s on the ai21 payload", field)
+	}
 }
 
 func TestTheConversePathReportsWhatTheLegacyPayloadWouldHaveCarried(t *testing.T) {

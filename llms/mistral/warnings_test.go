@@ -75,6 +75,11 @@ func TestSwitchingThinkingOffOnMistralIsNotALoss(t *testing.T) {
 	resp := generateForWarnings(t, llms.WithReasoningDisabled())
 	require.Empty(t, resp.Warnings,
 		"every mistral model disables by omission, so sending no field is the off wire, not a dropped intent")
+
+	off := chatBodyOnTheWire(t, llms.WithSeed(7), llms.WithReasoningDisabled())
+	require.NotContains(t, off, "reasoning_effort")
+	require.Equal(t, chatBodyOnTheWire(t, llms.WithSeed(7)), off,
+		"off by omission is the request a caller who named no reasoning sends")
 }
 
 func TestAPlainMistralCallCarriesNoWarnings(t *testing.T) {

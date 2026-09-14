@@ -249,23 +249,29 @@ func TestConverseReadsTheEffortEveryFamilyWritesItsOwnWay(t *testing.T) {
 	for _, tc := range []struct {
 		model  string
 		effort llms.ReasoningEffort
+		wire   map[string]any
 		want   *llms.Warning
 	}{
-		{"us.amazon.nova-2-lite-v1:0", llms.ReasoningHigh, nil},
-		{"us.xai.grok-4.3", llms.ReasoningMax, &llms.Warning{
+		{"us.amazon.nova-2-lite-v1:0", llms.ReasoningHigh, map[string]any{
+			"reasoningConfig": map[string]any{"type": "enabled", "maxReasoningEffort": "high"},
+		}, nil},
+		{"us.xai.grok-4.3", llms.ReasoningMax, map[string]any{
+			"reasoning": map[string]any{"effort": "xhigh"},
+		}, &llms.Warning{
 			Kind: llms.WarningClamp, Option: "WithReasoning", Asked: "max", Sent: "xhigh",
 		}},
 	} {
 		t.Run(tc.model, func(t *testing.T) {
 			t.Parallel()
 
-			resp := converseCall(t, &ConverseInput{
+			resp, sent := converseCallSending(t, &ConverseInput{
 				Messages:        humanTurn(),
 				ModelID:         tc.model,
 				MaxTokens:       &maxTokens,
 				ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: tc.effort},
 			})
 
+			require.Equal(t, tc.wire, sentAdditionalFields(t, sent), "the family's own shape carries the effort")
 			got, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
 			if tc.want == nil {
 				require.False(t, ok, "the effort reached the wire, so nothing was lost: %v", resp.Warnings)
