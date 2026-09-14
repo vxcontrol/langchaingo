@@ -100,6 +100,8 @@ func openAIStructuredOutputUnsupported(model string) string {
 	switch {
 	case reasoning.TakesNoJSONSchema(model):
 		return "the vendor's chat completions response_format takes only text and json_object"
+	case reasoning.TakesNoResponseFormat(model):
+		return "the vendor's chat completions API takes no response_format for this model"
 	case strings.HasPrefix(m, "gpt-3.5"):
 		return predates
 	case m == "gpt-4", strings.HasPrefix(m, "gpt-4-0"), strings.HasPrefix(m, "gpt-4-32k"), strings.HasPrefix(m, "gpt-4-turbo"):

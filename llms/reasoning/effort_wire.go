@@ -34,6 +34,10 @@ func TakesNoTopK(model string) bool {
 	return onMiniMaxAPI(model, "minimax-")
 }
 
+func TakesNoResponseFormat(model string) bool {
+	return onMiniMaxAPI(model, "minimax-m")
+}
+
 func onMiniMaxAPI(model, family string) bool {
 	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), family)
 }

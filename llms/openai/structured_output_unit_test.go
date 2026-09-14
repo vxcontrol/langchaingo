@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
@@ -147,6 +149,19 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 	t.Run("GLM served by Mistral keeps the schema Mistral documents for it", func(t *testing.T) {
 		t.Parallel()
 		for _, model := range []string{"glm-5-2", "zai-glm-5-2", "mistral/zai-glm-5-2"} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			req, err := llm.createChatRequest(nil, opts, nil)
+			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
+				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
+			}
+		}
+	})
+
+	t.Run("MiniMax outside its own M-series API keeps the schema", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{"MiniMax-Text-01", "openrouter/minimax/minimax-m3"} {
 			llm := newUnitLLM(t, WithModel(model))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
@@ -444,5 +459,35 @@ func TestStructuredOutputValidationFailureFiresSingleErrorCallback(t *testing.T)
 	}
 	if h.starts != 1 || h.errs != 1 || h.ends != 0 {
 		t.Fatalf("callback counts: starts=%d errs=%d ends=%d; want 1/1/0", h.starts, h.errs, h.ends)
+	}
+}
+
+func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+		var calls atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"id":"x","object":"chat.completion","created":1,"model":"m",`+
+				`"choices":[{"index":0,"message":{"role":"assistant","content":"prose"},"finish_reason":"stop"}],`+
+				`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+		}))
+		t.Cleanup(srv.Close)
+
+		llm := newUnitLLM(t, WithBaseURL(srv.URL), WithModel(model))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()}))
+
+		var unsup *llms.ErrStructuredOutputUnsupported
+		if !errors.As(err, &unsup) || !strings.Contains(unsup.Reason, "response_format") {
+			t.Errorf("%s: want ErrStructuredOutputUnsupported naming response_format, got %v", model, err)
+		}
+		if n := calls.Load(); n != 0 {
+			t.Errorf("%s: a schema MiniMax cannot honor must not cost a request, got %d", model, n)
+		}
 	}
 }
