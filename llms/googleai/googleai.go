@@ -383,16 +383,6 @@ func (g *GoogleAI) generateStreamingContent(
 	var blockReason *genai.GenerateContentResponsePromptFeedback
 	var streamErr error
 
-	// Trying to keep the same ID for the same tool call name
-	toolCallIDs := make(map[string]string)
-	ensureStreamFunctionCallID := func(name, id string) string {
-		if rid, ok := toolCallIDs[name]; id == "" && ok {
-			return rid
-		}
-		toolCallIDs[name] = ensureFunctionCallID(id)
-		return toolCallIDs[name]
-	}
-
 	for chunk, err := range iter {
 		if err != nil {
 			streamErr = fmt.Errorf("error generating content: %w", err)
@@ -454,7 +444,7 @@ func (g *GoogleAI) generateStreamingContent(
 			if part.FunctionCall != nil {
 				b, _ := json.Marshal(part.FunctionCall.Args)
 				toolCall := llms.ToolCall{
-					ID: ensureStreamFunctionCallID(part.FunctionCall.Name, part.FunctionCall.ID),
+					ID: ensureFunctionCallID(part.FunctionCall.ID),
 					FunctionCall: &llms.FunctionCall{
 						Name:      part.FunctionCall.Name,
 						Arguments: string(b),
