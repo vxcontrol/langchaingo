@@ -1,6 +1,7 @@
 package anthropic_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,8 +22,18 @@ func generateForWarnings(t *testing.T, callOpts ...llms.CallOption) *llms.Conten
 func generateForModel(t *testing.T, model string, callOpts ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
 
+	resp, _ := generateForModelSending(t, model, callOpts...)
+	return resp
+}
+
+func generateForModelSending(
+	t *testing.T, model string, callOpts ...llms.CallOption,
+) (*llms.ContentResponse, map[string]any) {
+	t.Helper()
+
+	var body []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.ReadAll(r.Body)
+		body, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"id":"msg_test","type":"message","role":"assistant",` +
 			`"model":"` + model + `","content":[{"type":"text","text":"ok"}],` +
@@ -43,7 +54,9 @@ func generateForModel(t *testing.T, model string, callOpts ...llms.CallOption) *
 	}}
 	resp, err := llm.GenerateContent(t.Context(), messages, callOpts...)
 	require.NoError(t, err)
-	return resp
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal(body, &sent))
+	return resp, sent
 }
 
 func warningsByOption(warnings []llms.Warning) map[string]llms.Warning {
@@ -146,7 +159,7 @@ func TestOptionsThisDoorBuildsNoFieldForAreReported(t *testing.T) {
 func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := generateForWarnings(t,
+	resp, sent := generateForModelSending(t, warningsTestModel,
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningMedium, 30000))
 
 	var clamp *llms.Warning
@@ -157,7 +170,11 @@ func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	}
 	require.NotNil(t, clamp, "no budget clamp in %v", resp.Warnings)
 	require.Equal(t, "30000 tokens", clamp.Asked)
-	require.NotEqual(t, clamp.Asked, clamp.Sent)
+	require.Equal(t, "2730 tokens", clamp.Sent)
+
+	thinking, ok := sent["thinking"].(map[string]any)
+	require.True(t, ok, "no thinking on the wire: %v", sent)
+	require.EqualValues(t, 2730, thinking["budget_tokens"], "the warning reports the budget the request carries")
 }
 
 func TestAThinkingMechanismTheModelDoesNotOfferIsReported(t *testing.T) {

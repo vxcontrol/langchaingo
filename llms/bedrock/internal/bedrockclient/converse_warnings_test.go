@@ -2,6 +2,7 @@ package bedrockclient
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -42,6 +43,19 @@ func converseCallSending(t *testing.T, in *ConverseInput) (*llms.ContentResponse
 	return resp, sent
 }
 
+func sentAdditionalFields(t *testing.T, sent *bedrockruntime.ConverseInput) map[string]any {
+	t.Helper()
+
+	if sent.AdditionalModelRequestFields == nil {
+		return nil
+	}
+	raw, err := sent.AdditionalModelRequestFields.MarshalSmithyDocument()
+	require.NoError(t, err)
+	var fields map[string]any
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	return fields
+}
+
 func converseWarningsByOption(warnings []llms.Warning) map[string]llms.Warning {
 	byOption := make(map[string]llms.Warning, len(warnings))
 	for _, w := range warnings {
@@ -54,7 +68,7 @@ func TestConverseReportsTheSamplingBudgetThinkingReshapes(t *testing.T) {
 	t.Parallel()
 
 	temperature, topP, maxTokens := 0.2, 0.9, 1000
-	resp := converseCall(t, &ConverseInput{
+	resp, sent := converseCallSending(t, &ConverseInput{
 		Messages:        humanTurn(),
 		ModelID:         "us.anthropic.claude-sonnet-4-5-v1:0",
 		Temperature:     &temperature,
@@ -80,7 +94,9 @@ func TestConverseReportsTheSamplingBudgetThinkingReshapes(t *testing.T) {
 	require.True(t, ok, "no max-tokens warning in %v", resp.Warnings)
 	require.Equal(t, llms.WarningClamp, limit.Kind)
 	require.Equal(t, "1000", limit.Asked)
-	require.NotEqual(t, limit.Asked, limit.Sent)
+	require.Equal(t, "2048", limit.Sent)
+	require.NotNil(t, sent.InferenceConfig.MaxTokens)
+	require.EqualValues(t, 2048, *sent.InferenceConfig.MaxTokens, "the warning reports the limit the request carries")
 }
 
 func TestConverseReportsTopPDroppedForTemperature(t *testing.T) {
@@ -167,7 +183,7 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 	t.Parallel()
 
 	maxTokens := 4096
-	resp := converseCall(t, &ConverseInput{
+	resp, sent := converseCallSending(t, &ConverseInput{
 		Messages:        humanTurn(),
 		ModelID:         "us.anthropic.claude-sonnet-4-5-v1:0",
 		MaxTokens:       &maxTokens,
@@ -178,7 +194,9 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
 	require.Equal(t, llms.WarningClamp, w.Kind)
 	require.Equal(t, "30000 tokens", w.Asked)
-	require.NotEqual(t, w.Asked, w.Sent)
+	require.Equal(t, "2730 tokens", w.Sent)
+	require.Equal(t, map[string]any{"type": "enabled", "budget_tokens": float64(2730)},
+		sentAdditionalFields(t, sent)["thinking"], "the warning reports the budget the request carries")
 }
 
 func TestConverseReportsAnEffortItLowered(t *testing.T) {

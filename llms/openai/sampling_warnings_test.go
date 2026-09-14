@@ -137,30 +137,30 @@ func TestAnEffortOnAModelThatSendsNoneIsReported(t *testing.T) {
 func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "claude-sonnet-4-5",
+	resp, sent := sendForWarningsWith(t, "claude-sonnet-4-5", nil,
 		llms.WithMaxTokens(1000), llms.WithReasoning(llms.ReasoningMedium, 4096))
 
 	w := warningFor(t, resp, "WithMaxTokens")
-	if w.Kind != llms.WarningClamp || w.Asked != "1000" {
+	if w.Kind != llms.WarningClamp || w.Asked != "1000" || w.Sent != "4096" {
 		t.Errorf("max-tokens warning = %+v", w)
 	}
-	if w.Sent == w.Asked {
-		t.Errorf("max-tokens warning reports no change: %+v", w)
+	if got := sent["max_completion_tokens"]; got != float64(4096) {
+		t.Errorf("max_completion_tokens on the wire = %v, want the 4096 the warning reports", got)
 	}
 }
 
 func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "qwen3-max",
+	resp, sent := sendForWarningsWith(t, "qwen3-max", nil,
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
 	w := warningFor(t, resp, "WithReasoning")
-	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
-		t.Fatalf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" || w.Sent != "2730 tokens" {
+		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
-	if w.Sent == w.Asked || w.Sent == "" {
-		t.Errorf("reasoning warning reports no cut: %+v", w)
+	if got := sent["thinking_budget"]; got != float64(2730) {
+		t.Errorf("thinking_budget on the wire = %v, want the 2730 the warning reports", got)
 	}
 }
 
