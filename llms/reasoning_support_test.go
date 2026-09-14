@@ -504,6 +504,28 @@ func TestTheHintReportsQwenThinkingOffUntilAsked(t *testing.T) {
 	}
 }
 
+func TestOptInAloneDoesNotMakeTheHintReportThinkingOff(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"mistral-medium-latest", "mistral-small-latest"} {
+		if !reasoning.ThinkingOptIn(model) {
+			t.Fatalf("%s: the door no longer counts it opt-in, so the case no longer covers what it claims", model)
+		}
+		if d := ReasoningSupportFor(model, reasoning.ProviderOpenAI).DefaultOn; d != nil {
+			t.Errorf("%s DefaultOn = %v, want nil: Mistral documents no default for reasoning_effort, and the "+
+				"door's off sends nothing, so a false here offers an off that may do nothing", model, *d)
+		}
+	}
+
+	const marked = "ernie-4.5-21b-a3b-thinking"
+	if !reasoning.ThinkingOptIn(marked) || !reasoning.ThinkingMarkedInName(marked) {
+		t.Fatalf("%s: no longer both opt-in and marked thinking, so the case no longer covers what it claims", marked)
+	}
+	if d := ReasoningSupportFor(marked, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+		t.Errorf("%s DefaultOn = false, but the door counts the thinking marker in its name as thinking on", marked)
+	}
+}
+
 func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
 	t.Parallel()
 
