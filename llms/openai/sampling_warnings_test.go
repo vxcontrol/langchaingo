@@ -331,6 +331,9 @@ func TestClaudeOnThisDoorStillLosesItsSampling(t *testing.T) {
 	if strings.Contains(body, `"temperature":0.2`) {
 		t.Errorf("thinking claude takes temperature 1: %s", body)
 	}
+	if strings.Contains(body, `"top_p"`) {
+		t.Errorf("thinking claude takes no top_p below 0.95 or beside a temperature: %s", body)
+	}
 }
 
 func TestMinPStaysOffOpenAIsOwnEndpoint(t *testing.T) {
