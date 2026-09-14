@@ -1,6 +1,9 @@
 package reasoning
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // IsNovaReasoningModel reports whether the Bedrock model takes Amazon Nova's
 // reasoningConfig.
@@ -44,6 +47,10 @@ var gptOssCaps = OpenAIReasoningCaps{Known: true, Efforts: []string{"low", "medi
 
 func GptOssEffort(effort string) string {
 	return gptOssCaps.ClampEffort(strings.ToLower(effort))
+}
+
+func GptOssEfforts() []string {
+	return slices.Clone(gptOssCaps.Efforts)
 }
 
 // IsGrokModel reports whether the Bedrock model belongs to the xAI Grok family,

@@ -103,6 +103,17 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 		}
 	}
 
+	if p == reasoning.ProviderBedrock && reasoning.IsGptOssModel(model) {
+		return ReasoningSupport{
+			Supported:     true,
+			Known:         true,
+			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+			Efforts:       toReasoningEfforts(reasoning.GptOssEfforts()),
+			Mechanism:     ReasoningMechanismAdaptive,
+			DefaultOn:     boolPtr(true),
+		}
+	}
+
 	if caps := reasoning.OpenAIReasoningCapsFor(model); caps.Known {
 		return ReasoningSupport{
 			Supported:       true,
