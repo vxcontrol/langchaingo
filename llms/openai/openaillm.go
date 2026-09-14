@@ -567,6 +567,8 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.PresencePenalty = nil
 		req.LogProbs = false
 		req.TopLogProbs = 0
+	case ignoresTemperatureWhileThinking(model, opts, wireEffort):
+		req.Temperature = nil
 	case reasoning.ClaudeMutuallyExclusiveSampling(model) && req.Temperature != nil && req.TopP != nil:
 		req.TopP = nil
 	}
@@ -577,6 +579,19 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 		return false
 	}
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
+}
+
+func ignoresTemperatureWhileThinking(model string, opts llms.CallOptions, wireEffort string) bool {
+	return reasoning.IgnoresTemperatureWhileThinking(model) &&
+		thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
+}
+
+func extraBodyStopsThinking(opts llms.CallOptions) bool {
+	extra := llms.ExtraBody(opts)
+	if thinking, ok := extra["thinking"].(map[string]any); ok && thinking["type"] == "disabled" {
+		return true
+	}
+	return extra["reasoning_effort"] == reasoning.OpenAIDisableEffort
 }
 
 // thinkingRuns reports whether the model reasons on this request: an effort

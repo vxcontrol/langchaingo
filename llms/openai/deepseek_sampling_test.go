@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -76,6 +77,105 @@ func TestDeepSeekV32KeepsSamplingEvenWithAnEffortOnTheWire(t *testing.T) {
 	}
 }
 
+func TestDeepSeekThinkingLeavesOutTheTemperatureItIgnores(t *testing.T) {
+	t.Parallel()
+
+	sampling := []llms.CallOption{llms.WithTemperature(0.4), llms.WithTopP(0.97)}
+	requests := map[string][]llms.CallOption{
+		"deepseek-v4-pro":                    sampling,
+		"deepseek/deepseek-v4-pro":           sampling,
+		"deepseek-v4-flash":                  sampling,
+		"deepseek-v4-pro with an effort":     append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, sampling...),
+		"deepseek-v4-pro thinking by object": append([]llms.CallOption{thinkingInExtraBody("enabled")}, sampling...),
+	}
+	for name, opts := range requests {
+		model, _, _ := strings.Cut(name, " ")
+
+		body := captureDeepSeekRequest(t, model, opts...)
+		if _, ok := body["temperature"]; ok {
+			t.Errorf("%s: thinking mode ignores temperature, got body: %v", name, body)
+		}
+		if body["top_p"] != 0.97 {
+			t.Errorf("%s: top_p takes effect while thinking and must stay, got body: %v", name, body)
+		}
+
+		resp := sendForWarnings(t, model, opts...)
+		w := warningFor(t, resp, "WithTemperature")
+		if w.Kind != llms.WarningDrop || w.Asked != "0.4" || !strings.Contains(w.Reason, "ignores temperature") {
+			t.Errorf("%s: temperature warning = %+v", name, w)
+		}
+		for _, other := range resp.Warnings {
+			if other.Option == "WithTopP" {
+				t.Errorf("%s: top_p reached the wire, yet it is reported: %+v", name, other)
+			}
+		}
+	}
+}
+
+func TestDeepSeekKeepsTheTemperatureOnceThinkingIsOff(t *testing.T) {
+	t.Parallel()
+
+	for name, off := range map[string]llms.CallOption{
+		"reasoning disabled":          llms.WithReasoningDisabled(),
+		"thinking object in the body": thinkingInExtraBody("disabled"),
+		"effort none in the body":     llms.WithExtraBody(map[string]any{"reasoning_effort": "none"}),
+	} {
+		opts := []llms.CallOption{off, llms.WithTemperature(0.4)}
+		if body := captureDeepSeekRequest(t, "deepseek-v4-pro", opts...); body["temperature"] != 0.4 {
+			t.Errorf("%s: non-thinking mode takes temperature, got body: %v", name, body)
+		}
+		if resp := sendForWarnings(t, "deepseek-v4-pro", opts...); len(resp.Warnings) != 0 {
+			t.Errorf("%s: nothing was lost, got %v", name, resp.Warnings)
+		}
+	}
+}
+
+func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"dashscope/deepseek-v4-pro", "openrouter/deepseek/deepseek-v4-pro"} {
+		body := captureDeepSeekRequest(t, model, llms.WithTemperature(0.4), llms.WithReasoning(llms.ReasoningHigh, 0))
+		if body["temperature"] != 0.4 {
+			t.Errorf("%s: only DeepSeek's own API documents temperature as ignored while thinking, got body: %v",
+				model, body)
+		}
+	}
+}
+
+func TestDeepSeekNeverGetsThePenaltiesItNoLongerSupports(t *testing.T) {
+	t.Parallel()
+
+	penalties := []llms.CallOption{llms.WithFrequencyPenalty(0.5), llms.WithPresencePenalty(0.3)}
+	requests := map[string][]llms.CallOption{
+		"deepseek-v4-pro":              penalties,
+		"deepseek/deepseek-v4-pro":     penalties,
+		"deepseek-flash":               penalties,
+		"dashscope/deepseek-v4-pro":    penalties,
+		"deepseek-v4-pro thinking off": append([]llms.CallOption{llms.WithReasoningDisabled()}, penalties...),
+	}
+	for name, opts := range requests {
+		model, _, _ := strings.Cut(name, " ")
+
+		body := captureDeepSeekRequest(t, model, opts...)
+		for _, field := range []string{"frequency_penalty", "presence_penalty"} {
+			if _, ok := body[field]; ok {
+				t.Errorf("%s: %s takes no effect on DeepSeek, got body: %v", name, field, body)
+			}
+		}
+
+		resp := sendForWarnings(t, model, opts...)
+		for option, asked := range map[string]string{"WithFrequencyPenalty": "0.5", "WithPresencePenalty": "0.3"} {
+			if w := warningFor(t, resp, option); w.Kind != llms.WarningDrop || w.Asked != asked {
+				t.Errorf("%s: %s warning = %+v", name, option, w)
+			}
+		}
+	}
+}
+
+func thinkingInExtraBody(kind string) llms.CallOption {
+	return llms.WithExtraBody(map[string]any{"thinking": map[string]any{"type": kind}})
+}
+
 func TestChatVariantsKeepTheTemperatureTheCallerSet(t *testing.T) {
 	t.Parallel()
 
@@ -105,7 +205,7 @@ func TestPenaltiesStayOffTheDoorsThatRefuseThem(t *testing.T) {
 		}
 	}
 
-	for _, model := range []string{"gpt-5.4", "deepseek-v4-pro", "glm-5.2", "mistral-medium-latest"} {
+	for _, model := range []string{"gpt-5.4", "glm-5.2", "mistral-medium-latest"} {
 		body := captureDeepSeekRequest(t, model,
 			llms.WithFrequencyPenalty(0.5), llms.WithPresencePenalty(0.5))
 		if body["frequency_penalty"] != 0.5 || body["presence_penalty"] != 0.5 {

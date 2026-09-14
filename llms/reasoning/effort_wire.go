@@ -2,6 +2,7 @@ package reasoning
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -9,11 +10,19 @@ import (
 // must stay off the wire.
 func RejectsPenalties(model string) bool {
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "grok") {
+		if strings.HasPrefix(form, "grok") || strings.HasPrefix(form, "deepseek") {
 			return true
 		}
 	}
 	return false
+}
+
+// deepSeekAPIModels mirrors the model names DeepSeek's own API serves, as its
+// Models & Pricing page lists them.
+var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
+
+func IgnoresTemperatureWhileThinking(model string) bool {
+	return slices.Contains(deepSeekAPIModels, strings.TrimPrefix(strings.ToLower(model), "deepseek/"))
 }
 
 // RejectsTopK reports whether top_k must stay off the wire.

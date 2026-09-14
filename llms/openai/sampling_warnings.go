@@ -93,6 +93,8 @@ func samplingReason(model string, opts llms.CallOptions, wireEffort string) stri
 		return "the model runs on fixed sampling and refuses any value for it"
 	case refusesSamplingWhileThinking(model, opts, wireEffort):
 		return "the model refuses sampling while thinking"
+	case ignoresTemperatureWhileThinking(model, opts, wireEffort):
+		return "the model ignores temperature while thinking"
 	default:
 		return "the model does not accept this combination of sampling parameters"
 	}

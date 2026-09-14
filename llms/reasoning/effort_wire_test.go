@@ -71,6 +71,32 @@ func TestRejectsMinP(t *testing.T) {
 	}
 }
 
+func TestIgnoresTemperatureWhileThinking(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model   string
+		ignores bool
+	}{
+		{"deepseek-flash", true},
+		{"deepseek-v4-pro", true},
+		{"deepseek/deepseek-v4-pro", true},
+		{"deepseek-v4-flash", true},
+		{"deepseek-v4-flash-vision-exp", true},
+		{"dashscope/deepseek-v4-pro", false},
+		{"openrouter/deepseek/deepseek-v4-pro", false},
+		{"deepseek-v4-flash-0731", false},
+		{"deepseek-v4.1-flash", false},
+		{"deepseek-r1", false},
+		{"deepseek-v3.2", false},
+		{"gpt-5.5", false},
+	} {
+		if got := IgnoresTemperatureWhileThinking(tc.model); got != tc.ignores {
+			t.Errorf("IgnoresTemperatureWhileThinking(%q) = %v, want %v", tc.model, got, tc.ignores)
+		}
+	}
+}
+
 func TestResolveOffOnDoorsThatRejectEffort(t *testing.T) {
 	t.Parallel()
 
