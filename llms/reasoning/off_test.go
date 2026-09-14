@@ -95,6 +95,18 @@ func TestDashScopeGuestsSpellOffWithTheDashScopeFlag(t *testing.T) {
 	}
 }
 
+func TestGLMServedByMistralSpellsOffByOmission(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"zai-glm-5-2", "mistral/zai-glm-5-2", "glm-5-2", "mistral/glm-5-2",
+	} {
+		if got := ResolveOff(model, ProviderOpenAI); got != OffOmit {
+			t.Errorf("ResolveOff(%q, openai) = %v, want OffOmit", model, got)
+		}
+	}
+}
+
 func TestAlwaysThinkingFamiliesAreRefusedOnBedrockToo(t *testing.T) {
 	t.Parallel()
 

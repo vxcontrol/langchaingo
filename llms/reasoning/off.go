@@ -162,6 +162,9 @@ func thinkingObjectOffOnHost(model string) OffWire {
 	if dashScopeGuestSpelling(model) != "" {
 		return OffDisableDashScope
 	}
+	if ServedByMistral(model) {
+		return OffOmit
+	}
 	return OffDisableThinkingObject
 }
 
