@@ -151,9 +151,16 @@ func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {
 func TestAdaptiveWithANamedEffortStillHonoursThatEffort(t *testing.T) {
 	t.Parallel()
 
-	budget := budgetOnTheWire(t, "gemini-2.5-flash",
-		llms.WithAdaptiveReasoning(llms.ReasoningHigh), llms.WithMaxTokens(8192))
-	assert.Greater(t, budget, float64(0), "a named effort is a depth, not a hand-off")
+	for effort, want := range map[llms.ReasoningEffort]float64{
+		llms.ReasoningLow: 2048, llms.ReasoningMedium: 2730, llms.ReasoningHigh: 4096,
+	} {
+		adaptive := budgetOnTheWire(t, "gemini-2.5-flash",
+			llms.WithAdaptiveReasoning(effort), llms.WithMaxTokens(8192))
+		named := budgetOnTheWire(t, "gemini-2.5-flash",
+			llms.WithReasoning(effort, 0), llms.WithMaxTokens(8192))
+		assert.Equal(t, want, adaptive, "%s: a named effort is a depth, not a hand-off", effort)
+		assert.Equal(t, named, adaptive, "%s: adaptive must not change the depth the effort names", effort)
+	}
 
 	tc := thinkingConfigFor(t, "gemini-3.5-flash",
 		llms.WithAdaptiveReasoning(llms.ReasoningMedium), llms.WithMaxTokens(8192))

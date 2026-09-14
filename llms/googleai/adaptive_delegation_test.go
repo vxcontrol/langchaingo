@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genai"
 )
 
 func TestNoFamilyInventsADepthTheCallerHandedToTheVendor(t *testing.T) {
@@ -40,9 +41,21 @@ func TestNoFamilyInventsADepthTheCallerHandedToTheVendor(t *testing.T) {
 func TestAnEffortTheCallerNamedStillPicksTheLevel(t *testing.T) {
 	t.Parallel()
 
-	config, err := resolveThinkingConfig("gemma-4-27b-it",
-		&llms.ReasoningConfig{Adaptive: true, Effort: llms.ReasoningHigh}, 0)
-	require.NoError(t, err)
-	require.NotNil(t, config)
-	assert.NotEmpty(t, config.ThinkingLevel, "a named effort is a depth the caller chose")
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		want   genai.ThinkingLevel
+		why    string
+	}{
+		{"gemini-3.5-flash", llms.ReasoningLow, genai.ThinkingLevelLow, "a named effort is a depth the caller chose"},
+		{"gemma-4-27b-it", llms.ReasoningHigh, genai.ThinkingLevelHigh, "a named effort is a depth the caller chose"},
+		{"gemma-4-27b-it", llms.ReasoningLow, genai.ThinkingLevelHigh, "this family only switches thinking on, and on is HIGH"},
+	} {
+		config, err := resolveThinkingConfig(tc.model,
+			&llms.ReasoningConfig{Adaptive: true, Effort: tc.effort}, 0)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		assert.Equal(t, tc.want, config.ThinkingLevel, "%s %s: %s", tc.model, tc.effort, tc.why)
+		assert.Nil(t, config.ThinkingBudget, "%s takes a level, not a budget", tc.model)
+	}
 }
