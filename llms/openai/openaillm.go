@@ -331,9 +331,7 @@ func (o *LLM) createChatRequest(
 		req.MaxCompletionTokens = opts.MaxTokens
 	}
 
-	if opts.GetJSONMode() {
-		req.SetResponseFormat(ResponseFormatJSON)
-	}
+	setJSONMode(req, model, opts, warn)
 
 	// add tools from functions and tool definitions
 	if err := o.addToolsToRequest(req, opts); err != nil {

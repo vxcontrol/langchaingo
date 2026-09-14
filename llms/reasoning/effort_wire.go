@@ -74,6 +74,10 @@ func TakesNoJSONSchema(model string) bool {
 	return false
 }
 
+func TakesNoJSONObject(model string) bool {
+	return isClaudeModel(model)
+}
+
 // RejectsMinP reports whether min_p must stay off the wire.
 func RejectsMinP(model string) bool {
 	return isClaudeModel(model) || openAIProperName(model)

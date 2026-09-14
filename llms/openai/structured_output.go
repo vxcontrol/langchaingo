@@ -31,6 +31,22 @@ func (e *ErrStructuredOutputRefusal) Error() string {
 	return fmt.Sprintf("openai structured output: model refused (model=%s choice=%d): %s", e.Model, e.Choice, e.Refusal)
 }
 
+func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, warn *llms.Warnings) {
+	if !opts.GetJSONMode() {
+		return
+	}
+	if !reasoning.TakesNoJSONObject(model) {
+		req.SetResponseFormat(ResponseFormatJSON)
+		return
+	}
+	if opts.StructuredOutput == nil {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,
+			Asked: "true", Reason: "the vendor has no json_object response format for this model",
+		})
+	}
+}
+
 // setStructuredOutput translates a per-call llms.StructuredOutput into OpenAI's
 // json_schema response format with strict:true. It takes precedence over the
 // schema-less JSONMode json_object and returns a typed conflict against a
