@@ -476,6 +476,34 @@ func TestTheHintNamesTheMechanismTheDoorActuallyUses(t *testing.T) {
 	}
 }
 
+func TestTheHintReportsQwenThinkingOffUntilAsked(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"qwen-plus", "qwen-flash", "qwen-turbo", "qwen3-max",
+		"qwen3-vl-plus", "qwen3-vl-flash", "dashscope/qwen3-max",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+			switch {
+			case s.DefaultOn == nil:
+				t.Errorf("%s DefaultOn = nil, want false: DashScope leaves its thinking off until "+
+					"enable_thinking asks for it, and a consumer reads nil as an off control that does nothing", model)
+			case *s.DefaultOn:
+				t.Errorf("%s DefaultOn = true, want false", model)
+			}
+		})
+	}
+
+	for _, model := range []string{"qwen3.6-plus", "qwen3.5-flash"} {
+		if d := ReasoningSupportFor(model, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+			t.Errorf("%s DefaultOn = false, but DashScope turns its thinking on by default", model)
+		}
+	}
+}
+
 func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
 	t.Parallel()
 
