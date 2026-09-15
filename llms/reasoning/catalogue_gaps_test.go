@@ -281,15 +281,16 @@ func TestGLMLatestCannotStopThinking(t *testing.T) {
 	}
 }
 
-func TestKimiTakesEffortButNotAlwaysAnOff(t *testing.T) {
+func TestKimiTakesEffortOnlyFromK3AndNotAlwaysAnOff(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{
-		"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking", "kimi-k3",
-	} {
-		if !AcceptsEffortWire(model) {
-			t.Errorf("AcceptsEffortWire(%q) = false, but every route measured accepts an effort", model)
+	for _, model := range []string{"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking"} {
+		if AcceptsEffortWire(model) {
+			t.Errorf("AcceptsEffortWire(%q) = true, but Moonshot documents reasoning_effort for kimi-k3 only", model)
 		}
+	}
+	if !AcceptsEffortWire("kimi-k3") {
+		t.Error(`AcceptsEffortWire("kimi-k3") = false, but kimi-k3 takes low, high and max`)
 	}
 
 	for _, model := range []string{"kimi-k2-thinking", "kimi-k2.7-code", "kimi-k2.7-code-highspeed"} {

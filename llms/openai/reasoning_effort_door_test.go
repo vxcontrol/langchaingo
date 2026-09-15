@@ -39,7 +39,10 @@ func TestReasoningEffortOmittedOnDoorsThatRejectIt(t *testing.T) {
 		return body, err
 	}
 
-	for _, model := range []string{"qwen3-next-80b-a3b-thinking"} {
+	for _, model := range []string{
+		"qwen3-next-80b-a3b-thinking", "kimi-k2.6", "moonshot/kimi-k2.6", "kimi-k2.7-code-highspeed",
+		"glm-5.1", "zai/glm-5.1", "glm-5-turbo",
+	} {
 		t.Run(model+" drops a requested effort", func(t *testing.T) {
 			body, err := capture(t, model, llms.WithReasoning(llms.ReasoningMedium, 0))
 			if err != nil {
@@ -63,7 +66,7 @@ func TestReasoningEffortOmittedOnDoorsThatRejectIt(t *testing.T) {
 		})
 	}
 
-	for _, model := range []string{"kimi-k2.6", "kimi-k2.7-code-highspeed"} {
+	for _, model := range []string{"glm-5.2", "zai/glm-5.2", "dashscope/glm-5.1"} {
 		t.Run(model+" carries the effort to the wire", func(t *testing.T) {
 			body, err := capture(t, model, llms.WithReasoning(llms.ReasoningMedium, 0))
 			if err != nil {
