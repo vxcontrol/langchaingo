@@ -576,8 +576,12 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.PresencePenalty = nil
 		req.LogProbs = false
 		req.TopLogProbs = 0
-	case ignoresTemperatureWhileThinking(model, o.host, opts, wireEffort):
-		req.Temperature = nil
+	case reasoning.ServedByDeepSeek(model, o.host):
+		if deepSeekThinks(model, opts, wireEffort) {
+			req.Temperature = nil
+		} else {
+			req.TopP = nil
+		}
 	case reasoning.ClaudeMutuallyExclusiveSampling(model) && req.Temperature != nil && req.TopP != nil:
 		req.TopP = nil
 	}
@@ -590,9 +594,8 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
 }
 
-func ignoresTemperatureWhileThinking(model, host string, opts llms.CallOptions, wireEffort string) bool {
-	return reasoning.ServedByDeepSeek(model, host) &&
-		thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
+func deepSeekThinks(model string, opts llms.CallOptions, wireEffort string) bool {
+	return thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
 }
 
 func extraBodyStopsThinking(opts llms.CallOptions) bool {

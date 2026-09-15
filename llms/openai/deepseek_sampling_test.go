@@ -174,6 +174,44 @@ func TestDeepSeekKeepsTheTemperatureOnceThinkingIsOff(t *testing.T) {
 	}
 }
 
+func TestDeepSeekOutOfThinkingLeavesOutTheTopPItIgnores(t *testing.T) {
+	t.Parallel()
+
+	offs := map[string]llms.CallOption{
+		"reasoning disabled":          llms.WithReasoningDisabled(),
+		"thinking object in the body": thinkingInExtraBody("disabled"),
+		"effort none in the body":     llms.WithExtraBody(map[string]any{"reasoning_effort": "none"}),
+	}
+	for _, target := range []struct{ baseURL, model string }{
+		{deepSeekBaseURL, "deepseek-v4-pro"},
+		{deepSeekBaseURL, "deepseek-flash"},
+		{gatewayBaseURL, "deepseek/deepseek-flash"},
+	} {
+		for name, off := range offs {
+			body, resp := sendToHost(t, target.baseURL, target.model, off, llms.WithTemperature(0.3), llms.WithTopP(0.9))
+			if _, ok := body["top_p"]; ok {
+				t.Errorf("%s, %s: non-thinking mode fixes top_p at 1.0, got body: %v", target.model, name, body)
+			}
+			if body["temperature"] != 0.3 {
+				t.Errorf("%s, %s: non-thinking mode takes temperature, got body: %v", target.model, name, body)
+			}
+
+			w := warningFor(t, resp, "WithTopP")
+			if w.Kind != llms.WarningDrop || w.Asked != "0.9" || !strings.Contains(w.Reason, "ignores top_p") {
+				t.Errorf("%s, %s: top_p warning = %+v", target.model, name, w)
+			}
+			if len(resp.Warnings) != 1 {
+				t.Errorf("%s, %s: only top_p was lost, got %v", target.model, name, resp.Warnings)
+			}
+		}
+	}
+
+	off := llms.WithExtraBody(map[string]any{"enable_thinking": false})
+	if body, _ := sendToHost(t, dashScopeBaseURL, "deepseek-v4-pro", off, llms.WithTopP(0.9)); body["top_p"] != 0.9 {
+		t.Errorf("DashScope documents top_p as settable, got body: %v", body)
+	}
+}
+
 func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
 	t.Parallel()
 
