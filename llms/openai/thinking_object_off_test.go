@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -19,6 +20,7 @@ func TestDisablingThinkingWhereTheEffortTokenDoesNotReachTheVendor(t *testing.T)
 	for _, model := range []string{
 		"glm-5.1", "glm-5.2", "glm-4.6", "minimax-m3", "kimi-k2.6",
 		"deepseek-v4-flash", "deepseek-v4-pro",
+		"zai/glm-5.2", "deepseek/deepseek-v4-pro",
 	} {
 		body := sendForWire(t, model, llms.WithReasoningDisabled())
 		if !strings.Contains(body, `"thinking":{"type":"disabled"}`) {
@@ -26,6 +28,35 @@ func TestDisablingThinkingWhereTheEffortTokenDoesNotReachTheVendor(t *testing.T)
 		}
 		if strings.Contains(body, "reasoning_effort") {
 			t.Errorf("%s: body still carries reasoning_effort: %s", model, body)
+		}
+	}
+}
+
+func TestDisablingThinkingOnAHostThatServesTheFamilyUnderItsOwnName(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  map[string]any
+	}{
+		{"dashscope/glm-5.2", map[string]any{"enable_thinking": false}},
+		{"dashscope/deepseek-v4-pro", map[string]any{"enable_thinking": false}},
+		{"dashscope/deepseek-v4-flash-0731", map[string]any{"enable_thinking": false}},
+		{"mistral/zai-glm-5-2", map[string]any{}},
+		{"zai-glm-5-2", map[string]any{}},
+	} {
+		body, err := wireBodyOf(t, tc.model, nil, llms.WithReasoningDisabled())
+		if err != nil {
+			t.Fatalf("%s: GenerateContent() error: %v", tc.model, err)
+		}
+		got := map[string]any{}
+		for _, key := range []string{"thinking", "reasoning_effort", "reasoning", "enable_thinking", "thinking_budget"} {
+			if value, ok := body[key]; ok {
+				got[key] = value
+			}
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: reasoning fields on the wire = %v, want %v", tc.model, got, tc.want)
 		}
 	}
 }
