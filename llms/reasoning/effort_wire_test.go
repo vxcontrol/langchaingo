@@ -65,6 +65,40 @@ func TestAcceptsEffortWire(t *testing.T) {
 	}
 }
 
+func TestTakesNoThinkingDepth(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  bool
+	}{
+		{"glm-5.1", true},
+		{"zai/glm-5.1", true},
+		{"glm-5-turbo", true},
+		{"glm-4.7", true},
+		{"kimi-k2.6", true},
+		{"moonshot/kimi-k2.6", true},
+		{"kimi-k2.7-code", true},
+		{"MiniMax-M3", true},
+		{"minimax/MiniMax-M2.7", true},
+		{"glm-5.2", false},
+		{"zai/glm-5.2", false},
+		{"kimi-k3", false},
+		{"dashscope/glm-5.1", false},
+		{"dashscope/glm-5", false},
+		{"dashscope/kimi-k2.7-code", false},
+		{"dashscope/kimi-k2.6", false},
+		{"zai-glm-5-2", false},
+		{"qwen3.7-plus", false},
+		{"gpt-5", false},
+		{"deepseek-v4-pro", false},
+	} {
+		if got := TakesNoThinkingDepth(tc.model); got != tc.want {
+			t.Errorf("TakesNoThinkingDepth(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
 func TestRejectsMinP(t *testing.T) {
 	t.Parallel()
 
