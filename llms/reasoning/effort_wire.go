@@ -21,8 +21,14 @@ func RejectsPenalties(model string) bool {
 // Models & Pricing page lists them.
 var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
 
-func IgnoresTemperatureWhileThinking(model string) bool {
-	return slices.Contains(deepSeekAPIModels, strings.TrimPrefix(strings.ToLower(model), "deepseek/"))
+const deepSeekAPIHost = "api.deepseek.com"
+
+func ServedByDeepSeek(model, host string) bool {
+	m := strings.ToLower(model)
+	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok {
+		return slices.Contains(deepSeekAPIModels, rest)
+	}
+	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, m)
 }
 
 // RejectsTopK reports whether top_k must stay off the wire.

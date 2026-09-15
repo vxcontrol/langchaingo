@@ -71,28 +71,35 @@ func TestRejectsMinP(t *testing.T) {
 	}
 }
 
-func TestIgnoresTemperatureWhileThinking(t *testing.T) {
+func TestServedByDeepSeek(t *testing.T) {
 	t.Parallel()
 
+	const deepSeek, dashScope, gateway = "api.deepseek.com", "dashscope-us.aliyuncs.com", "litellm.example"
 	for _, tc := range []struct {
-		model   string
-		ignores bool
+		model, host string
+		served      bool
 	}{
-		{"deepseek-flash", true},
-		{"deepseek-v4-pro", true},
-		{"deepseek/deepseek-v4-pro", true},
-		{"deepseek-v4-flash", true},
-		{"deepseek-v4-flash-vision-exp", true},
-		{"dashscope/deepseek-v4-pro", false},
-		{"openrouter/deepseek/deepseek-v4-pro", false},
-		{"deepseek-v4-flash-0731", false},
-		{"deepseek-v4.1-flash", false},
-		{"deepseek-r1", false},
-		{"deepseek-v3.2", false},
-		{"gpt-5.5", false},
+		{"deepseek-flash", deepSeek, true},
+		{"deepseek-v4-pro", deepSeek, true},
+		{"DeepSeek-V4-Pro", deepSeek, true},
+		{"deepseek-v4-flash", deepSeek, true},
+		{"deepseek-v4-flash-vision-exp", deepSeek, true},
+		{"deepseek/deepseek-v4-pro", gateway, true},
+		{"deepseek/deepseek-flash", gateway, true},
+		{"deepseek-v4-pro", dashScope, false},
+		{"deepseek-v4-flash", dashScope, false},
+		{"deepseek-v4-pro", gateway, false},
+		{"deepseek-v4-pro", "", false},
+		{"dashscope/deepseek-v4-pro", gateway, false},
+		{"openrouter/deepseek/deepseek-v4-pro", gateway, false},
+		{"deepseek-v4-flash-0731", deepSeek, false},
+		{"deepseek-v4.1-flash", deepSeek, false},
+		{"deepseek-r1", deepSeek, false},
+		{"deepseek-v3.2", deepSeek, false},
+		{"gpt-5.5", deepSeek, false},
 	} {
-		if got := IgnoresTemperatureWhileThinking(tc.model); got != tc.ignores {
-			t.Errorf("IgnoresTemperatureWhileThinking(%q) = %v, want %v", tc.model, got, tc.ignores)
+		if got := ServedByDeepSeek(tc.model, tc.host); got != tc.served {
+			t.Errorf("ServedByDeepSeek(%q, %q) = %v, want %v", tc.model, tc.host, got, tc.served)
 		}
 	}
 }

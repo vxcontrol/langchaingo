@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -77,21 +78,61 @@ func TestDeepSeekV32KeepsSamplingEvenWithAnEffortOnTheWire(t *testing.T) {
 	}
 }
 
+const (
+	deepSeekBaseURL  = "http://api.deepseek.com"
+	dashScopeBaseURL = "http://dashscope-us.aliyuncs.com/compatible-mode/v1"
+	gatewayBaseURL   = "http://litellm.example/v1"
+)
+
+func sendToHost(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map[string]any, *llms.ContentResponse) {
+	t.Helper()
+
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"1","object":"chat.completion","created":1,"model":"m",`+
+			`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],`+
+			`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	addr := srv.Listener.Addr().String()
+	transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, addr)
+	}}
+	t.Cleanup(transport.CloseIdleConnections)
+
+	llm, err := New(WithBaseURL(baseURL), WithToken("token"), WithModel(model),
+		WithHTTPClient(&http.Client{Transport: transport}))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, opts...)
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	return body, resp
+}
+
 func TestDeepSeekThinkingLeavesOutTheTemperatureItIgnores(t *testing.T) {
 	t.Parallel()
 
 	sampling := []llms.CallOption{llms.WithTemperature(0.4), llms.WithTopP(0.97)}
-	requests := map[string][]llms.CallOption{
-		"deepseek-v4-pro":                    sampling,
-		"deepseek/deepseek-v4-pro":           sampling,
-		"deepseek-v4-flash":                  sampling,
-		"deepseek-v4-pro with an effort":     append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, sampling...),
-		"deepseek-v4-pro thinking by object": append([]llms.CallOption{thinkingInExtraBody("enabled")}, sampling...),
-	}
-	for name, opts := range requests {
-		model, _, _ := strings.Cut(name, " ")
-
-		body := captureDeepSeekRequest(t, model, opts...)
+	for name, tc := range map[string]struct {
+		baseURL, model string
+		opts           []llms.CallOption
+	}{
+		"deepseek-v4-pro":                    {deepSeekBaseURL, "deepseek-v4-pro", sampling},
+		"deepseek/deepseek-v4-pro":           {gatewayBaseURL, "deepseek/deepseek-v4-pro", sampling},
+		"deepseek-v4-flash":                  {deepSeekBaseURL, "deepseek-v4-flash", sampling},
+		"deepseek-v4-pro with an effort":     {deepSeekBaseURL, "deepseek-v4-pro", append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, sampling...)},
+		"deepseek-v4-pro thinking by object": {deepSeekBaseURL, "deepseek-v4-pro", append([]llms.CallOption{thinkingInExtraBody("enabled")}, sampling...)},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.opts...)
 		if _, ok := body["temperature"]; ok {
 			t.Errorf("%s: thinking mode ignores temperature, got body: %v", name, body)
 		}
@@ -99,7 +140,6 @@ func TestDeepSeekThinkingLeavesOutTheTemperatureItIgnores(t *testing.T) {
 			t.Errorf("%s: top_p takes effect while thinking and must stay, got body: %v", name, body)
 		}
 
-		resp := sendForWarnings(t, model, opts...)
 		w := warningFor(t, resp, "WithTemperature")
 		if w.Kind != llms.WarningDrop || w.Asked != "0.4" || !strings.Contains(w.Reason, "ignores temperature") {
 			t.Errorf("%s: temperature warning = %+v", name, w)
@@ -120,11 +160,11 @@ func TestDeepSeekKeepsTheTemperatureOnceThinkingIsOff(t *testing.T) {
 		"thinking object in the body": thinkingInExtraBody("disabled"),
 		"effort none in the body":     llms.WithExtraBody(map[string]any{"reasoning_effort": "none"}),
 	} {
-		opts := []llms.CallOption{off, llms.WithTemperature(0.4)}
-		if body := captureDeepSeekRequest(t, "deepseek-v4-pro", opts...); body["temperature"] != 0.4 {
+		body, resp := sendToHost(t, deepSeekBaseURL, "deepseek-v4-pro", off, llms.WithTemperature(0.4))
+		if body["temperature"] != 0.4 {
 			t.Errorf("%s: non-thinking mode takes temperature, got body: %v", name, body)
 		}
-		if resp := sendForWarnings(t, "deepseek-v4-pro", opts...); len(resp.Warnings) != 0 {
+		if len(resp.Warnings) != 0 {
 			t.Errorf("%s: nothing was lost, got %v", name, resp.Warnings)
 		}
 	}
@@ -133,11 +173,27 @@ func TestDeepSeekKeepsTheTemperatureOnceThinkingIsOff(t *testing.T) {
 func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"dashscope/deepseek-v4-pro", "openrouter/deepseek/deepseek-v4-pro"} {
-		body := captureDeepSeekRequest(t, model, llms.WithTemperature(0.4), llms.WithReasoning(llms.ReasoningHigh, 0))
+	effort := llms.WithReasoning(llms.ReasoningHigh, 0)
+	for name, tc := range map[string]struct {
+		baseURL, model string
+		thinking       llms.CallOption
+	}{
+		"dashscope/deepseek-v4-pro":           {gatewayBaseURL, "dashscope/deepseek-v4-pro", effort},
+		"openrouter/deepseek/deepseek-v4-pro": {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", effort},
+		"deepseek-v4-pro on DashScope":        {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": true})},
+		"deepseek-v4-pro on DashScope, off":   {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": false})},
+		"deepseek-v4-flash on DashScope":      {dashScopeBaseURL, "deepseek-v4-flash", effort},
+		"deepseek-v4-pro on a gateway":        {gatewayBaseURL, "deepseek-v4-pro", effort},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.thinking, llms.WithTemperature(0.4))
 		if body["temperature"] != 0.4 {
 			t.Errorf("%s: only DeepSeek's own API documents temperature as ignored while thinking, got body: %v",
-				model, body)
+				name, body)
+		}
+		for _, w := range resp.Warnings {
+			if w.Option == "WithTemperature" {
+				t.Errorf("%s: temperature reached the wire, yet it is reported: %+v", name, w)
+			}
 		}
 	}
 }
