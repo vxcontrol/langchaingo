@@ -270,6 +270,34 @@ func TestDeepSeekNeverGetsThePenaltiesItNoLongerSupports(t *testing.T) {
 	}
 }
 
+func TestDeepSeekOwnAPIDropsTheTopKItDoesNotDocument(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		baseURL, model string
+		dropped        bool
+	}{
+		"deepseek-v4-pro on its own API":        {deepSeekBaseURL, "deepseek-v4-pro", true},
+		"deepseek/deepseek-v4-pro on a gateway": {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
+		"deepseek-flash on its own API":         {deepSeekBaseURL, "deepseek-flash", true},
+		"dashscope/deepseek-v4-pro keeps it":    {gatewayBaseURL, "dashscope/deepseek-v4-pro", false},
+		"deepseek-v4-pro on DashScope keeps it": {dashScopeBaseURL, "deepseek-v4-pro", false},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithTopK(40))
+		_, present := body["top_k"]
+		if tc.dropped {
+			if present {
+				t.Errorf("%s: DeepSeek's API documents no top_k, got body: %v", name, body)
+			}
+			if w := warningFor(t, resp, "WithTopK"); w.Kind != llms.WarningDrop || w.Asked != "40" {
+				t.Errorf("%s: top_k warning = %+v", name, w)
+			}
+		} else if body["top_k"] != float64(40) {
+			t.Errorf("%s: a deepseek served elsewhere keeps top_k, got body: %v", name, body)
+		}
+	}
+}
+
 func thinkingInExtraBody(kind string) llms.CallOption {
 	return llms.WithExtraBody(map[string]any{"thinking": map[string]any{"type": kind}})
 }

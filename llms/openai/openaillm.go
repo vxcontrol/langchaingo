@@ -299,7 +299,7 @@ func (o *LLM) createChatRequest(
 	}
 
 	model := o.effectiveModel(opts)
-	dropFieldsTheModelTakesNot(req, model, warn)
+	dropFieldsTheModelTakesNot(req, model, o.host, warn)
 
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
 		if opts.StreamingFunc == nil {
@@ -350,7 +350,7 @@ func (o *LLM) createChatRequest(
 	return req, nil
 }
 
-func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model string, warn *llms.Warnings) {
+func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
 	if reasoning.RejectsPenalties(model) {
 		const refused = "the door does not send the penalties on this model family"
 		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
@@ -362,7 +362,7 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model string, war
 		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
 		req.TopK = nil
 	}
-	if reasoning.TakesNoTopK(model) && req.TopK != nil {
+	if (reasoning.TakesNoTopK(model) || reasoning.ServedByDeepSeek(model, host)) && req.TopK != nil {
 		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
 		req.TopK = nil
 	}
