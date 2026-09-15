@@ -153,18 +153,31 @@ func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 	}
 }
 
-func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
+func TestAThinkingBudgetAboveTheModelCapIsReported(t *testing.T) {
 	t.Parallel()
 
 	resp, sent := sendForWarningsWith(t, "qwen3-max", nil,
-		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 100000))
 
 	w := warningFor(t, resp, "WithReasoning")
-	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
+	if w.Kind != llms.WarningClamp || w.Asked != "100000 tokens" {
 		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
 	if wire := fmt.Sprintf("%v tokens", sent["thinking_budget"]); w.Sent != wire {
 		t.Errorf("the warning reports %q sent, the wire carries %s", w.Sent, wire)
+	}
+}
+
+func TestASmallAnswerLimitDoesNotClampTheDashScopeBudget(t *testing.T) {
+	t.Parallel()
+
+	resp := sendForWarnings(t, "qwen3-max",
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
+
+	for _, w := range resp.Warnings {
+		if w.Option == "WithReasoning" {
+			t.Errorf("the answer limit alone must not clamp a DashScope thinking budget: %+v", w)
+		}
 	}
 }
 

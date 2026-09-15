@@ -183,6 +183,29 @@ func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) {
 	}
 }
 
+func TestDashScopeBudgetIsNotCappedByTheAnswerLimit(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		model string
+	}{
+		{"qwen keeps the whole budget", "dashscope/qwen3-max"},
+		{"glm keeps the whole budget", "dashscope/glm-5.2"},
+		{"deepseek keeps the whole budget", "dashscope/deepseek-v4-pro"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			body := bodyForCall(t, tc.model,
+				llms.WithMaxTokens(2000), llms.WithReasoning(llms.ReasoningLow, 8192))
+			if !strings.Contains(body, `"thinking_budget":8192`) {
+				t.Errorf("a small answer limit must not shrink the thinking budget "+
+					"(max_tokens limits the answer only when thinking_budget is set)\nbody: %s", body)
+			}
+		})
+	}
+}
+
 func TestAnUnservableEffortWithToolsIsRefusedBeforeTheNetwork(t *testing.T) {
 	t.Parallel()
 

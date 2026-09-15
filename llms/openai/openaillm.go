@@ -467,7 +467,8 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	}
 	switch {
 	case reasoning.DashScopeTakesThinkingBudget(wc.model):
-		req.ThinkingBudget = &tokens
+		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
+		req.ThinkingBudget = &budget
 	case o.sendsClaudeBudget(wc.model, opts):
 		budget := reasoning.ClaudeClampBudget(wc.model, tokens)
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "enabled", BudgetTokens: budget}
