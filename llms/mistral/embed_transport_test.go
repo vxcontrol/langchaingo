@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -62,6 +63,37 @@ func TestARetriedEmbeddingCallReturnsTheVectorItEventuallyGot(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, int32(3), atomic.LoadInt32(seen))
+}
+
+func TestARetryWaitsBeforeItAsksAgain(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var arrivals []time.Time
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		arrivals = append(arrivals, time.Now())
+		isFirst := len(arrivals) == 1
+		mu.Unlock()
+		if isFirst {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":[{"embedding":[0.1,0.2]}]}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	m, err := New(WithEndpoint(srv.URL), WithAPIKey("k"), WithMaxRetries(2))
+	require.NoError(t, err)
+	_, err = m.CreateEmbedding(context.Background(), []string{"x"})
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, arrivals, 2)
+	assert.GreaterOrEqual(t, arrivals[1].Sub(arrivals[0]), retryBackoffStep,
+		"a vendor that answered 503 gets a pause before the next request")
 }
 
 func TestARefusalTheVendorWillNotChangeIsNotRetried(t *testing.T) {

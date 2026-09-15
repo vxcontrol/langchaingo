@@ -78,4 +78,5 @@ func TestCallRefusesATruncatedAnswerWhenAskedTo(t *testing.T) {
 	_, err = m.Call(context.Background(), "hi", llms.WithMaxTokens(16), llms.WithFailOnTruncation())
 
 	require.Error(t, err, "Call must refuse a truncated answer when the caller forbade truncation")
+	require.True(t, llms.IsTruncatedError(err), "the refusal must say the answer was cut, got %v", err)
 }

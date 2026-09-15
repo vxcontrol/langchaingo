@@ -2,6 +2,8 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,18 +17,28 @@ import (
 func sendForWarnings(t *testing.T, model string, opts ...llms.CallOption) *llms.ContentResponse {
 	t.Helper()
 
+	resp, _ := sendForWarningsWith(t, model, nil, opts...)
+	return resp
+}
+
+func sendForWarningsWith(
+	t *testing.T, model string, client []Option, opts ...llms.CallOption,
+) (*llms.ContentResponse, map[string]any) {
+	t.Helper()
+
 	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
 		`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],` +
 		`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`
 
+	var body []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.ReadAll(r.Body)
+		body, _ = io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, completion)
 	}))
 	t.Cleanup(srv.Close)
 
-	llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
+	llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)}, client...)...)
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
@@ -35,7 +47,11 @@ func sendForWarnings(t *testing.T, model string, opts ...llms.CallOption) *llms.
 	if err != nil {
 		t.Fatalf("GenerateContent() error: %v", err)
 	}
-	return resp
+	var sent map[string]any
+	if err := json.Unmarshal(body, &sent); err != nil {
+		t.Fatalf("the request body is not JSON: %v", err)
+	}
+	return resp, sent
 }
 
 func warningFor(t *testing.T, resp *llms.ContentResponse, option string) llms.Warning {
@@ -122,30 +138,33 @@ func TestAnEffortOnAModelThatSendsNoneIsReported(t *testing.T) {
 func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "claude-sonnet-4-5",
+	resp, sent := sendForWarningsWith(t, "claude-sonnet-4-5", nil,
 		llms.WithMaxTokens(1000), llms.WithReasoning(llms.ReasoningMedium, 4096))
 
 	w := warningFor(t, resp, "WithMaxTokens")
-	if w.Kind != llms.WarningClamp || w.Asked != "1000" {
-		t.Errorf("max-tokens warning = %+v", w)
+	if w.Kind != llms.WarningClamp || w.Asked != "1000" || w.Sent != "2048" {
+		t.Errorf("max-tokens warning = %+v, want the 2048 the anthropic door raises the same call to", w)
 	}
-	if w.Sent == w.Asked {
-		t.Errorf("max-tokens warning reports no change: %+v", w)
+	if got := sent["max_completion_tokens"]; got != float64(2048) {
+		t.Errorf("max_completion_tokens on the wire = %v, want the 2048 the warning reports", got)
+	}
+	if thinking, _ := sent["thinking"].(map[string]any); thinking["budget_tokens"] != float64(1024) {
+		t.Errorf("thinking on the wire = %v, want the budget capped to the vendor floor 1024", sent["thinking"])
 	}
 }
 
 func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "qwen3-max",
+	resp, sent := sendForWarningsWith(t, "qwen3-max", nil,
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
 	w := warningFor(t, resp, "WithReasoning")
 	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
-		t.Fatalf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
-	if w.Sent == w.Asked || w.Sent == "" {
-		t.Errorf("reasoning warning reports no cut: %+v", w)
+	if wire := fmt.Sprintf("%v tokens", sent["thinking_budget"]); w.Sent != wire {
+		t.Errorf("the warning reports %q sent, the wire carries %s", w.Sent, wire)
 	}
 }
 
@@ -181,6 +200,70 @@ func TestAnEffortReplacedByABudgetIsReported(t *testing.T) {
 	w := warningFor(t, resp, "WithReasoning")
 	if w.Kind != llms.WarningDrop || w.Asked != "high" || w.Sent != "" {
 		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
+	}
+}
+
+func reasoningWarnings(resp *llms.ContentResponse) []llms.Warning {
+	var found []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithReasoning" {
+			w.Reason = ""
+			found = append(found, w)
+		}
+	}
+	return found
+}
+
+func TestTheEffortInTheReasoningObjectIsReadBack(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		asked llms.ReasoningEffort
+		want  []llms.Warning
+	}{
+		{llms.ReasoningHigh, nil},
+		{llms.ReasoningXHigh, []llms.Warning{{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: "gpt-5.1", Asked: "xhigh", Sent: "high",
+		}}},
+	} {
+		resp, sent := sendForWarningsWith(t, "gpt-5.1", []Option{WithModernReasoningFormat()},
+			llms.WithReasoning(tc.asked, 0))
+
+		object, _ := sent["reasoning"].(map[string]any)
+		if object["effort"] != "high" {
+			t.Errorf("%s: reasoning on the wire = %v", tc.asked, sent["reasoning"])
+		}
+		if got := reasoningWarnings(resp); !slices.Equal(got, tc.want) {
+			t.Errorf("%s: reasoning warnings = %v, want %v", tc.asked, got, tc.want)
+		}
+	}
+}
+
+func TestTheBudgetInTheReasoningObjectIsReadBack(t *testing.T) {
+	t.Parallel()
+
+	client := []Option{WithModernReasoningFormat(), WithUsingReasoningMaxTokens()}
+	for _, tc := range []struct {
+		asked int
+		wire  float64
+		want  []llms.Warning
+	}{
+		{4096, 4096, nil},
+		{40000, 10922, []llms.Warning{{
+			Kind: llms.WarningClamp, Option: "WithReasoning", Model: "anthropic/claude-sonnet-4-5",
+			Asked: "40000 tokens", Sent: "10922 tokens",
+		}}},
+	} {
+		resp, sent := sendForWarningsWith(t, "anthropic/claude-sonnet-4-5", client,
+			llms.WithReasoning(llms.ReasoningNone, tc.asked), llms.WithMaxTokens(16384))
+
+		object, _ := sent["reasoning"].(map[string]any)
+		if object["max_tokens"] != tc.wire {
+			t.Errorf("%d tokens: reasoning on the wire = %v", tc.asked, sent["reasoning"])
+		}
+		if got := reasoningWarnings(resp); !slices.Equal(got, tc.want) {
+			t.Errorf("%d tokens: reasoning warnings = %v, want %v", tc.asked, got, tc.want)
+		}
 	}
 }
 

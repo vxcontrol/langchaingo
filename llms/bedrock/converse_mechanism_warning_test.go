@@ -15,11 +15,12 @@ func TestAMechanismTheConverseDoorPickedInsteadOfAdaptiveIsReported(t *testing.T
 	for _, family := range []struct {
 		name  string
 		model string
+		sent  string
 	}{
-		{"nova", "amazon.nova-2-lite-v1:0"},
-		{"grok", "xai.grok-4-v1:0"},
-		{"gpt-oss", "openai.gpt-oss-120b-1:0"},
-		{"claude on a budget", "anthropic.claude-sonnet-4-5-v1:0"},
+		{"nova", "amazon.nova-2-lite-v1:0", "effort"},
+		{"grok", "xai.grok-4-v1:0", "effort"},
+		{"gpt-oss", "openai.gpt-oss-120b-1:0", "effort"},
+		{"claude on a budget", "anthropic.claude-sonnet-4-5-v1:0", "enabled"},
 	} {
 		t.Run(family.name, func(t *testing.T) {
 			t.Parallel()
@@ -32,7 +33,7 @@ func TestAMechanismTheConverseDoorPickedInsteadOfAdaptiveIsReported(t *testing.T
 			require.True(t, ok, "the door picked the mechanism unreported: %v", resp.Warnings)
 			require.Equal(t, llms.WarningSubstitute, w.Kind)
 			require.Equal(t, "adaptive", w.Asked)
-			require.NotEmpty(t, w.Sent)
+			require.Equal(t, family.sent, w.Sent)
 		})
 	}
 }

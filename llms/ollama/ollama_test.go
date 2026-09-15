@@ -611,6 +611,20 @@ func TestACloudModelOffloadedByALocalServerGetsNoFormat(t *testing.T) {
 		"a model the local server runs itself keeps JSON mode")
 }
 
+func TestAnLLMWithNoServerAddressTreatsItsModelAsLocal(t *testing.T) {
+	t.Parallel()
+
+	o := &LLM{}
+	for model, want := range map[string]string{
+		"gpt-oss:120b":       `"json"`,
+		"gpt-oss:120b-cloud": `""`,
+	} {
+		format, err := o.resolveFormat(llms.CallOptions{Model: &model, JSONMode: true})
+		require.NoError(t, err, model)
+		assert.Equal(t, want, string(format), model)
+	}
+}
+
 func TestTheCloudDropWarningReachesTheResponse(t *testing.T) {
 	t.Parallel()
 

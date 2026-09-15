@@ -123,11 +123,13 @@ func TestTheLegacyAnthropicPayloadReportsWhatThinkingReshaped(t *testing.T) {
 	})
 
 	got := legacyWarningsByOption(resp.Warnings)
-	for _, option := range []string{"WithTemperature", "WithTopP", "WithTopK", "WithMaxTokens"} {
+	for option, sent := range map[string]string{
+		"WithTemperature": "1", "WithTopP": "", "WithTopK": "", "WithMaxTokens": "2048",
+	} {
 		w, ok := got[option]
 		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
 		require.Equal(t, model, w.Model)
-		require.NotEqual(t, w.Asked, w.Sent)
+		require.Equal(t, sent, w.Sent, option)
 	}
 }
 
@@ -157,7 +159,7 @@ func TestTheLegacyDoorReportsAThinkingBudgetItCut(t *testing.T) {
 	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
 	require.Equal(t, llms.WarningClamp, w.Kind)
 	require.Equal(t, "30000 tokens", w.Asked)
-	require.NotEqual(t, w.Asked, w.Sent)
+	require.Equal(t, "2730 tokens", w.Sent)
 }
 
 func TestTheLegacyDoorReportsAnEffortItLowered(t *testing.T) {
