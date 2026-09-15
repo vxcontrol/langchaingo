@@ -101,25 +101,11 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	}
 
 	if p == reasoning.ProviderBedrock && reasoning.IsGptOssModel(model) {
-		return ReasoningSupport{
-			Supported:     true,
-			Known:         true,
-			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
-			Efforts:       toReasoningEfforts(reasoning.GptOssEfforts()),
-			Mechanism:     ReasoningMechanismAdaptive,
-			DefaultOn:     boolPtr(true),
-		}
+		return levelOnlySupport(model, p, reasoning.GptOssEfforts(), true)
 	}
 
 	if p == reasoning.ProviderBedrock && reasoning.IsNovaReasoningModel(model) {
-		return ReasoningSupport{
-			Supported:     true,
-			Known:         true,
-			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
-			Efforts:       toReasoningEfforts(reasoning.NovaEfforts()),
-			Mechanism:     ReasoningMechanismAdaptive,
-			DefaultOn:     boolPtr(false),
-		}
+		return levelOnlySupport(model, p, reasoning.NovaEfforts(), false)
 	}
 
 	if caps := reasoning.OpenAIReasoningCapsFor(model); caps.Known {
@@ -164,20 +150,24 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	}
 
 	if efforts := reasoning.OllamaEffortsFor(model); p == reasoning.ProviderOllama && len(efforts) > 0 {
-		return ReasoningSupport{
-			Supported:     true,
-			Known:         true,
-			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
-			Efforts:       toReasoningEfforts(efforts),
-			Mechanism:     ReasoningMechanismAdaptive,
-			DefaultOn:     boolPtr(true),
-		}
+		return levelOnlySupport(model, p, efforts, true)
 	}
 
 	return ReasoningSupport{
 		Supported:     reasoning.LikelyReasoningModel(model),
 		Known:         false,
 		CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+	}
+}
+
+func levelOnlySupport(model string, p reasoning.Provider, efforts []string, defaultOn bool) ReasoningSupport {
+	return ReasoningSupport{
+		Supported:     true,
+		Known:         true,
+		CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+		Efforts:       toReasoningEfforts(efforts),
+		Mechanism:     ReasoningMechanismAdaptive,
+		DefaultOn:     boolPtr(defaultOn),
 	}
 }
 
