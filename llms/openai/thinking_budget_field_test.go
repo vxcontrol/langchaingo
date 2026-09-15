@@ -18,37 +18,48 @@ import (
 func TestABudgetNoFieldCarriesIsRefusedBeforeTheNetwork(t *testing.T) {
 	t.Parallel()
 
+	clients := []struct {
+		name string
+		opts []Option
+	}{
+		{"default", nil},
+		{"modern format alone", []Option{WithModernReasoningFormat()}},
+		{"reasoning max tokens alone", []Option{WithUsingReasoningMaxTokens()}},
+	}
 	for _, model := range []string{"zai/glm-5.1", "glm-4.7", "moonshot/kimi-k2.6", "minimax/MiniMax-M3"} {
-		t.Run(model, func(t *testing.T) {
-			t.Parallel()
+		for _, client := range clients {
+			t.Run(model+"/"+client.name, func(t *testing.T) {
+				t.Parallel()
 
-			var reached bool
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				reached = true
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"id":"x","choices":[]}`)
-			}))
-			t.Cleanup(srv.Close)
+				var reached bool
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					reached = true
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"id":"x","choices":[]}`)
+				}))
+				t.Cleanup(srv.Close)
 
-			llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
-			if err != nil {
-				t.Fatalf("New() error: %v", err)
-			}
-			_, err = llm.GenerateContent(context.Background(),
-				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-				llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192))
+				opts := append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)}, client.opts...)
+				llm, err := New(opts...)
+				if err != nil {
+					t.Fatalf("New() error: %v", err)
+				}
+				_, err = llm.GenerateContent(context.Background(),
+					[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+					llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192))
 
-			var want *reasoning.ErrThinkingBudgetUnsupported
-			if !errors.As(err, &want) {
-				t.Fatalf("a budget %s has no field for must be refused, got err=%v", model, err)
-			}
-			if want.Model != model {
-				t.Errorf("the error names %q, want %q", want.Model, model)
-			}
-			if reached {
-				t.Error("the refusal must come before the request leaves")
-			}
-		})
+				var want *reasoning.ErrThinkingBudgetUnsupported
+				if !errors.As(err, &want) {
+					t.Fatalf("a budget %s has no field for must be refused, got err=%v", model, err)
+				}
+				if want.Model != model {
+					t.Errorf("the error names %q, want %q", want.Model, model)
+				}
+				if reached {
+					t.Error("the refusal must come before the request leaves")
+				}
+			})
+		}
 	}
 }
 
