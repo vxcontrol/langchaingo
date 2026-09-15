@@ -311,7 +311,6 @@ type aiMessageAccumulator struct {
 	thoughts      []reasoning.Block
 	toolUseBlocks []types.ContentBlock
 	cacheControl  *CacheControl
-	hasAnyContent bool
 }
 
 // addTextContent adds text content to the accumulator
@@ -321,8 +320,6 @@ func (a *aiMessageAccumulator) addTextContent(content string, reasoningContent *
 	}
 
 	a.thoughts = append(a.thoughts, reasoningContent.Sequence()...)
-
-	a.hasAnyContent = true
 }
 
 // addToolUse adds a tool use block to the accumulator
@@ -339,7 +336,6 @@ func (a *aiMessageAccumulator) addToolUse(toolCall *ToolCall) error {
 		},
 	})
 
-	a.hasAnyContent = true
 	return nil
 }
 
@@ -412,12 +408,11 @@ func (a *aiMessageAccumulator) reset() {
 	a.thoughts = nil
 	a.toolUseBlocks = nil
 	a.cacheControl = nil
-	a.hasAnyContent = false
 }
 
 // isEmpty returns true if no content has been accumulated
 func (a *aiMessageAccumulator) isEmpty() bool {
-	return !a.hasAnyContent
+	return len(a.textBlocks) == 0 && len(a.thoughts) == 0 && len(a.toolUseBlocks) == 0
 }
 
 // toolResultAccumulator accumulates consecutive tool result messages into a single user message
@@ -477,8 +472,8 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 	flushAI := func() error {
 		if !aiAccum.isEmpty() {
 			converseMessages = append(converseMessages, aiAccum.build())
-			aiAccum.reset()
 		}
+		aiAccum.reset()
 		return nil
 	}
 
@@ -629,12 +624,17 @@ func (c *ConverseClient) addCachePointToMessages(messages []types.Message) {
 
 func nextSpeakingRole(messages []Message, from int) llms.ChatMessageType {
 	for _, msg := range messages[from+1:] {
-		if msg.Role != llms.ChatMessageTypeSystem {
+		if msg.Role != llms.ChatMessageTypeSystem && !isEmptyAssistantPart(msg) {
 			return msg.Role
 		}
 	}
 
 	return ""
+}
+
+func isEmptyAssistantPart(msg Message) bool {
+	return msg.Role == llms.ChatMessageTypeAI && msg.ToolCall == nil && msg.Content == "" &&
+		len(msg.Reasoning.Sequence()) == 0
 }
 
 // ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
