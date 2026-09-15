@@ -511,6 +511,51 @@ func TestTheBedrockHintOffersOnlyTheLevelsTheConverseDoorSends(t *testing.T) {
 	}
 }
 
+func TestTheBedrockHintOffersNovaOffAndTheLevelsTheDoorSends(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"us.amazon.nova-2-lite-v1:0", "amazon.nova-2-lite-v1:0", "global.amazon.nova-2-lite-v1:0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s: Nova 2 Lite takes a documented reasoningConfig, so it is known to reason: %+v", model, s)
+			}
+			if want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}; !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s: hint Efforts = %v, want %v", model, s.Efforts, want)
+			}
+			for _, effort := range s.Efforts {
+				if sent := reasoning.NovaEffort(string(effort)); sent != string(effort) {
+					t.Errorf("%s: the hint offers %q but the door sends %q", model, effort, sent)
+				}
+			}
+			if s.Mechanism != ReasoningMechanismAdaptive {
+				t.Errorf("%s: hint Mechanism = %v, want an effort level", model, s.Mechanism)
+			}
+			if wire := reasoning.ResolveOff(model, reasoning.ProviderBedrock); wire != reasoning.OffOmit {
+				t.Fatalf("%s: off wire = %v, want the omission Nova reads as disabled", model, wire)
+			}
+			if s.DefaultOn == nil || *s.DefaultOn {
+				t.Errorf("%s: DefaultOn = %v, want false — Off travels as an omitted field, which a consumer "+
+					"can only offer when it knows the model does not reason unasked", model, s.DefaultOn)
+			}
+			if s.CannotDisable {
+				t.Errorf("%s: the door honours Off, yet the hint says it cannot", model)
+			}
+		})
+	}
+
+	if s := ReasoningSupportFor("us.amazon.nova-pro-v1:0", reasoning.ProviderBedrock); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("Nova Pro takes no reasoningConfig, yet its hint is classified: %+v", s)
+	}
+	if s := ReasoningSupportFor("us.amazon.nova-2-lite-v1:0", reasoning.ProviderOpenAI); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("the openai door never sends reasoningConfig, yet its hint classifies Nova: %+v", s)
+	}
+}
+
 func TestTheHintNamesTheMechanismTheDoorActuallyUses(t *testing.T) {
 	t.Parallel()
 
