@@ -90,11 +90,8 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 
 	if reasoning.ClaudeSupportsThinking(model) {
 		return ReasoningSupport{
-			Supported: true,
-			Known:     true,
-			// Derive from the same resolver the wire uses so the hint tracks
-			// provider differences (e.g. Sonnet 5 cannot be disabled through an
-			// OpenAI-shaped gateway, which has no field for Anthropic's disable).
+			Supported:       true,
+			Known:           true,
 			CannotDisable:   reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
 			RejectsSampling: reasoning.ClaudeRejectsSampling(model),
 			Efforts:         toReasoningEfforts(reasoning.ClaudeEffortsFor(model, p)),

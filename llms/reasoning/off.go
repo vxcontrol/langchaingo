@@ -68,7 +68,7 @@ func ResolveOff(model string, p Provider) OffWire {
 			return OffUnsupported // Fable 5 / Mythos 5: thinking cannot be disabled
 		case ClaudeThinkingDefaultsOn(model):
 			if p == ProviderOpenAI {
-				return OffUnsupported
+				return OffDisableThinkingObject
 			}
 			return OffDisableClaude
 		default:

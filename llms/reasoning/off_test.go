@@ -13,7 +13,10 @@ func TestResolveOff(t *testing.T) {
 		{"us.anthropic.claude-mythos-5", ProviderBedrock, OffUnsupported},
 		{"claude-sonnet-5", ProviderAnthropic, OffDisableClaude},
 		{"us.anthropic.claude-sonnet-5", ProviderBedrock, OffDisableClaude},
-		{"anthropic/claude-sonnet-5", ProviderOpenAI, OffUnsupported},
+		{"anthropic/claude-sonnet-5", ProviderOpenAI, OffDisableThinkingObject},
+		{"anthropic/claude-opus-5", ProviderOpenAI, OffDisableThinkingObject},
+		{"anthropic/claude-fable-5", ProviderOpenAI, OffUnsupported},
+		{"anthropic/claude-opus-4-8", ProviderOpenAI, OffOmit},
 		{"claude-opus-5", ProviderAnthropic, OffDisableClaude},
 		{"us.anthropic.claude-opus-5", ProviderBedrock, OffDisableClaude},
 		{"claude-opus-4-8", ProviderAnthropic, OffOmit},  // off by default

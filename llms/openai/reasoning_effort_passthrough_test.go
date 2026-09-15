@@ -277,11 +277,18 @@ func TestReasoningDisabledForClaudeBehindOpenAITransport(t *testing.T) {
 		return body, genErr
 	}
 
-	t.Run("default-on Claude reports unsupported instead of a silent no-op", func(t *testing.T) {
-		body, err := send(t, "anthropic/claude-sonnet-5")
-		var unsupported *reasoning.ErrReasoningOffUnsupported
-		if !errors.As(err, &unsupported) {
-			t.Fatalf("want ErrReasoningOffUnsupported, got err=%v body=%s", err, body)
+	t.Run("default-on Claude is sent Anthropic's disable object", func(t *testing.T) {
+		for _, model := range []string{"anthropic/claude-sonnet-5", "anthropic/claude-opus-5"} {
+			body, err := send(t, model)
+			if err != nil {
+				t.Fatalf("%s: GenerateContent() error: %v", model, err)
+			}
+			if !strings.Contains(body, `"thinking":{"type":"disabled"}`) {
+				t.Errorf("%s: want thinking disabled on the wire, got body: %s", model, body)
+			}
+			if strings.Contains(body, "reasoning") {
+				t.Errorf("%s: the route leaves thinking on for reasoning_effort none, got body: %s", model, body)
+			}
 		}
 	})
 
