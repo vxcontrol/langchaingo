@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -534,6 +535,31 @@ func TestOptInAloneDoesNotMakeTheHintReportThinkingOff(t *testing.T) {
 	}
 	if d := ReasoningSupportFor(marked, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
 		t.Errorf("%s DefaultOn = false, but the door counts the thinking marker in its name as thinking on", marked)
+	}
+}
+
+func TestDeepSeekFlashResolvesLikeTheNameItReplaced(t *testing.T) {
+	t.Parallel()
+
+	const replaced = "deepseek-v4-flash"
+	for _, model := range []string{"deepseek-flash", "deepseek/deepseek-flash", "DeepSeek-Flash"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+		if off := reasoning.ResolveOff(model, reasoning.ProviderOpenAI); !s.Supported || off != reasoning.OffDisableThinkingObject {
+			t.Errorf("%s: Supported = %v, off = %v; want a reasoning model switched off by the thinking object",
+				model, s.Supported, off)
+		}
+
+		for _, p := range []reasoning.Provider{
+			reasoning.ProviderUnknown, reasoning.ProviderAnthropic, reasoning.ProviderBedrock,
+			reasoning.ProviderOpenAI, reasoning.ProviderGoogleAI, reasoning.ProviderOllama,
+		} {
+			if got, want := ReasoningSupportFor(model, p), ReasoningSupportFor(replaced, p); !reflect.DeepEqual(got, want) {
+				t.Errorf("%s on provider %d: hint %+v, want the hint of %s %+v", model, p, got, replaced, want)
+			}
+			if got, want := reasoning.ResolveOff(model, p), reasoning.ResolveOff(replaced, p); got != want {
+				t.Errorf("%s on provider %d: off = %v, want the off of %s %v", model, p, got, replaced, want)
+			}
+		}
 	}
 }
 
