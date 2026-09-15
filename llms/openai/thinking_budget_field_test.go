@@ -50,6 +50,34 @@ func TestABudgetNoFieldCarriesIsRefusedBeforeTheNetwork(t *testing.T) {
 	}
 }
 
+func TestABudgetOnAnEffortOnlyModelTravelsAsAnEffortLikeAdaptiveClaude(t *testing.T) {
+	t.Parallel()
+
+	budget := []llms.CallOption{llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192)}
+	for _, model := range []string{
+		"anthropic/claude-sonnet-5", "zai/glm-5.2", "glm-5.2", "glm-5.3", "kimi-k3", "moonshot/kimi-k3",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			body := captureWireWithClient(t, model, nil, budget...)
+			if !strings.Contains(body, `"reasoning_effort":"low"`) {
+				t.Errorf("want the level the budget maps to, got body: %s", body)
+			}
+			for _, field := range []string{`"thinking_budget"`, `"budget_tokens"`, `"thinking"`} {
+				if strings.Contains(body, field) {
+					t.Errorf("no budget field exists for this model, got %s in body: %s", field, body)
+				}
+			}
+
+			w := warningFor(t, sendForWarnings(t, model, budget...), "WithReasoning")
+			if w.Kind != llms.WarningDrop || w.Asked != "1024 tokens" || w.Sent != "" {
+				t.Errorf("the caller must learn the budget itself did not travel, got %+v", w)
+			}
+		})
+	}
+}
+
 func TestABudgetTheReasoningObjectCarriesIsNotRefused(t *testing.T) {
 	t.Parallel()
 
