@@ -4,11 +4,45 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func TestConverseRefusesToTurnGptOssReasoningOffUnderEveryDocumentedID(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b-1:0",
+		"us-gov.openai.gpt-oss-120b-1:0", "us-gov.openai.gpt-oss-20b-1:0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			mockClient := &MockBedrockRuntimeClient{}
+			mockClient.On("Converse", mock.Anything, mock.Anything, mock.Anything).Return(&bedrockruntime.ConverseOutput{
+				Output: &types.ConverseOutputMemberMessage{Value: types.Message{
+					Role:    types.ConversationRoleAssistant,
+					Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+				}},
+			}, nil).Maybe()
+			_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+				ModelID:         model,
+				Messages:        humanTurn(),
+				ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOff},
+			})
+
+			var offErr *reasoning.ErrReasoningOffUnsupported
+			require.ErrorAs(t, err, &offErr, "the door sends this model a reasoning level, so off must not pass silently")
+			mockClient.AssertNotCalled(t, "Converse")
+		})
+	}
+}
 
 func TestConverseSendsGptOssTheReasoningEffortItDocuments(t *testing.T) {
 	t.Parallel()

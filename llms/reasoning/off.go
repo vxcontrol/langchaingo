@@ -98,7 +98,7 @@ func ResolveOff(model string, p Provider) OffWire {
 	case ProviderOpenAI:
 		return openAIOffWire(model)
 	default:
-		if mandatoryThinking(model) {
+		if mandatoryThinking(model) || IsGptOssModel(model) {
 			return OffUnsupported
 		}
 		// Bedrock non-Claude and everything else: no clean disable signal — omit.

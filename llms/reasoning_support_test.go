@@ -433,6 +433,8 @@ func TestTheBedrockHintReportsTheRefusalTheDoorWillGive(t *testing.T) {
 		{"moonshot.kimi-k2-thinking", true},
 		{"us.deepseek.r1-v1:0", true},
 		{"openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-20b-1:0", true},
 		{"us.xai.grok-4.6", true},
 		{"us.amazon.nova-2-lite-v1:0", false},
 		{"us.amazon.nova-pro-v1:0", false},
