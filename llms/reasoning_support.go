@@ -80,9 +80,9 @@ func lookupReasoningOverride(model string) (ReasoningSupport, bool) {
 func boolPtr(b bool) *bool { return &b }
 
 // ReasoningSupportFor returns the reasoning-control hint for a model on a
-// provider. Registered overrides win; then Claude and OpenAI reasoning models are
-// classified from the shared tables; everything else returns Known=false
-// (optimistic — the UI shows all controls and the API rejects what it cannot do).
+// provider. Registered overrides win; a model the shared tables do not classify
+// returns Known=false (optimistic — the UI shows all controls and the API rejects
+// what it cannot do).
 func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	if s, ok := lookupReasoningOverride(model); ok {
 		return s
@@ -138,6 +138,17 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 			Known:         true,
 			Mechanism:     mechanism,
 			DefaultOn:     boolPtr(!reasoning.GeminiThinkingOffByDefault(model)),
+		}
+	}
+
+	if efforts := reasoning.OllamaEffortsFor(model); p == reasoning.ProviderOllama && len(efforts) > 0 {
+		return ReasoningSupport{
+			Supported:     true,
+			Known:         true,
+			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+			Efforts:       toReasoningEfforts(efforts),
+			Mechanism:     ReasoningMechanismAdaptive,
+			DefaultOn:     boolPtr(true),
 		}
 	}
 

@@ -554,3 +554,43 @@ func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
 		t.Error("gpt-oss ignores booleans and its trace cannot be disabled: the hint must say so")
 	}
 }
+
+func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
+	t.Parallel()
+
+	want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
+	for _, model := range []string{"gpt-oss:120b", "gpt-oss:20b", "gpt-oss:120b-cloud", "library/gpt-oss:20b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOllama)
+		if !slices.Equal(s.Efforts, want) {
+			t.Errorf("%s Efforts = %v, want %v: a consumer offers only the levels the hint lists", model, s.Efforts, want)
+		}
+		if !s.Known || !s.Supported || !s.CannotDisable {
+			t.Errorf("%s = %+v, want a classified reasoning model whose thinking cannot be turned off", model, s)
+		}
+		if s.Mechanism != ReasoningMechanismAdaptive {
+			t.Errorf("%s Mechanism = %v, want adaptive: ollama takes a level, never a token budget", model, s.Mechanism)
+		}
+		if s.DefaultOn == nil || !*s.DefaultOn {
+			t.Errorf("%s DefaultOn = %v, want true: ollama thinks by default and gpt-oss cannot stop", model, s.DefaultOn)
+		}
+	}
+
+	for _, model := range []string{"deepseek-r1:7b", "qwen3:8b", "llama3.2"} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderOllama); s.Known || len(s.Efforts) != 0 {
+			t.Errorf("%s = %+v: ollama names no level set for this model, so the hint must not claim one", model, s)
+		}
+	}
+
+	for _, tc := range []struct {
+		model string
+		p     reasoning.Provider
+	}{
+		{"gpt-oss:120b", reasoning.ProviderUnknown},
+		{"openai.gpt-oss-120b-1:0", reasoning.ProviderBedrock},
+	} {
+		if efforts := ReasoningSupportFor(tc.model, tc.p).Efforts; len(efforts) != 0 {
+			t.Errorf("%s on provider %d offers %v, but these levels are what ollama documents for its own door",
+				tc.model, tc.p, efforts)
+		}
+	}
+}

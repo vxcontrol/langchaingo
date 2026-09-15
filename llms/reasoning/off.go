@@ -195,6 +195,15 @@ func openAIOffWire(model string) OffWire {
 	return OffEffortNone
 }
 
+// OllamaEffortsFor returns the think levels a model takes on the ollama door; nil
+// when Ollama documents no level set for that model.
+func OllamaEffortsFor(model string) []string {
+	if takesOnlyOllamaLevels(model) {
+		return []string{"low", "medium", "high"}
+	}
+	return nil
+}
+
 func takesOnlyOllamaLevels(model string) bool {
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "gpt-oss") {

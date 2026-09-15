@@ -133,6 +133,18 @@ func TestAnEffortGPTOSSTakesIsNotAWarning(t *testing.T) {
 	}
 }
 
+func TestEveryLevelTheHintOffersGPTOSSTravelsAsItself(t *testing.T) {
+	t.Parallel()
+
+	efforts := llms.ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderOllama).Efforts
+	require.NotEmpty(t, efforts, "the hint offers no level, so nothing here is checked")
+	for _, effort := range efforts {
+		require.Equal(t, string(effort),
+			captureChatRequestFor(t, "gpt-oss:120b", llms.WithReasoning(effort, 0))["think"],
+			"the hint offers %s, so the door must send it unchanged", effort)
+	}
+}
+
 func TestAdaptiveWithNoEffortLeavesTheThinkFieldOff(t *testing.T) {
 	t.Parallel()
 
