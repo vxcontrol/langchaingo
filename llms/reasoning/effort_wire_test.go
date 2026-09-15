@@ -18,10 +18,13 @@ func TestAcceptsEffortWire(t *testing.T) {
 		{"dashscope/qwen3.8-max", true},
 		{"qwen3.5-plus", false},
 		{"qwq-32b", false},
-		{"kimi-k2.7-code-highspeed", true},
-		{"moonshot/kimi-k2.7-code", true},
-		{"kimi-k2.6", true},
-		{"kimi-k2-thinking", true},
+		{"kimi-k2.7-code-highspeed", false},
+		{"moonshot/kimi-k2.7-code", false},
+		{"dashscope/kimi-k2.7-code", false},
+		{"kimi-k2.6", false},
+		{"moonshot/kimi-k2.6", false},
+		{"kimi-k2.5", false},
+		{"kimi-k2-thinking", false},
 		{"kimi-k3", true},
 		{"moonshot/kimi-k3", true},
 		{"gpt-5.5", true},
@@ -33,11 +36,68 @@ func TestAcceptsEffortWire(t *testing.T) {
 		{"openai/gpt-4o", false},
 		{"o3-mini", true},
 		{"deepseek-v4-pro", true},
-		{"glm-5-turbo", true},
-		{"minimax-m3", true},
+		{"glm-5-turbo", false},
+		{"glm-5.1", false},
+		{"zai/glm-5.1", false},
+		{"glm-5", false},
+		{"glm-4.7-flashx", false},
+		{"glm-4.6v", false},
+		{"glm-4.5-air", false},
+		{"glm-5.2", true},
+		{"zai/glm-5.2", true},
+		{"glm-5.2-fast-preview", true},
+		{"glm-5.3", true},
+		{"glm-5.3-flash", true},
+		{"glm-latest", true},
+		{"glm-flash-latest", true},
+		{"dashscope/glm-5.1", true},
+		{"dashscope/glm-5", false},
+		{"zai-glm-5-2", true},
+		{"mistral/glm-5-2", true},
+		{"minimax-m3", false},
+		{"MiniMax-M3", false},
+		{"minimax/MiniMax-M3", false},
+		{"MiniMax-M2.7", false},
+		{"MiniMax-M2.7-highspeed", false},
+		{"minimax/MiniMax-M2.5", false},
 	} {
 		if got := AcceptsEffortWire(tc.model); got != tc.accept {
 			t.Errorf("AcceptsEffortWire(%q) = %v, want %v", tc.model, got, tc.accept)
+		}
+	}
+}
+
+func TestTakesNoThinkingDepth(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  bool
+	}{
+		{"glm-5.1", true},
+		{"zai/glm-5.1", true},
+		{"glm-5-turbo", true},
+		{"glm-4.7", true},
+		{"kimi-k2.6", true},
+		{"moonshot/kimi-k2.6", true},
+		{"kimi-k2.7-code", true},
+		{"MiniMax-M3", true},
+		{"minimax/MiniMax-M2.7", true},
+		{"glm-5.2", false},
+		{"zai/glm-5.2", false},
+		{"glm-latest", false},
+		{"kimi-k3", false},
+		{"dashscope/glm-5.1", false},
+		{"dashscope/glm-5", false},
+		{"dashscope/kimi-k2.7-code", false},
+		{"dashscope/kimi-k2.6", false},
+		{"zai-glm-5-2", false},
+		{"qwen3.7-plus", false},
+		{"gpt-5", false},
+		{"deepseek-v4-pro", false},
+	} {
+		if got := TakesNoThinkingDepth(tc.model); got != tc.want {
+			t.Errorf("TakesNoThinkingDepth(%q) = %v, want %v", tc.model, got, tc.want)
 		}
 	}
 }

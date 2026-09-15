@@ -425,6 +425,9 @@ func (o *LLM) setReasoning(
 		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
+	if o.budgetHasNoField(model, opts) {
+		return "", &reasoning.ErrThinkingBudgetUnsupported{Model: model}
+	}
 	budget, effortBudget := budgetsFor(model, opts, reasoningEffort, reasoningTokens)
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
 	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
@@ -459,6 +462,13 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 		return false
 	}
 	return true
+}
+
+func (o *LLM) budgetHasNoField(model string, opts llms.CallOptions) bool {
+	if !opts.Reasoning.HasExplicitTokens() || o.client.ModernReasoningFormat && o.client.UseReasoningMaxTokens {
+		return false
+	}
+	return reasoning.TakesNoThinkingDepth(model)
 }
 
 func (o *LLM) sendsClaudeBudget(model string, opts llms.CallOptions) bool {

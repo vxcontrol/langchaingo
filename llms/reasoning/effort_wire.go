@@ -2,6 +2,7 @@ package reasoning
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -141,6 +142,9 @@ func AcceptsEffortWire(model string) bool {
 		if mistralWithoutReasoning(form) {
 			return false
 		}
+		if thinksBySwitchOnly(model, form) {
+			return false
+		}
 		if form == "grok-build-latest" {
 			return true
 		}
@@ -151,6 +155,75 @@ func AcceptsEffortWire(model string) bool {
 		}
 	}
 	return true
+}
+
+// TakesNoThinkingDepth reports whether the model's own door takes neither a
+// thinking budget nor an effort level.
+func TakesNoThinkingDepth(model string) bool {
+	if dashScopeGuestSpelling(model) != "" {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if thinksBySwitchOnly(model, form) {
+			return true
+		}
+	}
+	return false
+}
+
+// ErrThinkingBudgetUnsupported reports a thinking budget asked of a model that
+// TakesNoThinkingDepth.
+type ErrThinkingBudgetUnsupported struct{ Model string }
+
+func (e *ErrThinkingBudgetUnsupported) Error() string {
+	return fmt.Sprintf("model %q takes no thinking budget or effort level; leave the budget unset", e.Model)
+}
+
+func thinksBySwitchOnly(model, form string) bool {
+	return hasGeneration(form, "kimi-k2") || glmBeforeEffortField(model, form) ||
+		strings.HasPrefix(form, "minimax-m")
+}
+
+func glmBeforeEffortField(model, form string) bool {
+	if ServedByMistral(model) {
+		return false
+	}
+	major, minor, ok := glmGeneration(form)
+	if !ok {
+		return false
+	}
+	firstMinor := 2
+	if dashScopeGuestSpelling(model) != "" {
+		firstMinor = 1
+	}
+	return major < 5 || major == 5 && minor < firstMinor
+}
+
+func glmGeneration(form string) (major, minor int, ok bool) {
+	rest, found := strings.CutPrefix(form, "glm-")
+	if !found {
+		return 0, 0, false
+	}
+	major, rest, ok = leadingNumber(rest)
+	if !ok {
+		return 0, 0, false
+	}
+	if after, dotted := strings.CutPrefix(rest, "."); dotted {
+		minor, _, _ = leadingNumber(after)
+	}
+	return major, minor, true
+}
+
+func leadingNumber(s string) (n int, rest string, ok bool) {
+	end := 0
+	for end < len(s) && isDigit(s[end]) {
+		end++
+	}
+	if end == 0 {
+		return 0, s, false
+	}
+	n, err := strconv.Atoi(s[:end])
+	return n, s[end:], err == nil
 }
 
 // EffortToolsRule reports what to do with reasoning_effort when function tools
