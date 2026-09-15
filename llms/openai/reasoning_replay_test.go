@@ -29,6 +29,26 @@ func replayedReasoning(t *testing.T, model string) []any {
 func assistantTurnsSent(t *testing.T, model string) []map[string]any {
 	t.Helper()
 
+	thought := func(text string) *reasoning.ContentReasoning { return &reasoning.ContentReasoning{Content: text} }
+	return assistantTurnsSentFor(t, model, []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "first"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.TextPartWithReasoning("answered in text", thought("text turn thought")),
+		}},
+		llms.TextParts(llms.ChatMessageTypeHuman, "second"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.TextPartWithReasoning("", thought("tool turn thought")),
+			llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "f", Arguments: "{}"}},
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "c1", Name: "f", Content: "done"},
+		}},
+	})
+}
+
+func assistantTurnsSentFor(t *testing.T, model string, history []llms.MessageContent) []map[string]any {
+	t.Helper()
+
 	var body map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -50,21 +70,6 @@ func assistantTurnsSent(t *testing.T, model string) []map[string]any {
 	llm, err := New(WithBaseURL(server.URL), WithToken("token"), WithModel(model), WithPreserveReasoningContent())
 	require.NoError(t, err)
 
-	thought := func(text string) *reasoning.ContentReasoning { return &reasoning.ContentReasoning{Content: text} }
-	history := []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeHuman, "first"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-			llms.TextPartWithReasoning("answered in text", thought("text turn thought")),
-		}},
-		llms.TextParts(llms.ChatMessageTypeHuman, "second"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-			llms.TextPartWithReasoning("", thought("tool turn thought")),
-			llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "f", Arguments: "{}"}},
-		}},
-		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-			llms.ToolCallResponse{ToolCallID: "c1", Name: "f", Content: "done"},
-		}},
-	}
 	tools := []llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
 		Name: "f", Parameters: map[string]any{"type": "object"},
 	}}}
@@ -104,6 +109,39 @@ func TestMiniMaxGetsBackTheReasoningOfEveryAssistantTurnInThinkTags(t *testing.T
 		assert.Equal(t, "<think>text turn thought</think>answered in text", turns[0]["content"], model)
 		assert.Equal(t, "<think>tool turn thought</think>", turns[1]["content"], model)
 		assert.NotEmpty(t, turns[1]["tool_calls"], model)
+		for _, turn := range turns {
+			assert.NotContains(t, turn, "reasoning_content", model)
+		}
+	}
+}
+
+func TestMiniMaxTurnThatAlreadyHoldsItsThinkBlockGoesBackAsItIs(t *testing.T) {
+	t.Parallel()
+
+	const textThought = `The user is asking me to reply with the single word "PONG".`
+	const toolThought = `The user is asking me to call the get_weather function for Paris.`
+	textContent := "<think>\n" + textThought + "\n</think>\n\nPONG"
+	toolContent := "<think>\n" + toolThought + "\n</think>\n\nI'll get the current weather for Paris for you."
+
+	for _, model := range []string{"minimax/MiniMax-M3", "MiniMax-M2.7"} {
+		turns := assistantTurnsSentFor(t, model, []llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "Reply with the single word PONG."),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+				llms.TextPartWithReasoning(textContent, &reasoning.ContentReasoning{Content: textThought}),
+			}},
+			llms.TextParts(llms.ChatMessageTypeHuman, "Call get_weather for Paris."),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+				llms.TextPartWithReasoning(toolContent, &reasoning.ContentReasoning{Content: toolThought}),
+				llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "f", Arguments: "{}"}},
+			}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "c1", Name: "f", Content: "done"},
+			}},
+		})
+		require.Len(t, turns, 2, model)
+
+		assert.Equal(t, textContent, turns[0]["content"], model)
+		assert.Equal(t, toolContent, turns[1]["content"], model)
 		for _, turn := range turns {
 			assert.NotContains(t, turn, "reasoning_content", model)
 		}

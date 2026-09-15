@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -849,6 +850,9 @@ func withThinkTags(parts []llms.ContentPart, thought string) []llms.ContentPart 
 	head := "<think>" + thought + "</think>"
 	if len(parts) > 0 {
 		if text, ok := parts[0].(llms.TextContent); ok {
+			if strings.HasPrefix(text.Text, "<think>") {
+				return parts
+			}
 			text.Text = head + text.Text
 			parts[0] = text
 			return parts

@@ -178,7 +178,8 @@ func WithModernReasoningFormat() Option {
 // turn for DeepSeek, Kimi, GLM and Qwen models. A model Mistral serves takes it on
 // every turn as a thinking chunk at the head of content instead, and one that
 // does not reason there takes none. A MiniMax M-series model on MiniMax's API
-// takes it on every turn inside <think> tags at the head of content.
+// takes it on every turn inside <think> tags at the head of content, unless the
+// content already opens with a <think> block.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
