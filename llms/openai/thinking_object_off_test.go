@@ -18,7 +18,7 @@ func TestDisablingThinkingWhereTheEffortTokenDoesNotReachTheVendor(t *testing.T)
 
 	for _, model := range []string{
 		"glm-5.1", "glm-5.2", "glm-4.6", "minimax-m3", "kimi-k2.6",
-		"deepseek-v4-flash", "deepseek-v4-pro",
+		"deepseek-v4-flash", "deepseek-v4-pro", "deepseek-flash", "deepseek/deepseek-flash",
 	} {
 		body := sendForWire(t, model, llms.WithReasoningDisabled())
 		if !strings.Contains(body, `"thinking":{"type":"disabled"}`) {

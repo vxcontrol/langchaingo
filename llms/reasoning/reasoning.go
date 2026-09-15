@@ -338,7 +338,8 @@ func namesReasoningModel(modelLower string) bool { //nolint:funlen // a flat cat
 		strings.Contains(modelLower, "deepseek-chat-v3.") ||
 		strings.Contains(modelLower, "deepseek-v3.1") ||
 		strings.HasPrefix(modelLower, "deepseek-v3.2") ||
-		strings.HasPrefix(modelLower, "deepseek-v4") {
+		strings.HasPrefix(modelLower, "deepseek-v4") ||
+		strings.HasPrefix(modelLower, "deepseek-flash") {
 		return true
 	}
 

@@ -60,7 +60,7 @@ func TestVendorsThatDisableWithAThinkingObject(t *testing.T) {
 
 	for _, model := range []string{
 		"glm-4.5", "glm-4.6", "glm-4.7", "glm-5", "glm-5-turbo", "glm-5.1", "glm-5.2",
-		"minimax-m3", "deepseek-v4-flash", "deepseek-v4-pro",
+		"minimax-m3", "deepseek-v4-flash", "deepseek-v4-pro", "deepseek-flash", "deepseek/deepseek-flash",
 	} {
 		if got := ResolveOff(model, ProviderOpenAI); got != OffDisableThinkingObject {
 			t.Errorf("ResolveOff(%q) = %v, want the thinking object: the effort token is either "+

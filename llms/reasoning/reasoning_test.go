@@ -668,6 +668,8 @@ func TestIsReasoningModel(t *testing.T) { //nolint:funlen
 		{"deepseek-v3.2", true},
 		{"deepseek-v3.2-exp", true},
 		{"deepseek/deepseek-r1", true},
+		{"deepseek-flash", true},
+		{"deepseek/deepseek-flash", true},
 
 		// Google Gemini / Gemma reasoning models (incl. production catalog)
 		{"gemini-2.5-flash", true},

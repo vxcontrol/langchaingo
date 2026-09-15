@@ -131,6 +131,10 @@ func TestDeepSeekThinkingLeavesOutTheTemperatureItIgnores(t *testing.T) {
 		"deepseek-v4-flash":                  {deepSeekBaseURL, "deepseek-v4-flash", sampling},
 		"deepseek-v4-pro with an effort":     {deepSeekBaseURL, "deepseek-v4-pro", append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, sampling...)},
 		"deepseek-v4-pro thinking by object": {deepSeekBaseURL, "deepseek-v4-pro", append([]llms.CallOption{thinkingInExtraBody("enabled")}, sampling...)},
+		"deepseek-flash":                     {deepSeekBaseURL, "deepseek-flash", sampling},
+		"deepseek/deepseek-flash":            {gatewayBaseURL, "deepseek/deepseek-flash", sampling},
+		"deepseek/deepseek-flash with an effort and thinking by object": {gatewayBaseURL, "deepseek/deepseek-flash",
+			append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0), thinkingInExtraBody("enabled")}, sampling...)},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.opts...)
 		if _, ok := body["temperature"]; ok {
