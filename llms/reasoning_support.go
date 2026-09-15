@@ -113,10 +113,15 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	}
 
 	if p == reasoning.ProviderOpenAI && reasoning.IsReasoningModel(model) {
+		var defaultOn *bool
+		if reasoning.QwenThinkingEnabledByFlag(model) {
+			defaultOn = boolPtr(false)
+		}
 		return ReasoningSupport{
 			Supported:       true,
 			CannotDisable:   reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
 			RejectsSampling: reasoning.RejectsSamplingWhileThinking(model),
+			DefaultOn:       defaultOn,
 		}
 	}
 

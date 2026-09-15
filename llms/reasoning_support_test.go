@@ -477,6 +477,66 @@ func TestTheHintNamesTheMechanismTheDoorActuallyUses(t *testing.T) {
 	}
 }
 
+func TestTheHintReportsQwenThinkingOffUntilAsked(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"qwen-plus", "qwen-flash", "qwen-turbo", "qwen3-max",
+		"qwen3-vl-plus", "qwen3-vl-flash", "dashscope/qwen3-max",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+			switch {
+			case s.DefaultOn == nil:
+				t.Errorf("%s DefaultOn = nil, want false: DashScope leaves its thinking off until "+
+					"enable_thinking asks for it, and a consumer reads nil as an off control that does nothing", model)
+			case *s.DefaultOn:
+				t.Errorf("%s DefaultOn = true, want false", model)
+			}
+		})
+	}
+
+	for _, model := range []string{"qwen3.6-plus", "qwen3.5-flash"} {
+		if d := ReasoningSupportFor(model, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+			t.Errorf("%s DefaultOn = false, but DashScope turns its thinking on by default", model)
+		}
+	}
+}
+
+func TestOptInAloneDoesNotMakeTheHintReportThinkingOff(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model             string
+		inCapabilityTable bool
+	}{
+		{"mistral-medium-latest", true},
+		{"mistral-small-latest", true},
+		{"magistral-medium-latest", false},
+		{"magistral-small-latest", false},
+	} {
+		if !reasoning.ThinkingOptIn(tc.model) || !reasoning.IsReasoningModel(tc.model) ||
+			reasoning.OpenAIReasoningCapsFor(tc.model).Known != tc.inCapabilityTable {
+			t.Fatalf("%s: no longer an opt-in reasoning model with capability table membership %v, "+
+				"so the case no longer covers what it claims", tc.model, tc.inCapabilityTable)
+		}
+		if d := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI).DefaultOn; d != nil {
+			t.Errorf("%s DefaultOn = %v, want nil: Mistral documents no default for reasoning_effort, and the "+
+				"door's off sends nothing, so a false here offers an off that may do nothing", tc.model, *d)
+		}
+	}
+
+	const marked = "ernie-4.5-21b-a3b-thinking"
+	if !reasoning.ThinkingOptIn(marked) || !reasoning.ThinkingMarkedInName(marked) {
+		t.Fatalf("%s: no longer both opt-in and marked thinking, so the case no longer covers what it claims", marked)
+	}
+	if d := ReasoningSupportFor(marked, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+		t.Errorf("%s DefaultOn = false, but the door counts the thinking marker in its name as thinking on", marked)
+	}
+}
+
 func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
 	t.Parallel()
 
