@@ -20,6 +20,9 @@ func modelSpellings(model string) []string {
 		if stripped, ok := stripDashWrittenVendor(bare); ok {
 			return []string{stripped, bare}
 		}
+		if earlier, ok := earlierNames[bare]; ok {
+			return []string{earlier, bare}
+		}
 		return []string{bare}
 	default:
 		return []string{bare, vendor + "-" + bare}
@@ -30,6 +33,9 @@ func modelSpellings(model string) []string {
 // where splitPlatformPrefix only reads a dot. Adding one here must be backed by
 // a vendor listing that names both spellings as one model.
 var dashWrittenVendors = []string{"zai"}
+
+// earlierNames entries must be backed by a vendor page that serves both names with one model.
+var earlierNames = map[string]string{"deepseek-flash": "deepseek-v4-flash"}
 
 func stripDashWrittenVendor(model string) (string, bool) {
 	for _, vendor := range dashWrittenVendors {

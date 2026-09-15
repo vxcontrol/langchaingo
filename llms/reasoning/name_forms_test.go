@@ -38,6 +38,7 @@ func TestEverySpellingResolvesToOneEntry(t *testing.T) {
 		},
 		{"deepseek-r1", "deepseek.r1-v1:0", "us.deepseek.r1-v1:0"},
 		{"deepseek-v3.2", "deepseek.v3.2", "us.deepseek.v3.2"},
+		{"deepseek-flash", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp", "deepseek/deepseek-flash", "DeepSeek-Flash"},
 		{"glm-4.7", "zai.glm-4.7"},
 		{"minimax-m2", "minimax.minimax-m2"},
 		{"kimi-k2-thinking", "moonshot.kimi-k2-thinking"},
