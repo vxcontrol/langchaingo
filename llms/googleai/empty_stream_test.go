@@ -3,6 +3,7 @@ package googleai
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -46,6 +47,43 @@ func TestStreamWithoutCandidatesIsNotASilentSuccess(t *testing.T) {
 	assert.Equal(t, llms.ErrCodeTokenLimit, apiErr.Code)
 	require.NotNil(t, resp)
 	assert.Empty(t, resp.Choices[0].Content)
+}
+
+type failedStream struct{}
+
+func (failedStream) RoundTrip(r *http.Request) (*http.Response, error) {
+	body := `{"error":{"code":429,"message":"Resource has been exhausted (e.g. check quota).","status":"RESOURCE_EXHAUSTED"}}`
+	return &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+		Request:    r,
+	}, nil
+}
+
+func TestARealStreamErrorIsNotBlamedOnTheBudget(t *testing.T) {
+	t.Parallel()
+
+	llm, err := New(context.Background(),
+		WithAPIKey("unit-test-key"), WithRest(),
+		WithDefaultModel("gemini-2.5-flash"),
+		WithHTTPClient(&http.Client{Transport: failedStream{}}))
+	require.NoError(t, err)
+
+	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
+	sink := func(context.Context, streaming.Chunk) error { return nil }
+
+	_, err = llm.GenerateContent(context.Background(), msgs,
+		llms.WithMaxTokens(24), llms.WithStreamingFunc(sink))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "429",
+		"a stream that failed HTTP must surface its own error, not a budget guess")
+	var apiErr *llms.Error
+	if errors.As(err, &apiErr) {
+		assert.NotEqual(t, llms.ErrCodeTokenLimit, apiErr.Code,
+			"a set max_tokens must not mask the real stream failure")
+	}
 }
 
 type blockedPromptStream struct{}
