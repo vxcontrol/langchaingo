@@ -53,7 +53,11 @@ func QwenThinkingEnabledByFlag(model string) bool {
 	return qwenFlagThinkers[dashScopeSpelling(model)]
 }
 
-var dashScopeGuestBudget = []string{"glm-5.1", "glm-5.2", "kimi-k2.7-code", "deepseek-v4"}
+var dashScopeGuestBudget = []string{
+	"glm-5", "glm-4.7", "glm-4.6", "glm-4.5",
+	"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking",
+	"deepseek-v4",
+}
 
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
