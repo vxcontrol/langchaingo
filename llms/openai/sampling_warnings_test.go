@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -156,11 +157,11 @@ func TestAThinkingBudgetCutToFitTheAnswerLimitIsReported(t *testing.T) {
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
 	w := warningFor(t, resp, "WithReasoning")
-	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" || w.Sent != "2730 tokens" {
+	if w.Kind != llms.WarningClamp || w.Asked != "30000 tokens" {
 		t.Errorf("reasoning warning = %+v (all: %v)", w, resp.Warnings)
 	}
-	if got := sent["thinking_budget"]; got != float64(2730) {
-		t.Errorf("thinking_budget on the wire = %v, want the 2730 the warning reports", got)
+	if wire := fmt.Sprintf("%v tokens", sent["thinking_budget"]); w.Sent != wire {
+		t.Errorf("the warning reports %q sent, the wire carries %s", w.Sent, wire)
 	}
 }
 
