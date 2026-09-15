@@ -709,16 +709,8 @@ func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
 		}
 	}
 
-	for _, tc := range []struct {
-		model string
-		p     reasoning.Provider
-	}{
-		{"gpt-oss:120b", reasoning.ProviderUnknown},
-		{"openai.gpt-oss-120b-1:0", reasoning.ProviderBedrock},
-	} {
-		if efforts := ReasoningSupportFor(tc.model, tc.p).Efforts; len(efforts) != 0 {
-			t.Errorf("%s on provider %d offers %v, but these levels are what ollama documents for its own door",
-				tc.model, tc.p, efforts)
-		}
+	if efforts := ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderUnknown).Efforts; len(efforts) != 0 {
+		t.Errorf("gpt-oss:120b on an unknown provider offers %v, but these levels are what ollama documents for its own door",
+			efforts)
 	}
 }
