@@ -86,6 +86,34 @@ func TestTheSuitePassesADoorThatCallsTheTool(t *testing.T) {
 	assert.False(t, failsToolCalls(t, caller))
 }
 
+func TestTheSuiteSparesADoorThatReportsTheToolsDropped(t *testing.T) {
+	dropping := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices:  []*llms.ContentChoice{{Content: "Hello"}},
+		Warnings: []llms.Warning{{Kind: llms.WarningDrop, Option: "WithTools", Asked: "1 tools"}},
+	}}
+
+	TestLLM(t, dropping)
+}
+
+func TestTheToolProbeHoldsADoorThatDoesNotReportTheToolsDropped(t *testing.T) {
+	t.Parallel()
+
+	for name, warnings := range map[string][]llms.Warning{
+		"no warning":             nil,
+		"another option dropped": {{Kind: llms.WarningDrop, Option: "WithSeed", Asked: "7"}},
+		"the tools clamped":      {{Kind: llms.WarningClamp, Option: "WithTools", Asked: "2 tools", Sent: "1 tools"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			door := &MockLLM{GenerateResponse: &llms.ContentResponse{
+				Choices: []*llms.ContentChoice{{Content: "Hello"}}, Warnings: warnings,
+			}}
+			assert.True(t, supportsTools(door))
+		})
+	}
+}
+
 // TestValidateLLM tests the validation function.
 func TestValidateLLM(t *testing.T) {
 	// Test with nil model

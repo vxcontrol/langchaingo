@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -116,10 +117,15 @@ func supportsTools(model llms.Model) bool {
 	}
 
 	// Try with tools - if it doesn't error out, it's supported
-	_, err := model.GenerateContent(ctx, messages,
+	resp, err := model.GenerateContent(ctx, messages,
 		llms.WithTools(tools),
 		llms.WithMaxTokens(1),
 	)
+	if resp != nil && slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+		return w.Kind == llms.WarningDrop && w.Option == "WithTools"
+	}) {
+		return false
+	}
 
 	// If we get a specific "tools not supported" error, return false
 	// Otherwise assume it's supported (even if other errors occur)
