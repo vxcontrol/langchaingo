@@ -88,6 +88,7 @@ func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T)
 	for _, model := range []string{
 		"deepseek-v4-pro", "deepseek-flash", "deepseek/deepseek-v4-pro",
 		"kimi-k3", "kimi-k2.7-code", "moonshot/kimi-k2.6", "glm-5.2", "zai/glm-5.3",
+		"qwen3.7-plus", "dashscope/qwen3.8-max",
 	} {
 		assert.Equal(t, []any{"text turn thought", "tool turn thought"}, replayedReasoning(t, model), model)
 	}
@@ -97,7 +98,7 @@ func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 
 	for _, model := range []string{
-		"qwen3.7-plus", "grok-4", "mistralai/mistral-small-2603", "openrouter/mistralai/mistral-medium-3-5", "magistral:24b",
+		"grok-4", "mistralai/mistral-small-2603", "openrouter/mistralai/mistral-medium-3-5", "magistral:24b",
 		"mistral-ai/mistral-small-2603",
 	} {
 		assert.Equal(t, []any{nil, "tool turn thought"}, replayedReasoning(t, model), model)
