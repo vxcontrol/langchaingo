@@ -318,7 +318,14 @@ func (o *LLM) createChatRequest(
 	}
 
 	if opts.GetJSONMode() {
-		req.SetResponseFormat(ResponseFormatJSON)
+		if model := o.effectiveModel(opts); reasoning.TakesNoResponseFormat(model) {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,
+				Asked: "true", Reason: takesNoResponseFormat,
+			})
+		} else {
+			req.SetResponseFormat(ResponseFormatJSON)
+		}
 	}
 
 	// add tools from functions and tool definitions

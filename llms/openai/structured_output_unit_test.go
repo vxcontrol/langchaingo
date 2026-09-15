@@ -491,3 +491,23 @@ func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
 		}
 	}
 }
+
+func TestMiniMaxJSONModeLeavesOutTheResponseFormatItsAPILacks(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+		if body := sendForWire(t, model, llms.WithJSONMode()); strings.Contains(body, "response_format") {
+			t.Errorf("%s: MiniMax's chat completions API documents no response_format, got body: %s", model, body)
+		}
+
+		w := warningFor(t, sendForWarnings(t, model, llms.WithJSONMode()), "WithJSONMode")
+		if w.Kind != llms.WarningDrop || w.Asked != "true" || !strings.Contains(w.Reason, "response_format") {
+			t.Errorf("%s: JSON mode warning = %+v", model, w)
+		}
+	}
+
+	const jsonObject = `"response_format":{"type":"json_object"}`
+	if body := sendForWire(t, "openrouter/minimax/minimax-m3", llms.WithJSONMode()); !strings.Contains(body, jsonObject) {
+		t.Errorf("only MiniMax's own API lacks response_format, got body: %s", body)
+	}
+}
