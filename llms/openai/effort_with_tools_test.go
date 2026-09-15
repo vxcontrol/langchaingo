@@ -90,7 +90,7 @@ func TestEffortAndToolsOnTheWire(t *testing.T) {
 	}
 }
 
-func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) {
+func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) { //nolint:funlen // table-driven test
 	t.Parallel()
 
 	for _, tc := range []struct {
