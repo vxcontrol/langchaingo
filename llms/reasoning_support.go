@@ -80,9 +80,9 @@ func lookupReasoningOverride(model string) (ReasoningSupport, bool) {
 func boolPtr(b bool) *bool { return &b }
 
 // ReasoningSupportFor returns the reasoning-control hint for a model on a
-// provider. Registered overrides win; a model the shared tables do not classify
-// returns Known=false (optimistic — the UI shows all controls and the API rejects
-// what it cannot do).
+// provider. Registered overrides win; then the models the shared tables classify
+// for that provider; everything else returns Known=false
+// (optimistic — the UI shows all controls and the API rejects what it cannot do).
 func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	if s, ok := lookupReasoningOverride(model); ok {
 		return s
@@ -97,6 +97,28 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 			Efforts:         toReasoningEfforts(reasoning.ClaudeEffortsFor(model, p)),
 			Mechanism:       claudeMechanism(reasoning.ClaudeReasoningKindFor(model)),
 			DefaultOn:       boolPtr(reasoning.ClaudeThinkingDefaultsOn(model)),
+		}
+	}
+
+	if p == reasoning.ProviderBedrock && reasoning.IsGptOssModel(model) {
+		return ReasoningSupport{
+			Supported:     true,
+			Known:         true,
+			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+			Efforts:       toReasoningEfforts(reasoning.GptOssEfforts()),
+			Mechanism:     ReasoningMechanismAdaptive,
+			DefaultOn:     boolPtr(true),
+		}
+	}
+
+	if p == reasoning.ProviderBedrock && reasoning.IsNovaReasoningModel(model) {
+		return ReasoningSupport{
+			Supported:     true,
+			Known:         true,
+			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+			Efforts:       toReasoningEfforts(reasoning.NovaEfforts()),
+			Mechanism:     ReasoningMechanismAdaptive,
+			DefaultOn:     boolPtr(false),
 		}
 	}
 

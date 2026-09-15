@@ -9,6 +9,7 @@ const (
 	MechanismBudget
 	MechanismNovaReasoningConfig
 	MechanismGrokEffort
+	MechanismGptOssEffort
 )
 
 // ResolveMechanism picks the thinking mechanism for a model the caller asked to
@@ -29,6 +30,8 @@ func ResolveMechanism(model string, adaptive, claudeFamily, reasons bool) Mechan
 		return MechanismNovaReasoningConfig
 	case IsGrokModel(model):
 		return MechanismGrokEffort
+	case IsGptOssModel(model):
+		return MechanismGptOssEffort
 	case IsBedrockAlwaysReasoningModel(model):
 		return MechanismNone
 	case reasons && claudeFamily:

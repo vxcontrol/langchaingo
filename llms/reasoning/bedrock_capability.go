@@ -1,6 +1,9 @@
 package reasoning
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // IsNovaReasoningModel reports whether the Bedrock model takes Amazon Nova's
 // reasoningConfig.
@@ -22,6 +25,10 @@ func NovaEffort(effort string) string {
 	}
 }
 
+func NovaEfforts() []string {
+	return []string{"low", "medium", "high"}
+}
+
 // NovaClearsInferenceConfigAt reports whether Nova refuses temperature, topP and
 // maxTokens alongside the given effort.
 func NovaClearsInferenceConfigAt(effort string) bool {
@@ -32,6 +39,22 @@ func NovaClearsInferenceConfigAt(effort string) bool {
 // every request and takes no thinking configuration alongside it.
 func IsBedrockAlwaysReasoningModel(model string) bool {
 	return strings.Contains(baseModelName(model), "deepseek.r1")
+}
+
+// IsGptOssModel reports whether the Bedrock model is one of OpenAI's gpt-oss models.
+func IsGptOssModel(model string) bool {
+	base := baseModelName(model)
+	return strings.Contains(base, "openai.gpt-oss-120b") || strings.Contains(base, "openai.gpt-oss-20b")
+}
+
+var gptOssCaps = OpenAIReasoningCaps{Known: true, Efforts: []string{"low", "medium", "high"}}
+
+func GptOssEffort(effort string) string {
+	return gptOssCaps.ClampEffort(strings.ToLower(effort))
+}
+
+func GptOssEfforts() []string {
+	return slices.Clone(gptOssCaps.Efforts)
 }
 
 // IsGrokModel reports whether the Bedrock model belongs to the xAI Grok family,

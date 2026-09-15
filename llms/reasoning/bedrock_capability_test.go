@@ -72,6 +72,34 @@ func TestGrokEffortFollowsTheGeneration(t *testing.T) {
 	}
 }
 
+func TestGptOssIsRecognisedOnlyByItsBedrockNames(t *testing.T) {
+	for _, model := range []string{"openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b-1:0"} {
+		if !IsGptOssModel(model) {
+			t.Errorf("%s is gpt-oss", model)
+		}
+	}
+	for _, model := range []string{
+		"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
+		"gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss:120b", "us.amazon.nova-2-lite-v1:0",
+	} {
+		if IsGptOssModel(model) {
+			t.Errorf("%s does not take the Bedrock gpt-oss effort field", model)
+		}
+	}
+}
+
+func TestGptOssEffortCollapsesOntoThreeLevels(t *testing.T) {
+	cases := map[string]string{
+		"minimal": "low", "low": "low", "medium": "medium",
+		"high": "high", "xhigh": "high", "max": "high", "": "",
+	}
+	for in, want := range cases {
+		if got := GptOssEffort(in); got != want {
+			t.Errorf("GptOssEffort(%q) = %q, want %q — Bedrock refuses anything outside low/medium/high", in, got, want)
+		}
+	}
+}
+
 func TestAlwaysReasoningModelCannotExpressOffOnAnyDoor(t *testing.T) {
 	for _, model := range []string{"us.xai.grok-4.6", "xai.grok-4.6"} {
 		for _, p := range []Provider{ProviderBedrock, ProviderOpenAI} {
@@ -97,8 +125,8 @@ func TestMechanismSeparatesTheBedrockFamilies(t *testing.T) {
 		{"us.xai.grok-4.6", false, MechanismGrokEffort},
 		{"us.anthropic.claude-opus-4-5-20251101-v1:0", true, MechanismBudget},
 		{"us.deepseek.r1-v1:0", false, MechanismNone},
-		{"openai.gpt-oss-120b-1:0", false, MechanismNone},
-		{"openai.gpt-oss-20b-1:0", false, MechanismNone},
+		{"openai.gpt-oss-120b-1:0", false, MechanismGptOssEffort},
+		{"openai.gpt-oss-20b-1:0", false, MechanismGptOssEffort},
 		{"mistral.magistral-small-2509", false, MechanismNone},
 		{"moonshot.kimi-k2-thinking", false, MechanismNone},
 		{"moonshotai.kimi-k2.5", false, MechanismNone},

@@ -103,10 +103,12 @@ func converseAdditionalFields(built *bedrockruntime.ConverseInput) map[string]an
 	return fields
 }
 
-// converseEffortOnTheWire reads the three shapes this door writes: the Claude
-// output_config, the Nova reasoningConfig and the Grok reasoning object.
+// converseEffortOnTheWire reads the effort from every shape this door writes.
 func converseEffortOnTheWire(built *bedrockruntime.ConverseInput) (string, bool) {
 	fields := converseAdditionalFields(built)
+	if effort, ok := fields["reasoning_effort"].(string); ok {
+		return effort, true
+	}
 	nested := func(key, effortKey string) (string, bool) {
 		block, ok := fields[key].(map[string]any)
 		if !ok {
@@ -133,6 +135,9 @@ func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
 	if thinking, ok := fields["thinking"].(map[string]any); ok {
 		sentType, _ := thinking["type"].(string)
 		return sentType
+	}
+	if effort, _ := fields["reasoning_effort"].(string); effort != "" {
+		return "effort"
 	}
 	for _, shape := range []struct{ key, effortKey string }{
 		{"reasoningConfig", "maxReasoningEffort"},

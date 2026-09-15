@@ -122,6 +122,8 @@ func TestAlwaysThinkingFamiliesAreRefusedOnBedrockToo(t *testing.T) {
 		{"moonshot.kimi-k2-thinking", OffUnsupported},
 		{"us.deepseek.r1-v1:0", OffUnsupported},
 		{"openai.gpt-oss-120b-1:0", OffUnsupported},
+		{"us-gov.openai.gpt-oss-120b-1:0", OffUnsupported},
+		{"us-gov.openai.gpt-oss-20b-1:0", OffUnsupported},
 		{"us.xai.grok-4.6", OffUnsupported},
 		{"glm-5.3", OffUnsupported},
 		{"us.amazon.nova-2-lite-v1:0", OffOmit},

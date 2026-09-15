@@ -435,6 +435,8 @@ func TestTheBedrockHintReportsTheRefusalTheDoorWillGive(t *testing.T) {
 		{"moonshot.kimi-k2-thinking", true},
 		{"us.deepseek.r1-v1:0", true},
 		{"openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-20b-1:0", true},
 		{"us.xai.grok-4.6", true},
 		{"us.amazon.nova-2-lite-v1:0", false},
 		{"us.amazon.nova-pro-v1:0", false},
@@ -453,6 +455,106 @@ func TestTheBedrockHintReportsTheRefusalTheDoorWillGive(t *testing.T) {
 					tc.model, got, tc.wantCannotDisable)
 			}
 		})
+	}
+}
+
+func TestTheBedrockHintOffersOnlyTheLevelsTheConverseDoorSends(t *testing.T) {
+	t.Parallel()
+
+	levels := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
+	for _, tc := range []struct {
+		model     string
+		efforts   []ReasoningEffort
+		mechanism ReasoningMechanism
+	}{
+		{"openai.gpt-oss-120b-1:0", levels, ReasoningMechanismAdaptive},
+		{"openai.gpt-oss-20b-1:0", levels, ReasoningMechanismAdaptive},
+		{"us.deepseek.r1-v1:0", nil, ReasoningMechanismUnknown},
+		{"qwen.qwen3-32b-v1:0", nil, ReasoningMechanismUnknown},
+		{"mistral.magistral-small-2509", nil, ReasoningMechanismUnknown},
+		{"moonshot.kimi-k2-thinking", nil, ReasoningMechanismUnknown},
+		{"zai.glm-4.7", nil, ReasoningMechanismUnknown},
+		{"zai.glm-4.7-flash", nil, ReasoningMechanismUnknown},
+		{"zai.glm-5", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2.5", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2.1", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2", nil, ReasoningMechanismUnknown},
+		{"nvidia.nemotron-super-3-120b", nil, ReasoningMechanismUnknown},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(tc.model, reasoning.ProviderBedrock)
+			if !slices.Equal(s.Efforts, tc.efforts) {
+				t.Errorf("%s: hint Efforts = %v, want %v", tc.model, s.Efforts, tc.efforts)
+			}
+			if s.Mechanism != tc.mechanism {
+				t.Errorf("%s: hint Mechanism = %v, want %v", tc.model, s.Mechanism, tc.mechanism)
+			}
+			for _, effort := range s.Efforts {
+				if sent := reasoning.GptOssEffort(string(effort)); sent != string(effort) {
+					t.Errorf("%s: the hint offers %q but the door sends %q", tc.model, effort, sent)
+				}
+			}
+			if len(tc.efforts) == 0 {
+				return
+			}
+			if !s.Supported || !s.Known {
+				t.Errorf("%s: a model whose levels are documented is known to reason: %+v", tc.model, s)
+			}
+			if s.DefaultOn == nil || !*s.DefaultOn {
+				t.Errorf("%s: the model reasons when reasoning is unset, the hint must say so", tc.model)
+			}
+			if other := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI); len(other.Efforts) > 0 {
+				t.Errorf("%s: the openai door never sends the Converse field, yet its hint advertises %v",
+					tc.model, other.Efforts)
+			}
+		})
+	}
+}
+
+func TestTheBedrockHintOffersNovaOffAndTheLevelsTheDoorSends(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"us.amazon.nova-2-lite-v1:0", "amazon.nova-2-lite-v1:0", "global.amazon.nova-2-lite-v1:0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s: Nova 2 Lite takes a documented reasoningConfig, so it is known to reason: %+v", model, s)
+			}
+			if want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}; !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s: hint Efforts = %v, want %v", model, s.Efforts, want)
+			}
+			for _, effort := range s.Efforts {
+				if sent := reasoning.NovaEffort(string(effort)); sent != string(effort) {
+					t.Errorf("%s: the hint offers %q but the door sends %q", model, effort, sent)
+				}
+			}
+			if s.Mechanism != ReasoningMechanismAdaptive {
+				t.Errorf("%s: hint Mechanism = %v, want an effort level", model, s.Mechanism)
+			}
+			if wire := reasoning.ResolveOff(model, reasoning.ProviderBedrock); wire != reasoning.OffOmit {
+				t.Fatalf("%s: off wire = %v, want the omission Nova reads as disabled", model, wire)
+			}
+			if s.DefaultOn == nil || *s.DefaultOn {
+				t.Errorf("%s: DefaultOn = %v, want false — Off travels as an omitted field, which a consumer "+
+					"can only offer when it knows the model does not reason unasked", model, s.DefaultOn)
+			}
+			if s.CannotDisable {
+				t.Errorf("%s: the door honours Off, yet the hint says it cannot", model)
+			}
+		})
+	}
+
+	if s := ReasoningSupportFor("us.amazon.nova-pro-v1:0", reasoning.ProviderBedrock); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("Nova Pro takes no reasoningConfig, yet its hint is classified: %+v", s)
+	}
+	if s := ReasoningSupportFor("us.amazon.nova-2-lite-v1:0", reasoning.ProviderOpenAI); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("the openai door never sends reasoningConfig, yet its hint classifies Nova: %+v", s)
 	}
 }
 

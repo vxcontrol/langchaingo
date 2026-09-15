@@ -121,6 +121,10 @@ type converseGrokFields struct {
 	Reasoning *converseGrokReasoning `json:"reasoning,omitempty" document:"reasoning,omitempty"`
 }
 
+type converseGptOssFields struct {
+	ReasoningEffort string `json:"reasoning_effort" document:"reasoning_effort"`
+}
+
 // buildConverseInput converts our input to AWS Converse format
 func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockruntime.ConverseInput, error) {
 	// Convert messages
@@ -246,6 +250,14 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			effort := reasoning.GrokEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)))
 			familyFields = converseGrokFields{Reasoning: &converseGrokReasoning{Effort: effort}}
 		}
+		setGptOss := func() {
+			if input.ReasoningConfig.DelegatesDepth() {
+				return
+			}
+			if effort := reasoning.GptOssEffort(string(input.ReasoningConfig.GetEffort(maxTokens))); effort != "" {
+				familyFields = converseGptOssFields{ReasoningEffort: effort}
+			}
+		}
 		switch reasoning.ResolveMechanism(input.ModelID, input.ReasoningConfig.Adaptive,
 			isAnthropicModelID(input.ModelID), c.supportsReasoning(input.ModelID)) {
 		case reasoning.MechanismAdaptive:
@@ -258,6 +270,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			setNova()
 		case reasoning.MechanismGrokEffort:
 			setGrok()
+		case reasoning.MechanismGptOssEffort:
+			setGptOss()
 		}
 		if additionalModelFields.Thinking != nil {
 			if budget := additionalModelFields.Thinking.BudgetTokens; budget > 0 {
