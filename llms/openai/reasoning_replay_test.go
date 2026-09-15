@@ -148,6 +148,32 @@ func TestMiniMaxTurnThatAlreadyHoldsItsThinkBlockGoesBackAsItIs(t *testing.T) {
 	}
 }
 
+func TestMiniMaxTurnWithoutReasoningGoesBackWithoutThinkTags(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"minimax/MiniMax-M3", "MiniMax-M2.7"} {
+		turns := assistantTurnsSentFor(t, model, []llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "first"),
+			llms.TextParts(llms.ChatMessageTypeAI, "summary without reasoning"),
+			llms.TextParts(llms.ChatMessageTypeHuman, "second"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+				llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "f", Arguments: "{}"}},
+			}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "c1", Name: "f", Content: "done"},
+			}},
+		})
+		require.Len(t, turns, 2, model)
+
+		assert.Equal(t, "summary without reasoning", turns[0]["content"], model)
+		assert.Equal(t, "", turns[1]["content"], model)
+		assert.NotEmpty(t, turns[1]["tool_calls"], model)
+		for _, turn := range turns {
+			assert.NotContains(t, turn, "reasoning_content", model)
+		}
+	}
+}
+
 func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 
