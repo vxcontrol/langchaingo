@@ -17,6 +17,7 @@ type ChatMessage = openaiclient.ChatMessage
 type LLM struct {
 	CallbacksHandler callbacks.Handler
 	client           *openaiclient.Client
+	host             string
 }
 
 const (
@@ -38,6 +39,7 @@ func New(opts ...Option) (*LLM, error) {
 	return &LLM{
 		client:           c,
 		CallbacksHandler: opt.callbackHandler,
+		host:             hostnameFromURL(opt.baseURL),
 	}, err
 }
 
@@ -293,21 +295,7 @@ func (o *LLM) createChatRequest(
 	}
 
 	model := o.effectiveModel(opts)
-	if reasoning.RejectsPenalties(model) {
-		const refused = "the door does not send the penalties on this model family"
-		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
-		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
-		req.FrequencyPenalty = nil
-		req.PresencePenalty = nil
-	}
-	if reasoning.RejectsTopK(model) && req.TopK != nil {
-		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
-		req.TopK = nil
-	}
-	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
-		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
-		req.RepetitionPenalty = nil
-	}
+	dropFieldsTheModelTakesNot(req, model, warn)
 
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
 		if opts.StreamingFunc == nil {
@@ -356,6 +344,28 @@ func (o *LLM) createChatRequest(
 	o.applySamplingPolicy(req, opts, wireEffort, warn)
 
 	return req, nil
+}
+
+func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model string, warn *llms.Warnings) {
+	if reasoning.RejectsPenalties(model) {
+		const refused = "the door does not send the penalties on this model family"
+		addNonZeroChange(warn, "WithFrequencyPenalty", model, refused, req.FrequencyPenalty, nil)
+		addNonZeroChange(warn, "WithPresencePenalty", model, refused, req.PresencePenalty, nil)
+		req.FrequencyPenalty = nil
+		req.PresencePenalty = nil
+	}
+	if reasoning.RejectsTopK(model) && req.TopK != nil {
+		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
+		req.TopK = nil
+	}
+	if reasoning.TakesNoTopK(model) && req.TopK != nil {
+		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
+		req.TopK = nil
+	}
+	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
+		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
+		req.RepetitionPenalty = nil
+	}
 }
 
 // effectiveModel resolves the model the request runs on: a per-call model wins,
@@ -559,7 +569,7 @@ func (o *LLM) applySamplingPolicy(
 ) {
 	model := o.effectiveModel(opts)
 	before := takeSamplingSnapshot(req)
-	reason := samplingReason(model, opts, wireEffort)
+	reason := samplingReason(model, o.host, opts, wireEffort)
 	o.enforceSamplingPolicy(req, opts, wireEffort)
 	before.report(req, model, reason, warn)
 }
@@ -598,6 +608,12 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.PresencePenalty = nil
 		req.LogProbs = false
 		req.TopLogProbs = 0
+	case reasoning.ServedByDeepSeek(model, o.host):
+		if deepSeekThinks(model, opts, wireEffort) {
+			req.Temperature = nil
+		} else {
+			req.TopP = nil
+		}
 	case reasoning.ClaudeMutuallyExclusiveSampling(model) && req.Temperature != nil && req.TopP != nil:
 		req.TopP = nil
 	}
@@ -608,6 +624,18 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 		return false
 	}
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
+}
+
+func deepSeekThinks(model string, opts llms.CallOptions, wireEffort string) bool {
+	return thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
+}
+
+func extraBodyStopsThinking(opts llms.CallOptions) bool {
+	extra := llms.ExtraBody(opts)
+	if thinking, ok := extra["thinking"].(map[string]any); ok && thinking["type"] == "disabled" {
+		return true
+	}
+	return extra["reasoning_effort"] == reasoning.OpenAIDisableEffort
 }
 
 // thinkingRuns reports whether the model reasons on this request: an effort

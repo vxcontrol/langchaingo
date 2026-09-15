@@ -257,6 +257,36 @@ func TestAVendorThatTakesTopKStillGetsIt(t *testing.T) {
 	}
 }
 
+func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+		body := sendForWire(t, model, llms.WithTopK(40), llms.WithTopP(0.95))
+		if strings.Contains(body, `"top_k"`) {
+			t.Errorf("%s: MiniMax's API documents no top_k, got body: %s", model, body)
+		}
+		if !strings.Contains(body, `"top_p":0.95`) {
+			t.Errorf("%s: MiniMax documents top_p and must keep getting it, got body: %s", model, body)
+		}
+
+		resp := sendForWarnings(t, model, llms.WithTopK(40))
+		w := warningFor(t, resp, "WithTopK")
+		if w.Kind != llms.WarningDrop || w.Asked != "40" || !strings.Contains(w.Reason, "no top_k") {
+			t.Errorf("%s: top-k warning = %+v", model, w)
+		}
+	}
+}
+
+func TestMiniMaxOnAnotherHostKeepsTopK(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"openrouter/minimax/minimax-m3", "minimax.minimax-m2.5"} {
+		if body := sendForWire(t, model, llms.WithTopK(40)); !strings.Contains(body, `"top_k":40`) {
+			t.Errorf("%s: only MiniMax's own API lacks top_k, got body: %s", model, body)
+		}
+	}
+}
+
 func TestTheDoorThatMergesExtraBodyReportsNoLoss(t *testing.T) {
 	t.Parallel()
 

@@ -2,6 +2,7 @@ package reasoning
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -10,16 +11,42 @@ import (
 // must stay off the wire.
 func RejectsPenalties(model string) bool {
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "grok") {
+		if strings.HasPrefix(form, "grok") || strings.HasPrefix(form, "deepseek") {
 			return true
 		}
 	}
 	return false
 }
 
+// deepSeekAPIModels mirrors the model names DeepSeek's own API serves, as its
+// Models & Pricing page lists them.
+var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
+
+const deepSeekAPIHost = "api.deepseek.com"
+
+func ServedByDeepSeek(model, host string) bool {
+	m := strings.ToLower(model)
+	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok {
+		return slices.Contains(deepSeekAPIModels, rest)
+	}
+	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, m)
+}
+
 // RejectsTopK reports whether top_k must stay off the wire.
 func RejectsTopK(model string) bool {
 	return openAIProperName(model)
+}
+
+func TakesNoTopK(model string) bool {
+	return onMiniMaxAPI(model, "minimax-")
+}
+
+func TakesNoResponseFormat(model string) bool {
+	return onMiniMaxAPI(model, "minimax-m")
+}
+
+func onMiniMaxAPI(model, family string) bool {
+	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), family)
 }
 
 // RejectsRepetitionPenalty reports whether repetition_penalty must stay off the wire.

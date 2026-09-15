@@ -13,6 +13,8 @@ import (
 
 const providerOpenAI = "openai"
 
+const takesNoResponseFormat = "the vendor's chat completions API takes no response_format for this model"
+
 // ErrStructuredOutputRefusal reports that the model declined a structured-output
 // request (OpenAI Structured Outputs). A refusal may legitimately not match the
 // schema, so it is a distinct typed outcome rather than a validation failure. The
@@ -35,14 +37,20 @@ func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOpti
 	if !opts.GetJSONMode() {
 		return
 	}
-	if !reasoning.TakesNoJSONObject(model) {
+	var reason string
+	switch {
+	case reasoning.TakesNoResponseFormat(model):
+		reason = takesNoResponseFormat
+	case reasoning.TakesNoJSONObject(model):
+		reason = "the vendor has no json_object response format for this model"
+	default:
 		req.SetResponseFormat(ResponseFormatJSON)
 		return
 	}
 	if opts.StructuredOutput == nil {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,
-			Asked: "true", Reason: "the vendor has no json_object response format for this model",
+			Asked: "true", Reason: reason,
 		})
 	}
 }
@@ -116,6 +124,8 @@ func openAIStructuredOutputUnsupported(model string) string {
 	switch {
 	case reasoning.TakesNoJSONSchema(model):
 		return "the vendor's chat completions response_format takes only text and json_object"
+	case reasoning.TakesNoResponseFormat(model):
+		return takesNoResponseFormat
 	case strings.HasPrefix(m, "gpt-3.5"):
 		return predates
 	case m == "gpt-4", strings.HasPrefix(m, "gpt-4-0"), strings.HasPrefix(m, "gpt-4-32k"), strings.HasPrefix(m, "gpt-4-turbo"):
