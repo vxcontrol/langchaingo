@@ -52,7 +52,12 @@ func TestAcceptsEffortWire(t *testing.T) {
 		{"dashscope/glm-5", false},
 		{"zai-glm-5-2", true},
 		{"mistral/glm-5-2", true},
-		{"minimax-m3", true},
+		{"minimax-m3", false},
+		{"MiniMax-M3", false},
+		{"minimax/MiniMax-M3", false},
+		{"MiniMax-M2.7", false},
+		{"MiniMax-M2.7-highspeed", false},
+		{"minimax/MiniMax-M2.5", false},
 	} {
 		if got := AcceptsEffortWire(tc.model); got != tc.accept {
 			t.Errorf("AcceptsEffortWire(%q) = %v, want %v", tc.model, got, tc.accept)

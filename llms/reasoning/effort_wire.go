@@ -142,7 +142,8 @@ func AcceptsEffortWire(model string) bool {
 		if mistralWithoutReasoning(form) {
 			return false
 		}
-		if hasGeneration(form, "kimi-k2") || glmBeforeEffortField(model, form) {
+		if hasGeneration(form, "kimi-k2") || glmBeforeEffortField(model, form) ||
+			strings.HasPrefix(form, "minimax-m") {
 			return false
 		}
 		if form == "grok-build-latest" {

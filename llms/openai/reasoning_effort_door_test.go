@@ -42,6 +42,7 @@ func TestReasoningEffortOmittedOnDoorsThatRejectIt(t *testing.T) {
 	for _, model := range []string{
 		"qwen3-next-80b-a3b-thinking", "kimi-k2.6", "moonshot/kimi-k2.6", "kimi-k2.7-code-highspeed",
 		"glm-5.1", "zai/glm-5.1", "glm-5-turbo",
+		"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7",
 	} {
 		t.Run(model+" drops a requested effort", func(t *testing.T) {
 			body, err := capture(t, model, llms.WithReasoning(llms.ReasoningMedium, 0))
