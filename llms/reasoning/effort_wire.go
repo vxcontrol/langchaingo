@@ -133,6 +133,10 @@ func ReplaysThinkingInContent(model string) bool {
 	return true
 }
 
+func ReplaysReasoningInThinkTags(model string) bool {
+	return onMiniMaxAPI(model, "minimax-m")
+}
+
 // UsesLegacyMaxTokens reports whether the output limit must travel as
 // max_tokens rather than max_completion_tokens.
 func UsesLegacyMaxTokens(model string) bool {

@@ -94,6 +94,22 @@ func TestPreservedThinkingGetsBackTheReasoningOfEveryAssistantTurn(t *testing.T)
 	}
 }
 
+func TestMiniMaxGetsBackTheReasoningOfEveryAssistantTurnInThinkTags(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"minimax/MiniMax-M3", "MiniMax-M2.7"} {
+		turns := assistantTurnsSent(t, model)
+		require.Len(t, turns, 2, model)
+
+		assert.Equal(t, "<think>text turn thought</think>answered in text", turns[0]["content"], model)
+		assert.Equal(t, "<think>tool turn thought</think>", turns[1]["content"], model)
+		assert.NotEmpty(t, turns[1]["tool_calls"], model)
+		for _, turn := range turns {
+			assert.NotContains(t, turn, "reasoning_content", model)
+		}
+	}
+}
+
 func TestOtherVendorsGetBackOnlyTheReasoningOfToolTurns(t *testing.T) {
 	t.Parallel()
 

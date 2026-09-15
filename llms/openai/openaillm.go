@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
@@ -180,6 +181,8 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 				if reasoning.ReplaysThinkingInContent(model) {
 					msg.Thinking = extractReasoningContent(mc.Parts)
 				}
+			case reasoning.ReplaysReasoningInThinkTags(model):
+				msg.MultiContent = withThinkTags(msg.MultiContent, extractReasoningContent(mc.Parts))
 			case len(toolCalls) > 0 || reasoning.ReplaysReasoningOnEveryTurn(model):
 				msg.ReasoningContent = extractReasoningContent(mc.Parts)
 			}
@@ -837,6 +840,21 @@ func extractReasoningContent(parts []llms.ContentPart) string {
 		}
 	}
 	return ""
+}
+
+func withThinkTags(parts []llms.ContentPart, thought string) []llms.ContentPart {
+	if thought == "" {
+		return parts
+	}
+	head := "<think>" + thought + "</think>"
+	if len(parts) > 0 {
+		if text, ok := parts[0].(llms.TextContent); ok {
+			text.Text = head + text.Text
+			parts[0] = text
+			return parts
+		}
+	}
+	return slices.Insert(parts, 0, llms.ContentPart(llms.TextContent{Text: head}))
 }
 
 // toolFromTool converts an llms.Tool to a Tool.
