@@ -331,10 +331,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
-	// set response format from client if available
-	if o.client.ResponseFormat != nil {
-		req.SetResponseFormat(o.client.ResponseFormat)
-	}
+	setClientResponseFormat(req, model, o.client.ResponseFormat, warn)
 
 	// per-call schema-constrained structured output takes precedence over JSONMode
 	// and conflicts with a client-level response format.
