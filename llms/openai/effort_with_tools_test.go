@@ -166,6 +166,8 @@ func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) { //nolint:funlen // tab
 			llms.WithReasoning(llms.ReasoningLow, 2048), `"thinking_budget":2048`, false},
 		{"dated deepseek-v4 snapshot does too", "dashscope/deepseek-v4-flash-0731",
 			llms.WithReasoning(llms.ReasoningLow, 2048), `"thinking_budget":2048`, false},
+		{"deepseek-v4.1-flash gets no budget", "dashscope/deepseek-v4.1-flash",
+			llms.WithReasoning(llms.ReasoningLow, 2048), `"thinking_budget"`, true},
 		{"guest omits effort when a budget is set", "dashscope/glm-5.2",
 			llms.WithReasoning(llms.ReasoningLow, 2048), `"reasoning_effort"`, true},
 		{"deepseek-v3.2 does not get a budget", "dashscope/deepseek-v3.2",
@@ -234,7 +236,6 @@ func TestDashScopeBudgetIsNotCappedByTheAnswerLimit(t *testing.T) {
 	}{
 		{"qwen keeps the whole budget", "dashscope/qwen3-max"},
 		{"glm keeps the whole budget", "dashscope/glm-5.2"},
-		{"deepseek keeps the whole budget", "dashscope/deepseek-v4-pro"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -243,6 +244,24 @@ func TestDashScopeBudgetIsNotCappedByTheAnswerLimit(t *testing.T) {
 			if !strings.Contains(body, `"thinking_budget":8192`) {
 				t.Errorf("a small answer limit must not shrink the thinking budget "+
 					"(max_tokens limits the answer only when thinking_budget is set)\nbody: %s", body)
+			}
+		})
+	}
+}
+
+func TestDashScopeDeepSeekBudgetLeavesRoomForTheAnswer(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"dashscope/deepseek-v4-pro", "dashscope/deepseek-v4-flash-0731"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+			resp, sent := sendForWarningsWith(t, model, nil,
+				llms.WithMaxTokens(600), llms.WithReasoning(llms.ReasoningNone, 2000))
+			if sent["thinking_budget"] != float64(400) || sent["max_tokens"] != float64(600) {
+				t.Errorf("max_tokens counts the thinking too, so the budget must leave answer room: %v", sent)
+			}
+			if w := warningFor(t, resp, "WithReasoning"); w.Kind != llms.WarningClamp || w.Sent != "400 tokens" {
+				t.Errorf("reasoning warning = %+v", w)
 			}
 		})
 	}

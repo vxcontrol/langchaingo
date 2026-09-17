@@ -3,6 +3,7 @@ package reasoning
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -56,8 +57,9 @@ func QwenThinkingEnabledByFlag(model string) bool {
 var dashScopeGuestBudget = []string{
 	"glm-5.2", "glm-5.1", "glm-4.7", "glm-4.6", "glm-4.5",
 	"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking",
-	"deepseek-v4",
 }
+
+var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-0731"}
 
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
@@ -75,7 +77,7 @@ func DashScopeTakesThinkingBudget(model string) bool {
 		return false
 	}
 	if guest := dashScopeGuestSpelling(model); guest != "" {
-		if guest == "glm-5" {
+		if guest == "glm-5" || slices.Contains(dashScopeDeepSeekBudget, guest) {
 			return true
 		}
 		for _, generation := range dashScopeGuestBudget {
@@ -90,4 +92,10 @@ func DashScopeTakesThinkingBudget(model string) bool {
 		qwenVLOpenWeightName.MatchString(m) ||
 		qwenFlagThinkers[m] ||
 		hasGeneration(m, "qwen3.8")
+}
+
+// DashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget
+// counts against max_tokens together with the answer.
+func DashScopeBudgetSharesAnswerLimit(model string) bool {
+	return slices.Contains(dashScopeDeepSeekBudget, dashScopeGuestSpelling(model))
 }

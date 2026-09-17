@@ -488,6 +488,9 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	switch {
 	case reasoning.DashScopeTakesThinkingBudget(wc.model):
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
+		if reasoning.DashScopeBudgetSharesAnswerLimit(wc.model) && opts.GetMaxTokens() > 0 {
+			budget = tokens
+		}
 		req.ThinkingBudget = &budget
 		if req.MaxCompletionTokens != nil {
 			req.MaxTokens, req.MaxCompletionTokens = req.MaxCompletionTokens, nil
