@@ -312,7 +312,7 @@ func (o *LLM) createChatRequest(
 	}
 
 	if model := o.effectiveModel(opts); (reasoning.QwenThinkingEnabledByFlag(model) ||
-		reasoning.DashScopeGuestThinkingEnabledByFlag(model)) &&
+		reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host))) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
 		req.EnableThinking = &thinkingOn
@@ -416,7 +416,7 @@ func (o *LLM) setReasoning(
 		return "", o.setReasoningOff(req, opts)
 	}
 
-	acceptsEffort := reasoning.AcceptsEffortWire(model)
+	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
@@ -486,10 +486,11 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	if !opts.Reasoning.HasExplicitTokens() || tokens <= 0 {
 		return false
 	}
+	route := reasoning.DashScopeRoute(wc.model, o.host)
 	switch {
-	case reasoning.DashScopeTakesThinkingBudget(wc.model):
+	case reasoning.DashScopeTakesThinkingBudget(route):
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
-		if reasoning.DashScopeBudgetSharesAnswerLimit(wc.model) && opts.GetMaxTokens() > 0 {
+		if reasoning.DashScopeBudgetSharesAnswerLimit(route) && opts.GetMaxTokens() > 0 {
 			budget = tokens
 		}
 		req.ThinkingBudget = &budget
@@ -595,7 +596,7 @@ func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget in
 // a typed error.
 func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
 	model := o.effectiveModel(opts)
-	switch reasoning.ResolveOff(model, reasoning.ProviderOpenAI) { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
+	switch reasoning.ResolveOff(reasoning.DashScopeRoute(model, o.host), reasoning.ProviderOpenAI) { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffUnsupported:
 		return &reasoning.ErrReasoningOffUnsupported{Model: model}
 	case reasoning.OffEffortNone:

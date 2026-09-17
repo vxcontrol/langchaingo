@@ -57,8 +57,8 @@ func QwenThinkingEnabledByFlag(model string) bool {
 // DashScopeGuestThinkingEnabledByFlag reports whether a guest model DashScope
 // serves leaves its thinking off until enable_thinking:true asks for it.
 func DashScopeGuestThinkingEnabledByFlag(model string) bool {
-	guest := dashScopeGuestSpelling(model)
-	return guest == "kimi-k2.6" || guest == "kimi-k2.5"
+	guest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	return ok && (guest == "kimi-k2.6" || guest == "kimi-k2.5")
 }
 
 var dashScopeGuestBudget = []string{
@@ -70,19 +70,31 @@ var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "
 
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	rest = strings.TrimPrefix(rest, "kimi/")
 	if !ok || strings.Contains(rest, "/") {
 		return ""
 	}
 	return rest
 }
 
+var dashScopeHosts = []string{
+	"dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com", "dashscope-us.aliyuncs.com",
+	"cn-hongkong.dashscope.aliyuncs.com",
+}
+
+// DashScopeRoute returns the name the rules read for a model sent to host: a
+// name sent to Model Studio's own host reads as its dashscope/ route.
+func DashScopeRoute(model, host string) string {
+	onDashScope := slices.Contains(dashScopeHosts, host) || strings.HasSuffix(host, ".maas.aliyuncs.com")
+	if !onDashScope || strings.HasPrefix(strings.ToLower(model), "dashscope/") {
+		return model
+	}
+	return "dashscope/" + model
+}
+
 // DashScopeTakesThinkingBudget reports whether DashScope caps the model's
 // thinking by a token budget.
 func DashScopeTakesThinkingBudget(model string) bool {
-	m := dashScopeSpelling(model)
-	if m == "" {
-		return false
-	}
 	if guest := dashScopeGuestSpelling(model); guest != "" {
 		if guest == "glm-5" || slices.Contains(dashScopeDeepSeekBudget, guest) {
 			return true
@@ -92,6 +104,10 @@ func DashScopeTakesThinkingBudget(model string) bool {
 				return true
 			}
 		}
+	}
+	m := dashScopeSpelling(model)
+	if m == "" {
+		return false
 	}
 	return qwenDefaultThinkingName.MatchString(m) ||
 		qwenParameterCountName.MatchString(m) ||
