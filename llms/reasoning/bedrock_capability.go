@@ -12,7 +12,6 @@ func IsNovaReasoningModel(model string) bool {
 	return strings.Contains(base, "amazon.nova-2-lite")
 }
 
-// NovaEffort maps a requested effort onto the three levels Nova accepts.
 func NovaEffort(effort string) string {
 	switch strings.ToLower(effort) {
 	case "minimal", "low":
