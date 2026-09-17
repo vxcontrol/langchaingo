@@ -205,6 +205,26 @@ func TestDashScopeThinkingBudgetOnTheWire(t *testing.T) { //nolint:funlen // tab
 	}
 }
 
+func TestDashScopeGuestBudgetTravelsWithTheAnswerOnlyLimit(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"dashscope/glm-5.2", "dashscope/glm-5.1", "dashscope/glm-4.7",
+		"dashscope/kimi-k2.7-code", "dashscope/kimi-k2.6",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+			body := bodyForCall(t, model,
+				llms.WithMaxTokens(300), llms.WithReasoning(llms.ReasoningNone, 2000))
+			if !strings.Contains(body, `"thinking_budget":2000`) || !strings.Contains(body, `"max_tokens":300`) ||
+				strings.Contains(body, `"max_completion_tokens"`) {
+				t.Errorf("a budget above the limit must go out next to max_tokens, "+
+					"not max_completion_tokens\nbody: %s", body)
+			}
+		})
+	}
+}
+
 func TestDashScopeBudgetIsNotCappedByTheAnswerLimit(t *testing.T) {
 	t.Parallel()
 
