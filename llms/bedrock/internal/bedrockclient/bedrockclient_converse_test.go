@@ -617,6 +617,43 @@ func TestConverseClient_AdaptiveReasoningNonAnthropicModel(t *testing.T) {
 		"an Anthropic request shape does not travel to another vendor")
 }
 
+func TestConverseClient_AdaptiveReasoningModelWithoutMechanism(t *testing.T) {
+	mockClient := &MockBedrockRuntimeClient{}
+	client := NewConverseClient(mockClient)
+
+	var capturedInput *bedrockruntime.ConverseInput
+	mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(input *bedrockruntime.ConverseInput) bool {
+		capturedInput = input
+		return true
+	}), mock.Anything).Return(&bedrockruntime.ConverseOutput{
+		Output: &types.ConverseOutputMemberMessage{
+			Value: types.Message{
+				Role:    types.ConversationRoleAssistant,
+				Content: []types.ContentBlock{&types.ContentBlockMemberText{Value: "ok"}},
+			},
+		},
+	}, nil)
+
+	input := &ConverseInput{
+		ModelID:         "qwen.qwen3-32b-v1:0",
+		Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "Hello", Type: "text"}},
+		MaxTokens:       ptr(2000),
+		Temperature:     ptr(0.8),
+		TopP:            ptr(0.9),
+		ReasoningConfig: &llms.ReasoningConfig{Effort: llms.ReasoningHigh, Adaptive: true},
+	}
+
+	_, err := client.CreateCompletionConverse(t.Context(), input)
+	require.NoError(t, err)
+
+	assert.Nil(t, capturedInput.AdditionalModelRequestFields,
+		"an Anthropic request shape does not travel to another vendor")
+	require.NotNil(t, capturedInput.InferenceConfig.Temperature, "the caller's temperature must survive")
+	assert.InDelta(t, 0.8, *capturedInput.InferenceConfig.Temperature, 0.0001)
+	require.NotNil(t, capturedInput.InferenceConfig.TopP, "the caller's top_p must survive")
+	assert.InDelta(t, 0.9, *capturedInput.InferenceConfig.TopP, 0.0001)
+}
+
 func TestConverseClient_AdaptiveReasoningPreAdaptiveModelGated(t *testing.T) {
 	mockClient := &MockBedrockRuntimeClient{}
 	client := NewConverseClient(mockClient)
