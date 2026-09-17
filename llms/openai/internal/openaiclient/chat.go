@@ -737,19 +737,8 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 		return nil, err
 	}
 
-	// If ExtraBody is provided, merge it with the standard payload
-	if len(payload.ExtraBody) > 0 {
-		var baseMap map[string]any
-		if err := json.Unmarshal(payloadBytes, &baseMap); err != nil {
-			return nil, err
-		}
-
-		// Merge ExtraBody with priority (ExtraBody overwrites existing fields)
-		maps.Copy(baseMap, payload.ExtraBody)
-
-		if payloadBytes, err = json.Marshal(baseMap); err != nil {
-			return nil, err
-		}
+	if payloadBytes, err = mergeExtraBody(payloadBytes, payload.ExtraBody); err != nil {
+		return nil, err
 	}
 
 	// Build request
@@ -776,6 +765,26 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 	}
 
 	return parseChatResponse(r.Body)
+}
+
+func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
+	if len(extraBody) == 0 {
+		return payload, nil
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		return nil, err
+	}
+	extra, err := json.Marshal(extraBody)
+	if err != nil {
+		return nil, err
+	}
+	var extraFields map[string]json.RawMessage
+	if err := json.Unmarshal(extra, &extraFields); err != nil {
+		return nil, err
+	}
+	maps.Copy(fields, extraFields)
+	return json.Marshal(fields)
 }
 
 func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
