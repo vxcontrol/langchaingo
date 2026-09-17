@@ -54,6 +54,13 @@ func QwenThinkingEnabledByFlag(model string) bool {
 	return qwenFlagThinkers[dashScopeSpelling(model)]
 }
 
+// DashScopeGuestThinkingEnabledByFlag reports whether a guest model DashScope
+// serves leaves its thinking off until enable_thinking:true asks for it.
+func DashScopeGuestThinkingEnabledByFlag(model string) bool {
+	guest := dashScopeGuestSpelling(model)
+	return guest == "kimi-k2.6" || guest == "kimi-k2.5"
+}
+
 var dashScopeGuestBudget = []string{
 	"glm-5.2", "glm-5.1", "glm-4.7", "glm-4.6", "glm-4.5",
 	"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking",

@@ -311,7 +311,8 @@ func (o *LLM) createChatRequest(
 		}
 	}
 
-	if model := o.effectiveModel(opts); reasoning.QwenThinkingEnabledByFlag(model) &&
+	if model := o.effectiveModel(opts); (reasoning.QwenThinkingEnabledByFlag(model) ||
+		reasoning.DashScopeGuestThinkingEnabledByFlag(model)) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
 		req.EnableThinking = &thinkingOn
