@@ -32,6 +32,29 @@ func TestDelegatedAdaptiveTurnsThinkingOnWhereClaudeWaitsToBeAsked(t *testing.T)
 	}
 }
 
+func TestAClaudeRequestWithoutReasoningStaysWithoutThinking(t *testing.T) {
+	t.Parallel()
+
+	for model, keepsTemperature := range map[string]bool{
+		"anthropic/claude-opus-4-8":               false,
+		"anthropic/claude-sonnet-4-6":             true,
+		"bedrock/us.anthropic.claude-opus-4-6-v1": true,
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			_, sent := sendForWarningsWith(t, model, nil, llms.WithTemperature(0.3))
+
+			if _, ok := sent["thinking"]; ok {
+				t.Errorf("the caller asked for no thinking, got %v", sent)
+			}
+			if keepsTemperature && sent["temperature"] != 0.3 {
+				t.Errorf("a request without thinking keeps the caller's temperature, got %v", sent)
+			}
+		})
+	}
+}
+
 func TestDelegatedAdaptiveAsksForTheThinkingTextTheAnthropicDoorReturns(t *testing.T) {
 	t.Parallel()
 
