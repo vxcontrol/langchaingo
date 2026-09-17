@@ -33,17 +33,22 @@ func (e *ErrStructuredOutputRefusal) Error() string {
 	return fmt.Sprintf("openai structured output: model refused (model=%s choice=%d): %s", e.Model, e.Choice, e.Refusal)
 }
 
+func noJSONObjectReason(model string) string {
+	switch {
+	case reasoning.TakesNoResponseFormat(model):
+		return takesNoResponseFormat
+	case reasoning.TakesNoJSONObject(model):
+		return "the vendor has no json_object response format for this model"
+	}
+	return ""
+}
+
 func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, warn *llms.Warnings) {
 	if !opts.GetJSONMode() {
 		return
 	}
-	var reason string
-	switch {
-	case reasoning.TakesNoResponseFormat(model):
-		reason = takesNoResponseFormat
-	case reasoning.TakesNoJSONObject(model):
-		reason = "the vendor has no json_object response format for this model"
-	default:
+	reason := noJSONObjectReason(model)
+	if reason == "" {
 		req.SetResponseFormat(ResponseFormatJSON)
 		return
 	}
@@ -53,6 +58,22 @@ func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOpti
 			Asked: "true", Reason: reason,
 		})
 	}
+}
+
+func setClientResponseFormat(req *openaiclient.ChatRequest, model string, rf *ResponseFormat, warn *llms.Warnings) {
+	if rf == nil {
+		return
+	}
+	if rf.Type == ResponseFormatJSON.Type {
+		if reason := noJSONObjectReason(model); reason != "" {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithResponseFormat", Model: model,
+				Asked: rf.Type, Reason: reason,
+			})
+			return
+		}
+	}
+	req.SetResponseFormat(rf)
 }
 
 // setStructuredOutput translates a per-call llms.StructuredOutput into OpenAI's
