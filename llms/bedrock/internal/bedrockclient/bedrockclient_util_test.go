@@ -208,7 +208,7 @@ func TestConverse_StructuredOutput_CoexistsWithReasoning(t *testing.T) {
 	}), mock.Anything).Return(textOutput(`{"answer":"ok"}`, types.StopReasonEndTurn), nil)
 
 	input := &ConverseInput{
-		ModelID:          "anthropic.claude-sonnet-4-6",
+		ModelID:          "anthropic.claude-opus-4-6-v1",
 		Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 		ReasoningConfig:  &llms.ReasoningConfig{Mode: llms.ReasoningOn, Adaptive: true, Effort: llms.ReasoningHigh},
 		StructuredOutput: soConfig(),
@@ -316,7 +316,8 @@ var (
 		"anthropic.claude-3-sonnet-20240229-v1:0",
 	}
 	claudeWithStructuredOutputOnBedrock = []string{
-		"us.anthropic.claude-opus-4-6-v1", "anthropic.claude-sonnet-4-6", "anthropic.claude-sonnet-4-5-20250929-v1:0",
+		"us.anthropic.claude-opus-4-6-v1", "us.anthropic.claude-sonnet-4-6", "global.anthropic.claude-sonnet-4-6",
+		"anthropic.claude-sonnet-4-6", "anthropic.claude-sonnet-4-5-20250929-v1:0",
 		"us.anthropic.claude-opus-4-5-20251101-v1:0", "global.anthropic.claude-haiku-4-5-20251001-v1:0",
 	}
 )
