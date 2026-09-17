@@ -779,7 +779,7 @@ func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
 func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
 	baseFields, baseIsObject := jsonObject(base)
 	extraFields, extraIsObject := jsonObject(extra)
-	if !baseIsObject || !extraIsObject {
+	if !baseIsObject || !extraIsObject || selectsAnotherVariant(baseFields, extraFields) {
 		return extra, nil
 	}
 	for key, value := range extraFields {
@@ -790,6 +790,12 @@ func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
 		baseFields[key] = merged
 	}
 	return json.Marshal(baseFields)
+}
+
+func selectsAnotherVariant(base, extra map[string]json.RawMessage) bool {
+	baseType, baseTyped := base["type"]
+	extraType, extraTyped := extra["type"]
+	return baseTyped && extraTyped && !bytes.Equal(baseType, extraType)
 }
 
 func jsonObject(value json.RawMessage) (map[string]json.RawMessage, bool) {

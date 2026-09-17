@@ -49,7 +49,8 @@ func isLegacyMaxTokensField(opts *llms.CallOptions) bool {
 // to the OpenAI-compatible API, allowing you to use provider-specific parameters not
 // directly supported by the library. A JSON object merges key by key, at every depth,
 // into the object the library built under the same name; any other value (a scalar,
-// an array, null) replaces the library's, so a leaf set here always wins.
+// an array, null) replaces the library's, so a leaf set here always wins. An object
+// whose "type" differs from the "type" of the library's object replaces it whole.
 //
 // Example usage:
 //

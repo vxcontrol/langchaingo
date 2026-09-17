@@ -330,7 +330,8 @@ type CallOptions struct {
 	// ExtraBody holds provider-specific request-body fields set by WithExtraBody.
 	// A door that merges them merges a JSON object into the object it built under
 	// the same key, key by key at every depth; any other value (a scalar, an array,
-	// null) replaces the door's, so a leaf from ExtraBody always wins.
+	// null) replaces the door's, so a leaf from ExtraBody always wins. An object
+	// whose "type" differs from the "type" of the door's object replaces it whole.
 	ExtraBody map[string]any `json:"extra_body,omitempty"`
 
 	// Metadata is a map of metadata to include in the request.

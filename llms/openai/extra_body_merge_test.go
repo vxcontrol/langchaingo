@@ -261,3 +261,82 @@ func TestAMergedThinkingObjectReportsNoExtraBodyLoss(t *testing.T) {
 		}
 	}
 }
+
+func TestExtraBodyObjectOfAnotherTypeReplacesTheDoors(t *testing.T) { //nolint:funlen // table-driven test
+	t.Parallel()
+
+	budgetAnd := func(thinking map[string]any) []llms.CallOption {
+		return []llms.CallOption{
+			llms.WithReasoning(llms.ReasoningNone, 2048), llms.WithMaxTokens(8192),
+			llms.WithExtraBody(map[string]any{"thinking": thinking}),
+		}
+	}
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{
+		Name: "verdict",
+		Schema: json.RawMessage(`{"type":"object","properties":{"a":{"type":"string"}},` +
+			`"required":["a"],"additionalProperties":false}`),
+	})
+	tools := llms.WithTools([]llms.Tool{{
+		Type:     "function",
+		Function: &llms.FunctionDefinition{Name: "lookup", Parameters: json.RawMessage(`{"type":"object"}`)},
+	}})
+	named := llms.WithToolChoice(llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}})
+	allowedTools := map[string]any{
+		"type": "allowed_tools",
+		"allowed_tools": map[string]any{
+			"mode":  "auto",
+			"tools": []any{map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}},
+		},
+	}
+
+	for name, tc := range map[string]struct {
+		model  string
+		answer string
+		opts   []llms.CallOption
+		want   map[string]string
+	}{
+		"claude budget under disabled thinking": {
+			model: "anthropic/claude-sonnet-4-5",
+			opts:  budgetAnd(map[string]any{"type": "disabled"}),
+			want:  map[string]string{"thinking": `{"type":"disabled"}`},
+		},
+		"claude budget under adaptive thinking": {
+			model: "anthropic/claude-opus-4-6",
+			opts:  budgetAnd(map[string]any{"type": "adaptive", "display": "summarized"}),
+			want:  map[string]string{"thinking": `{"type":"adaptive","display":"summarized"}`},
+		},
+		"claude budget under the same type keeps the budget": {
+			model: "anthropic/claude-sonnet-4-5",
+			opts:  budgetAnd(map[string]any{"type": "enabled", "display": "omitted"}),
+			want:  map[string]string{"thinking": `{"type":"enabled","budget_tokens":2048,"display":"omitted"}`},
+		},
+		"structured output under a json object format": {
+			model: "gpt-4o", answer: `{"a":"b"}`,
+			opts: []llms.CallOption{
+				schema, llms.WithExtraBody(map[string]any{"response_format": map[string]any{"type": "json_object"}}),
+			},
+			want: map[string]string{"response_format": `{"type":"json_object"}`},
+		},
+		"a type the door's object does not carry merges into it": {
+			model: "gpt-4o",
+			opts:  []llms.CallOption{llms.WithExtraBody(map[string]any{"type": "chat"})},
+			want:  map[string]string{"model": `"gpt-4o"`, "type": `"chat"`},
+		},
+		"a named tool choice under allowed tools": {
+			model: "gpt-4o",
+			opts:  []llms.CallOption{tools, named, llms.WithExtraBody(map[string]any{"tool_choice": allowedTools})},
+			want: map[string]string{"tool_choice": `{"type":"allowed_tools","allowed_tools":{"mode":"auto",` +
+				`"tools":[{"type":"function","function":{"name":"lookup"}}]}}`},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			answer := tc.answer
+			if answer == "" {
+				answer = "ok"
+			}
+			assertWireJSON(t, extraBodyWire(t, tc.model, nil, answer, tc.opts...), tc.want)
+		})
+	}
+}
