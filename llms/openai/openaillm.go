@@ -410,15 +410,7 @@ func (o *LLM) setReasoning(
 	}
 	switch mode { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
 	case llms.ReasoningDefault:
-		if toolsRule == reasoning.EffortToolsDisable {
-			o.writeDisableEffort(req)
-			reportDelegatedDepth(warn, model, delegated, reasoning.OpenAIDisableEffort)
-			return reasoning.OpenAIDisableEffort, nil
-		}
-		if delegated && reasoning.ThinkingOptIn(model) {
-			reportDelegatedDepth(warn, model, delegated, "")
-		}
-		return "", nil
+		return o.setDeferredReasoning(req, opts, toolsRule, warn), nil
 	case llms.ReasoningOff:
 		return "", o.setReasoningOff(req, opts)
 	}
@@ -446,6 +438,26 @@ func (o *LLM) setReasoning(
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
 	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
 	return wire, nil
+}
+
+func (o *LLM) setDeferredReasoning(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, toolsRule reasoning.EffortToolsRule, warn *llms.Warnings,
+) string {
+	model := o.effectiveModel(opts)
+	delegated := opts.Reasoning.DelegatesDepth()
+	if toolsRule == reasoning.EffortToolsDisable {
+		o.writeDisableEffort(req)
+		reportDelegatedDepth(warn, model, delegated, reasoning.OpenAIDisableEffort)
+		return reasoning.OpenAIDisableEffort
+	}
+	if delegated && o.sendsClaudeAdaptive(model) {
+		req.Thinking = &openaiclient.ThinkingOptions{Type: "adaptive"}
+		return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+	}
+	if delegated && reasoning.ThinkingOptIn(model) {
+		reportDelegatedDepth(warn, model, delegated, "")
+	}
+	return ""
 }
 
 func budgetsFor(
@@ -491,6 +503,13 @@ func (o *LLM) sendsClaudeBudget(model string, opts llms.CallOptions) bool {
 		opts.Reasoning.HasExplicitTokens() &&
 		reasoning.ClaudeSpendsThinkingBudget(model) &&
 		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
+}
+
+func (o *LLM) sendsClaudeAdaptive(model string) bool {
+	return !o.client.ModernReasoningFormat &&
+		reasoning.ClaudeSupportsThinking(model) &&
+		reasoning.ResolveClaudeAdaptive(model, true) &&
+		!reasoning.ClaudeThinkingDefaultsOn(model)
 }
 
 func (o *LLM) sendsBudgetInsteadOfEffort(model string, opts llms.CallOptions, tokens int) bool {
