@@ -196,15 +196,15 @@ configuration on this platform. The rest carry nothing.
 **Converse API** — a thinking configuration is sent for:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking`
   in `additionalModelRequestFields`, adaptive or budget (see below)
-- Amazon Nova 2 Lite and Sonic — `reasoningConfig` in `additionalModelRequestFields`.
-  The vendor marks the field for those two only, so Nova 2 Pro and Micro do not get it
+- Amazon Nova 2 Lite — `reasoningConfig` in `additionalModelRequestFields`.
+  Nova 2 Pro, Micro and Sonic do not get it
 - xAI Grok 4.x — `reasoning.effort` in `additionalModelRequestFields`
 - OpenAI GPT OSS 120B and 20B — `reasoning_effort` in `additionalModelRequestFields`
 
 **Legacy API** (InvokeModel) — a thinking configuration is sent for:
 - Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
   Anthropic body
-- Amazon Nova 2 Lite and Sonic — `reasoningConfig` inside `inferenceConfig`
+- Amazon Nova 2 Lite — `reasoningConfig` inside `inferenceConfig`
 
 **Reasoning models that take no configuration here**: Moonshot Kimi K2-Thinking,
 MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM 4.7/4.7 Flash/5, NVIDIA Nemotron 3
