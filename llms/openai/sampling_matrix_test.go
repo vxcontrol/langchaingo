@@ -150,6 +150,12 @@ func TestSamplingMatrix(t *testing.T) {
 		},
 		present: []string{`"frequency_penalty":0.5`, `"presence_penalty":0.4`, `"reasoning_effort":"none"`},
 	}, {
+		name:    "the bottom of the first GPT-5 scale still thinks and loses its sampling",
+		model:   "gpt-5-mini",
+		opts:    []llms.CallOption{temp, topP, llms.WithReasoning(llms.ReasoningMinimal, 0)},
+		present: []string{`"reasoning_effort":"minimal"`},
+		absent:  []string{`"temperature"`, `"top_p"`},
+	}, {
 		name:    "a non-reasoning model keeps everything",
 		model:   "gpt-4.1",
 		opts:    []llms.CallOption{temp, topP},
