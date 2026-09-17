@@ -531,11 +531,9 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 
 const anthropicAPIHost = "api.anthropic.com"
 
-var claudeResellerHosts = []string{"api.deepinfra.com", "api.perplexity.ai", "openrouter.ai"}
-
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
 	return !o.client.ModernReasoningFormat &&
-		!slices.Contains(claudeResellerHosts, o.host) &&
+		!publicProviderHost(o.host) &&
 		reasoning.ClaudeThinkingObjectRoute(model)
 }
 

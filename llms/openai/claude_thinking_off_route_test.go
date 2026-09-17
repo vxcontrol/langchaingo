@@ -26,6 +26,8 @@ func TestTurningOffClaudeIsRefusedWhereTheHostDocumentsNoThinkingObject(t *testi
 		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-opus-5", nil},
 		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-sonnet-5", nil},
 		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-5", nil},
+		"ZenMux":                         {"http://zenmux.ai/api/v1", "anthropic/claude-opus-5", nil},
+		"Vercel AI Gateway":              {"http://ai-gateway.vercel.sh/v1", "anthropic/claude-sonnet-5", nil},
 		"the reasoning object format": {
 			gatewayBaseURL, "anthropic/claude-sonnet-5", []Option{WithModernReasoningFormat()},
 		},

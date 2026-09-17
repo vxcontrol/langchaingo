@@ -41,6 +41,8 @@ func TestDelegatedAdaptiveIsReportedWhereTheHostDocumentsNoThinkingObject(t *tes
 		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-opus-4-8"},
 		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-opus-4-7"},
 		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6"},
+		"ZenMux":                         {"http://zenmux.ai/api/v1", "anthropic/claude-opus-4.8"},
+		"Vercel AI Gateway":              {"http://ai-gateway.vercel.sh/v1", "anthropic/claude-opus-4.8"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

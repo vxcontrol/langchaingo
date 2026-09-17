@@ -93,6 +93,8 @@ func TestAClaudeBudgetStaysOffHostsThatDocumentNoThinkingObject(t *testing.T) {
 		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-sonnet-4-6"},
 		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-sonnet-4-5"},
 		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.5"},
+		"ZenMux":                         {"http://zenmux.ai/api/v1", "anthropic/claude-sonnet-4.6"},
+		"Vercel AI Gateway":              {"http://ai-gateway.vercel.sh/v1", "anthropic/claude-sonnet-4.5"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
