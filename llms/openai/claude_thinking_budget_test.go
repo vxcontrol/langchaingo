@@ -82,3 +82,33 @@ func TestABudgetStaysOffModelsThatAreNotClaude(t *testing.T) {
 		}
 	}
 }
+
+func TestAClaudeBudgetStaysOffHostsThatDocumentNoThinkingObject(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct{ baseURL, model string }{
+		"the gateway's deepinfra route":  {gatewayBaseURL, "deepinfra/anthropic/claude-sonnet-4-6"},
+		"the gateway's perplexity route": {gatewayBaseURL, "perplexity/anthropic/claude-sonnet-4-5"},
+		"the gateway's openrouter route": {gatewayBaseURL, "openrouter/anthropic/claude-haiku-4.5"},
+		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-sonnet-4-6"},
+		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-sonnet-4-5"},
+		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.5"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			body, resp := sendToHost(t, tc.baseURL, tc.model,
+				llms.WithReasoning(llms.ReasoningNone, 2048), llms.WithMaxTokens(8192))
+
+			if _, ok := body["thinking"]; ok {
+				t.Errorf("this host documents no thinking object, got body: %v", body)
+			}
+			if _, ok := body["reasoning_effort"]; !ok {
+				t.Errorf("want the effort the budget maps to, got body: %v", body)
+			}
+			if w := warningFor(t, resp, "WithReasoning"); w.Asked == w.Sent {
+				t.Errorf("the budget that did not travel must be reported, got %+v", w)
+			}
+		})
+	}
+}

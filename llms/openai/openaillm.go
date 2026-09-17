@@ -517,6 +517,7 @@ func (o *LLM) budgetHasNoField(model string, opts llms.CallOptions) bool {
 
 func (o *LLM) sendsClaudeBudget(model string, opts llms.CallOptions) bool {
 	return !o.client.ModernReasoningFormat &&
+		claudeThinkingObjectRoute(model, o.host) &&
 		opts.Reasoning.HasExplicitTokens() &&
 		reasoning.ClaudeSpendsThinkingBudget(model) &&
 		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
