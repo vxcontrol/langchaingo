@@ -117,7 +117,10 @@ func RequiresAPIKey(baseURL string, apiType APIType) bool {
 	if strings.TrimSpace(baseURL) == "" {
 		return true
 	}
-	host := hostnameFromURL(baseURL)
+	return publicProviderHost(hostnameFromURL(baseURL))
+}
+
+func publicProviderHost(host string) bool {
 	if host == "" {
 		return false
 	}

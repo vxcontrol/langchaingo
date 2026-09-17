@@ -108,6 +108,16 @@ func ClaudeThinkingDefaultsOn(model string) bool {
 	return containsAny(canonicalClaude(model), defaultOnClaude)
 }
 
+var claudeThinkingObjectRoutes = []string{"anthropic", "bedrock", "vertex_ai"}
+
+// ClaudeThinkingObjectRoute reports whether a Claude name on an OpenAI-shaped
+// door is bare or carries a LiteLLM route that passes Anthropic's thinking
+// object on to a vendor that documents it.
+func ClaudeThinkingObjectRoute(model string) bool {
+	route, _, prefixed := strings.Cut(model, "/")
+	return !prefixed || slices.Contains(claudeThinkingObjectRoutes, route)
+}
+
 // claudeEffortsByKind lists the effort levels each generation accepts.
 var claudeEffortsByKind = map[ClaudeReasoningKind][]string{
 	ClaudeReasoningAdaptiveOnly:      {"low", "medium", "high", "xhigh", "max"},

@@ -457,7 +457,7 @@ func (o *LLM) setDeferredReasoning(
 			reportAdaptiveRefused(warn, model)
 			return ""
 		}
-		if !claudeThinkingObjectRoute(model, o.host) {
+		if !o.sendsClaudeThinkingObject(model) {
 			reportDelegatedDepth(warn, model, delegated, "")
 			return ""
 		}
@@ -516,7 +516,7 @@ func (o *LLM) budgetHasNoField(model string, opts llms.CallOptions) bool {
 }
 
 func (o *LLM) sendsClaudeBudget(model string, opts llms.CallOptions) bool {
-	return !o.client.ModernReasoningFormat &&
+	return o.sendsClaudeThinkingObject(model) &&
 		opts.Reasoning.HasExplicitTokens() &&
 		reasoning.ClaudeSpendsThinkingBudget(model) &&
 		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
@@ -531,17 +531,10 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 
 const anthropicAPIHost = "api.anthropic.com"
 
-var (
-	claudeThinkingObjectRoutes = []string{"anthropic", "bedrock", "vertex_ai"}
-	claudeResellerHosts        = []string{"api.deepinfra.com", "api.perplexity.ai", "openrouter.ai"}
-)
-
-func claudeThinkingObjectRoute(model, host string) bool {
-	if slices.Contains(claudeResellerHosts, host) {
-		return false
-	}
-	route, _, prefixed := strings.Cut(model, "/")
-	return !prefixed || slices.Contains(claudeThinkingObjectRoutes, route)
+func (o *LLM) sendsClaudeThinkingObject(model string) bool {
+	return !o.client.ModernReasoningFormat &&
+		!publicProviderHost(o.host) &&
+		reasoning.ClaudeThinkingObjectRoute(model)
 }
 
 func (o *LLM) sendsBudgetInsteadOfEffort(model string, opts llms.CallOptions, tokens int) bool {
@@ -606,6 +599,9 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 		thinkingOff := false
 		req.EnableThinking = &thinkingOff
 	case reasoning.OffDisableThinkingObject:
+		if reasoning.ClaudeThinkingDefaultsOn(model) && !o.sendsClaudeThinkingObject(model) {
+			return &reasoning.ErrReasoningOffUnsupported{Model: model}
+		}
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "disabled"}
 	}
 	return nil

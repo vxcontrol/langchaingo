@@ -35,12 +35,16 @@ func TestDelegatedAdaptiveIsReportedWhereTheHostDocumentsNoThinkingObject(t *tes
 	t.Parallel()
 
 	for name, tc := range map[string]struct{ baseURL, model string }{
-		"the gateway's deepinfra route":  {gatewayBaseURL, "deepinfra/anthropic/claude-opus-4-8"},
-		"the gateway's perplexity route": {gatewayBaseURL, "perplexity/anthropic/claude-sonnet-4-6"},
-		"the gateway's openrouter route": {gatewayBaseURL, "openrouter/anthropic/claude-opus-4.8"},
-		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-opus-4-8"},
-		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-opus-4-7"},
-		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6"},
+		"the gateway's deepinfra route":   {gatewayBaseURL, "deepinfra/anthropic/claude-opus-4-8"},
+		"the gateway's perplexity route":  {gatewayBaseURL, "perplexity/anthropic/claude-sonnet-4-6"},
+		"the gateway's openrouter route":  {gatewayBaseURL, "openrouter/anthropic/claude-opus-4.8"},
+		"the gateway's azure_ai route":    {gatewayBaseURL, "azure_ai/claude-opus-4-8"},
+		"the gateway's together_ai route": {gatewayBaseURL, "together_ai/anthropic/claude-opus-4-8"},
+		"DeepInfra":                       {"http://api.deepinfra.com/v1/openai", "anthropic/claude-opus-4-8"},
+		"Perplexity":                      {"http://api.perplexity.ai", "anthropic/claude-opus-4-7"},
+		"OpenRouter":                      {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6"},
+		"ZenMux":                          {"http://zenmux.ai/api/v1", "anthropic/claude-opus-4.8"},
+		"Vercel AI Gateway":               {"http://ai-gateway.vercel.sh/v1", "anthropic/claude-opus-4.8"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
