@@ -328,6 +328,9 @@ type CallOptions struct {
 	FunctionCallBehavior FunctionCallBehavior `json:"function_call,omitempty"`
 
 	// ExtraBody holds provider-specific request-body fields set by WithExtraBody.
+	// A door that merges them merges a JSON object into the object it built under
+	// the same key, key by key at every depth; any other value (a scalar, an array,
+	// null) replaces the door's, so a leaf from ExtraBody always wins.
 	ExtraBody map[string]any `json:"extra_body,omitempty"`
 
 	// Metadata is a map of metadata to include in the request.

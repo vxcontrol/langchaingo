@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strings"
 
@@ -119,7 +118,6 @@ type ChatRequest struct {
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
 
 	// ExtraBody allows passing additional fields that will be merged into the request body.
-	// These fields take precedence over the standard fields.
 	ExtraBody map[string]any `json:"-"`
 }
 
@@ -771,20 +769,35 @@ func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
 	if len(extraBody) == 0 {
 		return payload, nil
 	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &fields); err != nil {
-		return nil, err
-	}
 	extra, err := json.Marshal(extraBody)
 	if err != nil {
 		return nil, err
 	}
-	var extraFields map[string]json.RawMessage
-	if err := json.Unmarshal(extra, &extraFields); err != nil {
-		return nil, err
+	return mergeJSON(payload, extra)
+}
+
+func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
+	baseFields, baseIsObject := jsonObject(base)
+	extraFields, extraIsObject := jsonObject(extra)
+	if !baseIsObject || !extraIsObject {
+		return extra, nil
 	}
-	maps.Copy(fields, extraFields)
-	return json.Marshal(fields)
+	for key, value := range extraFields {
+		merged, err := mergeJSON(baseFields[key], value)
+		if err != nil {
+			return nil, err
+		}
+		baseFields[key] = merged
+	}
+	return json.Marshal(baseFields)
+}
+
+func jsonObject(value json.RawMessage) (map[string]json.RawMessage, bool) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(value, &fields); err != nil || fields == nil {
+		return nil, false
+	}
+	return fields, true
 }
 
 func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
