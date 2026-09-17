@@ -47,6 +47,10 @@ func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, ptr(float32(0.97))},
 		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), nil},
 		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, nil},
+		{
+			"below the floor is stripped where both params may travel together",
+			"anthropic.claude-sonnet-4-20250514-v1:0", 0.5, nil, nil,
+		},
 		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
