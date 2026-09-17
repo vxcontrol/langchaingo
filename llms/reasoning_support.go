@@ -108,6 +108,10 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 		return levelOnlySupport(model, p, reasoning.NovaEfforts(), false)
 	}
 
+	if p == reasoning.ProviderBedrock && reasoning.IsBedrockNonReasoningModel(model) {
+		return ReasoningSupport{Known: true, DefaultOn: boolPtr(false)}
+	}
+
 	if caps := reasoning.OpenAIReasoningCapsFor(model); caps.Known {
 		return ReasoningSupport{
 			Supported:       true,

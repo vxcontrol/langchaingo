@@ -41,6 +41,14 @@ func IsBedrockAlwaysReasoningModel(model string) bool {
 	return strings.Contains(baseModelName(model), "deepseek.r1")
 }
 
+// IsBedrockNonReasoningModel reports whether the model answers without reasoning
+// on the Converse door and AWS documents no field that turns it on.
+func IsBedrockNonReasoningModel(model string) bool {
+	return slices.Contains(bedrockNonReasoningModels, baseModelName(model))
+}
+
+var bedrockNonReasoningModels = []string{"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5"}
+
 // IsGptOssModel reports whether the Bedrock model is one of OpenAI's gpt-oss models.
 func IsGptOssModel(model string) bool {
 	base := baseModelName(model)

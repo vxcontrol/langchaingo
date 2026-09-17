@@ -714,3 +714,72 @@ func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
 			efforts)
 	}
 }
+
+func TestTheBedrockHintPresentsNoReasoningWhereTheConverseDoorHasNone(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified model that does not reason on Bedrock: AWS documents no "+
+					"reasoning field for it and the Converse door answers without reasoning content", model, s)
+			}
+			if s.CannotDisable || len(s.Efforts) != 0 || s.Mechanism != ReasoningMechanismUnknown {
+				t.Errorf("%s = %+v, want no control at all", model, s)
+			}
+			if s.DefaultOn == nil || *s.DefaultOn {
+				t.Errorf("%s DefaultOn = %v, want false", model, s.DefaultOn)
+			}
+			if !reasoning.IsReasoningModel(model) {
+				t.Errorf("%s: the door-agnostic classification must stay as it is", model)
+			}
+			if other := ReasoningSupportFor(model, reasoning.ProviderOpenAI); !other.Supported {
+				t.Errorf("%s on the openai door = %+v: the Converse verdict must not reach another door", model, other)
+			}
+		})
+	}
+
+	for _, model := range []string{"glm-4.7", "glm-4.7-flash", "glm-5"} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderOpenAI); !s.Supported {
+			t.Errorf("%s on its own vendor's door = %+v, want a reasoning model", model, s)
+		}
+	}
+
+	for _, model := range []string{
+		"us.deepseek.r1-v1:0", "moonshot.kimi-k2-thinking", "mistral.magistral-small-2509",
+		"openai.gpt-oss-120b-1:0", "us.amazon.nova-2-lite-v1:0",
+	} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderBedrock); !s.Supported {
+			t.Errorf("%s = %+v: AWS documents reasoning for it, so the verdict must not reach it", model, s)
+		}
+	}
+
+	if s := ReasoningSupportFor("zai.glm-5.1", reasoning.ProviderBedrock); s.Known {
+		t.Errorf("zai.glm-5.1 = %+v: a generation nobody measured on the door must stay unclassified", s)
+	}
+}
+
+func TestTheBedrockHintDoesNotPresentOffForNemotronSuper(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"nvidia.nemotron-super-3-120b", "us-gov.nvidia.nemotron-super-3-120b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+		if !s.Supported {
+			t.Errorf("%s = %+v, want a reasoning model: the Converse door returns its reasoning in the text "+
+				"on requests that ask for none", model, s)
+		}
+		if len(s.Efforts) != 0 || s.Mechanism != ReasoningMechanismUnknown {
+			t.Errorf("%s = %+v: AWS documents no reasoning field for it, so the hint must offer no level", model, s)
+		}
+		if off := reasoning.ResolveOff(model, reasoning.ProviderBedrock); off != reasoning.OffOmit {
+			t.Errorf("%s ResolveOff = %v, want OffOmit: AWS documents no field that disables it", model, off)
+		}
+		if s.DefaultOn != nil && !*s.DefaultOn {
+			t.Errorf("%s DefaultOn = false, want unknown: an omitted Off would read as working while the model "+
+				"still reasons on some requests", model)
+		}
+	}
+}
