@@ -249,7 +249,11 @@ Fable, Mythos, GPT OSS or DeepSeek R1.
 The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
 the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
 4.5; any other Claude model returns a typed `ErrStructuredOutputUnsupported` before
-the request. The final response is guaranteed to be a single JSON value
+the request. On the Converse API the other families get it only where their AWS model
+card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3,
+Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose
+card is silent return the same typed error. The final response is guaranteed to be a
+single JSON value
 matching the supplied JSON Schema (Draft 2020-12), validated locally against the
 original schema.
 
@@ -271,7 +275,7 @@ resp, err := llm.GenerateContent(ctx, messages,
 
 **Requirements and behavior**:
 - Every object node must set `additionalProperties: false` — Bedrock rejects a schema that omits it. The SDK enforces this locally with a typed `ErrStructuredOutputConfig` before the request is sent.
-- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — any model AWS advertises as supporting Structured Outputs works.
+- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — a model whose AWS model card lists Structured Outputs gets it; any other returns the typed unsupported error.
 - Only the final normal turn (`end_turn`/`stop_sequence`) is validated; a `tool_use`/`max_tokens`/guardrail/filtered turn is not treated as final JSON.
 - The response `StopReason` is surfaced on `ContentChoice.StopReason` (Converse now transfers it from the response/`MessageStopEvent`).
 
@@ -806,12 +810,12 @@ model IDs.
 | Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | Converse native* |
-| Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
-| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
-| Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | Converse native* |
+| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | ❌ |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
+| DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | ❌ |
 | OpenAI GPT (OSS) | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
 | Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
@@ -820,7 +824,7 @@ model IDs.
 | GLM-4.7/4.7-Flash/5 | ❌***** | ❌ | ✅ | ❌ | ❌ | Converse native* |
 | NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 
-*Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; support depends on what AWS advertises for the model at the time. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
+*Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; only for the models whose AWS model card lists Structured Outputs. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
 **Qwen3: Most models support tools, except Qwen3-VL (unstable in streaming)  
 ***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  

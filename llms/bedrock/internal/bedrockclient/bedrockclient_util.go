@@ -99,8 +99,7 @@ func isSimpleType(t reflect.Type) bool {
 }
 
 // applyConverseStructuredOutput sets the native Converse OutputConfig.TextFormat
-// from a per-call schema. Only Claude is checked against a local list; other
-// families go to the provider as asked.
+// from a per-call schema.
 func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockruntime.ConverseInput) error {
 	so := input.StructuredOutput
 	if so == nil {
@@ -111,6 +110,13 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 			Provider: providerBedrock,
 			Model:    input.ModelID,
 			Reason:   bedrockClaudeStructuredOutputReason,
+		}
+	}
+	if !isAnthropicModelID(input.ModelID) && !reasoning.BedrockSupportsStructuredOutput(input.ModelID) {
+		return &llms.ErrStructuredOutputUnsupported{
+			Provider: providerBedrock,
+			Model:    input.ModelID,
+			Reason:   bedrockModelCardStructuredOutputReason,
 		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;
@@ -133,7 +139,10 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	return nil
 }
 
-const bedrockClaudeStructuredOutputReason = "Amazon Bedrock serves structured output for this Claude model on neither API"
+const (
+	bedrockClaudeStructuredOutputReason    = "Amazon Bedrock serves structured output for this Claude model on neither API"
+	bedrockModelCardStructuredOutputReason = "the model's Amazon Bedrock model card does not list structured outputs"
+)
 
 // applyAnthropicStructuredOutput folds a per-call schema into the legacy Anthropic
 // output_config.format, preserving any effort already set.
