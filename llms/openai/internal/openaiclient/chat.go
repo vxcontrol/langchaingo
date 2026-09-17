@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strings"
 
@@ -119,7 +118,6 @@ type ChatRequest struct {
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
 
 	// ExtraBody allows passing additional fields that will be merged into the request body.
-	// These fields take precedence over the standard fields.
 	ExtraBody map[string]any `json:"-"`
 }
 
@@ -737,19 +735,8 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 		return nil, err
 	}
 
-	// If ExtraBody is provided, merge it with the standard payload
-	if len(payload.ExtraBody) > 0 {
-		var baseMap map[string]any
-		if err := json.Unmarshal(payloadBytes, &baseMap); err != nil {
-			return nil, err
-		}
-
-		// Merge ExtraBody with priority (ExtraBody overwrites existing fields)
-		maps.Copy(baseMap, payload.ExtraBody)
-
-		if payloadBytes, err = json.Marshal(baseMap); err != nil {
-			return nil, err
-		}
+	if payloadBytes, err = mergeExtraBody(payloadBytes, payload.ExtraBody); err != nil {
+		return nil, err
 	}
 
 	// Build request
@@ -776,6 +763,47 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 	}
 
 	return parseChatResponse(r.Body)
+}
+
+func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
+	if len(extraBody) == 0 {
+		return payload, nil
+	}
+	extra, err := json.Marshal(extraBody)
+	if err != nil {
+		return nil, err
+	}
+	return mergeJSON(payload, extra)
+}
+
+func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
+	baseFields, baseIsObject := jsonObject(base)
+	extraFields, extraIsObject := jsonObject(extra)
+	if !baseIsObject || !extraIsObject || selectsAnotherVariant(baseFields, extraFields) {
+		return extra, nil
+	}
+	for key, value := range extraFields {
+		merged, err := mergeJSON(baseFields[key], value)
+		if err != nil {
+			return nil, err
+		}
+		baseFields[key] = merged
+	}
+	return json.Marshal(baseFields)
+}
+
+func selectsAnotherVariant(base, extra map[string]json.RawMessage) bool {
+	baseType, baseTyped := base["type"]
+	extraType, extraTyped := extra["type"]
+	return baseTyped && extraTyped && !bytes.Equal(baseType, extraType)
+}
+
+func jsonObject(value json.RawMessage) (map[string]json.RawMessage, bool) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(value, &fields); err != nil || fields == nil {
+		return nil, false
+	}
+	return fields, true
 }
 
 func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
