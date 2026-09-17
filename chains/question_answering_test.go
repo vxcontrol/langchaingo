@@ -24,6 +24,7 @@ func createOpenAILLMForQA(t *testing.T) *openai.LLM {
 	}
 
 	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 
