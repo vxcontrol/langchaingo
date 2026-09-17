@@ -28,8 +28,6 @@ func NovaEfforts() []string {
 	return []string{"low", "medium", "high"}
 }
 
-// NovaClearsInferenceConfigAt reports whether Nova refuses temperature, topP and
-// maxTokens alongside the given effort.
 func NovaClearsInferenceConfigAt(effort string) bool {
 	return NovaEffort(effort) == "high"
 }
