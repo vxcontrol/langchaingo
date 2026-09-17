@@ -54,7 +54,7 @@ func QwenThinkingEnabledByFlag(model string) bool {
 }
 
 var dashScopeGuestBudget = []string{
-	"glm-5", "glm-4.7", "glm-4.6", "glm-4.5",
+	"glm-5.2", "glm-5.1", "glm-4.7", "glm-4.6", "glm-4.5",
 	"kimi-k2.5", "kimi-k2.6", "kimi-k2.7-code", "kimi-k2-thinking",
 	"deepseek-v4",
 }
@@ -75,6 +75,9 @@ func DashScopeTakesThinkingBudget(model string) bool {
 		return false
 	}
 	if guest := dashScopeGuestSpelling(model); guest != "" {
+		if guest == "glm-5" {
+			return true
+		}
 		for _, generation := range dashScopeGuestBudget {
 			if hasGeneration(guest, generation) {
 				return true
