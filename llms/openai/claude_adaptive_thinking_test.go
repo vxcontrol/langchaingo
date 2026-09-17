@@ -13,9 +13,8 @@ func TestDelegatedAdaptiveTurnsThinkingOnWhereClaudeWaitsToBeAsked(t *testing.T)
 	for _, model := range []string{
 		"claude-opus-4-8", "anthropic/claude-opus-4-8", "anthropic/claude-opus-4-7",
 		"anthropic/claude-opus-4-6", "anthropic/claude-sonnet-4-6",
-		"openrouter/anthropic/claude-opus-4.8",
 		"us.anthropic.claude-opus-4-8", "bedrock/us.anthropic.claude-opus-4-6-v1",
-		"bedrock/global.anthropic.claude-sonnet-4-6",
+		"bedrock/global.anthropic.claude-sonnet-4-6", "vertex_ai/claude-opus-4-7",
 	} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
@@ -27,6 +26,32 @@ func TestDelegatedAdaptiveTurnsThinkingOnWhereClaudeWaitsToBeAsked(t *testing.T)
 			}
 			if strings.Contains(body, "reasoning_effort") || strings.Contains(body, "budget_tokens") {
 				t.Errorf("the caller named no depth, got body: %s", body)
+			}
+		})
+	}
+}
+
+func TestDelegatedAdaptiveIsReportedWhereTheHostDocumentsNoThinkingObject(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct{ baseURL, model string }{
+		"the gateway's deepinfra route":  {gatewayBaseURL, "deepinfra/anthropic/claude-opus-4-8"},
+		"the gateway's perplexity route": {gatewayBaseURL, "perplexity/anthropic/claude-sonnet-4-6"},
+		"the gateway's openrouter route": {gatewayBaseURL, "openrouter/anthropic/claude-opus-4.8"},
+		"DeepInfra":                      {"http://api.deepinfra.com/v1/openai", "anthropic/claude-opus-4-8"},
+		"Perplexity":                     {"http://api.perplexity.ai", "anthropic/claude-opus-4-7"},
+		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-4.6"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+
+			if _, ok := body["thinking"]; ok {
+				t.Errorf("this host documents no thinking object, got body: %v", body)
+			}
+			if w := warningFor(t, resp, "WithAdaptiveReasoning"); w.Kind != llms.WarningDrop || w.Sent != "" {
+				t.Errorf("the lost adaptive request must be reported, got %+v", w)
 			}
 		})
 	}

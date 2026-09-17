@@ -451,6 +451,10 @@ func (o *LLM) setDeferredReasoning(
 		return reasoning.OpenAIDisableEffort
 	}
 	if delegated && o.sendsClaudeAdaptive(model) {
+		if !claudeThinkingObjectRoute(model, o.host) {
+			reportDelegatedDepth(warn, model, delegated, "")
+			return ""
+		}
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "adaptive", Display: "summarized"}
 		return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	}
@@ -510,6 +514,19 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 		reasoning.ClaudeSupportsThinking(model) &&
 		reasoning.ResolveClaudeAdaptive(model, true) &&
 		!reasoning.ClaudeThinkingDefaultsOn(model)
+}
+
+var (
+	claudeThinkingObjectRoutes = []string{"anthropic", "bedrock", "vertex_ai"}
+	claudeResellerHosts        = []string{"api.deepinfra.com", "api.perplexity.ai", "openrouter.ai"}
+)
+
+func claudeThinkingObjectRoute(model, host string) bool {
+	if slices.Contains(claudeResellerHosts, host) {
+		return false
+	}
+	route, _, prefixed := strings.Cut(model, "/")
+	return !prefixed || slices.Contains(claudeThinkingObjectRoutes, route)
 }
 
 func (o *LLM) sendsBudgetInsteadOfEffort(model string, opts llms.CallOptions, tokens int) bool {
