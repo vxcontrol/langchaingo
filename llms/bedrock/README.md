@@ -207,9 +207,14 @@ configuration on this platform. The rest carry nothing.
 - Amazon Nova 2 Lite — `reasoningConfig` inside `inferenceConfig`
 
 **Reasoning models that take no configuration here**: Moonshot Kimi K2-Thinking,
-MiniMax M2/M2.1/M2.5, DeepSeek R1, Z-AI GLM 4.7/4.7 Flash/5, NVIDIA Nemotron 3
-Super, Qwen3 32B, Magistral Small. AWS documents no reasoning field for them, so a
-`WithReasoning` call on them changes nothing on the wire.
+MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral
+Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them
+changes nothing on the wire.
+
+**Z-AI GLM 4.7/4.7 Flash/5** are not reasoning models here: their AWS model cards
+document neither reasoning nor a field that controls it, `ReasoningSupportFor`
+reports them as not reasoning, and a `WithReasoning` call on them changes nothing
+on the wire.
 
 **How the wire shape is resolved**
 
@@ -812,7 +817,7 @@ model IDs.
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Moonshot Kimi | ✅**** | ✅ | ✅ | Some | ❌ | Converse native* |
 | MiniMax M2/M2.1/M2.5 | ✅ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
-| GLM-4.7/4.7-Flash/5 | ❌***** | ❌****** | ✅ | ❌ | ❌ | Converse native* |
+| GLM-4.7/4.7-Flash/5 | ❌***** | ❌ | ✅ | ❌ | ❌ | Converse native* |
 | NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 
 *Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; support depends on what AWS advertises for the model at the time. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
@@ -820,6 +825,6 @@ model IDs.
 ***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  
 *****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)  
-******GLM-5 and Nemotron 3 reason on their own, but this door sends them no thinking instruction: they belong to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on them is a no-op here.
+******Nemotron 3 Super reasons on its own, but this door sends it no thinking instruction: it belongs to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on it is a no-op here.
 
 See `models_list.go` for the complete model list and detailed capabilities.
