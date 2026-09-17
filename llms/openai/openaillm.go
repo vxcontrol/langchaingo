@@ -451,7 +451,7 @@ func (o *LLM) setDeferredReasoning(
 		return reasoning.OpenAIDisableEffort
 	}
 	if delegated && o.sendsClaudeAdaptive(model) {
-		req.Thinking = &openaiclient.ThinkingOptions{Type: "adaptive"}
+		req.Thinking = &openaiclient.ThinkingOptions{Type: "adaptive", Display: "summarized"}
 		return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	}
 	if delegated && reasoning.ThinkingOptIn(model) {

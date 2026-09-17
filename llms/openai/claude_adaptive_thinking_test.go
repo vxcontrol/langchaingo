@@ -32,6 +32,19 @@ func TestDelegatedAdaptiveTurnsThinkingOnWhereClaudeWaitsToBeAsked(t *testing.T)
 	}
 }
 
+func TestDelegatedAdaptiveAsksForTheThinkingTextTheAnthropicDoorReturns(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"anthropic/claude-opus-4-8", "anthropic/claude-opus-4-7", "anthropic/claude-sonnet-4-6"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			fields := extraBodyWire(t, model, nil, "ok", llms.WithAdaptiveReasoning(llms.ReasoningNone))
+			assertWireJSON(t, fields, map[string]string{"thinking": `{"type":"adaptive","display":"summarized"}`})
+		})
+	}
+}
+
 func TestDelegatedAdaptiveThinkingTakesTheSamplingThinkingRefuses(t *testing.T) {
 	t.Parallel()
 

@@ -43,6 +43,7 @@ type ReasoningOptions struct {
 type ThinkingOptions struct {
 	Type         string `json:"type"`
 	BudgetTokens int    `json:"budget_tokens,omitempty"`
+	Display      string `json:"display,omitempty"`
 }
 
 // ChatRequest is a request to complete a chat completion..
