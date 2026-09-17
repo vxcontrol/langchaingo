@@ -68,7 +68,6 @@ func TestLLM(t *testing.T, model llms.Model, opts ...Option) {
 			})
 		}
 
-		// Test tool calls if supported
 		if !declared.SkipToolCalls && supportsTools(model) {
 			t.Run("ToolCalls", func(t *testing.T) {
 				t.Parallel()
@@ -116,7 +115,6 @@ func supportsTools(model llms.Model) bool {
 		},
 	}
 
-	// Try with tools - if it doesn't error out, it's supported
 	resp, err := model.GenerateContent(ctx, messages,
 		llms.WithTools(tools),
 		llms.WithMaxTokens(1),
@@ -127,8 +125,6 @@ func supportsTools(model llms.Model) bool {
 		return false
 	}
 
-	// If we get a specific "tools not supported" error, return false
-	// Otherwise assume it's supported (even if other errors occur)
 	if err != nil && strings.Contains(strings.ToLower(err.Error()), "not support") {
 		return false
 	}
