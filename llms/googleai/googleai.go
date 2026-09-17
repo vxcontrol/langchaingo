@@ -518,13 +518,11 @@ StreamEnd:
 			GenerationInfo: metadata,
 		}},
 	}
-	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0], opts); err != nil {
-		return resp, err
-	}
-	// A callback that returned an error stopped the stream early; surface it
-	// (matching the other providers) instead of masking it as a success.
 	if streamErr != nil {
 		return resp, streamErr
+	}
+	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0], opts); err != nil {
+		return resp, err
 	}
 	return resp, nil
 }

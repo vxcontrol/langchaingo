@@ -81,6 +81,25 @@ func TestADoorThatCarriesNothingReportsTheWholeCatalogue(t *testing.T) {
 			"an option the door reshapes is reported with the value that travelled")
 }
 
+func TestAnExplicitZeroSeedIsReportedNotSwallowed(t *testing.T) {
+	t.Parallel()
+
+	opts := llms.CallOptions{}
+	llms.WithSeed(0)(&opts)
+
+	var warn llms.Warnings
+	warn.AddUnreadOptions("m", opts, "no field")
+
+	reported := make(map[string]llms.Warning)
+	for _, w := range warn.List() {
+		reported[w.Option] = w
+	}
+	w, ok := reported["WithSeed"]
+	require.True(t, ok, "an explicit seed of 0 is a real seed, not the absence of one")
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "0", w.Asked)
+}
+
 func TestACallThatSetsNoCatalogueOptionReportsNothing(t *testing.T) {
 	t.Parallel()
 

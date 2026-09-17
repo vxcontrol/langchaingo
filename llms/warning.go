@@ -104,7 +104,12 @@ var unreadCatalogue = []struct {
 	{"WithTopLogProbs", func(o CallOptions) string { return askedInt(o.TopLogProbs, 0) }},
 	{"WithMinLength", func(o CallOptions) string { return askedInt(o.MinLength, 0) }},
 	{"WithMaxLength", func(o CallOptions) string { return askedInt(o.MaxLength, 0) }},
-	{"WithSeed", func(o CallOptions) string { return askedInt(o.Seed, 0) }},
+	{"WithSeed", func(o CallOptions) string {
+		if o.Seed == nil {
+			return ""
+		}
+		return strconv.Itoa(*o.Seed)
+	}},
 	{"WithVerbosity", func(o CallOptions) string { return askedString(o.Verbosity) }},
 	{"WithResponseMIMEType", func(o CallOptions) string { return askedString(o.ResponseMIMEType) }},
 	{"WithLogProbs", func(o CallOptions) string {
