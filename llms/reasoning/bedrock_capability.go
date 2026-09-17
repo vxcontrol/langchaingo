@@ -12,7 +12,6 @@ func IsNovaReasoningModel(model string) bool {
 	return strings.Contains(base, "amazon.nova-2-lite")
 }
 
-// NovaEffort maps a requested effort onto the three levels Nova accepts.
 func NovaEffort(effort string) string {
 	switch strings.ToLower(effort) {
 	case "minimal", "low":
@@ -28,8 +27,6 @@ func NovaEfforts() []string {
 	return []string{"low", "medium", "high"}
 }
 
-// NovaClearsInferenceConfigAt reports whether Nova refuses temperature, topP and
-// maxTokens alongside the given effort.
 func NovaClearsInferenceConfigAt(effort string) bool {
 	return NovaEffort(effort) == "high"
 }
@@ -40,8 +37,9 @@ func IsBedrockAlwaysReasoningModel(model string) bool {
 	return strings.Contains(baseModelName(model), "deepseek.r1")
 }
 
-// IsBedrockNonReasoningModel reports whether the model's Bedrock model card lists
-// neither reasoning support nor a request field that controls it.
+// IsBedrockNonReasoningModel reports whether the model is in
+// bedrockNonReasoningModels: Bedrock models whose AWS model card lists neither
+// reasoning support nor a request field that controls it.
 func IsBedrockNonReasoningModel(model string) bool {
 	return slices.Contains(bedrockNonReasoningModels, baseModelName(model))
 }
