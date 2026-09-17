@@ -61,6 +61,57 @@ func TestDisablingThinkingOnAHostThatServesTheFamilyUnderItsOwnName(t *testing.T
 	}
 }
 
+func TestDashScopeHostGetsTheGuestWireForNamesWithoutTheRoutePrefix(t *testing.T) {
+	t.Parallel()
+
+	const (
+		intl      = "http://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+		hongKong  = "http://cn-hongkong.dashscope.aliyuncs.com/compatible-mode/v1"
+		workspace = "http://llm-abc.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"
+		zai       = "http://api.z.ai/api/paas/v4"
+		moonshot  = "http://api.moonshot.ai/v1"
+	)
+	off := llms.WithReasoningDisabled()
+	budget := llms.WithReasoning(llms.ReasoningNone, 2048)
+	disabled := map[string]any{"enable_thinking": false}
+	for _, tc := range []struct {
+		baseURL, model string
+		opt            llms.CallOption
+		want           map[string]any
+	}{
+		{dashScopeBaseURL, "glm-5.2", off, disabled},
+		{dashScopeBaseURL, "deepseek-v4-pro", off, disabled},
+		{intl, "deepseek-v4-flash-0731", off, disabled},
+		{hongKong, "kimi-k2.6", off, disabled},
+		{workspace, "glm-5.1", off, disabled},
+		{dashScopeBaseURL, "kimi/kimi-k2.6", off, disabled},
+		{gatewayBaseURL, "dashscope/kimi/kimi-k2.6", off, disabled},
+		{dashScopeBaseURL, "glm-5.2", budget, map[string]any{"thinking_budget": float64(2048)}},
+		{workspace, "glm-5.1", budget, map[string]any{"thinking_budget": float64(2048)}},
+		{dashScopeBaseURL, "kimi/kimi-k2.6", budget, map[string]any{"thinking_budget": float64(2048)}},
+		{gatewayBaseURL, "dashscope/kimi/kimi-k2.6", budget, map[string]any{"thinking_budget": float64(2048)}},
+		{dashScopeBaseURL, "kimi-k2.6", budget,
+			map[string]any{"thinking_budget": float64(2048), "enable_thinking": true}},
+		{dashScopeBaseURL, "glm-5.1", llms.WithReasoning(llms.ReasoningHigh, 0),
+			map[string]any{"reasoning_effort": "high"}},
+		{zai, "glm-5.2", off, map[string]any{"thinking": map[string]any{"type": "disabled"}}},
+		{moonshot, "kimi-k2.6", llms.WithReasoning(llms.ReasoningHigh, 0), map[string]any{}},
+	} {
+		t.Run(tc.baseURL+" "+tc.model, func(t *testing.T) {
+			body, _ := sendToHost(t, tc.baseURL, tc.model, tc.opt)
+			got := map[string]any{}
+			for _, key := range []string{"thinking", "reasoning_effort", "reasoning", "enable_thinking", "thinking_budget"} {
+				if value, ok := body[key]; ok {
+					got[key] = value
+				}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("reasoning fields on the wire = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDisablingThinkingOnAModelThatOnlyThinks(t *testing.T) {
 	t.Parallel()
 

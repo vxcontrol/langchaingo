@@ -270,30 +270,40 @@ func TestDeepSeekNeverGetsThePenaltiesItNoLongerSupports(t *testing.T) {
 	}
 }
 
-func TestDeepSeekOwnAPIDropsTheTopKItDoesNotDocument(t *testing.T) {
+func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
 		baseURL, model string
 		dropped        bool
 	}{
-		"deepseek-v4-pro on its own API":        {deepSeekBaseURL, "deepseek-v4-pro", true},
-		"deepseek/deepseek-v4-pro on a gateway": {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
-		"deepseek-flash on its own API":         {deepSeekBaseURL, "deepseek-flash", true},
-		"dashscope/deepseek-v4-pro keeps it":    {gatewayBaseURL, "dashscope/deepseek-v4-pro", false},
-		"deepseek-v4-pro on DashScope keeps it": {dashScopeBaseURL, "deepseek-v4-pro", false},
+		"deepseek-v4-pro on its own API":            {deepSeekBaseURL, "deepseek-v4-pro", true},
+		"deepseek/deepseek-v4-pro on a gateway":     {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
+		"deepseek-flash on its own API":             {deepSeekBaseURL, "deepseek-flash", true},
+		"dashscope/deepseek-v4-pro on a gateway":    {gatewayBaseURL, "dashscope/deepseek-v4-pro", true},
+		"deepseek-v4-pro on DashScope":              {dashScopeBaseURL, "deepseek-v4-pro", true},
+		"dashscope/kimi-k2.7-code on a gateway":     {gatewayBaseURL, "dashscope/kimi-k2.7-code", true},
+		"kimi-k2.6 on DashScope":                    {dashScopeBaseURL, "kimi-k2.6", true},
+		"kimi/kimi-k2.6 on DashScope":               {dashScopeBaseURL, "kimi/kimi-k2.6", true},
+		"dashscope/MiniMax-M2.5 on a gateway":       {gatewayBaseURL, "dashscope/MiniMax-M2.5", true},
+		"MiniMax/MiniMax-M3 on DashScope":           {dashScopeBaseURL, "MiniMax/MiniMax-M3", true},
+		"Moonshot-Kimi-K2-Instruct on DashScope":    {dashScopeBaseURL, "Moonshot-Kimi-K2-Instruct", true},
+		"dashscope/qwen3.7-plus keeps it":           {gatewayBaseURL, "dashscope/qwen3.7-plus", false},
+		"glm-5.2 on DashScope keeps it":             {dashScopeBaseURL, "glm-5.2", false},
+		"kimi-k2.6 on a gateway's other route":      {gatewayBaseURL, "moonshot/kimi-k2.6", false},
+		"deepseek-v4-pro on another route keeps it": {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", false},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithTopK(40))
 		_, present := body["top_k"]
 		if tc.dropped {
 			if present {
-				t.Errorf("%s: DeepSeek's API documents no top_k, got body: %v", name, body)
+				t.Errorf("%s: the vendor's API takes no top_k, got body: %v", name, body)
 			}
 			if w := warningFor(t, resp, "WithTopK"); w.Kind != llms.WarningDrop || w.Asked != "40" {
 				t.Errorf("%s: top_k warning = %+v", name, w)
 			}
 		} else if body["top_k"] != float64(40) {
-			t.Errorf("%s: a deepseek served elsewhere keeps top_k, got body: %v", name, body)
+			t.Errorf("%s: top_k must reach the wire, got body: %v", name, body)
 		}
 	}
 }
