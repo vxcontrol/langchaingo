@@ -100,8 +100,7 @@ func isSimpleType(t reflect.Type) bool {
 
 // applyConverseStructuredOutput sets the native Converse OutputConfig.TextFormat
 // from a per-call schema. Only Claude is checked against a local list; other
-// families go to the provider as asked. The AWS JsonSchemaDefinition.Schema field
-// is a JSON string, so the raw schema is passed as-is with no second encoding.
+// families go to the provider as asked.
 func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockruntime.ConverseInput) error {
 	so := input.StructuredOutput
 	if so == nil {

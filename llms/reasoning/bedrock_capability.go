@@ -12,8 +12,7 @@ func IsNovaReasoningModel(model string) bool {
 	return strings.Contains(base, "amazon.nova-2-lite")
 }
 
-// NovaEffort maps a requested effort onto the three levels Nova accepts. Bedrock
-// answers anything else with "is not a valid enum value".
+// NovaEffort maps a requested effort onto the three levels Nova accepts.
 func NovaEffort(effort string) string {
 	switch strings.ToLower(effort) {
 	case "minimal", "low":
@@ -57,8 +56,7 @@ func GptOssEfforts() []string {
 	return slices.Clone(gptOssCaps.Efforts)
 }
 
-// IsGrokModel reports whether the Bedrock model belongs to the xAI Grok family,
-// which carries its effort in a reasoning object rather than a thinking one.
+// IsGrokModel reports whether the Bedrock model belongs to the xAI Grok family.
 func IsGrokModel(model string) bool {
 	return strings.Contains(baseModelName(model), "xai.grok")
 }

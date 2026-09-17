@@ -212,7 +212,6 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
 				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			}
-			// Budget thinking requires temperature=1.0 and rejects top_p.
 			if isAnthropicModelID(input.ModelID) {
 				keepTopP := input.Temperature == nil && inferenceConfig.TopP != nil &&
 					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, float64(*inferenceConfig.TopP))

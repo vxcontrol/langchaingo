@@ -51,14 +51,10 @@ func namesNonTextModality(m string) bool {
 	return false
 }
 
-// openAIPreReasoning matches the GPT generations below the GPT-5 line, where
-// reasoning starts.
 func openAIPreReasoning(m string) bool {
 	return strings.HasPrefix(m, "gpt-3") || strings.HasPrefix(m, "gpt-4")
 }
 
-// claudePreThinking matches the Claude generations below 3.7, where extended
-// thinking starts.
 func claudePreThinking(m string) bool {
 	c := canonicalClaude(m)
 	if strings.Contains(c, "claude-3-7") {
@@ -77,8 +73,6 @@ func qwenPreReasoning(m string) bool {
 		strings.HasPrefix(m, "qwen-2")
 }
 
-// isOSeries matches the OpenAI o-series naming (o1, o3, o4-mini, successors);
-// every generation of it reasons.
 func isOSeries(m string) bool {
 	return len(m) > 1 && m[0] == 'o' && m[1] >= '1' && m[1] <= '9'
 }

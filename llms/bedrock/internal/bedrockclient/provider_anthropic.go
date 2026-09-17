@@ -865,7 +865,6 @@ func applyAnthropicReasoning(
 		if reasoning.ClaudeSupportsEffortWithBudget(modelID, reasoning.ProviderBedrock) {
 			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
 		}
-		// Budget thinking requires temperature=1.0 and rejects top_p/top_k.
 		keepTopP := callerTemperature == 0 &&
 			reasoning.ClaudeKeepsTopPWhileThinking(modelID, input.TopP)
 		switch {

@@ -116,7 +116,6 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 			RejectsSampling: reasoning.RejectsSamplingWhileThinking(model),
 			Efforts:         toReasoningEfforts(caps.Efforts),
 			Mechanism:       ReasoningMechanismAdaptive,
-			// DefaultOn is per-model on the GPT-5.x line (some default off) — leave unknown.
 		}
 	}
 
