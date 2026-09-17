@@ -92,6 +92,15 @@ func DashScopeRoute(model, host string) string {
 	return "dashscope/" + model
 }
 
+// DashScopeTakesNoTopK reports whether DashScope serves the model from a family
+// that takes no top_k.
+func DashScopeTakesNoTopK(model string) bool {
+	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	name := rest[strings.LastIndex(rest, "/")+1:]
+	return ok && (strings.HasPrefix(name, "deepseek") || strings.HasPrefix(name, "kimi-") ||
+		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-"))
+}
+
 // DashScopeTakesThinkingBudget reports whether DashScope caps the model's
 // thinking by a token budget.
 func DashScopeTakesThinkingBudget(model string) bool {
