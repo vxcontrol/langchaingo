@@ -265,8 +265,7 @@ type EffortToolsRule int
 const (
 	EffortToolsFree EffortToolsRule = iota
 	EffortToolsOmit
-	// EffortToolsDisable puts an explicit "none" on the wire; an omitted field is
-	// not equivalent.
+	// EffortToolsDisable puts an explicit "none" on the wire.
 	EffortToolsDisable
 )
 

@@ -1043,6 +1043,12 @@ func TestOnlyConfiguredSamplingReachesTheWire(t *testing.T) {
 			call:  []llms.CallOption{llms.WithTemperature(0.7), llms.WithTopK(5), llms.WithTopP(0.5)},
 			want:  map[string]float64{"temperature": 0.7, "topK": 5, "topP": 0.5},
 		},
+		{
+			name:  "a thinking gemini-3 call keeps the caller's sampling",
+			model: "gemini-3-flash",
+			call:  []llms.CallOption{llms.WithTemperature(0.4), llms.WithTopP(0.8), llms.WithReasoning(llms.ReasoningHigh, 0)},
+			want:  map[string]float64{"temperature": 0.4, "topP": 0.8},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

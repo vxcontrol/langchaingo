@@ -213,6 +213,25 @@ func TestDeepSeekV31ReasonsOnlyWhenAsked(t *testing.T) {
 	}
 }
 
+func TestDeepSeekWaitsToBeAskedFromV31ThroughV32Only(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]bool{
+		"deepseek-v3":       false,
+		"deepseek-v3.1":     true,
+		"deepseek-v3.2":     true,
+		"deepseek.v3.2":     true,
+		"us.deepseek.v3.2":  true,
+		"deepseek-v3.2-exp": true,
+		"deepseek-v4-flash": false,
+		"deepseek-v4-pro":   false,
+	} {
+		if got := ThinkingOptIn(model); got != want {
+			t.Errorf("ThinkingOptIn(%q) = %v, want %v", model, got, want)
+		}
+	}
+}
+
 func TestGrokModelsThatTakeNoEffortOnTheWire(t *testing.T) {
 	t.Parallel()
 

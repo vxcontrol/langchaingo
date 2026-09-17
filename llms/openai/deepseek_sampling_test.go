@@ -388,4 +388,17 @@ func TestLogProbsReachTheWireAndYieldToThinking(t *testing.T) {
 			t.Errorf("gpt-5.4 takes top_logprobs only at the none effort, got body: %v", body)
 		}
 	})
+
+	t.Run("the same generation at the none effort keeps them", func(t *testing.T) {
+		t.Parallel()
+
+		body := captureDeepSeekRequest(t, "gpt-5.4",
+			llms.WithLogProbs(true), llms.WithTopLogProbs(3), llms.WithReasoningDisabled())
+		if body["reasoning_effort"] != "none" {
+			t.Fatalf("the disable must reach the wire as none, got body: %v", body)
+		}
+		if body["logprobs"] != true || body["top_logprobs"] != float64(3) {
+			t.Errorf("gpt-5.4 takes logprobs at the none effort, got body: %v", body)
+		}
+	})
 }

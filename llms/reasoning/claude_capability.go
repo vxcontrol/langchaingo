@@ -231,8 +231,7 @@ func ClaudeMaxTokensForBudget(budget, maxTokens int) int {
 var budgetInterleavingClaude = []string{"claude-opus-4-5", "claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-1"}
 
 // ClaudeInterleavesOnBudget reports whether budget thinking on the model
-// interleaves with tool calls once the interleaved-thinking beta is on, which is
-// the only case where budget_tokens may exceed max_tokens.
+// interleaves with tool calls once the interleaved-thinking beta is on.
 func ClaudeInterleavesOnBudget(model string) bool {
 	if claudeNamedIn(model, budgetInterleavingClaude) {
 		return true
@@ -270,8 +269,6 @@ func ClaudeSupportsEffortWithBudget(model string, p Provider) bool {
 	return p != ProviderBedrock || !containsAny(m, bedrockRejectsBudgetEffortClaude)
 }
 
-// noPrefillClaude models reject a conversation whose last message is an
-// assistant turn.
 var noPrefillClaude = []string{
 	"claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview",
 	"claude-opus-4-7", "claude-opus-4-8",
