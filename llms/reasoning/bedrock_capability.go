@@ -38,8 +38,9 @@ func IsBedrockAlwaysReasoningModel(model string) bool {
 	return strings.Contains(baseModelName(model), "deepseek.r1")
 }
 
-// IsBedrockNonReasoningModel reports whether the model's Bedrock model card lists
-// neither reasoning support nor a request field that controls it.
+// IsBedrockNonReasoningModel reports whether the model is in
+// bedrockNonReasoningModels: Bedrock models whose AWS model card lists neither
+// reasoning support nor a request field that controls it.
 func IsBedrockNonReasoningModel(model string) bool {
 	return slices.Contains(bedrockNonReasoningModels, baseModelName(model))
 }
