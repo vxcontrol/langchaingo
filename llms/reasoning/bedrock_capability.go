@@ -41,7 +41,7 @@ func IsBedrockAlwaysReasoningModel(model string) bool {
 // bedrockNonReasoningModels: Bedrock models whose AWS model card lists neither
 // reasoning support nor a request field that controls it.
 func IsBedrockNonReasoningModel(model string) bool {
-	return slices.Contains(bedrockNonReasoningModels, baseModelName(model))
+	return slices.Contains(bedrockNonReasoningModels, bedrockModelWithoutRegion(model))
 }
 
 var bedrockNonReasoningModels = []string{"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5"}
