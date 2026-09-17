@@ -353,6 +353,44 @@ func TestConverse_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T) {
 	}
 }
 
+func TestConverse_StructuredOutput_FollowsTheModelCards(t *testing.T) {
+	for _, model := range []string{
+		"us.amazon.nova-pro-v1:0", "us.amazon.nova-2-lite-v1:0", "us.meta.llama3-3-70b-instruct-v1:0",
+		"us.meta.llama4-maverick-17b-instruct-v1:0", "us.deepseek.r1-v1:0", "qwen.qwen3-vl-235b-a22b",
+		"mistral.mistral-large-2402-v1:0",
+	} {
+		mockClient := &MockBedrockRuntimeClient{}
+		_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+			ModelID:          model,
+			Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			StructuredOutput: soConfig(),
+		})
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
+		mockClient.AssertNotCalled(t, "Converse")
+	}
+
+	for _, model := range []string{
+		"deepseek.v3.2", "qwen.qwen3-coder-next", "us-gov.nvidia.nemotron-nano-3-30b",
+		"mistral.mistral-large-3-675b-instruct", "zai.glm-5",
+	} {
+		mockClient := &MockBedrockRuntimeClient{}
+		var captured *bedrockruntime.ConverseInput
+		mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(in *bedrockruntime.ConverseInput) bool {
+			captured = in
+			return true
+		}), mock.Anything).Return(textOutput(`{"answer":"ok"}`, types.StopReasonEndTurn), nil)
+
+		_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+			ModelID:          model,
+			Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			StructuredOutput: soConfig(),
+		})
+		require.NoError(t, err, model)
+		require.NotNil(t, captured.OutputConfig, model)
+	}
+}
+
 func TestLegacyAnthropic_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T) {
 	t.Parallel()
 
