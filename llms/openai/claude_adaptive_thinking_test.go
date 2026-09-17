@@ -57,6 +57,26 @@ func TestDelegatedAdaptiveIsReportedWhereTheHostDocumentsNoThinkingObject(t *tes
 	}
 }
 
+func TestDelegatedAdaptiveIsReportedOnAnthropicsOpenAICompatibilityEndpoint(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-4-6"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			body, resp := sendToHost(t, "http://api.anthropic.com/v1", model, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+
+			if _, ok := body["thinking"]; ok {
+				t.Errorf("this endpoint answers adaptive thinking with a 400, got body: %v", body)
+			}
+			w := warningFor(t, resp, "WithAdaptiveReasoning")
+			if w.Kind != llms.WarningDrop || w.Sent != "" || !strings.Contains(w.Reason, "refuses adaptive thinking") {
+				t.Errorf("the refused adaptive request must be reported as refused, got %+v", w)
+			}
+		})
+	}
+}
+
 func TestAClaudeRequestWithoutReasoningStaysWithoutThinking(t *testing.T) {
 	t.Parallel()
 

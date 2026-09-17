@@ -181,3 +181,11 @@ func reportDelegatedDepth(warn *llms.Warnings, model string, delegated bool, sen
 		Reason: "this model does not reason unless an effort asks it to, and none was named",
 	})
 }
+
+func reportAdaptiveRefused(warn *llms.Warnings, model string) {
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithAdaptiveReasoning", Model: model,
+		Asked:  "adaptive",
+		Reason: "the endpoint refuses adaptive thinking",
+	})
+}

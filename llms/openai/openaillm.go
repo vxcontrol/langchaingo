@@ -451,6 +451,10 @@ func (o *LLM) setDeferredReasoning(
 		return reasoning.OpenAIDisableEffort
 	}
 	if delegated && o.sendsClaudeAdaptive(model) {
+		if o.host == anthropicAPIHost {
+			reportAdaptiveRefused(warn, model)
+			return ""
+		}
 		if !claudeThinkingObjectRoute(model, o.host) {
 			reportDelegatedDepth(warn, model, delegated, "")
 			return ""
@@ -515,6 +519,8 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 		reasoning.ResolveClaudeAdaptive(model, true) &&
 		!reasoning.ClaudeThinkingDefaultsOn(model)
 }
+
+const anthropicAPIHost = "api.anthropic.com"
 
 var (
 	claudeThinkingObjectRoutes = []string{"anthropic", "bedrock", "vertex_ai"}
