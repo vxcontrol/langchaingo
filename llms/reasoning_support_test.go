@@ -720,7 +720,10 @@ func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
 func TestTheBedrockHintPresentsNoReasoningWhereTheConverseDoorHasNone(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5"} {
+	for _, model := range []string{
+		"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5",
+		"us.zai.glm-5", "eu.zai.glm-4.7", "apac.zai.glm-4.7-flash",
+	} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
 
