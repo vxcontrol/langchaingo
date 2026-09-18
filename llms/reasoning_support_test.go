@@ -788,3 +788,25 @@ func TestTheBedrockHintDoesNotPresentOffForNemotronSuper(t *testing.T) {
 		}
 	}
 }
+
+func TestTheAstraHintOffersTheLevelsItsCardListsAndNoDisable(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-6-astra", "openai/gpt-6-astra"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified reasoning model: the card lists its effort levels", model, s)
+			}
+			if !s.CannotDisable {
+				t.Errorf("%s CannotDisable = false, want true: the vendor answers HTTP 400 to reasoning_effort none", model)
+			}
+			want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh, ReasoningMax}
+			if !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s efforts = %v, want %v as the model card lists them", model, s.Efforts, want)
+			}
+		})
+	}
+}

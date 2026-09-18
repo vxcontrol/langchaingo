@@ -310,6 +310,7 @@ func namesReasoningModel(modelLower string) bool { //nolint:funlen // a flat cat
 
 	// OpenAI reasoning models
 	if strings.HasPrefix(modelLower, "gpt-5") ||
+		hasGeneration(modelLower, "gpt-6-astra") ||
 		strings.HasPrefix(modelLower, "gpt-oss") ||
 		strings.HasPrefix(modelLower, "o1") ||
 		strings.HasPrefix(modelLower, "o3") ||

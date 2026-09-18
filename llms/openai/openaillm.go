@@ -708,6 +708,12 @@ func isThinkingOnTheWire(wireEffort string) bool {
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
 func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
+		if model := o.effectiveModel(opts); reasoning.ChatToolsUnsupported(model) {
+			return &reasoning.ErrChatToolsUnsupported{Model: model}
+		}
+	}
+
 	// add function-based tools (deprecated approach)
 	for _, fn := range opts.Functions {
 		req.Tools = append(req.Tools, openaiclient.Tool{
