@@ -767,6 +767,28 @@ func TestTheBedrockHintPresentsNoReasoningWhereTheConverseDoorHasNone(t *testing
 	}
 }
 
+func TestTheSafeguardHintOffersTheLevelsOpenAIDocumentsForIt(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified reasoning model", model, s)
+			}
+			want := []ReasoningEffort{"low", "medium", "high"}
+			if !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s Efforts = %v, want %v", model, s.Efforts, want)
+			}
+			if !s.CannotDisable {
+				t.Errorf("%s CannotDisable = false: the vendor documents no level that turns thinking off", model)
+			}
+		})
+	}
+}
+
 func TestTheBedrockHintDoesNotPresentOffForNemotronSuper(t *testing.T) {
 	t.Parallel()
 

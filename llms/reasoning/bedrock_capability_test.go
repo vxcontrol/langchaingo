@@ -73,13 +73,15 @@ func TestGrokEffortFollowsTheGeneration(t *testing.T) {
 }
 
 func TestGptOssIsRecognisedOnlyByItsBedrockNames(t *testing.T) {
-	for _, model := range []string{"openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b-1:0"} {
+	for _, model := range []string{
+		"openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b-1:0",
+		"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
+	} {
 		if !IsGptOssModel(model) {
 			t.Errorf("%s is gpt-oss", model)
 		}
 	}
 	for _, model := range []string{
-		"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
 		"gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss:120b", "us.amazon.nova-2-lite-v1:0",
 	} {
 		if IsGptOssModel(model) {

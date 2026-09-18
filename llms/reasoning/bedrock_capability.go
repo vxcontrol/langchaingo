@@ -88,7 +88,17 @@ func bedrockModelWithoutRegion(model string) string {
 // IsGptOssModel reports whether the Bedrock model is one of OpenAI's gpt-oss models.
 func IsGptOssModel(model string) bool {
 	base := baseModelName(model)
-	return strings.Contains(base, "openai.gpt-oss-120b") || strings.Contains(base, "openai.gpt-oss-20b")
+	for _, name := range gptOssBedrockNames {
+		if strings.Contains(base, name) {
+			return true
+		}
+	}
+	return false
+}
+
+var gptOssBedrockNames = []string{
+	"openai.gpt-oss-120b", "openai.gpt-oss-20b",
+	"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
 }
 
 var gptOssCaps = OpenAIReasoningCaps{Known: true, Efforts: []string{"low", "medium", "high"}}
