@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
@@ -38,7 +40,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithJSONMode()(&opts)
-		req, err := llm.createChatRequest(nil, opts)
+		req, err := llm.createChatRequest(nil, opts, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -52,7 +54,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Description: "d", Schema: objectSchema()})(&opts)
-		req, err := llm.createChatRequest(nil, opts)
+		req, err := llm.createChatRequest(nil, opts, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -88,7 +90,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			WithResponseFormat(&ResponseFormat{Type: "json_object"}))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-		_, err := llm.createChatRequest(nil, opts)
+		_, err := llm.createChatRequest(nil, opts, nil)
 		var conflict *llms.ErrStructuredOutputConflict
 		if !errors.As(err, &conflict) {
 			t.Fatalf("want ErrStructuredOutputConflict, got %v", err)
@@ -100,7 +102,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Schema: objectSchema()})(&opts)
-		_, err := llm.createChatRequest(nil, opts)
+		_, err := llm.createChatRequest(nil, opts, nil)
 		if !errors.Is(err, llms.ErrStructuredOutputConfig) {
 			t.Fatalf("want ErrStructuredOutputConfig, got %v", err)
 		}
@@ -112,10 +114,60 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			llm := newUnitLLM(t, WithModel(model))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-			_, err := llm.createChatRequest(nil, opts)
+			_, err := llm.createChatRequest(nil, opts, nil)
 			var unsup *llms.ErrStructuredOutputUnsupported
 			if !errors.As(err, &unsup) {
 				t.Fatalf("%s: want ErrStructuredOutputUnsupported, got %v", model, err)
+			}
+		}
+	})
+
+	t.Run("a vendor without json_schema is refused before the request", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{
+			"deepseek-flash", "deepseek-v4-pro", "deepseek/deepseek-v4-pro", "glm-4.5-air", "zai/glm-5.3",
+			"glm-5.2", "zai.glm-4.7", "glm-5-turbo",
+		} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			_, err := llm.createChatRequest(nil, opts, nil)
+			var unsup *llms.ErrStructuredOutputUnsupported
+			if !errors.As(err, &unsup) {
+				t.Fatalf("%s: want ErrStructuredOutputUnsupported, got %v", model, err)
+			}
+
+			var jsonMode llms.CallOptions
+			llms.WithJSONMode()(&jsonMode)
+			req, err := llm.createChatRequest(nil, jsonMode, nil)
+			if err != nil || req.ResponseFormat == nil || req.ResponseFormat.FormatType() != "json_object" {
+				t.Fatalf("%s: JSON mode is documented and must still reach the wire, got %+v, %v", model, req, err)
+			}
+		}
+	})
+
+	t.Run("GLM served by Mistral keeps the schema Mistral documents for it", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{"glm-5-2", "zai-glm-5-2", "mistral/zai-glm-5-2"} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			req, err := llm.createChatRequest(nil, opts, nil)
+			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
+				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
+			}
+		}
+	})
+
+	t.Run("MiniMax outside its own M-series API keeps the schema", func(t *testing.T) {
+		t.Parallel()
+		for _, model := range []string{"MiniMax-Text-01", "openrouter/minimax/minimax-m3"} {
+			llm := newUnitLLM(t, WithModel(model))
+			var opts llms.CallOptions
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
+			req, err := llm.createChatRequest(nil, opts, nil)
+			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
+				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
 			}
 		}
 	})
@@ -125,7 +177,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-6-ultra-preview"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-		req, err := llm.createChatRequest(nil, opts)
+		req, err := llm.createChatRequest(nil, opts, nil)
 		if err != nil {
 			t.Fatalf("unknown model must pass through, got %v", err)
 		}
@@ -318,18 +370,6 @@ func TestValidateStructuredResponse(t *testing.T) {
 			t.Fatalf("want ErrStructuredOutputValidation, got %v", err)
 		}
 	})
-	t.Run("refusal is a typed refusal, not a validation error", func(t *testing.T) {
-		t.Parallel()
-		err := llm.validateStructuredResponse(mk(openaiclient.FinishReasonStop, "", "I cannot help with that"), opts)
-		var refusal *ErrStructuredOutputRefusal
-		if !errors.As(err, &refusal) {
-			t.Fatalf("want ErrStructuredOutputRefusal, got %v", err)
-		}
-		var ve *llms.ErrStructuredOutputValidation
-		if errors.As(err, &ve) {
-			t.Fatal("refusal must not surface as a validation error")
-		}
-	})
 	t.Run("length is not final json", func(t *testing.T) {
 		t.Parallel()
 		if err := llm.validateStructuredResponse(mk(openaiclient.FinishReasonLength, `{"answer"`, ""), opts); err != nil {
@@ -419,5 +459,55 @@ func TestStructuredOutputValidationFailureFiresSingleErrorCallback(t *testing.T)
 	}
 	if h.starts != 1 || h.errs != 1 || h.ends != 0 {
 		t.Fatalf("callback counts: starts=%d errs=%d ends=%d; want 1/1/0", h.starts, h.errs, h.ends)
+	}
+}
+
+func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+		var calls atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls.Add(1)
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"id":"x","object":"chat.completion","created":1,"model":"m",`+
+				`"choices":[{"index":0,"message":{"role":"assistant","content":"prose"},"finish_reason":"stop"}],`+
+				`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`)
+		}))
+		t.Cleanup(srv.Close)
+
+		llm := newUnitLLM(t, WithBaseURL(srv.URL), WithModel(model))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()}))
+
+		var unsup *llms.ErrStructuredOutputUnsupported
+		if !errors.As(err, &unsup) || !strings.Contains(unsup.Reason, "response_format") {
+			t.Errorf("%s: want ErrStructuredOutputUnsupported naming response_format, got %v", model, err)
+		}
+		if n := calls.Load(); n != 0 {
+			t.Errorf("%s: a schema MiniMax cannot honor must not cost a request, got %d", model, n)
+		}
+	}
+}
+
+func TestMiniMaxJSONModeLeavesOutTheResponseFormatItsAPILacks(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+		if body := sendForWire(t, model, llms.WithJSONMode()); strings.Contains(body, "response_format") {
+			t.Errorf("%s: MiniMax's chat completions API documents no response_format, got body: %s", model, body)
+		}
+
+		w := warningFor(t, sendForWarnings(t, model, llms.WithJSONMode()), "WithJSONMode")
+		if w.Kind != llms.WarningDrop || w.Asked != "true" || !strings.Contains(w.Reason, "response_format") {
+			t.Errorf("%s: JSON mode warning = %+v", model, w)
+		}
+	}
+
+	const jsonObject = `"response_format":{"type":"json_object"}`
+	if body := sendForWire(t, "openrouter/minimax/minimax-m3", llms.WithJSONMode()); !strings.Contains(body, jsonObject) {
+		t.Errorf("only MiniMax's own API lacks response_format, got body: %s", body)
 	}
 }

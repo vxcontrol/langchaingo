@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -174,7 +175,10 @@ func (c *Client) CreateChat(ctx context.Context, r *ChatRequest) (*ChatCompletio
 	}
 	resp, err := c.createChat(ctx, r)
 	if err != nil {
-		return nil, err
+		if resp == nil || len(resp.Choices) == 0 {
+			return nil, err
+		}
+		return resp, err
 	}
 	if len(resp.Choices) == 0 {
 		return nil, ErrEmptyResponse
@@ -188,10 +192,12 @@ func IsAzure(apiType APIType) bool {
 
 func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
-	if c.apiType == APITypeOpenAI || c.apiType == APITypeAzureAD {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	} else {
-		req.Header.Set("api-key", c.token)
+	if c.token != "" {
+		if c.apiType == APITypeOpenAI || c.apiType == APITypeAzureAD {
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		} else {
+			req.Header.Set("api-key", c.token)
+		}
 	}
 	if c.organization != "" {
 		req.Header.Set("OpenAI-Organization", c.organization)
@@ -224,6 +230,14 @@ func (c *Client) buildAzureURL(suffix string, model string) string {
 func sanitizeHTTPError(err error) error {
 	if err == nil {
 		return nil
+	}
+
+	// http.Client.Do wraps every failure in *url.Error, which implements
+	// net.Error. Unwrap it first so application errors (httprr misses, etc.)
+	// are not reported as a failed API connection.
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		err = urlErr.Err
 	}
 
 	// Check for context deadline exceeded

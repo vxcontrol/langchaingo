@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -158,16 +159,32 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
+	warn := &llms.Warnings{}
+	reportOllamaOptions(warn, model, opts)
+	if o.servesCloud(model) {
+		reportOllamaCloudFormat(warn, model, opts, o.options.format)
+	}
+
 	if err := o.processTools(req, opts.Tools); err != nil {
 		return nil, err
 	}
 
 	resp, err := o.handleChat(ctx, req, opts)
 	if err != nil {
-		return nil, err
+		partial := o.createContentResponse(resp)
+		if len(partial.Choices) == 0 || isEmptyChoice(partial.Choices[0]) {
+			return nil, err
+		}
+		partial.Warnings = warn.List()
+		return partial, err
 	}
 
 	response = o.createContentResponse(resp)
+	response.Warnings = warn.List()
+
+	if err = llms.CheckTruncation(response, opts); err != nil {
+		return response, err
+	}
 
 	// When a schema was requested, validate the final response against it; the
 	// response is returned alongside the typed error so usage is preserved.
@@ -279,12 +296,55 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 		},
 	}
 
-	err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
+	fields, err := toolcall.DecodeFields(toolCall.FunctionCall.Arguments)
 	if err != nil {
 		return api.ToolCall{}, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
 	}
+	tc.Function.Arguments = api.NewToolCallFunctionArguments()
+	for _, field := range fields {
+		tc.Function.Arguments.Set(field.Key, field.Value)
+	}
 
 	return tc, nil
+}
+
+func resolveThink(model string, opts llms.CallOptions) *api.ThinkValue {
+	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningDefault leaves the field unset
+	case llms.ReasoningOff:
+		return &api.ThinkValue{Value: false}
+	case llms.ReasoningOn:
+		if opts.Reasoning.DelegatesDepth() {
+			return nil
+		}
+		effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
+		if takesOnlyGPTOSSLevels(model) {
+			return &api.ThinkValue{Value: gptOSSLevel(effort)}
+		}
+		if level := (&api.ThinkValue{Value: string(effort)}); level.IsValid() {
+			return level
+		}
+		return &api.ThinkValue{Value: true}
+	}
+	return nil
+}
+
+func takesOnlyGPTOSSLevels(model string) bool {
+	name := strings.ToLower(model)
+	if idx := strings.LastIndex(name, "/"); idx != -1 {
+		name = name[idx+1:]
+	}
+	return strings.HasPrefix(name, "gpt-oss")
+}
+
+func gptOSSLevel(effort llms.ReasoningEffort) string {
+	switch effort {
+	case llms.ReasoningMinimal, llms.ReasoningLow:
+		return "low"
+	case llms.ReasoningMedium:
+		return "medium"
+	default:
+		return "high"
+	}
 }
 
 // createChatRequest creates a chat request with the given parameters.
@@ -300,6 +360,11 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		return nil, fmt.Errorf("error creating ollama options: %w", err)
 	}
 
+	if opts.Reasoning.IsDisabled() &&
+		reasoning.ResolveOff(model, reasoning.ProviderOllama) == reasoning.OffUnsupported {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
+	}
+
 	stream := opts.StreamingFunc != nil
 
 	req := &api.ChatRequest{
@@ -309,6 +374,7 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
+		Think:    resolveThink(model, opts),
 	}
 
 	keepAlive := o.options.keepAlive
@@ -322,19 +388,44 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 // resolveFormat picks the Ollama `format` field. A per-call structured-output
 // schema is sent as the native JSON Schema (Ollama constrains generation to it);
 // otherwise the legacy string mode is preserved unchanged — the client-level
-// format, or "json" for JSONMode.
+// format, or "json" for JSONMode. Ollama Cloud always gets the empty format.
 func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 	if so := opts.StructuredOutput; so != nil {
 		if err := opts.ValidateStructuredOutput(); err != nil {
 			return nil, err
 		}
+		if o.servesCloud(o.getModel(opts)) {
+			return nil, &llms.ErrStructuredOutputUnsupported{
+				Provider: providerOllama,
+				Model:    o.getModel(opts),
+				Reason:   ollamaCloudFormatReason,
+			}
+		}
 		return so.Schema, nil
+	}
+	if o.servesCloud(o.getModel(opts)) {
+		return json.RawMessage(`""`), nil
 	}
 	format := o.options.format
 	if opts.JSONMode {
 		format = "json"
 	}
 	return json.RawMessage(fmt.Sprintf(`"%s"`, format)), nil
+}
+
+const ollamaCloudFormatReason = "Ollama Cloud does not support structured outputs"
+
+// servesCloud reports whether the model runs on Ollama Cloud: reached at
+// ollama.com, or a cloud model a local server offloads, tagged "-cloud".
+func (o *LLM) servesCloud(model string) bool {
+	if _, tag, ok := strings.Cut(strings.ToLower(model), ":"); ok && (tag == "cloud" || strings.HasSuffix(tag, "-cloud")) {
+		return true
+	}
+	if o.options.ollamaServerURL == nil {
+		return false
+	}
+	host := strings.ToLower(o.options.ollamaServerURL.Hostname())
+	return host == "ollama.com" || strings.HasSuffix(host, ".ollama.com")
 }
 
 // processTools adds tools to the chat request.
@@ -363,13 +454,15 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 
 	var (
 		resp              api.ChatResponse
-		streamedResponse  string
+		streamedResponse  strings.Builder
+		streamedThinking  strings.Builder
 		streamedToolCalls []api.ToolCall
 	)
 
 	splitter := reasoning.NewChunkContentSplitter()
 	fn := func(response api.ChatResponse) error {
 		textContent, reasoningContent := splitter.Split(response.Message.Content)
+		reasoningContent += response.Message.Thinking
 		if opts.StreamingFunc != nil {
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, opts.StreamingFunc, reasoning); err != nil {
@@ -393,8 +486,9 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		}
 
 		if response.Message.Content != "" {
-			streamedResponse += response.Message.Content
+			streamedResponse.WriteString(response.Message.Content)
 		}
+		streamedThinking.WriteString(response.Message.Thinking)
 		if len(response.Message.ToolCalls) > 0 {
 			streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
 		}
@@ -403,7 +497,8 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 			resp = response
 			resp.Message = api.Message{
 				Role:      "assistant",
-				Content:   streamedResponse,
+				Content:   streamedResponse.String(),
+				Thinking:  streamedThinking.String(),
 				ToolCalls: streamedToolCalls,
 			}
 		}
@@ -411,17 +506,31 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	}
 
 	err := o.client.Chat(ctx, req, fn)
+	if err != nil {
+		resp.Message = api.Message{
+			Role:      "assistant",
+			Content:   streamedResponse.String(),
+			Thinking:  streamedThinking.String(),
+			ToolCalls: streamedToolCalls,
+		}
+	}
 	return resp, err
 }
 
 // createContentResponse creates a LangChain content response from Ollama response.
+func isEmptyChoice(choice *llms.ContentChoice) bool {
+	return choice.Content == "" && len(choice.ToolCalls) == 0 && choice.Reasoning.IsEmpty()
+}
+
 func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
-	reasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning.Content += resp.Message.Thinking
 	choices := []*llms.ContentChoice{
 		{
 			Content:    content,
-			Reasoning:  reasoning,
+			Reasoning:  contentReasoning,
 			StopReason: resp.DoneReason,
+			Truncated:  llms.IsTruncated(resp.DoneReason),
 			GenerationInfo: map[string]any{
 				"CompletionTokens": resp.EvalCount,
 				"PromptTokens":     resp.PromptEvalCount,

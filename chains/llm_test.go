@@ -63,7 +63,7 @@ func TestLLMChain(t *testing.T) {
 	}
 
 	var opts []openai.Option
-	opts = append(opts, openai.WithHTTPClient(rr.Client()))
+	opts = append(opts, openai.WithModel("gpt-4.1-nano"), openai.WithHTTPClient(rr.Client()))
 
 	// Use test token when replaying
 	if rr.Replaying() {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -40,6 +41,15 @@ func newCloudTestClient(t *testing.T) *LLM {
 
 	// Check for required credentials and skip if not available
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OLLAMA_API_KEY")
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("no home directory to read the Ollama signing key from: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".ollama", "id_ed25519")); err != nil {
+		t.Skip("no ~/.ollama/id_ed25519: the client signs every ollama.com request before " +
+			"the httprr transport runs, so the recordings cannot be replayed without it")
+	}
 
 	// Set up httprr for recording/replaying HTTP interactions
 	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
@@ -275,6 +285,9 @@ func TestCloudJSONMode(t *testing.T) {
 	resp, err := llm.GenerateContent(ctx, content, llms.WithJSONMode())
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Choices)
+	require.Len(t, resp.Warnings, 1)
+	assert.Equal(t, llms.WarningDrop, resp.Warnings[0].Kind)
+	assert.Equal(t, "WithJSONMode", resp.Warnings[0].Option)
 
 	c1 := resp.Choices[0]
 	assert.NotEmpty(t, c1.Content)
@@ -286,47 +299,28 @@ func TestCloudJSONMode(t *testing.T) {
 	assert.Contains(t, responseText, "colors")
 }
 
-// TestCloudStructuredOutput exercises the structured-output mechanism against the
-// real Ollama Cloud backend on several models (httprr-recorded). The SDK sends the
-// schema in the request's `format` field and validates the response against it.
-//
-// Note on Ollama Cloud behavior: unlike a local Ollama server, the Cloud backend
-// does not apply the `format` schema as a hard grammar constraint for these models
-// — it is a soft hint. So the prompt also asks for a bare JSON object and the
-// schema requires only the field the model reliably returns; the SDK then verifies
-// the real response actually matches. Models such as gpt-oss ignore the hint and
-// return prose, which the SDK correctly surfaces as ErrStructuredOutputValidation.
-func TestCloudStructuredOutput(t *testing.T) {
+type refusingTransport struct{ t *testing.T }
+
+func (r refusingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.t.Errorf("no request may leave for %s", req.URL)
+	return nil, http.ErrHandlerTimeout
+}
+
+func TestCloudRefusesAStructuredOutputSchema(t *testing.T) {
+	t.Parallel()
+
 	schema := json.RawMessage(`{"type":"object","properties":{"capital":{"type":"string"}},"required":["capital"]}`)
+	for _, model := range []string{"glm-5.2", "kimi-k2.5", "gpt-oss:120b"} {
+		llm, err := New(WithServerURL(CloudURL), WithModel(model),
+			WithHTTPClient(&http.Client{Transport: refusingTransport{t: t}}))
+		require.NoError(t, err)
 
-	models := []struct{ name, model string }{
-		{"glm", "glm-5.2"},
-		{"kimi", "kimi-k2.5"},
-	}
-	for _, tc := range models {
-		t.Run(tc.name, func(t *testing.T) {
-			llm := newCloudTestClient(t)
+		_, err = llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "capital of France")},
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "capital", Schema: schema}))
 
-			content := []llms.MessageContent{{
-				Role: llms.ChatMessageTypeHuman,
-				Parts: []llms.ContentPart{
-					llms.TextContent{Text: "Reply with ONLY a JSON object (no prose, no markdown) giving the capital of France."},
-				},
-			}}
-
-			resp, err := llm.GenerateContent(context.Background(), content,
-				llms.WithModel(tc.model),
-				llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "capital", Schema: schema}))
-			require.NoError(t, err)
-			require.NotEmpty(t, resp.Choices)
-
-			var out struct {
-				Capital string `json:"capital"`
-			}
-			require.NoError(t, json.Unmarshal([]byte(resp.Choices[0].Content), &out),
-				"structured output must be valid JSON")
-			assert.Contains(t, strings.ToLower(out.Capital), "paris")
-		})
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
 	}
 }
 

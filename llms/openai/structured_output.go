@@ -7,10 +7,13 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
 )
 
 const providerOpenAI = "openai"
+
+const takesNoResponseFormat = "the vendor's chat completions API takes no response_format for this model"
 
 // ErrStructuredOutputRefusal reports that the model declined a structured-output
 // request (OpenAI Structured Outputs). A refusal may legitimately not match the
@@ -20,10 +23,57 @@ type ErrStructuredOutputRefusal struct {
 	Model   string
 	Choice  int
 	Refusal string
+
+	cause error
 }
+
+func (e *ErrStructuredOutputRefusal) Unwrap() error { return e.cause }
 
 func (e *ErrStructuredOutputRefusal) Error() string {
 	return fmt.Sprintf("openai structured output: model refused (model=%s choice=%d): %s", e.Model, e.Choice, e.Refusal)
+}
+
+func noJSONObjectReason(model string) string {
+	switch {
+	case reasoning.TakesNoResponseFormat(model):
+		return takesNoResponseFormat
+	case reasoning.TakesNoJSONObject(model):
+		return "the vendor has no json_object response format for this model"
+	}
+	return ""
+}
+
+func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, warn *llms.Warnings) {
+	if !opts.GetJSONMode() {
+		return
+	}
+	reason := noJSONObjectReason(model)
+	if reason == "" {
+		req.SetResponseFormat(ResponseFormatJSON)
+		return
+	}
+	if opts.StructuredOutput == nil {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,
+			Asked: "true", Reason: reason,
+		})
+	}
+}
+
+func setClientResponseFormat(req *openaiclient.ChatRequest, model string, rf *ResponseFormat, warn *llms.Warnings) {
+	if rf == nil {
+		return
+	}
+	if rf.Type == ResponseFormatJSON.Type {
+		if reason := noJSONObjectReason(model); reason != "" {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithResponseFormat", Model: model,
+				Asked: rf.Type, Reason: reason,
+			})
+			return
+		}
+	}
+	req.SetResponseFormat(rf)
 }
 
 // setStructuredOutput translates a per-call llms.StructuredOutput into OpenAI's
@@ -48,11 +98,11 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 		}
 	}
 	model := o.effectiveModel(opts)
-	if openAIStructuredOutputUnsupported(model) {
+	if reason := openAIStructuredOutputUnsupported(model); reason != "" {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerOpenAI,
 			Model:    model,
-			Reason:   "model predates Structured Outputs (json_schema)",
+			Reason:   reason,
 		}
 	}
 	if err := validateOpenAIStructuredSchema(so.Schema); err != nil {
@@ -72,10 +122,6 @@ func (o *LLM) validateStructuredResponse(result *openaiclient.ChatCompletionResp
 	}
 	model := o.effectiveModel(opts)
 	for i, c := range result.Choices {
-		// A refusal is a distinct typed outcome, never a JSON-validation error.
-		if c.Message.Refusal != "" {
-			return &ErrStructuredOutputRefusal{Model: model, Choice: i, Refusal: c.Message.Refusal}
-		}
 		if c.FinishReason != openaiclient.FinishReasonStop {
 			continue
 		}
@@ -86,24 +132,30 @@ func (o *LLM) validateStructuredResponse(result *openaiclient.ChatCompletionResp
 	return nil
 }
 
-// openAIStructuredOutputUnsupported reports models KNOWN to lack Structured Outputs
-// (json_schema). Unknown or newer names pass through so the local table never
-// blocks a future model — the API is the final arbiter.
-func openAIStructuredOutputUnsupported(model string) bool {
+// openAIStructuredOutputUnsupported names why a model KNOWN to lack Structured
+// Outputs (json_schema) cannot take one, or returns "". Unknown or newer names
+// pass through so the local table never blocks a future model.
+func openAIStructuredOutputUnsupported(model string) string {
+	const predates = "model predates Structured Outputs (json_schema)"
+
 	m := strings.ToLower(model)
 	if idx := strings.LastIndex(m, "/"); idx != -1 {
 		m = m[idx+1:]
 	}
 	switch {
+	case reasoning.TakesNoJSONSchema(model):
+		return "the vendor's chat completions response_format takes only text and json_object"
+	case reasoning.TakesNoResponseFormat(model):
+		return takesNoResponseFormat
 	case strings.HasPrefix(m, "gpt-3.5"):
-		return true
+		return predates
 	case m == "gpt-4", strings.HasPrefix(m, "gpt-4-0"), strings.HasPrefix(m, "gpt-4-32k"), strings.HasPrefix(m, "gpt-4-turbo"):
-		return true
+		return predates
 	case m == "gpt-4o-2024-05-13":
 		// The first gpt-4o snapshot predates json_schema (added in 2024-08-06).
-		return true
+		return predates
 	default:
-		return false
+		return ""
 	}
 }
 

@@ -35,13 +35,38 @@ func setUpTestWithTransport(rr *httprr.RecordReplay) (*bedrockruntime.Client, er
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
-		config.WithHTTPClient(httpClient))
+		append([]func(*config.LoadOptions) error{config.WithHTTPClient(httpClient)},
+			replayCredentials(rr.Recording())...)...)
 	if err != nil {
 		return nil, err
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, replayClientOptions(rr.Recording())...)
 	return client, nil
+}
+
+const replayRegion = "us-east-1"
+
+func replayCredentials(recording bool) []func(*config.LoadOptions) error {
+	if recording {
+		return nil
+	}
+	return []func(*config.LoadOptions) error{
+		config.WithRegion(replayRegion),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			"replay-access-key", "replay-secret-key", "")),
+	}
+}
+
+func replayClientOptions(recording bool) []func(*bedrockruntime.Options) {
+	if recording {
+		return nil
+	}
+	return []func(*bedrockruntime.Options){signWithSigV4}
+}
+
+func signWithSigV4(o *bedrockruntime.Options) {
+	o.AuthSchemePreference = []string{"sigv4"}
 }
 
 func TestAmazonOutputConverseAPI(t *testing.T) { //nolint:funlen
@@ -1131,7 +1156,7 @@ func TestAmazonReasoningConverseAPI(t *testing.T) {
 	for _, model := range reasoningModels {
 		t.Logf("Testing reasoning with model: %s", model)
 
-		err := testReasoningWorkflow(ctx, t, llm, model, nil)
+		err := testReasoningWorkflow(ctx, t, llm, model, nil, false)
 		if err != nil {
 			t.Errorf("Reasoning failed for model %s: %v", model, err)
 		}
@@ -1168,7 +1193,7 @@ func TestAmazonReasoningLegacyAPI(t *testing.T) {
 	for _, model := range reasoningModels {
 		t.Logf("Testing reasoning with model: %s", model)
 
-		err := testReasoningWorkflow(ctx, t, llm, model, nil)
+		err := testReasoningWorkflow(ctx, t, llm, model, nil, true)
 		if err != nil {
 			t.Errorf("Reasoning failed for model %s: %v", model, err)
 		}
@@ -1223,7 +1248,7 @@ func TestAmazonReasoningStreamingConverseAPI(t *testing.T) {
 			return nil
 		}
 
-		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator)
+		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator, false)
 		if err != nil {
 			t.Errorf("Streaming reasoning failed for model %s: %v", model, err)
 		}
@@ -1267,7 +1292,7 @@ func TestAmazonReasoningStreamingLegacyAPI(t *testing.T) {
 			return nil
 		}
 
-		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator)
+		err := testReasoningWorkflow(ctx, t, llm, model, streamingValidator, true)
 		if err != nil {
 			t.Errorf("Streaming reasoning failed for model %s: %v", model, err)
 		}
@@ -1280,6 +1305,7 @@ func testReasoningWorkflow( //nolint:funlen
 	llm *bedrock.LLM,
 	model string,
 	streamingValidator func(reasoningChunks []string) error,
+	countsThinkingTokens bool,
 ) error {
 	t.Logf("Testing reasoning workflow for model: %s", model)
 
@@ -1360,6 +1386,22 @@ func testReasoningWorkflow( //nolint:funlen
 		t.Logf("Found reasoning content for model %s: %s", model, preview)
 	} else {
 		return fmt.Errorf("empty reasoning content")
+	}
+
+	reasoningTokens, hasReasoningTokens := choice.GenerationInfo["ReasoningTokens"]
+	switch {
+	case countsThinkingTokens:
+		if got, ok := reasoningTokens.(int); !ok || got <= 0 {
+			return fmt.Errorf("an answer that reasoned must report ReasoningTokens as an int, got %#v",
+				reasoningTokens)
+		}
+	case hasReasoningTokens:
+		return fmt.Errorf("this door's usage carries no thinking count, so none must be invented, got %#v",
+			reasoningTokens)
+	}
+	if got, ok := choice.GenerationInfo["CompletionTokens"].(int); !ok || got <= 0 {
+		return fmt.Errorf("an answer that reasoned must report CompletionTokens as an int, got %#v",
+			choice.GenerationInfo["CompletionTokens"])
 	}
 
 	t.Logf("Reasoning workflow completed successfully for model: %s", model)
@@ -2834,6 +2876,8 @@ func TestAmazonAutomaticCachingLegacyAPI(t *testing.T) { //nolint:funlen
 
 	t.Logf("Turn 2 Response: %s", resp2.Choices[0].Content)
 
+	requireUsageAddsUp(t, resp2.Choices[0].GenerationInfo)
+
 	// Turn 3: Continue conversation - automatic caching should apply
 	messages = append(messages,
 		llms.MessageContent{
@@ -3007,6 +3051,8 @@ func TestAmazonAutomaticCachingConverseAPI(t *testing.T) { //nolint:funlen
 
 	t.Logf("Turn 2 Response: %s", resp2.Choices[0].Content)
 
+	requireUsageAddsUp(t, resp2.Choices[0].GenerationInfo)
+
 	// Turn 3: Continue conversation - automatic caching should apply
 	messages = append(messages,
 		llms.MessageContent{
@@ -3103,7 +3149,7 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	sessionToken := os.Getenv("AWS_SESSION_TOKEN")
 
-	opts := []func(*config.LoadOptions) error{
+	opts := append([]func(*config.LoadOptions) error{
 		config.WithHTTPClient(httpClient),
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -3111,14 +3157,14 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 			secretKey,
 			sessionToken,
 		)),
-	}
+	}, replayCredentials(rr.Recording())...)
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, replayClientOptions(rr.Recording())...)
 
 	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithConverseAPI())
 	if err != nil {
@@ -3136,6 +3182,16 @@ func TestCreateClientWithLongLeavingCredentials(t *testing.T) {
 	}
 
 	t.Logf("Response: %s", resp)
+}
+
+type authHeaderTap struct {
+	next          http.RoundTripper
+	authorization string
+}
+
+func (tap *authHeaderTap) RoundTrip(req *http.Request) (*http.Response, error) {
+	tap.authorization = req.Header.Get("Authorization")
+	return tap.next.RoundTrip(req)
 }
 
 // TestCreateClientWithBearerTokenCredentials tests creating a client with bearer token credentials.
@@ -3160,12 +3216,16 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		return nil
 	})
 
+	tap := &authHeaderTap{next: rr}
 	httpClient := &http.Client{
-		Transport: rr,
+		Transport: tap,
 	}
 
 	region := os.Getenv("AWS_REGION")
 	bearerToken := os.Getenv("AWS_BEDROCK_BEARER_TOKEN")
+	if !rr.Recording() {
+		region, bearerToken = replayRegion, "replay-bearer-token"
+	}
 
 	opts := []func(*config.LoadOptions) error{
 		config.WithHTTPClient(httpClient),
@@ -3175,6 +3235,7 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 				Value: bearerToken,
 			},
 		}),
+		config.WithAuthSchemePreference("httpBearerAuth"),
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
@@ -3182,7 +3243,10 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := bedrockruntime.NewFromConfig(cfg)
+	client := bedrockruntime.NewFromConfig(cfg, func(o *bedrockruntime.Options) {
+		o.BearerAuthTokenProvider = bearer.StaticTokenProvider{Token: bearer.Token{Value: bearerToken}}
+		o.AuthSchemePreference = []string{"httpBearerAuth"}
+	})
 
 	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithConverseAPI())
 	if err != nil {
@@ -3199,5 +3263,37 @@ func TestCreateClientWithBearerTokenCredentials(t *testing.T) {
 		t.Fatal("Expected non-empty response")
 	}
 
-	t.Logf("Response: %s", resp)
+	if got, want := tap.authorization, "Bearer "+bearerToken; got != want {
+		t.Errorf("the request carried a %q credential, not the configured bearer token",
+			strings.SplitN(got, " ", 2)[0])
+	}
+}
+
+func requireUsageAddsUp(t *testing.T, info map[string]any) {
+	t.Helper()
+
+	prompt, ok := info["PromptTokens"].(int)
+	if !ok {
+		t.Fatalf("PromptTokens missing or not int: %#v", info["PromptTokens"])
+	}
+	completion, ok := info["CompletionTokens"].(int)
+	if !ok {
+		t.Fatalf("CompletionTokens missing or not int: %#v", info["CompletionTokens"])
+	}
+	cached, _ := info["CacheReadInputTokens"].(int)
+	created, _ := info["CacheCreationInputTokens"].(int)
+	if cached+created == 0 {
+		t.Fatalf("this recording carries no cache tokens, so it cannot show whether they are counted: %#v", info)
+	}
+	total, ok := info["TotalTokens"].(int)
+	if !ok {
+		total = prompt + completion
+	}
+	if prompt+completion != total {
+		t.Errorf("PromptTokens(%d) + CompletionTokens(%d) = %d, but TotalTokens = %d;"+
+			" cache read %d, cache creation %d", prompt, completion, prompt+completion, total, cached, created)
+	}
+	if prompt <= cached+created {
+		t.Errorf("PromptTokens(%d) does not count the cached input (read %d, created %d)", prompt, cached, created)
+	}
 }

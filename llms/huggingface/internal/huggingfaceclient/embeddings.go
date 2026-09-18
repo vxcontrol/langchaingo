@@ -10,25 +10,25 @@ import (
 )
 
 type embeddingPayload struct {
-	Options map[string]any
-	Inputs  []string `json:"inputs"`
+	Inputs []string `json:"inputs"`
+}
+
+const defaultEmbeddingProvider = "hf-inference"
+
+func (c *Client) embeddingProvider() string {
+	if c.provider == "" {
+		return defaultEmbeddingProvider
+	}
+	return c.provider
 }
 
 // nolint:lll
-func (c *Client) createEmbedding(ctx context.Context, model string, task string, payload *embeddingPayload) ([][]float32, error) {
-	body := map[string]any{
-		"inputs": payload.Inputs,
-	}
-	for key, value := range payload.Options {
-		body[key] = value
-	}
-
-	payloadBytes, err := json.Marshal(body)
+func (c *Client) createEmbedding(ctx context.Context, model, task string, payload *embeddingPayload) ([][]float32, error) {
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	// Use /models/ endpoint for embeddings as /pipeline/ is deprecated
-	url := fmt.Sprintf("%s/models/%s", c.url, model)
+	url := fmt.Sprintf("%s/%s/models/%s/pipeline/%s", c.url, c.embeddingProvider(), model, task)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)

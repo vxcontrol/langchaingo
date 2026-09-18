@@ -1,10 +1,12 @@
 package googleai
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,6 +34,7 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -53,12 +56,7 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	// Configure client with httprr
 	opts = append(opts, WithRest(), WithHTTPClient(rr.Client()))
 
-	// Add API key if available
-	if apiKey != "" {
-		opts = append(opts, WithAPIKey(apiKey))
-	} else {
-		t.Skip("No API key found, skipping test")
-	}
+	opts = append(opts, WithAPIKey(cmp.Or(apiKey, "test-api-key")))
 
 	llm, err := New(t.Context(), opts...)
 	if err != nil {
@@ -606,7 +604,11 @@ func TestGoogleAIErrorHandling(t *testing.T) {
 	}
 
 	_, err = llm.GenerateContent(t.Context(), content)
-	assert.Error(t, err)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "cached HTTP response not found",
+		"the cassette must answer this request; a replay miss would satisfy a bare Error assertion")
+	require.Contains(t, strings.ToLower(err.Error()), "api key",
+		"the recorded rejection must reach the caller")
 }
 
 func TestGoogleAIMultiModalContent(t *testing.T) {
@@ -870,4 +872,19 @@ func TestGoogleAIThinkingModels(t *testing.T) {
 			assert.Equal(t, resp.Choices[0].Reasoning.Content, thinkingContent.String())
 		}
 	})
+}
+
+func TestRecordingsCarryNoProxyHeaders(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob("testdata/*.httprr")
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		require.NoError(t, err)
+		assert.False(t, strings.Contains(strings.ToLower(string(data)), "x-litellm-"),
+			"%s carries proxy headers", file)
+	}
 }

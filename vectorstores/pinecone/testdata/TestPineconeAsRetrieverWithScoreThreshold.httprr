@@ -1,5 +1,5 @@
 httprr trace v1
-441 168128
+441 168110
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -16,15 +16,15 @@ Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:43:29 GMT
+Date: Sun, 06 Sep 2026 05:50:31 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 146
-Openai-Project: proj_pf0r5emOzUBDExmxgmWVPVjK
+Openai-Processing-Ms: 82
+Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-6868bd775b-sq58h
+Via: envoy-router-796b65995-z4tfd
 X-Content-Type-Options: nosniff
 X-Engine-Geography: EU
 X-Openai-Proxy-Wasm: v0.1
@@ -34,7 +34,7 @@ X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999954
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_2a57143182644fe6ab0750774d4622c6
+X-Request-Id: req_c2e94c4d669e42358ec6824a4e17fbb5
 
 {
   "object": "list",
@@ -7756,7 +7756,7 @@ X-Request-Id: req_2a57143182644fe6ab0750774d4622c6
     "total_tokens": 46
   }
 }
-299 34497
+299 34481
 POST https://api.openai.com/v1/embeddings HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -7773,15 +7773,15 @@ Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:43:43 GMT
+Date: Sun, 06 Sep 2026 05:50:47 GMT
 Openai-Model: text-embedding-ada-002-v2
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 76
-Openai-Project: proj_pf0r5emOzUBDExmxgmWVPVjK
+Openai-Processing-Ms: 93
+Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Via: envoy-router-78b795c79f-vzmw5
+Via: envoy-router-7d54c87895-gbvbk
 X-Content-Type-Options: nosniff
 X-Engine-Geography: EU
 X-Openai-Proxy-Wasm: v0.1
@@ -7791,7 +7791,7 @@ X-Ratelimit-Remaining-Requests: 9999
 X-Ratelimit-Remaining-Tokens: 9999986
 X-Ratelimit-Reset-Requests: 6ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_84619f4b06894879bd2f4129295d2eec
+X-Request-Id: req_23b02d34c2624b41bea046d3d1924c75
 
 {
   "object": "list",
@@ -9345,7 +9345,7 @@ X-Request-Id: req_84619f4b06894879bd2f4129295d2eec
     "total_tokens": 12
   }
 }
-1051 1725
+1051 1742
 POST https://api.openai.com/v1/chat/completions HTTP/1.1
 Host: api.openai.com
 User-Agent: langchaingo-httprr
@@ -9353,18 +9353,18 @@ Content-Length: 849
 Authorization: Bearer test-api-key
 Content-Type: application/json
 
-{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is each piece of furniture next to the desk?\nHelpful Answer:"}]}HTTP/2.0 200 OK
-Content-Length: 884
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the chair beside the desk is beige.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the desk is orange.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the lamp beside the desk is black.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eThe color of the house is blue.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What colors is each piece of furniture next to the desk?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 917
 Access-Control-Expose-Headers: X-Request-ID
 Access-Control-Expose-Headers: CF-Ray
 Access-Control-Expose-Headers: CF-Ray
 Alt-Svc: h3=":443"; ma=86400
 Cf-Cache-Status: DYNAMIC
 Content-Type: application/json
-Date: Tue, 04 Aug 2026 10:43:46 GMT
+Date: Sun, 06 Sep 2026 05:50:49 GMT
 Openai-Organization: lcgo-tst
-Openai-Processing-Ms: 399
-Openai-Project: proj_pf0r5emOzUBDExmxgmWVPVjK
+Openai-Processing-Ms: 418
+Openai-Project: proj_lcgo-tst
 Openai-Version: 2020-10-01
 Server: cloudflare
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
@@ -9376,19 +9376,19 @@ X-Ratelimit-Remaining-Requests: 29999
 X-Ratelimit-Remaining-Tokens: 149999850
 X-Ratelimit-Reset-Requests: 2ms
 X-Ratelimit-Reset-Tokens: 0s
-X-Request-Id: req_6e767c9c888540338dd240a6a257dca9
+X-Request-Id: req_13b508d2c8cf44c58cb34c8387dec4b9
 
 {
-  "id": "chatcmpl-E96uYlcCSTv3ROvwdYKuigYXAIMbt",
+  "id": "chatcmpl-EL049p6rmQlOPCQpA0fV6PCu1lVVd",
   "object": "chat.completion",
-  "created": 1785840226,
+  "created": 1788673849,
   "model": "gpt-4.1-nano-2025-04-14",
   "choices": [
     {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "The lamp beside the desk is black, and the chair beside the desk is beige.",
+        "content": "The chair beside the desk is beige, the lamp beside the desk is black, and the color of the desk is orange.",
         "refusal": null,
         "annotations": []
       },
@@ -9398,8 +9398,8 @@ X-Request-Id: req_6e767c9c888540338dd240a6a257dca9
   ],
   "usage": {
     "prompt_tokens": 138,
-    "completion_tokens": 17,
-    "total_tokens": 155,
+    "completion_tokens": 25,
+    "total_tokens": 163,
     "prompt_tokens_details": {
       "cached_tokens": 0,
       "audio_tokens": 0
@@ -9412,5 +9412,5 @@ X-Request-Id: req_6e767c9c888540338dd240a6a257dca9
     }
   },
   "service_tier": "default",
-  "system_fingerprint": "fp_92a3cedc90"
+  "system_fingerprint": "fp_973a2ed1e3"
 }

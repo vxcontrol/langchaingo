@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -173,4 +174,52 @@ func TestCache_Call_Streaming(t *testing.T) {
 	rq.True(mockCache.hit)
 	rq.True(stream)
 	rq.True(streamDone)
+}
+
+func TestAWarmCacheReturnsItsAnswerWhenTheConsumerGivesUp(t *testing.T) {
+	t.Parallel()
+
+	answer := &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "sixty rooms are free"}},
+	}
+	llm := New(newMockLLM(answer, nil), newMockCache())
+	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")}
+
+	_, err := llm.GenerateContent(context.Background(), msgs)
+	require.NoError(t, err, "the first call fills the cache")
+
+	gaveUp := errors.New("consumer gave up")
+	resp, err := llm.GenerateContent(context.Background(), msgs,
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return gaveUp }))
+
+	require.ErrorIs(t, err, gaveUp)
+	require.NotNil(t, resp, "the cached answer exists whether or not the consumer wanted it streamed")
+	require.Len(t, resp.Choices, 1)
+	require.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+}
+
+func TestACachedAnswerDoesNotCarryTheFirstCallsWarnings(t *testing.T) {
+	t.Parallel()
+
+	answer := &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "sixty rooms are free"}},
+		Warnings: []llms.Warning{{
+			Kind: llms.WarningDrop, Option: "WithStreamingFunc", Model: "m",
+			Asked: "a callback", Reason: "the door builds no field for it",
+		}},
+	}
+	inner := newMockLLM(answer, nil)
+	llm := New(inner, newMockCache())
+	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")}
+
+	first, err := llm.GenerateContent(context.Background(), msgs,
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+	require.NoError(t, err)
+	require.Len(t, first.Warnings, 1, "the call that reached the door keeps its own warning")
+
+	second, err := llm.GenerateContent(context.Background(), msgs)
+	require.NoError(t, err)
+	require.Equal(t, 1, inner.called, "the second call is a cache hit")
+	require.Empty(t, second.Warnings,
+		"a caller that passed no streaming callback must not be told one was dropped")
 }

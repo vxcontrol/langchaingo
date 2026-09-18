@@ -10,9 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
+	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -103,32 +106,21 @@ func (g *GoogleAI) GenerateContent(
 		Model:          getStringPointer(g.opts.DefaultModel),
 		CandidateCount: getIntPointer(g.opts.DefaultCandidateCount),
 		MaxTokens:      getIntPointer(g.opts.DefaultMaxTokens),
-		TopP:           getFloatPointer(g.opts.DefaultTopP),
-		TopK:           getIntPointer(g.opts.DefaultTopK),
+	}
+	if g.opts.topPFromCaller || g.opts.DefaultTopP != 0 {
+		opts.TopP = getFloatPointer(g.opts.DefaultTopP)
+	}
+	if g.opts.topKFromCaller || g.opts.DefaultTopK != 0 {
+		opts.TopK = getIntPointer(g.opts.DefaultTopK)
 	}
 	for _, opt := range options {
 		opt(&opts)
 	}
-
-	// Default temperature only when the caller left it unset; an explicit value is
-	// preserved.
-	if opts.Temperature == nil {
-		opts.Temperature = getFloatPointer(resolveTemperature(opts.GetModel(), g.opts.DefaultTemperature))
+	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
+		opts.Temperature = &temperature
 	}
 
-	// Build generation config
-	temperature := convertToFloat32Pointer(opts.Temperature)
-	topP := convertToFloat32Pointer(opts.TopP)
-	topK := convertIntToFloat32Pointer(opts.TopK)
-
-	config := &genai.GenerateContentConfig{
-		CandidateCount:  convertToInt32(opts.CandidateCount),
-		MaxOutputTokens: convertToInt32(opts.MaxTokens),
-		Temperature:     temperature,
-		TopP:            topP,
-		TopK:            topK,
-		StopSequences:   opts.StopWords,
-	}
+	config := newGenerationConfig(opts)
 
 	// Check for cached content
 	if opts.Metadata != nil {
@@ -159,6 +151,9 @@ func (g *GoogleAI) GenerateContent(
 		}
 		config.Tools = tools
 	}
+	if toolConfig := googleToolConfig(opts.ToolChoice); toolConfig != nil {
+		config.ToolConfig = toolConfig
+	}
 
 	// Add safety settings
 	config.SafetySettings = []*genai.SafetySetting{
@@ -180,6 +175,9 @@ func (g *GoogleAI) GenerateContent(
 		},
 	}
 
+	warn := &llms.Warnings{}
+	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+
 	var response *llms.ContentResponse
 
 	if len(messages) == 1 {
@@ -191,8 +189,15 @@ func (g *GoogleAI) GenerateContent(
 	} else {
 		response, err = g.generateFromMessages(ctx, opts.GetModel(), messages, config, &opts)
 	}
+	if response != nil {
+		response.Warnings = warn.List()
+	}
 	if err != nil {
-		return nil, err
+		return response, err
+	}
+
+	if err := llms.CheckTruncation(response, opts); err != nil {
+		return response, err
 	}
 
 	// When structured output was requested, validate each normal-final candidate
@@ -251,19 +256,11 @@ func applyGoogleResponseFormat(config *genai.GenerateContentConfig, opts *llms.C
 // outcomes keep their prior semantics and are not validated as final JSON.
 func validateGoogleStructuredOutput(opts *llms.CallOptions, resp *llms.ContentResponse) error {
 	so := opts.StructuredOutput
-	if so == nil || resp == nil {
+	if so == nil {
 		return nil
 	}
-	model := opts.GetModel()
-	for i, choice := range resp.Choices {
-		if choice.StopReason != string(genai.FinishReasonStop) {
-			continue
-		}
-		if err := structuredoutput.Validate(so.Schema, providerGoogleAI, model, i, choice.StopReason, choice.Content); err != nil {
-			return err
-		}
-	}
-	return nil
+	return structuredoutput.ValidateFinalChoices(
+		so.Schema, providerGoogleAI, opts.GetModel(), string(genai.FinishReasonStop), resp)
 }
 
 func (g *GoogleAI) generateFromSingleMessage(
@@ -320,6 +317,9 @@ func (g *GoogleAI) generateFromMessages(
 	if systemInstruction != nil {
 		config.SystemInstruction = systemInstruction
 	}
+	if reasoning.GeminiUsesThinkingLevel(model) {
+		signCurrentTurn(contents)
+	}
 
 	if opts.StreamingFunc == nil {
 		resp, err := g.client.Models.GenerateContent(ctx, model, contents, config)
@@ -330,6 +330,37 @@ func (g *GoogleAI) generateFromMessages(
 	}
 
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
+}
+
+// geminiSignaturePlaceholder is the value Google documents for a function call
+// whose history holds no signature, such as one carried over from another model.
+const geminiSignaturePlaceholder = "skip_thought_signature_validator"
+
+// signCurrentTurn gives the first function call of each model step in the current
+// turn the placeholder when it has no signature.
+func signCurrentTurn(contents []*genai.Content) {
+	start := -1
+	for i, content := range contents {
+		if content.Role == RoleUser && slices.ContainsFunc(content.Parts, func(part *genai.Part) bool {
+			return part.FunctionResponse == nil
+		}) {
+			start = i
+		}
+	}
+	for _, content := range contents[start+1:] {
+		if content.Role != RoleModel {
+			continue
+		}
+		for _, part := range content.Parts {
+			if part.FunctionCall == nil {
+				continue
+			}
+			if len(part.ThoughtSignature) == 0 {
+				part.ThoughtSignature = []byte(geminiSignaturePlaceholder)
+			}
+			break
+		}
+	}
 }
 
 func (g *GoogleAI) generateStreamingContent(
@@ -349,29 +380,26 @@ func (g *GoogleAI) generateStreamingContent(
 	var thoughtSignature []byte
 	var lastUsageMetadata *genai.GenerateContentResponseUsageMetadata
 	var lastCandidate *genai.Candidate
+	var blockReason *genai.GenerateContentResponsePromptFeedback
 	var streamErr error
-
-	// Trying to keep the same ID for the same tool call name
-	toolCallIDs := make(map[string]string)
-	ensureStreamFunctionCallID := func(name, id string) string {
-		if rid, ok := toolCallIDs[name]; id == "" && ok {
-			return rid
-		}
-		toolCallIDs[name] = ensureFunctionCallID(id)
-		return toolCallIDs[name]
-	}
 
 	for chunk, err := range iter {
 		if err != nil {
-			return nil, fmt.Errorf("error generating content: %w", err)
+			streamErr = fmt.Errorf("error generating content: %w", err)
+			goto StreamEnd
 		}
 		if chunk == nil {
-			return nil, fmt.Errorf("unexpected case: chunk is nil")
+			streamErr = errors.New("unexpected case: chunk is nil")
+			goto StreamEnd
 		}
 
 		// Capture usage metadata from each chunk (last one will be the final)
 		if chunk.UsageMetadata != nil {
 			lastUsageMetadata = chunk.UsageMetadata
+		}
+
+		if fb := chunk.PromptFeedback; fb != nil && fb.BlockReason != "" {
+			blockReason = fb
 		}
 
 		if len(chunk.Candidates) == 0 {
@@ -416,7 +444,7 @@ func (g *GoogleAI) generateStreamingContent(
 			if part.FunctionCall != nil {
 				b, _ := json.Marshal(part.FunctionCall.Args)
 				toolCall := llms.ToolCall{
-					ID: ensureStreamFunctionCallID(part.FunctionCall.Name, part.FunctionCall.ID),
+					ID: ensureFunctionCallID(part.FunctionCall.ID),
 					FunctionCall: &llms.FunctionCall{
 						Name:      part.FunctionCall.Name,
 						Arguments: string(b),
@@ -470,13 +498,7 @@ StreamEnd:
 		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 		metadata["CacheReadInputTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
 
-		// Cache-related token information (if available)
-		if lastUsageMetadata.CachedContentTokenCount > 0 {
-			metadata["CacheCreationInputTokens"] = max(int(lastUsageMetadata.PromptTokenCount-lastUsageMetadata.CachedContentTokenCount), 0)
-			metadata["PromptTokens"] = metadata["CacheCreationInputTokens"] // Google AI includes cached tokens in the prompt count
-		} else {
-			metadata["CacheCreationInputTokens"] = 0
-		}
+		metadata["CacheCreationInputTokens"] = 0
 	}
 
 	// Carry the finish reason so structured-output validation runs on a normal
@@ -492,19 +514,24 @@ StreamEnd:
 			Reasoning:      choiceReasoning,
 			ToolCalls:      accumulatedToolCalls,
 			StopReason:     stopReason,
+			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: metadata,
 		}},
 	}
-	// A callback that returned an error stopped the stream early; surface it
-	// (matching the other providers) instead of masking it as a success.
 	if streamErr != nil {
 		return resp, streamErr
+	}
+	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0], opts); err != nil {
+		return resp, err
 	}
 	return resp, nil
 }
 
 func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse, error) {
 	if len(resp.Candidates) == 0 {
+		if err := blockedPromptError(resp.PromptFeedback); err != nil {
+			return nil, err
+		}
 		return nil, ErrNoContentInResponse
 	}
 
@@ -593,7 +620,6 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 			metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
 			metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
 			metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
-			// Google AI does not provide cache creation information, always 0
 			metadata["CacheCreationInputTokens"] = 0
 		}
 
@@ -601,6 +627,7 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 			Content:        content.String(),
 			Reasoning:      choiceReasoning,
 			StopReason:     string(candidate.FinishReason),
+			Truncated:      llms.IsTruncated(string(candidate.FinishReason)),
 			GenerationInfo: metadata,
 			ToolCalls:      toolCalls,
 		})
@@ -672,8 +699,8 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 
 		case llms.ToolCall:
 			fc := p.FunctionCall
-			var argsMap map[string]any
-			if err := json.Unmarshal([]byte(fc.Arguments), &argsMap); err != nil {
+			argsMap, err := toolcall.Decode(fc.Arguments)
+			if err != nil {
 				return nil, err
 			}
 			genaiPart = &genai.Part{
@@ -734,6 +761,31 @@ func convertContent(content llms.MessageContent) (*genai.Content, error) {
 		Parts: parts,
 		Role:  role,
 	}, nil
+}
+
+func googleToolConfig(choice any) *genai.ToolConfig {
+	var (
+		mode    genai.FunctionCallingConfigMode
+		allowed []string
+	)
+	switch kind, name := llms.ClassifyToolChoice(choice); kind {
+	case llms.ToolChoiceNamed:
+		mode, allowed = genai.FunctionCallingConfigModeAny, []string{name}
+	case llms.ToolChoiceAny:
+		mode = genai.FunctionCallingConfigModeAny
+	case llms.ToolChoiceAuto:
+		mode = genai.FunctionCallingConfigModeAuto
+	case llms.ToolChoiceNone:
+		mode = genai.FunctionCallingConfigModeNone
+	case llms.ToolChoiceUnset:
+		return nil
+	}
+	return &genai.ToolConfig{
+		FunctionCallingConfig: &genai.FunctionCallingConfig{
+			Mode:                 mode,
+			AllowedFunctionNames: allowed,
+		},
+	}
 }
 
 func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {
@@ -1025,6 +1077,20 @@ func getFloatPointer(f float64) *float64 {
 	return &f
 }
 
+func newGenerationConfig(opts llms.CallOptions) *genai.GenerateContentConfig {
+	return &genai.GenerateContentConfig{
+		CandidateCount:   convertToInt32(opts.CandidateCount),
+		MaxOutputTokens:  convertToInt32(opts.MaxTokens),
+		Temperature:      convertToFloat32Pointer(opts.Temperature),
+		TopP:             convertToFloat32Pointer(opts.TopP),
+		TopK:             convertIntToFloat32Pointer(opts.TopK),
+		StopSequences:    opts.StopWords,
+		Seed:             convertToInt32Pointer(opts.Seed),
+		FrequencyPenalty: convertToFloat32Pointer(opts.FrequencyPenalty),
+		PresencePenalty:  convertToFloat32Pointer(opts.PresencePenalty),
+	}
+}
+
 func convertToFloat32Pointer(f *float64) *float32 {
 	if f == nil {
 		return nil
@@ -1039,7 +1105,7 @@ func convertToInt32Pointer(i *int) *int32 {
 		return nil
 	}
 
-	i32 := int32(*i)
+	i32 := numutil.SaturateInt32(*i)
 	return &i32
 }
 
@@ -1048,7 +1114,7 @@ func convertToInt32(i *int) int32 {
 		return 0
 	}
 
-	return int32(*i)
+	return numutil.SaturateInt32(*i)
 }
 
 func convertIntToFloat32Pointer(i *int) *float32 {
@@ -1060,39 +1126,41 @@ func convertIntToFloat32Pointer(i *int) *float32 {
 	return &f32
 }
 
-// resolveTemperature returns the temperature to use when the caller left it
-// unset. Gemini 3 defaults to 1.0, the value Google recommends (lower values can
-// cause looping and degraded reasoning); other models keep the SDK-wide default.
-func resolveTemperature(model string, defaultTemperature float64) float64 {
-	if reasoning.GeminiUsesThinkingLevel(model) {
-		return 1.0
-	}
-	return defaultTemperature
-}
-
 // resolveThinkingConfig builds the Gemini thinking config for the reasoning mode.
-// Off forces budget 0 on models that disable that way (Gemini 2.5 Flash), since
-// omitting would not disable a default-on model; a model whose thinking cannot be
-// disabled (Gemini 2.5 Pro, Gemini 3.x) returns a typed error before the request.
+// Off forces budget 0 on models that disable that way, since omitting would not
+// disable a default-on model; a model whose thinking cannot be disabled returns a
+// typed error before the request.
 func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens int) (*genai.ThinkingConfig, error) {
 	switch cfg.ResolveMode() {
 	case llms.ReasoningOn:
+		if !reasoning.GeminiSupportsThinking(model) {
+			return nil, nil
+		}
+		if cfg.DelegatesDepth() {
+			return adaptiveThinkingConfig(model), nil
+		}
+		if reasoning.GeminiTogglesThinkingByLevel(model) {
+			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelHigh, IncludeThoughts: true}, nil
+		}
 		// An effort with no explicit token budget maps to the qualitative
 		// thinking_level on Gemini 3.x (its native control, where thinking_budget is
 		// deprecated); an explicit budget or a 2.5 model still uses thinking_budget.
-		if cfg.Tokens == 0 && reasoning.GeminiUsesThinkingLevel(model) {
-			if level := thinkingLevelForEffort(cfg.GetEffort(maxTokens)); level != "" {
+		if cfg.Tokens <= 0 && reasoning.GeminiUsesThinkingLevel(model) {
+			if level := thinkingLevelForEffort(model, cfg.GetEffort(maxTokens)); level != "" {
 				return &genai.ThinkingConfig{ThinkingLevel: level, IncludeThoughts: true}, nil
 			}
 		}
-		if budget := int32(cfg.GetTokens(maxTokens)); budget > 0 {
+		if budget := geminiBudgetInRange(model, cfg.GetTokens(maxTokens)); budget > 0 {
 			return &genai.ThinkingConfig{ThinkingBudget: &budget, IncludeThoughts: true}, nil
 		}
+		return nil, &reasoning.ErrEffortHasNoBudget{Model: model, Effort: string(cfg.GetEffort(maxTokens))}
 	case llms.ReasoningOff:
 		switch reasoning.ResolveOff(model, reasoning.ProviderGoogleAI) {
 		case reasoning.OffZeroBudget:
 			zero := int32(0)
 			return &genai.ThinkingConfig{ThinkingBudget: &zero}, nil
+		case reasoning.OffMinimalLevel:
+			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelMinimal}, nil
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
@@ -1100,11 +1168,75 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 	return nil, nil
 }
 
+const geminiDynamicBudget = -1
+
+func adaptiveThinkingConfig(model string) *genai.ThinkingConfig {
+	if reasoning.GeminiUsesThinkingLevel(model) || reasoning.GeminiTogglesThinkingByLevel(model) {
+		return &genai.ThinkingConfig{IncludeThoughts: true}
+	}
+	dynamic := int32(geminiDynamicBudget)
+	return &genai.ThinkingConfig{ThinkingBudget: &dynamic, IncludeThoughts: true}
+}
+
+func geminiBudgetInRange(model string, budget int) int32 {
+	minimum, maximum, known := reasoning.GeminiBudgetRange(model)
+	if !known || budget <= 0 {
+		return int32(budget)
+	}
+	return int32(min(max(budget, minimum), maximum))
+}
+
+// checkEmptyStream reports an output limit too small to start an answer.
+func blockedPromptError(feedback *genai.GenerateContentResponsePromptFeedback) error {
+	if feedback == nil || feedback.BlockReason == "" {
+		return nil
+	}
+	message := "the model returned no candidates: the prompt was blocked (" + string(feedback.BlockReason) + ")"
+	if feedback.BlockReasonMessage != "" {
+		message += ": " + feedback.BlockReasonMessage
+	}
+	return &llms.Error{
+		Code:     llms.ErrCodeContentFilter,
+		Message:  message,
+		Provider: providerGoogleAI,
+	}
+}
+
+func checkEmptyStream(
+	lastCandidate *genai.Candidate,
+	blockReason *genai.GenerateContentResponsePromptFeedback,
+	choice *llms.ContentChoice,
+	opts *llms.CallOptions,
+) error {
+	if lastCandidate != nil {
+		return nil
+	}
+	if choice.Content != "" || len(choice.ToolCalls) > 0 {
+		return nil
+	}
+	if err := blockedPromptError(blockReason); err != nil {
+		return err
+	}
+	if opts == nil || opts.MaxTokens == nil || *opts.MaxTokens <= 0 {
+		return nil
+	}
+	return &llms.Error{
+		Code:     llms.ErrCodeTokenLimit,
+		Message:  "the model returned no candidates: max_tokens is too small to start an answer",
+		Provider: providerGoogleAI,
+	}
+}
+
 // thinkingLevelForEffort maps a reasoning effort to a Gemini thinking_level.
 // xhigh/max collapse to HIGH (the top level); an unset effort returns empty so
 // the caller falls back to a budget or the model default.
-func thinkingLevelForEffort(effort llms.ReasoningEffort) genai.ThinkingLevel {
+func thinkingLevelForEffort(model string, effort llms.ReasoningEffort) genai.ThinkingLevel {
 	switch effort {
+	case llms.ReasoningMinimal:
+		if reasoning.GeminiAcceptsMinimalLevel(model) {
+			return genai.ThinkingLevelMinimal
+		}
+		return genai.ThinkingLevelLow
 	case llms.ReasoningLow:
 		return genai.ThinkingLevelLow
 	case llms.ReasoningMedium:

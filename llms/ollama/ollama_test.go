@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -37,7 +39,7 @@ func newTestClient(t *testing.T, opts ...Option) *LLM {
 	})
 
 	// Default model for testing
-	ollamaModel := "gemma3:1b"
+	ollamaModel := "qwen3:8b"
 	if envModel := os.Getenv("OLLAMA_TEST_MODEL"); envModel != "" {
 		ollamaModel = envModel
 	}
@@ -229,10 +231,11 @@ func TestWithFormat(t *testing.T) {
 func TestStructuredOutput(t *testing.T) {
 	ctx := t.Context()
 
-	// This integration test needs a recorded trace (or a live Ollama server with
-	// HTTPRR_RECORD=.). Skip cleanly when neither is available.
-	if _, err := os.Stat("testdata/TestStructuredOutput.httprr"); err != nil && os.Getenv("HTTPRR_RECORD") == "" {
-		t.Skip("no recording; run against a local Ollama server with HTTPRR_RECORD=. to record")
+	const cassette = "testdata/TestStructuredOutput.httprr"
+	recording, err := httprr.Recording(cassette)
+	require.NoError(t, err)
+	if _, statErr := os.Stat(cassette); statErr != nil && !recording {
+		t.Skip("no recording; run against a live Ollama server with -httprecord=. to record")
 	}
 
 	llm := newTestClient(t)
@@ -496,6 +499,33 @@ func TestResolveFormat(t *testing.T) {
 		assert.JSONEq(t, ollamaSOSchema, string(got))
 	})
 
+	t.Run("the cloud gets the empty format whatever was asked", func(t *testing.T) {
+		t.Parallel()
+		for _, server := range []string{CloudURL, "https://api.ollama.com"} {
+			llm, err := New(WithServerURL(server), WithModel("gpt-oss:120b"), WithFormat("json"))
+			require.NoError(t, err)
+
+			got, err := llm.resolveFormat(applyOpts(llms.WithJSONMode()))
+			require.NoError(t, err)
+			assert.Equal(t, `""`, string(got), server)
+
+			_, err = llm.resolveFormat(applyOpts(
+				llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(ollamaSOSchema)}),
+			))
+			var unsup *llms.ErrStructuredOutputUnsupported
+			require.ErrorAs(t, err, &unsup, server)
+		}
+	})
+
+	t.Run("a server that only looks like the cloud keeps JSON mode", func(t *testing.T) {
+		t.Parallel()
+		llm, err := New(WithServerURL("https://notollama.com"))
+		require.NoError(t, err)
+		got, err := llm.resolveFormat(applyOpts(llms.WithJSONMode()))
+		require.NoError(t, err)
+		assert.Equal(t, `"json"`, string(got))
+	})
+
 	t.Run("invalid structured config errors", func(t *testing.T) {
 		t.Parallel()
 		llm := newUnitLLM(t)
@@ -562,4 +592,61 @@ func TestValidateStructuredOutput(t *testing.T) {
 		}}}
 		require.NoError(t, llm.validateStructuredOutput(opts, resp))
 	})
+}
+
+func TestACloudModelOffloadedByALocalServerGetsNoFormat(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-oss:120b-cloud", "glm-4.6:cloud"} {
+		got := captureChatRequestFor(t, model, llms.WithJSONMode())
+		assert.Equal(t, "", got["format"], model)
+
+		_, err := sendChatRequest(t, model, llms.WithStructuredOutput(
+			llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(ollamaSOSchema)}))
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
+	}
+
+	assert.Equal(t, "json", captureChatRequestFor(t, "gpt-oss:120b", llms.WithJSONMode())["format"],
+		"a model the local server runs itself keeps JSON mode")
+}
+
+func TestAnLLMWithNoServerAddressTreatsItsModelAsLocal(t *testing.T) {
+	t.Parallel()
+
+	o := &LLM{}
+	for model, want := range map[string]string{
+		"gpt-oss:120b":       `"json"`,
+		"gpt-oss:120b-cloud": `""`,
+	} {
+		format, err := o.resolveFormat(llms.CallOptions{Model: &model, JSONMode: true})
+		require.NoError(t, err, model)
+		assert.Equal(t, want, string(format), model)
+	}
+}
+
+func TestTheCloudDropWarningReachesTheResponse(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]int{"gpt-oss:120b-cloud": 1, "gpt-oss:120b": 0} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "application/x-ndjson")
+			_, _ = w.Write([]byte(`{"model":"m","message":{"role":"assistant","content":"{}"},"done":true,"done_reason":"stop"}` + "\n"))
+		}))
+		llm, err := New(WithServerURL(srv.URL), WithModel(model))
+		require.NoError(t, err)
+		resp, err := llm.GenerateContent(t.Context(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithJSONMode())
+		srv.Close()
+		require.NoError(t, err)
+
+		var drops int
+		for _, w := range resp.Warnings {
+			if w.Option == "WithJSONMode" && w.Kind == llms.WarningDrop {
+				drops++
+			}
+		}
+		assert.Equal(t, want, drops, model)
+	}
 }

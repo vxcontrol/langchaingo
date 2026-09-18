@@ -29,8 +29,9 @@
 //
 // The package automatically detects and tests supported capabilities:
 //   - Basic operations (Call, GenerateContent)
-//   - Streaming (if model implements streaming interface)
-//   - Tool/Function calling (probed with test tool)
+//   - Streaming (unless the call site passes WithoutStreaming)
+//   - Tool/Function calling (probed with a test tool; a door that takes the
+//     tools must answer with a call unless the call site passes WithoutToolCalls)
 //   - Reasoning/Thinking mode (if supported)
 //   - Token counting (if usage information provided)
 //   - Context caching (if implemented)

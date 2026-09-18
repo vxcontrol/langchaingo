@@ -12,9 +12,8 @@ const (
 	hfHomeEnvVarName      = "HF_HOME"        // HF home directory
 	xdgCacheHomeEnvVar    = "XDG_CACHE_HOME" // XDG cache directory
 	defaultTokenPath      = "token"          // Default token filename
-	defaultModel          = "gpt2"
-	defaultURL            = "https://api-inference.huggingface.co"
-	routerURL             = "https://router.huggingface.co"
+	defaultModel          = "meta-llama/Llama-3.1-8B-Instruct"
+	defaultURL            = "https://router.huggingface.co"
 )
 
 type options struct {
@@ -58,9 +57,8 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
-// WithInferenceProvider passes the inference provider to use with HuggingFace's router.
-// When set, the client will use the router URL (https://router.huggingface.co/{provider}/v1/...)
-// instead of the default inference API. Common providers include "hyperbolic", "nebius", etc.
+// WithInferenceProvider names the inference provider that serves the request behind
+// HuggingFace's router. Common providers include "hyperbolic", "nebius", etc.
 func WithInferenceProvider(provider string) Option {
 	return func(opts *options) {
 		opts.provider = provider

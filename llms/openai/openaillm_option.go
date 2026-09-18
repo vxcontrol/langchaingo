@@ -66,7 +66,9 @@ type ResponseFormatJSONSchemaProperty = openaiclient.ResponseFormatJSONSchemaPro
 var ResponseFormatJSON = &ResponseFormat{Type: "json_object"} //nolint:gochecknoglobals
 
 // WithToken passes the OpenAI API token to the client. If not set, the token
-// is read from the OPENAI_API_KEY environment variable.
+// is read from the OPENAI_API_KEY environment variable. A token is required
+// only for known public OpenAI-compatible providers; local backends such as
+// vLLM may be used without one.
 func WithToken(token string) Option {
 	return func(opts *options) {
 		opts.token = token
@@ -171,10 +173,13 @@ func WithModernReasoningFormat() Option {
 	}
 }
 
-// WithPreserveReasoningContent enables preservation of reasoning content
-// in multi-turn conversations with tool calls. This is required for some
-// LLM providers like Moonshot that expect reasoning_content field in
-// assistant messages with tool calls.
+// WithPreserveReasoningContent sends each assistant turn's reasoning back as
+// reasoning_content: on the turns that called a tool, and on every assistant
+// turn for DeepSeek, Kimi, GLM and Qwen models. A model Mistral serves takes it on
+// every turn as a thinking chunk at the head of content instead, and one that
+// does not reason there takes none. A MiniMax M-series model on MiniMax's API
+// takes it on every turn inside <think> tags at the head of content, unless the
+// content already opens with a <think> block.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true

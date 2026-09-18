@@ -2,13 +2,13 @@ package bedrock
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 
@@ -17,6 +17,10 @@ import (
 )
 
 const defaultModel = ModelAnthropicClaudeHaiku45
+
+func decodeToolArguments(raw string) (map[string]any, error) {
+	return toolcall.Decode(raw)
+}
 
 // LLM is a Bedrock LLM implementation.
 type LLM struct {
@@ -108,13 +112,32 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	// Use Converse API if enabled
-	if l.useConverseAPI {
-		return l.generateContentWithConverseAPI(ctx, messages, opts)
+	if err := opts.ValidateReasoning(); err != nil {
+		return nil, err
 	}
 
-	// Use legacy implementation
-	return l.generateContentWithLegacyAPI(ctx, messages, opts)
+	if err := checkAnthropicTurnLimits(&opts, messages); err != nil {
+		return nil, err
+	}
+
+	// Use Converse API if enabled
+	if l.useConverseAPI {
+		resp, err = l.generateContentWithConverseAPI(ctx, messages, opts)
+	} else {
+		resp, err = l.generateContentWithLegacyAPI(ctx, messages, opts)
+	}
+	if resp != nil {
+		resp.Warnings = append(resp.Warnings, unreadBedrockOptions(opts.GetModel(), l.useConverseAPI, opts)...)
+	}
+	if err != nil {
+		return resp, err
+	}
+
+	if err = llms.CheckTruncation(resp, opts); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
 }
 
 // generateContentWithConverseAPI uses the unified Converse API
@@ -137,6 +160,7 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 		ModelID:          opts.GetModel(),
 		Messages:         m,
 		Tools:            opts.Tools,
+		ToolChoice:       opts.ToolChoice,
 		StreamingFunc:    opts.StreamingFunc,
 		ReasoningConfig:  opts.Reasoning,
 		EnableCaching:    enableCaching,
@@ -152,6 +176,9 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 	}
 	if opts.TopP != nil {
 		input.TopP = opts.TopP
+	}
+	if opts.TopK != nil {
+		input.TopK = opts.TopK
 	}
 	if len(opts.StopWords) > 0 {
 		input.StopSequences = opts.StopWords
@@ -232,9 +259,11 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				}
 				var arguments map[string]any
 				if part.FunctionCall.Arguments != "" {
-					if err := json.Unmarshal([]byte(part.FunctionCall.Arguments), &arguments); err != nil {
+					decoded, err := decodeToolArguments(part.FunctionCall.Arguments)
+					if err != nil {
 						return nil, fmt.Errorf("failed to unmarshal tool call arguments: %w", err)
 					}
+					arguments = decoded
 				}
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
 					Role: m.Role,
@@ -363,3 +392,7 @@ func (l *LLM) supportsCaching(modelID string) bool {
 }
 
 var _ llms.Model = (*LLM)(nil)
+
+func checkAnthropicTurnLimits(opts *llms.CallOptions, messages []llms.MessageContent) error {
+	return llms.CheckClaudeTurnLimits(opts.GetModel(), *opts, messages)
+}

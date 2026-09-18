@@ -22,6 +22,7 @@ func TestLLMMath(t *testing.T) {
 	}
 
 	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 

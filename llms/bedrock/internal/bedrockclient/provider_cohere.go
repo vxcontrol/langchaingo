@@ -123,10 +123,11 @@ func createCohereCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	// Check if this is a Command R model
-	if strings.Contains(modelID, "command-r") {
-		return createCohereCommandRCompletion(ctx, client, modelID, messages, options)
+	if IsCohereCommandR(modelID) {
+		return createCohereCommandRCompletion(ctx, client, modelID, messages, options, warn)
 	}
 
 	// Legacy models (command-text-v14, command-light-text-v14)
@@ -137,7 +138,7 @@ func createCohereCompletion(ctx context.Context,
 		Temperature:    options.GetTemperature(),
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
-		MaxTokens:      getMaxTokens(options.GetMaxTokens(), 20),
+		MaxTokens:      maxTokensOnTheWire(warn, modelID, options, 20),
 		StopSequences:  options.StopWords,
 		NumGenerations: options.GetCandidateCount(),
 	}
@@ -181,6 +182,7 @@ func createCohereCompletion(ctx context.Context,
 		choices[i] = &llms.ContentChoice{
 			Content:    gen.Text,
 			StopReason: gen.FinishReason,
+			Truncated:  llms.IsTruncated(gen.FinishReason),
 			GenerationInfo: map[string]any{
 				"generation_id": gen.ID,
 				"index":         i,
@@ -198,6 +200,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	// Convert messages to Cohere format
 	var currentMessage string
@@ -232,7 +235,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 	input := &cohereCommandRInput{
 		Message:       currentMessage,
 		ChatHistory:   chatHistory,
-		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 512),
+		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 512),
 		Temperature:   options.GetTemperature(),
 		P:             options.GetTopP(),
 		K:             options.GetTopK(),
@@ -276,6 +279,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 		{
 			Content:    output.Text,
 			StopReason: output.FinishReason,
+			Truncated:  llms.IsTruncated(output.FinishReason),
 			GenerationInfo: map[string]any{
 				"id": output.ID,
 			},
@@ -300,29 +304,37 @@ func parseCohereStreamingResponse(ctx context.Context, client *bedrockruntime.Cl
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var streamedContent strings.Builder
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp cohereStreamingResponseChunk
 			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
 			if err != nil {
-				return nil, err
+				streamErr = err
+				break DoStream
 			}
 
 			// Send text chunk if available
 			if resp.Text != "" {
+				streamedContent.WriteString(resp.Text)
 				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.Text); err != nil {
-					return nil, err
+					streamErr = err
+					break DoStream
 				}
-				contentchoices[0].Content += resp.Text
 			}
 
 			// Set completion reason
 			if resp.FinishReason != "" {
 				contentchoices[0].StopReason = resp.FinishReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.FinishReason)
 			}
 
 			// Set generation info
@@ -332,10 +344,10 @@ func parseCohereStreamingResponse(ctx context.Context, client *bedrockruntime.Cl
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+
+	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }
