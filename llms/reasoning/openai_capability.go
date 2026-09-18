@@ -89,7 +89,7 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 	case hasGeneration(m, "gpt-5.1"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
 	case hasGeneration(m, "gpt-6-astra"):
-		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh", "max"}}
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh"}}
 	case openAIXHighCeiling(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
 	case nonOpenAILowHighMax(m):
