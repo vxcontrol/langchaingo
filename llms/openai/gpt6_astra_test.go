@@ -50,18 +50,21 @@ func TestAstraKeepsTheCallersSamplingOffTheWire(t *testing.T) {
 	assert.Equal(t, "high", body["reasoning_effort"])
 }
 
-func TestAstraCarriesTheTopEffortsItsCardLists(t *testing.T) {
+func TestAstraCarriesTheTopEffortTheVendorAccepts(t *testing.T) {
 	t.Parallel()
 
-	for _, effort := range []llms.ReasoningEffort{llms.ReasoningXHigh, llms.ReasoningMax} {
-		t.Run(string(effort), func(t *testing.T) {
-			t.Parallel()
+	body, err := wireBodyOf(t, "gpt-6-astra", nil, llms.WithReasoning(llms.ReasoningXHigh, 0))
+	require.NoError(t, err)
+	assert.Equal(t, "xhigh", body["reasoning_effort"])
+}
 
-			body, err := wireBodyOf(t, "gpt-6-astra", nil, llms.WithReasoning(effort, 0))
-			require.NoError(t, err)
-			assert.Equal(t, string(effort), body["reasoning_effort"])
-		})
-	}
+func TestAstraClampsMaxTheVendorRefuses(t *testing.T) {
+	t.Parallel()
+
+	body, err := wireBodyOf(t, "gpt-6-astra", nil, llms.WithReasoning(llms.ReasoningMax, 0))
+	require.NoError(t, err)
+	assert.Equal(t, "xhigh", body["reasoning_effort"],
+		"the vendor answers 400 to max with this model and names low, medium, high and xhigh")
 }
 
 func TestAstraClampsAnEffortItsCardDoesNotList(t *testing.T) {
