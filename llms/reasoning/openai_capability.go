@@ -1,6 +1,7 @@
 package reasoning
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 )
@@ -87,6 +88,8 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"minimal", "low", "medium", "high"}}
 	case hasGeneration(m, "gpt-5.1"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
+	case hasGeneration(m, "gpt-6-astra"):
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh", "max"}}
 	case openAIXHighCeiling(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
 	case nonOpenAILowHighMax(m):
@@ -139,3 +142,29 @@ func OpenAIThinkingOptIn(model string) bool {
 // OpenAIDisableEffort turns thinking off on the wire. It is not llms.ReasoningNone,
 // which is the empty string and instead omits the field.
 const OpenAIDisableEffort = "none"
+
+// ChatToolsUnsupported reports whether the vendor serves no function tools for
+// the model on /chat/completions. OpenAI states it for GPT-6 Astra: tools ride
+// on the responses API only, and the model has no effort level that turns
+// thinking off to trade for them.
+func ChatToolsUnsupported(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "gpt-6-astra") {
+			return true
+		}
+	}
+	return false
+}
+
+// ErrChatToolsUnsupported reports a request that carries function tools for a
+// model whose chat completions endpoint does not serve them.
+type ErrChatToolsUnsupported struct {
+	Model string
+}
+
+func (e *ErrChatToolsUnsupported) Error() string {
+	return fmt.Sprintf(
+		"model %q carries function tools on chat completions, where the vendor does not serve them; "+
+			"the responses API is the only door for tools on this model",
+		e.Model)
+}
