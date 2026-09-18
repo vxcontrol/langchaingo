@@ -118,6 +118,19 @@ func TestGLMServedByMistralSpellsOffByOmission(t *testing.T) {
 	}
 }
 
+func TestGLM53IsRefusedUnderTheSpellingMistralServesItBy(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"glm-5.3", "glm-5.3-flash", "glm-5-3", "zai-glm-5-3", "mistral/zai-glm-5-3", "mistral/glm-5-3",
+	} {
+		if got := ResolveOff(model, ProviderOpenAI); got != OffUnsupported {
+			t.Errorf("ResolveOff(%q, openai) = %v, want OffUnsupported: the model answers with "+
+				"reasoning_content when no reasoning field is sent, so omitting the field is not \"off\"", model, got)
+		}
+	}
+}
+
 func TestAlwaysThinkingFamiliesAreRefusedOnBedrockToo(t *testing.T) {
 	t.Parallel()
 
