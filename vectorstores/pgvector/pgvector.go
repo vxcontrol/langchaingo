@@ -35,6 +35,8 @@ var (
 	ErrEmbedderWrongNumberVectors = errors.New("number of vectors from embedder does not match number of documents")
 	ErrInvalidScoreThreshold      = errors.New("score threshold must be between 0 and 1")
 	ErrInvalidFilters             = errors.New("invalid filters")
+	ErrInvalidFilterKey           = errors.New("filter key must be a bare identifier")
+	ErrInvalidMetadataIndex       = errors.New("invalid metadata index")
 	ErrUnsupportedOptions         = errors.New("unsupported options")
 )
 
@@ -65,6 +67,7 @@ type Store struct {
 	preDeleteCollection bool
 	vectorDimensions    int
 	hnswIndex           *HNSWIndex
+	metadataIndexes     []MetadataIndex
 }
 
 type HNSWIndex struct {
@@ -120,6 +123,9 @@ func (s *Store) init(ctx context.Context) error {
 		return err
 	}
 	if err := s.createEmbeddingTableIfNotExists(ctx, tx); err != nil {
+		return err
+	}
+	if err := s.createMetadataIndexesIfNotExist(ctx, tx); err != nil {
 		return err
 	}
 	if s.preDeleteCollection {
@@ -295,46 +301,57 @@ func (s Store) SimilaritySearch(
 	if err != nil {
 		return nil, err
 	}
-	args := make([]any, 0, 4+2*len(filter))
+	args := make([]any, 0, 5+len(filter))
 	args = append(args, len(embedderData), pgvector.NewVector(embedderData), numDocuments, collectionName)
-	whereQuerys := make([]string, 0)
-	if scoreThreshold != 0 {
-		whereQuerys = append(whereQuerys, fmt.Sprintf("data.distance < %f", 1-scoreThreshold))
+
+	// Every predicate that can reject a row belongs inside the fence, so that a
+	// distance is computed only for the rows that survive it, and so that a
+	// metadata index is reachable at the scan. Hoisting them out, as this query
+	// once did, costs a full table scan and a detoast of every stored vector.
+	innerQuerys, filterArgs, err := filterPredicates(s.embeddingTableName+".", filter, len(args))
+	if err != nil {
+		return nil, err
 	}
-	filterQuerys, filterArgs := filterPredicates("data.", filter, len(args))
-	whereQuerys = append(whereQuerys, filterQuerys...)
 	args = append(args, filterArgs...)
-	whereQuery := strings.Join(whereQuerys, " AND ")
-	if len(whereQuery) == 0 {
-		whereQuery = "TRUE"
+	innerQuery := strings.Join(innerQuerys, " AND ")
+	if len(innerQuery) == 0 {
+		innerQuery = "TRUE"
 	}
+
+	// The threshold is the one predicate that cannot move inside: it reads the
+	// distance the fenced select computes.
+	outerQuery := "TRUE"
+	if scoreThreshold != 0 {
+		args = append(args, float64(1-scoreThreshold))
+		outerQuery = fmt.Sprintf("data.distance < $%d", len(args))
+	}
+
+	// AS MATERIALIZED is load-bearing rather than decorative. It is what orders
+	// vector_dims() ahead of <=>, and a table holding more than one embedding
+	// dimension -- any table written before an embedding model was changed --
+	// fails outright with "different vector dimensions" without it.
 	sql := fmt.Sprintf(`WITH filtered_embedding_dims AS MATERIALIZED (
-    SELECT
-        *
-    FROM
-        %s
-    WHERE
-        vector_dims (
-                embedding
-        ) = $1
+	SELECT
+		%[1]s.uuid,
+		%[1]s.document,
+		%[1]s.cmetadata,
+		%[1]s.embedding <=> $2 AS distance
+	FROM
+		%[1]s
+	WHERE %[1]s.collection_id = (SELECT %[2]s.uuid FROM %[2]s WHERE %[2]s.name = $4 ORDER BY %[2]s.name LIMIT 1)
+		AND vector_dims(%[1]s.embedding) = $1
+		AND %[3]s
 )
 SELECT
 	data.document,
 	data.cmetadata,
 	(1 - data.distance) AS score
-FROM (
-	SELECT
-		filtered_embedding_dims.*,
-		embedding <=> $2 AS distance
-	FROM
-		filtered_embedding_dims
-		JOIN %s ON filtered_embedding_dims.collection_id=%s.uuid WHERE %s.name=$4) AS data
-WHERE %s
+FROM filtered_embedding_dims AS data
+WHERE %[4]s
 ORDER BY
-	data.distance
-LIMIT $3`, s.embeddingTableName,
-		s.collectionTableName, s.collectionTableName, s.collectionTableName,
-		whereQuery)
+	data.distance,
+	data.uuid
+LIMIT $3`, s.embeddingTableName, s.collectionTableName, innerQuery, outerQuery)
 	rows, err := s.conn.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
@@ -364,9 +381,12 @@ func (s Store) Search(
 	if err != nil {
 		return nil, err
 	}
-	args := make([]any, 0, 2+2*len(filter))
+	args := make([]any, 0, 2+len(filter))
 	args = append(args, numDocuments, collectionName)
-	whereQuerys, filterArgs := filterPredicates(s.embeddingTableName+".", filter, len(args))
+	whereQuerys, filterArgs, err := filterPredicates(s.embeddingTableName+".", filter, len(args))
+	if err != nil {
+		return nil, err
+	}
 	args = append(args, filterArgs...)
 	whereQuery := strings.Join(whereQuerys, " AND ")
 	if len(whereQuery) == 0 {
@@ -450,21 +470,30 @@ func (s Store) getScoreThreshold(opts vectorstores.Options) (float32, error) {
 
 // filterPredicates renders the metadata filter as predicates numbered from
 // argOffset; the returned args must be appended to the query in the same order.
-func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]string, []any) {
+// Keys are sorted so that one filter always renders as one statement text.
+//
+// The key is inlined and only the value is bound, because `cmetadata ->> $n` is
+// not the expression a metadata index was built over. A key that fails the gate
+// is an error rather than a dropped predicate: a caller's filter may be the only
+// thing keeping one tenant's documents out of another's results.
+func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]string, []any, error) {
 	keys := make([]string, 0, len(filter))
 	for k := range filter {
+		if !metadataKeyPattern.MatchString(k) {
+			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	predicates := make([]string, 0, len(keys))
-	args := make([]any, 0, len(keys)*2)
+	args := make([]any, 0, len(keys))
 	for _, k := range keys {
-		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> $%d) = $%d",
-			prefix, argOffset+len(args)+1, argOffset+len(args)+2))
-		args = append(args, k, fmt.Sprintf("%v", filter[k]))
+		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> '%s') = $%d",
+			prefix, k, argOffset+len(args)+1))
+		args = append(args, fmt.Sprintf("%v", filter[k]))
 	}
-	return predicates, args
+	return predicates, args, nil
 }
 
 // getFilters return metadata filters, now only support map[key]value pattern

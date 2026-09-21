@@ -1,45 +1,66 @@
 package pgvector
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
 
-func TestFilterPredicatesKeepCallerTextOutOfTheStatement(t *testing.T) {
+func TestFilterPredicatesKeepCallerValuesOutOfTheStatement(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		name   string
-		filter map[string]any
+		name  string
+		value string
 	}{
-		{"value closes the literal and appends a tautology", map[string]any{
-			"kind": "x' OR '1'='1",
-		}},
-		{"value ends the statement", map[string]any{
-			"kind": "x'; DROP TABLE langchaingo_pg_embedding; --",
-		}},
-		{"key closes the literal", map[string]any{
-			"kind') = 'x' OR '1'='1": "y",
-		}},
-		{"quote inside an ordinary value", map[string]any{
-			"owner": "O'Brien",
-		}},
+		{"value closes the literal and appends a tautology", "x' OR '1'='1"},
+		{"value ends the statement", "x'; DROP TABLE langchaingo_pg_embedding; --"},
+		{"quote inside an ordinary value", "O'Brien"},
+		{"value carries a comment marker", "x --"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			predicates, args := filterPredicates("data.", tc.filter, 0)
-			joined := strings.Join(predicates, " AND ")
-			if strings.ContainsAny(joined, "'\";") {
-				t.Fatalf("caller text reached the statement: %q", joined)
+			predicates, args, err := filterPredicates("data.", map[string]any{"kind": tc.value}, 0)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
-			for k, v := range tc.filter {
-				if !contains(args, k) {
-					t.Errorf("key %q must travel as an argument, got args %v", k, args)
-				}
-				if !contains(args, v) {
-					t.Errorf("value %q must travel as an argument, got args %v", v, args)
-				}
+			if want := "(data.cmetadata ->> 'kind') = $1"; predicates[0] != want {
+				t.Errorf("want %q, got %q", want, predicates[0])
+			}
+			if len(args) != 1 || args[0] != tc.value {
+				t.Errorf("value must travel as an argument, got %v", args)
+			}
+		})
+	}
+}
+
+// The key reaches the statement as text, so the gate is the whole defence.
+func TestFilterPredicatesRejectAKeyThatIsNotAnIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{
+		"kind') = 'x' OR '1'='1",
+		"",
+		"1abc",
+		"a-b",
+		"a.b",
+		"a b",
+		"a;b",
+		`a"b`,
+		"a`b",
+		"ключ",
+		strings.Repeat("a", 64),
+	} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+
+			predicates, args, err := filterPredicates("data.", map[string]any{key: "y"}, 0)
+			if !errors.Is(err, ErrInvalidFilterKey) {
+				t.Fatalf("want ErrInvalidFilterKey, got %v", err)
+			}
+			if predicates != nil || args != nil {
+				t.Errorf("a rejected filter must render nothing, got %v and %v", predicates, args)
 			}
 		})
 	}
@@ -48,24 +69,45 @@ func TestFilterPredicatesKeepCallerTextOutOfTheStatement(t *testing.T) {
 func TestFilterPredicatesNumberFromTheOffset(t *testing.T) {
 	t.Parallel()
 
-	predicates, args := filterPredicates("data.", map[string]any{"a": "1", "b": "2"}, 4)
-	want := "(data.cmetadata ->> $5) = $6 AND (data.cmetadata ->> $7) = $8"
+	predicates, args, err := filterPredicates("data.", map[string]any{"a": "1", "b": "2"}, 4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "(data.cmetadata ->> 'a') = $5 AND (data.cmetadata ->> 'b') = $6"
 	if got := strings.Join(predicates, " AND "); got != want {
 		t.Errorf("want %q, got %q", want, got)
 	}
-	if len(args) != 4 {
-		t.Errorf("want four arguments beside two pairs, got %v", args)
+	if len(args) != 2 || args[0] != "1" || args[1] != "2" {
+		t.Errorf("want the two values in key order, got %v", args)
 	}
-	if args[0] != "a" || args[2] != "b" {
-		t.Errorf("keys must be ordered so the statement is stable, got %v", args)
+}
+
+// Sorting is what keeps one filter rendering as one statement text, which is
+// what lets the driver and the server reuse a plan for it.
+func TestFilterPredicatesRenderTheSameTextWhateverTheInsertionOrder(t *testing.T) {
+	t.Parallel()
+
+	first, _, err := filterPredicates("data.", map[string]any{"flow_id": "1", "doc_type": "memory"}, 4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	second, _, err := filterPredicates("data.", map[string]any{"doc_type": "memory", "flow_id": "1"}, 4)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Join(first, " AND ") != strings.Join(second, " AND ") {
+		t.Errorf("statement text varies with map order: %q vs %q", first, second)
 	}
 }
 
 func TestFilterPredicatesOnValuesThatAreNotStrings(t *testing.T) {
 	t.Parallel()
 
-	_, args := filterPredicates("t.", map[string]any{"n": 5}, 0)
-	if len(args) != 2 || args[1] != "5" {
+	_, args, err := filterPredicates("t.", map[string]any{"n": 5}, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(args) != 1 || args[0] != "5" {
 		t.Errorf("a non-string value must reach the wire as text, got %v", args)
 	}
 }
@@ -73,17 +115,11 @@ func TestFilterPredicatesOnValuesThatAreNotStrings(t *testing.T) {
 func TestFilterPredicatesOnAnEmptyFilter(t *testing.T) {
 	t.Parallel()
 
-	predicates, args := filterPredicates("data.", map[string]any{}, 3)
+	predicates, args, err := filterPredicates("data.", map[string]any{}, 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(predicates) != 0 || len(args) != 0 {
 		t.Errorf("an empty filter must add nothing, got %v and %v", predicates, args)
 	}
-}
-
-func contains(args []any, want any) bool {
-	for _, a := range args {
-		if a == want {
-			return true
-		}
-	}
-	return false
 }
