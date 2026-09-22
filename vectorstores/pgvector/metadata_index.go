@@ -83,14 +83,20 @@ func (m MetadataIndex) indexName(table string) string {
 
 func (m MetadataIndex) fingerprint(table string) uint32 {
 	sum := fnv.New32a()
-	_, _ = fmt.Fprintf(sum, "%q", table)
+	_, _ = sum.Write([]byte(m.definition(table)))
+	return sum.Sum32()
+}
+
+func (m MetadataIndex) definition(table string) string {
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "%q", table)
 	for _, key := range m.Keys {
-		_, _ = fmt.Fprintf(sum, " k%q", key)
+		_, _ = fmt.Fprintf(&b, " k%q", key)
 	}
 	for _, key := range m.excludedKeys() {
-		_, _ = fmt.Fprintf(sum, " x%q=%q", key, m.Exclude[key])
+		_, _ = fmt.Fprintf(&b, " x%q=%q", key, m.Exclude[key])
 	}
-	return sum.Sum32()
+	return b.String()
 }
 
 func (m MetadataIndex) excludedKeys() []string {
@@ -161,7 +167,7 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 		return err
 	}
 
-	statements := make(map[string]string, len(s.metadataIndexes))
+	definitions := make(map[string]string, len(s.metadataIndexes))
 	for _, index := range s.metadataIndexes {
 		statement, err := index.ddl(s.embeddingTableName)
 		if err != nil {
@@ -169,10 +175,11 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 		}
 		name := index.indexName(s.embeddingTableName)
 		folded := strings.ToLower(name)
-		if declared, ok := statements[folded]; ok && declared != statement {
+		definition := index.definition(s.embeddingTableName)
+		if declared, ok := definitions[folded]; ok && declared != definition {
 			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
 		}
-		statements[folded] = statement
+		definitions[folded] = definition
 		if _, err := tx.Exec(ctx, statement); err != nil {
 			return fmt.Errorf("create metadata index %s: %w", name, err)
 		}
