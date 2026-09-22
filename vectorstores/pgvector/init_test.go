@@ -136,6 +136,56 @@ func TestInitRollsBackEvenWhenTheCallerCancelled(t *testing.T) {
 	require.NoError(t, tx.rollbackCtxErr)
 }
 
+type cancelAfterQuery struct {
+	marker string
+	cancel context.CancelFunc
+	armed  bool
+}
+
+func (c *cancelAfterQuery) TraceQueryStart(
+	ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData,
+) context.Context {
+	c.armed = strings.Contains(data.SQL, c.marker)
+	return ctx
+}
+
+func (c *cancelAfterQuery) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {
+	if c.armed {
+		c.cancel()
+	}
+}
+
+func TestInitCancelledBeforeCommitKeepsTheCallersConnection(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	collectionTable := "cancel_collection_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	cfg, err := pgx.ParseConfig(url)
+	require.NoError(t, err)
+	cfg.Tracer = &cancelAfterQuery{marker: "SELECT uuid FROM " + collectionTable, cancel: cancel}
+	conn, err := pgx.ConnectConfig(t.Context(), cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close(context.Background()) })
+
+	_, err = New(ctx,
+		WithConn(conn),
+		WithEmbedder(fixedEmbedder{dims: 3}),
+		WithCollectionName("cancel"),
+		WithCollectionTableName(collectionTable),
+		WithEmbeddingTableName("cancel_embedding_"+collectionTable[len("cancel_collection_"):]),
+	)
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, conn.IsClosed(), "a caller that cancelled before the commit lost its connection")
+
+	var created bool
+	require.NoError(t, conn.QueryRow(t.Context(), "SELECT to_regclass($1) IS NOT NULL", collectionTable).Scan(&created))
+	require.False(t, created, "a cancelled init must roll back rather than commit")
+}
+
 // Not parallel: a store opening in parallel holds the advisory locks this timeout also bounds.
 func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	url := narrowingURL(t)
