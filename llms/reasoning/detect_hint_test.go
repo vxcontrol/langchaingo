@@ -14,6 +14,9 @@ func TestLikelyReasoningModel(t *testing.T) {
 		{"o3-mini", true, "already classified"},
 
 		{"gpt-6", true, "generation newer than this build"},
+		{"gpt-6-astra", true, "generation newer than this build"},
+		{"gpt-6-sol", true, "generation newer than this build"},
+		{"gpt-6-luna", true, "generation newer than this build"},
 		{"gpt-7-turbo", true, "generation newer than this build"},
 		{"claude-opus-6", true, "generation newer than this build"},
 		{"claude-sonnet-7", true, "generation newer than this build"},

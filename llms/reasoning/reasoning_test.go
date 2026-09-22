@@ -461,7 +461,7 @@ func BenchmarkSplitContentLargeString(b *testing.B) {
 	largeText := builder.String()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		reasoning, text := SplitContent(largeText)
 		if reasoning == "" || text == "" {
 			b.Fatal("Empty result")
@@ -483,7 +483,7 @@ func BenchmarkChunkContentSplitter(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		splitter := NewChunkContentSplitter()
 		var textResult, reasoningResult strings.Builder
 
@@ -770,7 +770,9 @@ func TestIsReasoningModel(t *testing.T) { //nolint:funlen
 
 		// OpenRouter catalog additions (matched by the distinctive model-name part)
 		{"claude-opus-5", true},
+		{"claude-opus-5-5", true},
 		{"anthropic/claude-opus-5", true},
+		{"anthropic/claude-opus-5-5", true},
 		{"claude-sonnet-5", true},
 		{"claude-fable-5", true},
 		{"claude-mythos-5", true},
