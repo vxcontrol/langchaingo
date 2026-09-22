@@ -213,8 +213,27 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 	url := narrowingURL(t)
 	ctx := t.Context()
 
+	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
 	index := MetadataIndex{Keys: []string{"doc_type", "flow_id"}}
-	store := newNarrowingStore(t, url, narrowingCollection(), 64, index)
+	store, err := New(ctx,
+		WithConnectionURL(url),
+		WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName(narrowingCollection()),
+		WithCollectionTableName("plan_collection_"+suffix),
+		WithEmbeddingTableName("plan_embedding_"+suffix),
+		WithMetadataIndexes(index),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() {
+		conn, err := pgx.Connect(context.Background(), url)
+		if err != nil {
+			return
+		}
+		defer conn.Close(context.Background())
+		_, _ = conn.Exec(context.Background(),
+			"DROP TABLE IF EXISTS "+store.embeddingTableName+", "+store.collectionTableName)
+	})
 
 	const flows, perFlow = 200, 25
 	docs := make([]schema.Document, 0, flows*perFlow)
