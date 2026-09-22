@@ -179,6 +179,10 @@ func TestMetadataIndexesSharingANameMustAgree(t *testing.T) {
 			{Name: "Lpe_shared", Keys: []string{"flow_id"}},
 			{Name: "lpe_shared", Keys: []string{"doc_type"}},
 		}, true},
+		{"exclusions that differ under one name", []MetadataIndex{
+			{Name: "lpe_shared", Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}},
+			{Name: "lpe_shared", Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "session"}},
+		}, true},
 		{"names that differ only in case over the same keys", []MetadataIndex{
 			{Name: "Lpe_shared", Keys: []string{"flow_id"}},
 			{Name: "lpe_shared", Keys: []string{"flow_id"}},
