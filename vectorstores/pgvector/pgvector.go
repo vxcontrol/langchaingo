@@ -110,11 +110,16 @@ func (s Store) Close() error {
 	return nil
 }
 
-func (s *Store) init(ctx context.Context) error {
+func (s *Store) init(ctx context.Context) (err error) {
 	tx, err := s.conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(context.WithoutCancel(ctx))
+		}
+	}()
 
 	if err := s.createVectorExtensionIfNotExists(ctx, tx); err != nil {
 		return err
