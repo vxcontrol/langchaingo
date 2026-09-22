@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestMetadataIndexDDL(t *testing.T) {
@@ -115,6 +116,15 @@ func TestMetadataIndexNameStaysWithinTheIdentifierLimit(t *testing.T) {
 	}
 }
 
+func TestMetadataIndexNameCutsATableNameOnACharacterBoundary(t *testing.T) {
+	t.Parallel()
+
+	name := MetadataIndex{Keys: []string{"k"}}.indexName("t" + strings.Repeat("ж", 27))
+	if !utf8.ValidString(name) || len(name) > maxIdentifierLen {
+		t.Errorf("name is %d bytes, valid UTF-8 = %v: %q", len(name), utf8.ValidString(name), name)
+	}
+}
+
 func TestMetadataIndexNameDistinguishesEveryDeclaration(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +173,10 @@ func TestMetadataIndexesSharingANameMustAgree(t *testing.T) {
 	}{
 		{"different keys under one name", []MetadataIndex{
 			{Name: "lpe_shared", Keys: []string{"flow_id"}},
+			{Name: "lpe_shared", Keys: []string{"doc_type"}},
+		}, true},
+		{"names that differ only in case", []MetadataIndex{
+			{Name: "Lpe_shared", Keys: []string{"flow_id"}},
 			{Name: "lpe_shared", Keys: []string{"doc_type"}},
 		}, true},
 		{"the same declaration twice", []MetadataIndex{

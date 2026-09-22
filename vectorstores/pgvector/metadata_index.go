@@ -77,7 +77,8 @@ func (m MetadataIndex) indexName(table string) string {
 		parts = append(parts, "partial")
 	}
 	name := strings.Join(parts, "_")
-	return fmt.Sprintf("%s_%08x", name[:min(len(name), maxIdentifierLen-9)], m.fingerprint(table))
+	prefix := strings.ToValidUTF8(name[:min(len(name), maxIdentifierLen-9)], "")
+	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(table))
 }
 
 func (m MetadataIndex) fingerprint(table string) uint32 {
@@ -167,10 +168,11 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 			return err
 		}
 		name := index.indexName(s.embeddingTableName)
-		if declared, ok := statements[name]; ok && declared != statement {
+		folded := strings.ToLower(name)
+		if declared, ok := statements[folded]; ok && declared != statement {
 			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
 		}
-		statements[name] = statement
+		statements[folded] = statement
 		if _, err := tx.Exec(ctx, statement); err != nil {
 			return fmt.Errorf("create metadata index %s: %w", name, err)
 		}
