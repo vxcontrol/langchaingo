@@ -179,6 +179,7 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 	declared := []MetadataIndex{
 		{Keys: []string{"doc_type", "flow_id"}},
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}},
+		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "session"}},
 	}
 	store := newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
 
@@ -195,6 +196,9 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 		require.NoErrorf(t, err, "index %s was not created", name)
 		for _, key := range index.Keys {
 			require.Contains(t, definition, fmt.Sprintf("(cmetadata ->> '%s'::text)", key))
+		}
+		for _, value := range index.Exclude {
+			require.Contains(t, definition, fmt.Sprintf("'%s'::text", value))
 		}
 	}
 
