@@ -11,6 +11,7 @@ func modelSpellings(model string) []string {
 		m = m[idx+1:]
 	}
 	m = stripFineTuneWrapper(m)
+	m = stripBedrockRegion(m)
 
 	vendor, bare := splitPlatformPrefix(m)
 	switch {
@@ -44,6 +45,15 @@ func stripDashWrittenVendor(model string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func stripBedrockRegion(model string) string {
+	for _, prefix := range bedrockRegionPrefixes {
+		if rest, ok := strings.CutPrefix(model, prefix); ok && rest != "" {
+			return rest
+		}
+	}
+	return model
 }
 
 func splitPlatformPrefix(model string) (vendor, rest string) {
