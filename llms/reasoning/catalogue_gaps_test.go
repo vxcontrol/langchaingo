@@ -252,7 +252,7 @@ func TestGrokModelsThatTakeNoEffortOnTheWire(t *testing.T) {
 func TestGrokGenerationsThatCannotStopThinking(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"grok-4.5", "grok-4.5-latest", "grok-4.6", "grok-4.7", "xai/grok-4.7"} {
+	for _, model := range []string{"grok-4.5", "grok-4.5-latest", "grok-4.6", "grok-4.7"} {
 		if got := ResolveOff(model, ProviderOpenAI); got != OffUnsupported {
 			t.Errorf("ResolveOff(%q) = %v, want OffUnsupported: the vendor answers "+
 				"\"This model does not support reasoning_effort value none\"", model, got)

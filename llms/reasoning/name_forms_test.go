@@ -43,6 +43,7 @@ func TestEverySpellingResolvesToOneEntry(t *testing.T) {
 		{"minimax-m2", "minimax.minimax-m2"},
 		{"kimi-k2-thinking", "moonshot.kimi-k2-thinking"},
 		{"mistral-medium-3", "mistralai/mistral-medium-3"},
+		{"grok-4.7", "xai/grok-4.7", "XAI/Grok-4.7", "openrouter/x-ai/grok-4.7", "us.xai.grok-4.7"},
 	} {
 		canonical := group[0]
 		want := capabilityAnswers(canonical)
