@@ -283,7 +283,7 @@ func (e *ErrEffortWithTools) Error() string {
 // EffortWithTools reports the rule for a model. An unlisted generation stays free.
 func EffortWithTools(model string) EffortToolsRule {
 	for _, form := range modelSpellings(model) {
-		if hasGeneration(form, "gpt-5.6") {
+		if hasGeneration(form, "gpt-5.6") || hasGeneration(form, "gpt-6-sol") || hasGeneration(form, "gpt-6-luna") {
 			return EffortToolsDisable
 		}
 		if hasGeneration(form, "gpt-5.4") || hasGeneration(form, "gpt-5.5") {
