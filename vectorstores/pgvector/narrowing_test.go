@@ -77,7 +77,7 @@ func newNarrowingStore(t *testing.T, url, collection string, dims int, indexes .
 	t.Helper()
 
 	opts := []Option{
-		Option(WithConnectionURL(url)),
+		WithConnectionURL(url),
 		WithEmbedder(fixedEmbedder{dims: dims}),
 		WithCollectionName(collection),
 	}
@@ -179,6 +179,7 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 	declared := []MetadataIndex{
 		{Keys: []string{"doc_type", "flow_id"}},
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}},
+		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "session"}},
 	}
 	store := newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
 
@@ -196,6 +197,9 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 		for _, key := range index.Keys {
 			require.Contains(t, definition, fmt.Sprintf("(cmetadata ->> '%s'::text)", key))
 		}
+		for _, value := range index.Exclude {
+			require.Contains(t, definition, fmt.Sprintf("'%s'::text", value))
+		}
 	}
 
 	// A second store against the same table must be a no-op rather than an error.
@@ -209,8 +213,27 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 	url := narrowingURL(t)
 	ctx := t.Context()
 
-	store := newNarrowingStore(t, url, narrowingCollection(), 64,
-		MetadataIndex{Keys: []string{"doc_type", "flow_id"}})
+	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
+	index := MetadataIndex{Keys: []string{"doc_type", "flow_id"}}
+	store, err := New(ctx,
+		WithConnectionURL(url),
+		WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName(narrowingCollection()),
+		WithCollectionTableName("plan_collection_"+suffix),
+		WithEmbeddingTableName("plan_embedding_"+suffix),
+		WithMetadataIndexes(index),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() {
+		conn, err := pgx.Connect(context.Background(), url)
+		if err != nil {
+			return
+		}
+		defer conn.Close(context.Background())
+		_, _ = conn.Exec(context.Background(),
+			"DROP TABLE IF EXISTS "+store.embeddingTableName+", "+store.collectionTableName)
+	})
 
 	const flows, perFlow = 200, 25
 	docs := make([]schema.Document, 0, flows*perFlow)
@@ -236,10 +259,22 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 	plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
 		map[string]any{"doc_type": "memory", "flow_id": "3"})
 
-	require.Contains(t, plan, store.embeddingTableName+"_meta_doc_type_flow_id",
+	require.Contains(t, plan, index.indexName(store.embeddingTableName),
 		"the metadata index must carry the scan:\n%s", plan)
 	require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
 		"the whole table was read:\n%s", plan)
+}
+
+type recordingConn struct {
+	PGXConn
+
+	sql  string
+	args []any
+}
+
+func (c *recordingConn) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	c.sql, c.args = sql, args
+	return c.PGXConn.Query(ctx, sql, args...)
 }
 
 func explainSimilaritySearch(
@@ -247,37 +282,13 @@ func explainSimilaritySearch(
 ) string {
 	t.Helper()
 
-	vector, err := store.embedder.EmbedQuery(ctx, query)
+	recorder := &recordingConn{PGXConn: store.conn}
+	store.conn = recorder
+	_, err := store.SimilaritySearch(ctx, query, 3,
+		vectorstores.WithScoreThreshold(0.2), vectorstores.WithFilters(filter))
 	require.NoError(t, err)
 
-	predicates, args, err := filterPredicates(store.embeddingTableName+".", filter, 4)
-	require.NoError(t, err)
-
-	literals := make([]string, 0, len(vector))
-	for _, v := range vector {
-		literals = append(literals, strconv.FormatFloat(float64(v), 'f', -1, 32))
-	}
-
-	statement := fmt.Sprintf(`EXPLAIN (COSTS OFF) WITH filtered_embedding_dims AS MATERIALIZED (
-	SELECT %[1]s.uuid, %[1]s.document, %[1]s.cmetadata, %[1]s.embedding <=> '[%[2]s]'::vector AS distance
-	FROM %[1]s
-	WHERE %[1]s.collection_id = (SELECT %[3]s.uuid FROM %[3]s WHERE %[3]s.name = $1 ORDER BY %[3]s.name LIMIT 1)
-		AND vector_dims(%[1]s.embedding) = %[4]d
-		AND %[5]s
-)
-SELECT data.document, data.cmetadata, (1 - data.distance) AS score
-FROM filtered_embedding_dims AS data
-WHERE data.distance < 0.8
-ORDER BY data.distance, data.uuid LIMIT 3`,
-		store.embeddingTableName, strings.Join(literals, ","), store.collectionTableName,
-		len(vector), strings.Join(predicates, " AND "))
-
-	// filterPredicates numbered from 4 to match the live statement; here the
-	// collection name is $1 and the filter values follow it.
-	statement = strings.NewReplacer("$5", "$2", "$6", "$3", "$7", "$4").Replace(statement)
-
-	params := append([]any{store.collectionName}, args...)
-	rows, err := conn.Query(ctx, statement, params...)
+	rows, err := conn.Query(ctx, "EXPLAIN (COSTS OFF) "+recorder.sql, recorder.args...)
 	require.NoError(t, err)
 	defer rows.Close()
 

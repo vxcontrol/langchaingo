@@ -67,6 +67,12 @@ func TestEffortAndToolsOnTheWire(t *testing.T) {
 			[]llms.CallOption{tools}, `"reasoning_effort":"none"`, false},
 		{"5.6 without tools keeps the level", "gpt-5.6-sol",
 			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
+		{"6-sol with tools and no request still sends none", "gpt-6-sol",
+			[]llms.CallOption{tools}, `"reasoning_effort":"none"`, false},
+		{"6-luna with tools and no request still sends none", "gpt-6-luna",
+			[]llms.CallOption{tools}, `"reasoning_effort":"none"`, false},
+		{"6-sol without tools keeps the level", "gpt-6-sol",
+			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
 		{"5.5 without tools keeps the level", "gpt-5.5",
 			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
 		{"5.2 with tools keeps the level", "gpt-5.2",
@@ -280,7 +286,7 @@ func TestDashScopeDeepSeekBudgetLeavesRoomForTheAnswer(t *testing.T) {
 func TestAnUnservableEffortWithToolsIsRefusedBeforeTheNetwork(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"gpt-5.6-sol", "gpt-5.5", "gpt-5.4-nano"} {
+	for _, model := range []string{"gpt-5.6-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.5", "gpt-5.4-nano"} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
 

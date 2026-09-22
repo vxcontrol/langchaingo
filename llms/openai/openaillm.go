@@ -696,6 +696,9 @@ func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
 	if isThinkingOnTheWire(wireEffort) || reasoning.ThinkingMarkedInName(model) {
 		return true
 	}
+	if wireEffort == reasoning.OpenAIDisableEffort {
+		return false
+	}
 	if reasoning.ClaudeSupportsThinking(model) {
 		return reasoning.ClaudeThinkingDefaultsOn(model)
 	}

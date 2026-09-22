@@ -214,6 +214,8 @@ func TestEffortWithTools(t *testing.T) {
 		{"gpt-5.6-sol", EffortToolsDisable},
 		{"gpt-5.6-terra", EffortToolsDisable},
 		{"openai/gpt-5.6", EffortToolsDisable},
+		{"gpt-6-sol", EffortToolsDisable},
+		{"gpt-6-luna", EffortToolsDisable},
 		{"gpt-5.5", EffortToolsOmit},
 		{"gpt-5.4-nano", EffortToolsOmit},
 		{"gpt-5.4-mini", EffortToolsOmit},

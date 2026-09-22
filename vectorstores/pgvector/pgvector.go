@@ -141,6 +141,9 @@ func (s *Store) init(ctx context.Context) (err error) {
 	if err := s.createOrGetCollection(ctx, tx); err != nil {
 		return err
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	return tx.Commit(ctx)
 }

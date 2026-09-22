@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -76,13 +77,30 @@ func (m MetadataIndex) indexName(table string) string {
 		parts = append(parts, "partial")
 	}
 	name := strings.Join(parts, "_")
-	if len(name) <= maxIdentifierLen {
-		return name
-	}
+	prefix := strings.ToValidUTF8(name[:min(len(name), maxIdentifierLen-9)], "")
+	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(table))
+}
 
+func (m MetadataIndex) fingerprint(table string) uint32 {
 	sum := fnv.New32a()
-	_, _ = sum.Write([]byte(name))
-	return fmt.Sprintf("%s_%08x", name[:maxIdentifierLen-9], sum.Sum32())
+	_, _ = sum.Write([]byte(m.definition(table)))
+	return sum.Sum32()
+}
+
+func (m MetadataIndex) definition(table string) string {
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "%q", table)
+	for _, key := range m.Keys {
+		_, _ = fmt.Fprintf(&b, " k%q", key)
+	}
+	for _, key := range m.excludedKeys() {
+		_, _ = fmt.Fprintf(&b, " x%q=%q", key, m.Exclude[key])
+	}
+	return b.String()
+}
+
+func (m MetadataIndex) excludedKeys() []string {
+	return slices.Sorted(maps.Keys(m.Exclude))
 }
 
 // ddl renders the CREATE INDEX for this declaration. Index expressions and
@@ -105,12 +123,7 @@ func (m MetadataIndex) ddl(table string) (string, error) {
 		return statement, nil
 	}
 
-	keys := make([]string, 0, len(m.Exclude))
-	for key := range m.Exclude {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
+	keys := m.excludedKeys()
 	predicates := make([]string, 0, len(keys))
 	for _, key := range keys {
 		literal, err := quoteLiteral(m.Exclude[key])
@@ -154,13 +167,21 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 		return err
 	}
 
+	definitions := make(map[string]string, len(s.metadataIndexes))
 	for _, index := range s.metadataIndexes {
 		statement, err := index.ddl(s.embeddingTableName)
 		if err != nil {
 			return err
 		}
+		name := index.indexName(s.embeddingTableName)
+		folded := strings.ToLower(name)
+		definition := index.definition(s.embeddingTableName)
+		if declared, ok := definitions[folded]; ok && declared != definition {
+			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
+		}
+		definitions[folded] = definition
 		if _, err := tx.Exec(ctx, statement); err != nil {
-			return fmt.Errorf("create metadata index %s: %w", index.indexName(s.embeddingTableName), err)
+			return fmt.Errorf("create metadata index %s: %w", name, err)
 		}
 	}
 
