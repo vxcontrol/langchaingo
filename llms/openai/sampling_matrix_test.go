@@ -99,6 +99,7 @@ func TestSamplingMatrix(t *testing.T) {
 	topP := llms.WithTopP(0.9)
 	high := llms.WithReasoning(llms.ReasoningHigh, 0)
 	off := llms.WithReasoningDisabled()
+	tools := llms.WithTools([]llms.Tool{weatherTool()})
 
 	runSamplingCases(t, []samplingCase{{
 		name:    "an opt-in model keeps its temperature until asked to think",
@@ -122,6 +123,16 @@ func TestSamplingMatrix(t *testing.T) {
 		name:    "disabled thinking leaves both sampling params alone",
 		model:   "gpt-5.5",
 		opts:    []llms.CallOption{temp, topP, off},
+		present: []string{`"temperature":0.3`, `"top_p":0.9`, `"reasoning_effort":"none"`},
+	}, {
+		name:    "the none that tools force on 5.6 leaves the sampling alone",
+		model:   "gpt-5.6-sol",
+		opts:    []llms.CallOption{temp, topP, tools},
+		present: []string{`"temperature":0.3`, `"top_p":0.9`, `"reasoning_effort":"none"`},
+	}, {
+		name:    "the none that tools force on 6-sol leaves the sampling alone",
+		model:   "gpt-6-sol",
+		opts:    []llms.CallOption{temp, topP, tools},
 		present: []string{`"temperature":0.3`, `"top_p":0.9`, `"reasoning_effort":"none"`},
 	}, {
 		name:    "omitted effort falls back to the model for an accepting name",
