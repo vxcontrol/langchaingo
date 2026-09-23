@@ -474,7 +474,20 @@ func (rr *RecordReplay) RoundTrip(req *http.Request) (*http.Response, error) {
 	if rr.real == nil {
 		return nil, fmt.Errorf("httprr: no transport configured")
 	}
-	resp, err := rr.real.RoundTrip(req)
+	// The transport may still read the request body after RoundTrip returns:
+	// when the response comes first, RoundTrip ends while the transport's write
+	// loop reads the body on. Give it a body of its own, so rereading req below
+	// for the recording does not race with that read. The shallow copy shares
+	// the header map and the URL, so what the transport adds there in place is
+	// recorded; a field it reassigns on its own copy is not, as in replay.
+	realReq := req
+	if body, ok := req.Body.(*Body); ok {
+		data := body.Data
+		realReq = req.WithContext(req.Context())
+		realReq.Body = &Body{Data: data}
+		realReq.GetBody = func() (io.ReadCloser, error) { return &Body{Data: data}, nil }
+	}
+	resp, err := rr.real.RoundTrip(realReq)
 	if err != nil {
 		return nil, err
 	}

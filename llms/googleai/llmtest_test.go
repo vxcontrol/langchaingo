@@ -17,7 +17,7 @@ func TestLLM(t *testing.T) {
 	ctx := context.Background()
 	llm, err := New(ctx,
 		WithAPIKey(os.Getenv("GOOGLE_API_KEY")),
-		WithDefaultModel("gemini-3.8-flash"),
+		WithDefaultModel("gemini-3.5-flash"),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create Google AI LLM: %v", err)

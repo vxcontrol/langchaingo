@@ -159,7 +159,7 @@ func TestScrubReqResp(t *testing.T) {
 }
 
 func TestRecordingFlag(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because it modifies global record flag
 
 	tests := []struct {
 		name      string
