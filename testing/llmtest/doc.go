@@ -32,6 +32,9 @@
 //   - Streaming (unless the call site passes WithoutStreaming)
 //   - Tool/Function calling (probed with a test tool; a door that takes the
 //     tools must answer with a call unless the call site passes WithoutToolCalls)
+//   - A door that needs particular options to answer at all, such as the
+//     output budget a thinking model spends before its first word, declares
+//     them with WithCallOptions; every checked request carries them
 //   - Reasoning/Thinking mode (if supported)
 //   - Token counting (if usage information provided)
 //   - Context caching (if implemented)

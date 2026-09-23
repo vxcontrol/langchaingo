@@ -48,12 +48,12 @@ func TestLLM(t *testing.T, model llms.Model, opts ...Option) {
 
 		t.Run("Call", func(t *testing.T) {
 			t.Parallel()
-			testCall(t, model)
+			testCall(t, model, declared.CallOptions...)
 		})
 
 		t.Run("GenerateContent", func(t *testing.T) {
 			t.Parallel()
-			testGenerateContent(t, model)
+			testGenerateContent(t, model, declared.CallOptions...)
 		})
 	})
 
@@ -64,27 +64,27 @@ func TestLLM(t *testing.T, model llms.Model, opts ...Option) {
 		if !declared.SkipStreaming {
 			t.Run("Streaming", func(t *testing.T) {
 				t.Parallel()
-				testStreaming(t, model)
+				testStreaming(t, model, declared.CallOptions...)
 			})
 		}
 
 		if !declared.SkipToolCalls && supportsTools(model) {
 			t.Run("ToolCalls", func(t *testing.T) {
 				t.Parallel()
-				testToolCalls(t, model)
+				testToolCalls(t, model, declared.CallOptions...)
 			})
 		}
 
 		// Test caching by trying it - if it works, great
 		t.Run("Caching", func(t *testing.T) {
 			t.Parallel()
-			testCaching(t, model)
+			testCaching(t, model, declared.CallOptions...)
 		})
 
 		// Test token counting - always run but don't fail if not supported
 		t.Run("TokenCounting", func(t *testing.T) {
 			t.Parallel()
-			testTokenCounting(t, model)
+			testTokenCounting(t, model, declared.CallOptions...)
 		})
 	})
 }
@@ -146,7 +146,8 @@ func TestLLMWithOptions(t *testing.T, model llms.Model, opts TestOptions, expect
 	runTestsWithContext(t, testCtx)
 }
 
-// Option declares, at the call site, what the door under test cannot do.
+// Option declares, at the call site, what the door under test cannot do or
+// what it needs to be called with.
 type Option func(*TestOptions)
 
 // WithoutStreaming declares a door that does not deliver a streaming callback,
@@ -159,6 +160,16 @@ func WithoutStreaming() Option {
 // call, so the suite must not hold it to that contract.
 func WithoutToolCalls() Option {
 	return func(o *TestOptions) { o.SkipToolCalls = true }
+}
+
+// WithCallOptions declares options the door needs on every request to answer
+// at all, such as the output budget a thinking model spends on thoughts before
+// its first word. The suite appends them after its own, so they override its
+// budgets and other defaults, while the Streaming test still installs its text
+// collector last and the tool probe stays a pure capability probe. Every
+// answer is held to the same checks as before.
+func WithCallOptions(opts ...llms.CallOption) Option {
+	return func(o *TestOptions) { o.CallOptions = append(o.CallOptions, opts...) }
 }
 
 // TestOptions configures test execution.
@@ -214,11 +225,12 @@ func runTestsWithContext(t *testing.T, ctx *testContext) {
 
 // Core test implementations
 
-func testCall(t *testing.T, model llms.Model) {
+func testCall(t *testing.T, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 	ctx := context.Background()
 
-	result, err := llms.GenerateFromSinglePrompt(ctx, model, "Reply with 'OK' and nothing else", llms.WithMaxTokens(10))
+	opts := append([]llms.CallOption{llms.WithMaxTokens(10)}, extra...)
+	result, err := llms.GenerateFromSinglePrompt(ctx, model, "Reply with 'OK' and nothing else", opts...)
 	if err != nil {
 		t.Fatalf("Call failed: %v", err)
 	}
@@ -253,7 +265,7 @@ func testCallWithContext(t *testing.T, tctx *testContext) {
 	}
 }
 
-func testGenerateContent(t *testing.T, model llms.Model) {
+func testGenerateContent(t *testing.T, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -266,7 +278,8 @@ func testGenerateContent(t *testing.T, model llms.Model) {
 		},
 	}
 
-	resp, err := model.GenerateContent(ctx, messages, llms.WithMaxTokens(10))
+	opts := append([]llms.CallOption{llms.WithMaxTokens(10)}, extra...)
+	resp, err := model.GenerateContent(ctx, messages, opts...)
 	if err != nil {
 		t.Fatalf("GenerateContent failed: %v", err)
 	}
@@ -313,7 +326,7 @@ func testGenerateContentWithContext(t *testing.T, tctx *testContext) {
 	}
 }
 
-func testStreaming(t *testing.T, model llms.Model) {
+func testStreaming(t *testing.T, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 
 	messages := []llms.MessageContent{
@@ -325,7 +338,8 @@ func testStreaming(t *testing.T, model llms.Model) {
 		},
 	}
 
-	assertStreams(t, context.Background(), model, messages, llms.WithMaxTokens(50))
+	opts := append([]llms.CallOption{llms.WithMaxTokens(50)}, extra...)
+	assertStreams(t, context.Background(), model, messages, opts...)
 }
 
 func testStreamingWithContext(t *testing.T, tctx *testContext) {
@@ -388,7 +402,7 @@ func assertStreams(t *testing.T, ctx context.Context, model llms.Model, messages
 	}
 }
 
-func testToolCalls(t testing.TB, model llms.Model) {
+func testToolCalls(t testing.TB, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -422,10 +436,10 @@ func testToolCalls(t testing.TB, model llms.Model) {
 		},
 	}
 
-	resp, err := model.GenerateContent(ctx, messages,
+	resp, err := model.GenerateContent(ctx, messages, append([]llms.CallOption{
 		llms.WithTools(tools),
 		llms.WithMaxTokens(100),
-	)
+	}, extra...)...)
 	if err != nil {
 		t.Fatalf("GenerateContent with tools failed: %v", err)
 	}
@@ -443,7 +457,7 @@ func testToolCalls(t testing.TB, model llms.Model) {
 	}
 }
 
-func testCaching(t *testing.T, model llms.Model) {
+func testCaching(t *testing.T, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -465,14 +479,16 @@ func testCaching(t *testing.T, model llms.Model) {
 		},
 	}
 
+	opts := append([]llms.CallOption{llms.WithMaxTokens(10)}, extra...)
+
 	// First call (cache miss)
-	_, err := model.GenerateContent(ctx, messages, llms.WithMaxTokens(10))
+	_, err := model.GenerateContent(ctx, messages, opts...)
 	if err != nil {
 		t.Fatalf("First call failed: %v", err)
 	}
 
 	// Second call (potential cache hit)
-	resp2, err := model.GenerateContent(ctx, messages, llms.WithMaxTokens(10))
+	resp2, err := model.GenerateContent(ctx, messages, opts...)
 	if err != nil {
 		t.Fatalf("Second call failed: %v", err)
 	}
@@ -485,7 +501,7 @@ func testCaching(t *testing.T, model llms.Model) {
 	}
 }
 
-func testTokenCounting(t *testing.T, model llms.Model) {
+func testTokenCounting(t *testing.T, model llms.Model, extra ...llms.CallOption) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -498,7 +514,8 @@ func testTokenCounting(t *testing.T, model llms.Model) {
 		},
 	}
 
-	resp, err := model.GenerateContent(ctx, messages, llms.WithMaxTokens(50))
+	opts := append([]llms.CallOption{llms.WithMaxTokens(50)}, extra...)
+	resp, err := model.GenerateContent(ctx, messages, opts...)
 	if err != nil {
 		t.Fatalf("GenerateContent failed: %v", err)
 	}

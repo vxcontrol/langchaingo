@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -110,6 +111,65 @@ func TestTheToolProbeHoldsADoorThatDoesNotReportTheToolsDropped(t *testing.T) {
 				Choices: []*llms.ContentChoice{{Content: "Hello"}}, Warnings: warnings,
 			}}
 			assert.True(t, supportsTools(door))
+		})
+	}
+}
+
+// recordingDoor passes every check the suite makes and records the budget
+// each request carried.
+type recordingDoor struct {
+	mu      sync.Mutex
+	budgets []int
+}
+
+func (d *recordingDoor) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
+	return llms.GenerateFromSinglePrompt(ctx, d, prompt, options...)
+}
+
+func (d *recordingDoor) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+	var o llms.CallOptions
+	for _, opt := range options {
+		opt(&o)
+	}
+	d.mu.Lock()
+	d.budgets = append(d.budgets, *o.MaxTokens)
+	d.mu.Unlock()
+
+	if len(o.Tools) > 0 {
+		return &llms.ContentResponse{Choices: []*llms.ContentChoice{{ToolCalls: []llms.ToolCall{{
+			ID: "call_1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{"location":"San Francisco, US"}`},
+		}}}}}, nil
+	}
+	hello := &MockLLM{GenerateResponse: &llms.ContentResponse{Choices: []*llms.ContentChoice{{Content: "Hello"}}}}
+	return hello.GenerateContent(ctx, messages, options...)
+}
+
+func TestTheSuiteCallsTheDoorTheWayItDeclares(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		opts    []Option
+		budgets []int
+	}{
+		// The tool probe, Call, GenerateContent, Streaming, ToolCalls, both
+		// Caching calls and TokenCounting, each with the suite's own budget.
+		"nothing declared": {budgets: []int{1, 10, 10, 50, 100, 10, 10, 50}},
+		// Every checked request carries the declaration; the tool probe keeps
+		// its own budget, so a declaration cannot talk it out of ToolCalls.
+		"options declared": {
+			opts:    []Option{WithCallOptions(llms.WithMaxTokens(512))},
+			budgets: []int{1, 512, 512, 512, 512, 512, 512, 512},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			door := &recordingDoor{}
+			t.Cleanup(func() {
+				door.mu.Lock()
+				defer door.mu.Unlock()
+				assert.ElementsMatch(t, tc.budgets, door.budgets)
+			})
+			TestLLM(t, door, tc.opts...)
 		})
 	}
 }
