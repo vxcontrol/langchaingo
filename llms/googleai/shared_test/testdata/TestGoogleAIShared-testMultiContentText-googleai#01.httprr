@@ -1,0 +1,75 @@
+httprr trace v1
+831 3508
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 511
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"I'm a pomeranian"},{"text":"What kind of mammal am I?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_MEDIUM_AND_ABOVE"}]}HTTP/2.0 200 OK
+Content-Length: 3095
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:31 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=2477
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "As a Pomeranian, you are a **domestic dog** (*Canis lupus familiaris*). \n\nHere is how you fit into the mammal family tree:\n\n* **Specific breed type:** You are a **toy dog** belonging to the **Spitz** family (known for thick fur, pointed ears, and curled tails).\n* **Family:** You belong to the **Canidae** family, making you a **canid** (related to wolves, foxes, and jackals).\n* **Order:** You are in the order **Carnivora**.\n* **Subclass:** You are a **placental mammal** (Eutherian), meaning your young develop inside the mother before birth and drink milk after they are born.",
+            "thoughtSignature": "EqAICp0IAWkUfRMfOVk0uFa7+TG7uLL34mKeZFbqrN7B0705Weoc2eiOA4DCb8s1SNT833DMz/UnWk3AhnxrgjL7kEJ9ZkC7L6mGo4d6b5nWO6pB4Cc9nphYXxYXMEOFp/c4t1q72aHS/v5D2WYPi025OCwvL0P0ECAUjDZrhj9ZZT9l9xnqUbkp5i7J6zr3eD+XTeFNsQwtLQWk5N1PeCsXMDR0Uvm177T+HcvznxxRkxdnUCq00/8N8oC4hA8jzKS8Y+LcHvFmK3NWnO6/YWLEtK8J8rqBJwTtIp+O9ihPdjQ1tmm2f8apjcsOAE3EBlK/b5YNy9CvscHbSngyo4aJ8mEGgPJUm3IqGhZ7IWqonXRX0ucIWnG6zKDBYxu1nh2aUC+Wk87/u/RsyNseaHwLI4wTe766NldC/7vpf8eTRsfue3nholV3Mx2VFxrckTYuWunFKkMHyVGYCzbfkeiY9N1lbFiIDm0EjIeUoL2psArRAnsZNqUHIw//nErNf+b/B9Ly/jvpHavpgexxnR4yAY0W5+knlDrp/5DbCB6malC9357RyGK+tax1um8Na1zttXuFOxG7MthzUolI4nRqb5BcAe7QvD4ytuqnjRf5Lpp4DG6Lsl9g+BZXTpBMbnwU7XNwMk/pg3Q95cpA2QOtMDPupNto+lesl8pzUQ4UEw6OfwAYgNy72EpLG4wX0i5Nk7EpgVl9w5W2XYe5dvBoTSv9krTiB0/upJ4CFZwKRUZ5HNWcyWSTzB9m86fe2p2h/c6iRyPcph9gm+9snifzOcAb8KUp23PEP6jfi3fFmALQ8Hq0JiFeEjbTG7f7N9SfoDrbsVIYO9/I6kVkZdii/bj0NVhows7XBG7lwkBvgQ5suTEddhyzX9d1pCFi6LA/+I73WKWAWiRhNLDMHwLjYvDFq0mRqRK8+3BZqtqC21uFG2EZv+e6VdqxqY36d4Hh0XU8pb5z21pLSDEGaU+Ye55HSArvIwwAXTh9GPkA/Hry7Oj8/0AFoVyDu7gvyYGjvWFLl3nSbPYy9qDYZ31xvoMsSfnoIAI/nE0GOqXTA66YHPGU4QXlwxSyWer9E4qwVJ6MlKOkUF8ba2xWTGli71KglYXJzTm3hMBqlXCXBowkvCXOKunhzq3TTHB6pbie64lVlPUhSlMVFNLSRB63nKUeCCWUNW7ZuYivNwKxZdxdzRuq1rU67LDF6QHjUMSlruME7q5Gx+4+npSoKY/aVZJAUEYW3PGh4ShMWBk9nqWLq3gi1wUm+L7zIpJuxT36oIj9bhEwP1HID+ECcVfnYOa4lAqjgsCgOZj4e7XjIQelJU2IBYhIKOkj3+Kr7O0jqcGRr2a+nGzgshkav+Gd1t8/XdsLXek4fAd3FTauzNa+Nf4iv1+FRUhjieU29YPL"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "safetyRatings": [
+        {
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
+        }
+      ]
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 14,
+    "candidatesTokenCount": 152,
+    "totalTokenCount": 426,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 14
+      }
+    ],
+    "thoughtsTokenCount": 260,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "HbSzavyoJurl7M8P89WUuQ8"
+}

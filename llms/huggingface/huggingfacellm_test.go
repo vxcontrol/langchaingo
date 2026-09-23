@@ -45,14 +45,13 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 	// Test the LLM call
 	result, err := llm.Call(ctx, "What is 2+2?",
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(50),
+		llms.WithMaxTokens(50),
 	)
 
-	// Skip test if provider is not available or recording is missing
-	if err != nil && (strings.Contains(err.Error(), "404") ||
-		strings.Contains(err.Error(), "403") ||
-		strings.Contains(err.Error(), "cached HTTP response not found")) {
-		t.Skip("Provider not available or recording missing, skipping test")
+	// Skip test if the provider is not available live; a replay miss fails
+	if err != nil && rr.Recording() && (strings.Contains(err.Error(), "404") ||
+		strings.Contains(err.Error(), "403")) {
+		t.Skip("Provider not available, skipping test")
 	}
 
 	if err != nil {
@@ -106,14 +105,13 @@ func TestHuggingFaceLLMGenerateContent(t *testing.T) {
 
 	resp, err := llm.GenerateContent(ctx, messages,
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(30),
+		llms.WithMaxTokens(30),
 	)
 
-	// Skip test if model is not available or rate limited
-	if err != nil && (strings.Contains(err.Error(), "404") ||
-		strings.Contains(err.Error(), "402") ||
-		strings.Contains(err.Error(), "cached HTTP response not found")) {
-		t.Skip("Model not available, rate limited, or recording missing, skipping test")
+	// Skip test if the model is not available or rate limited live; a replay miss fails
+	if err != nil && rr.Recording() && (strings.Contains(err.Error(), "404") ||
+		strings.Contains(err.Error(), "402")) {
+		t.Skip("Model not available or rate limited, skipping test")
 	}
 
 	if err != nil {

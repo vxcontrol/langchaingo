@@ -1,0 +1,898 @@
+httprr trace v1
+1901 1679
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1698
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nOnce upon a time, in a charming little village nestled deep within the enchanted forest, lived a small mouse named Oliver. Oliver was unlike the other mice in the village. While they scurried and chattered happily amongst themselves, Oliver felt a longing for something more, a yearning for adventure and new friendships beyond the familiar mouse tunnels.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 854
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:40:56 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 639
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999600
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_43aca7b35a1848bdbfb1dc3857daa92d
+
+{
+  "id": "chatcmpl-ERFdH0noyQq0chdVIDIx3AYvFNgXt",
+  "object": "chat.completion",
+  "created": 1790163655,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know the name of the lion.\nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 362,
+    "completion_tokens": 13,
+    "total_tokens": 375,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1881 1736
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1678
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nOne sunny morning, as the golden rays of the sun danced through the treetops, Oliver decided it was time to embark on a grand journey to find new friends who shared his thirst for excitement. With a determined gleam in his eye, he packed a tiny satchel filled with cheese, a sturdy walking stick, and bid farewell to his mouse friends.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 911
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:40:58 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 657
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999605
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_70eea1acacce48c8bda17f4afa866865
+
+{
+  "id": "chatcmpl-ERFdJ3pgKasGiRMesrtQwfA4bWjwR",
+  "object": "chat.completion",
+  "created": 1790163657,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Helpful Answer: The context does not mention a lion, so I do not know the name of any lion.\nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 367,
+    "completion_tokens": 26,
+    "total_tokens": 393,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1878 1659
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1675
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nVenturing deeper into the forest, Oliver's heart raced with anticipation. His tiny paws crunched on fallen leaves as he journeyed through the dense undergrowth, marveling at the vibrant flora and listening to the whimsical songs of birds. It was then that he stumbled upon a clearing where a small pond shimmered under the sunlight.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 834
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:00 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 423
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999605
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_3a039dd41b48470f943b59592f5ddeed
+
+{
+  "id": "chatcmpl-ERFdLYkQ0N5CbSHpjbtkhSTXMJOyu",
+  "object": "chat.completion",
+  "created": 1790163659,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know.  \nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 361,
+    "completion_tokens": 9,
+    "total_tokens": 370,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1980 1693
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1777
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nAs Oliver approached the pond, he noticed a majestic lion drinking from the water's edge. The lion, named Leo, had a regal presence and a gentle smile. Oliver's heart fluttered with excitement at the thought of making friends with such a magnificent creature.\n\n\"Hello there, noble lion! My name is Oliver, and I'm on a quest to find new friends. Might you be interested in joining me?\" Oliver squeaked, his voice filled with hope.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 868
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:02 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 841
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999580
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_5e28a5e566744e5087487c1ba82dc42e
+
+{
+  "id": "chatcmpl-ERFdN198uwfynrQotpmYENrKebCSq",
+  "object": "chat.completion",
+  "created": 1790163661,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Helpful Answer: The name of the lion is Leo.  \nScore: 100",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 387,
+    "completion_tokens": 16,
+    "total_tokens": 403,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1816 1677
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1613
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nLeo raised his magnificent head, his golden eyes sparkling with curiosity. \"Greetings, Oliver! I must admit, I've never met a mouse with such courage. I would be honored to accompany you on your noble quest. Together, we shall forge an unbreakable bond of friendship!\"\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 852
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:04 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 752
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999622
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_6c15cc6b52cf4994b7921021597f3816
+
+{
+  "id": "chatcmpl-ERFdQO87SvZTnXn6FAX8UbBuO57T6",
+  "object": "chat.completion",
+  "created": 1790163664,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The name of the lion is Leo.  \nScore: 100",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 351,
+    "completion_tokens": 13,
+    "total_tokens": 364,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1848 1659
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1645
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nWith Leo by his side, Oliver's adventure took on a new dimension. The unlikely duo traversed verdant meadows, climbed towering trees, and braved treacherous rivers. Along their journey, they encountered a whimsical frog named Freddie, who was a skilled hopper and an expert in finding hidden treasures.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 834
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:06 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 555
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999612
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_f153ad4d61224e5696b902ce070ac09e
+
+{
+  "id": "chatcmpl-ERFdS3srivkMsUfFJVvRFzG5whU20",
+  "object": "chat.completion",
+  "created": 1790163666,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know.  \nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 357,
+    "completion_tokens": 9,
+    "total_tokens": 366,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+2061 1759
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1858
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nFreddie, with his emerald-green skin and mischievous grin, eagerly joined their quest. \"Ribbit! Oliver, my dear fellow, it seems that fate has brought us together. Allow me to lend my amphibious skills to our merry group. Together, we shall make quite the team!\"\n\nWith Oliver, Leo, and Freddie united, their bond grew stronger with each passing day. They shared laughter, sang songs, and told tales around the campfire. Oliver had finally found the true meaning of friendship, and his heart was filled with joy.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 934
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:08 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 718
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999560
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_d180e83734a543d5b04c16df63827e06
+
+{
+  "id": "chatcmpl-ERFdUErWMfog6TH72CKxskUM85k4b",
+  "object": "chat.completion",
+  "created": 1790163668,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Question: What is the name of the lion?\nHelpful Answer: The provided context does not mention the name of a lion.\nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 407,
+    "completion_tokens": 29,
+    "total_tokens": 436,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+2025 1657
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1822
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nBut their adventure was far from over. As they ventured deeper into the forest, they stumbled upon a towering volcano, spewing molten lava into the sky. From the fiery depths emerged a fearsome lava monster, its fiery eyes glaring with malevolence.\n\nOliver, Leo, and Freddie stood face to face with the menacing creature, their hearts pounding with a mixture of fear and determination. Oliver's quick wit came to the forefront, and he hatched a plan to defeat the lava monster.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 832
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:10 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 565
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999570
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_dd695ef61f6945d08d3bf811953660be
+
+{
+  "id": "chatcmpl-ERFdW96p7RpstWqj2wbnNxJXDep7b",
+  "object": "chat.completion",
+  "created": 1790163670,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know.\nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 394,
+    "completion_tokens": 8,
+    "total_tokens": 402,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1901 1961
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1698
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\n\"Listen, my friends! We must work together, combining our unique strengths and abilities,\" Oliver declared with conviction. \"Leo, with your strength and courage, distract the monster while Freddie and I search for its vulnerable spot. Freddie, your agility and quick reflexes will guide us through the treacherous terrain. Together, we shall triumph!\"\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 1134
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:13 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 1481
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999602
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_4f54c2c0a714485f8dc202def7ef7015
+
+{
+  "id": "chatcmpl-ERFdYgNbHoMvMtyBPbnrVYzTVhJkJ",
+  "object": "chat.completion",
+  "created": 1790163672,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know. The text mentions a character named Leo, who is implied to be a lion because of the context (\"Leo\" and the qualities of strength and courage typically associated with a lion,\" but this is an assumption). However, the context does not explicitly state Leo's species or name the lion specifically.  \nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 364,
+    "completion_tokens": 67,
+    "total_tokens": 431,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+2035 1731
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1832
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nAnd so, the courageous trio battled the lava monster. Leo roared, drawing the monster's attention, while Freddie and Oliver scurried through the maze of fiery rocks, narrowly dodging molten lava. Finally, they discovered the creature's weak spot—a tiny gem embedded in its chest.\n\nWith their combined efforts, they struck the vulnerable spot, causing the monster to crumble and dissolve into a cascade of ash. The forest rejoiced, as the once-threatening presence was banished forever.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 906
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:15 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 633
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999565
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_a6211e3e8cc847c8900ab7ddcf4a85d4
+
+{
+  "id": "chatcmpl-ERFdaNVchEyeWKgeSI8hfzy3KvqlY",
+  "object": "chat.completion",
+  "created": 1790163674,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Question: What is the name of the lion?  \nHelpful Answer: The lion's name is Leo.  \nScore: 100",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 392,
+    "completion_tokens": 26,
+    "total_tokens": 418,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1808 1774
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1605
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nAs Oliver, Leo, and Freddie emerged victorious, the animals of the enchanted forest gathered to celebrate their bravery. The mouse who had set out on a journey to find new friends had not only discovered the true meaning of friendship but had also become a hero.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 949
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:17 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 854
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999622
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_eccb90afe72d4e61bb431541e8cd521e
+
+{
+  "id": "chatcmpl-ERFdcK6wE9r65W1qVKg0QnsWbTFT8",
+  "object": "chat.completion",
+  "created": 1790163676,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The context does not mention any lion's name.  \nHelpful Answer: The name of the lion is not provided in the given information.  \nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 346,
+    "completion_tokens": 32,
+    "total_tokens": 378,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1896 1712
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1693
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nFrom that day forward, Oliver, Leo, and Freddie became inseparable companions, sharing their tales of triumph and inspiring others with their courage and kindness. Their adventures continued, and their friendships blossomed, reminding everyone in the enchanted forest that no matter how small or different you may be, true friendship knows no bounds.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 887
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:19 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 560
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999600
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_1826180cfd2e4b00a571af47e9deed20
+
+{
+  "id": "chatcmpl-ERFdemKQfYAWirQuqtzVfcJcH9Mvx",
+  "object": "chat.completion",
+  "created": 1790163678,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I do not know the name of the lion based on the provided context.\n\nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 358,
+    "completion_tokens": 19,
+    "total_tokens": 377,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}
+1744 1702
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 1541
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-nano","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\nIn addition to giving an answer, also return a score of how fully it answered the user's question. This should be in the following format:\nQuestion: [question here]\nHelpful Answer: [answer here]\nScore: [score between 0 and 100]\nHow to determine the score:\n- Higher is a better answer\n- Better responds fully to the asked question, with sufficient level of detail\n- If you do not know the answer based on the context, that should be a score of 0\n- Don't be overconfident!\nExample #1\nContext:\n---------\nApples are red\n---------\nQuestion: what color are apples?\nHelpful Answer: red\nScore: 100\nExample #2\nContext:\n---------\nit was night and the witness forgot his glasses. he was not sure if it was a sports car or an suv\n---------\nQuestion: what type was the car?\nHelpful Answer: a sports car or an suv\nScore: 60\nExample #3\nContext:\n---------\nPears are either red or orange\n---------\nQuestion: what color are apples?\nHelpful Answer: This document does not answer the question\nScore: 0\nBegin!\nContext:\n---------\nAnd so, Oliver's story, filled with magic, friendship, and bravery, spread far and wide, becoming a timeless legend, whispered by generations of forest dwellers, enchanting both young and old alike.\n---------\nQuestion: What is the name of the lion?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 876
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:41:27 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 7136
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999640
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_037b75f792ef452692c88e97f8efe64f
+
+{
+  "id": "chatcmpl-ERFdg7QAv1ECGNvilMFQHOU2lhDHi",
+  "object": "chat.completion",
+  "created": 1790163680,
+  "model": "gpt-4.1-nano-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I don't know the answer based on the provided context.  \nScore: 0",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 336,
+    "completion_tokens": 16,
+    "total_tokens": 352,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_0b80e335b8"
+}

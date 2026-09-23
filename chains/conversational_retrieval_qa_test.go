@@ -65,7 +65,13 @@ func createOpenAILLMForConversationalRetrievalQA(t *testing.T) *openai.LLM {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	if !rr.Recording() {
+		t.Parallel()
+	}
 	opts := []openai.Option{
+		// gpt-4.1-nano answers the follow-up with "not mentioned": it does not infer
+		// from the context that Ketanji Brown Jackson succeeds Justice Stephen Breyer.
+		openai.WithModel("gpt-4.1-mini"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 	if !rr.Recording() {
@@ -77,9 +83,6 @@ func createOpenAILLMForConversationalRetrievalQA(t *testing.T) *openai.LLM {
 }
 
 func TestConversationalRetrievalQA(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
-
 	ctx := t.Context()
 
 	llm := createOpenAILLMForConversationalRetrievalQA(t)
@@ -104,9 +107,6 @@ func TestConversationalRetrievalQA(t *testing.T) {
 }
 
 func TestConversationalRetrievalQAWithReturnMessages(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
-
 	ctx := t.Context()
 
 	llm := createOpenAILLMForConversationalRetrievalQA(t)
@@ -131,9 +131,6 @@ func TestConversationalRetrievalQAWithReturnMessages(t *testing.T) {
 }
 
 func TestConversationalRetrievalQAFromLLM(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
-
 	ctx := t.Context()
 
 	r := testConversationalRetriever{}
@@ -150,9 +147,6 @@ func TestConversationalRetrievalQAFromLLM(t *testing.T) {
 }
 
 func TestConversationalRetrievalQAFromLLMWithConversationTokenBuffer(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
-
 	ctx := t.Context()
 
 	r := testConversationalRetriever{}

@@ -44,8 +44,6 @@ freezinglevel_height	Instant	meters	Altitude above sea level of the 0°C level
 visibility	Instant	meters	Viewing distance in meters. Influenced by low clouds, humidity and aerosols. Maximum visibility is approximately 24 km.`
 
 func TestAPI(t *testing.T) {
-	t.Skip("Temporarily skipping due to httprr format issue")
-	t.Parallel()
 	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
@@ -60,6 +58,7 @@ func TestAPI(t *testing.T) {
 	}
 
 	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 	if rr.Replaying() {

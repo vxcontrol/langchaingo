@@ -94,9 +94,9 @@ func TestClient_RunInferenceWithProvider(t *testing.T) {
 
 	resp, err := client.RunInference(ctx, req)
 
-	// Skip test if provider is not available (404/403 error) or recording is missing
-	if err != nil && (strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "cached HTTP response not found")) { //nolint:lll
-		t.Skip("Provider not available or recording missing, skipping test")
+	// Skip test if the provider is not available live (404/403 error); a replay miss fails
+	if err != nil && rr.Recording() && (strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "403")) {
+		t.Skip("Provider not available, skipping test")
 	}
 
 	require.NoError(t, err)

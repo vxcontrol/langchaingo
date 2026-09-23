@@ -690,9 +690,10 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 			if err != nil {
 				return nil, err
 			}
+			// The download names only the image subtype, such as "png".
 			genaiPart = &genai.Part{
 				InlineData: &genai.Blob{
-					MIMEType: typ,
+					MIMEType: "image/" + typ,
 					Data:     data,
 				},
 			}
@@ -809,7 +810,11 @@ func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {
 		if err != nil {
 			return nil, err
 		}
-		genaiFuncDecl.Parameters = schema
+		// A schema that declares no properties is a function without
+		// arguments, which goes out as a declaration without parameters.
+		if len(schema.Properties) > 0 {
+			genaiFuncDecl.Parameters = schema
+		}
 
 		functionDeclarations = append(functionDeclarations, genaiFuncDecl)
 	}
@@ -909,9 +914,6 @@ func convertToSchema(e any, topLevel bool, toolIndex int, propertyPath string) (
 			}
 			schema.Properties[propName] = recSchema
 		}
-	} else if schema.Type == genai.TypeObject && propertyPath == "" {
-		// For top-level object schemas without properties, this is an error
-		return nil, fmt.Errorf("tool [%d]: expected to find a map of properties", toolIndex)
 	}
 
 	if items, ok := eMap["items"]; ok {
@@ -974,6 +976,11 @@ func convertToSchema(e any, topLevel bool, toolIndex int, propertyPath string) (
 			return nil, err
 		}
 		schema.Required = requiredSlice
+	}
+
+	if topLevel && len(schema.Properties) == 0 && len(schema.Required) > 0 {
+		// A top-level schema that requires arguments must declare them
+		return nil, fmt.Errorf("tool [%d]: expected to find a map of properties", toolIndex)
 	}
 
 	return schema, nil
@@ -1186,7 +1193,8 @@ func geminiBudgetInRange(model string, budget int) int32 {
 	return int32(min(max(budget, minimum), maximum))
 }
 
-// checkEmptyStream reports an output limit too small to start an answer.
+// blockedPromptError reports a prompt that the prompt feedback names as blocked,
+// or nil when nothing was blocked.
 func blockedPromptError(feedback *genai.GenerateContentResponsePromptFeedback) error {
 	if feedback == nil || feedback.BlockReason == "" {
 		return nil
@@ -1202,6 +1210,8 @@ func blockedPromptError(feedback *genai.GenerateContentResponsePromptFeedback) e
 	}
 }
 
+// checkEmptyStream reports a stream that ended without an answer: a blocked
+// prompt, or an output limit too small to start an answer.
 func checkEmptyStream(
 	lastCandidate *genai.Candidate,
 	blockReason *genai.GenerateContentResponsePromptFeedback,

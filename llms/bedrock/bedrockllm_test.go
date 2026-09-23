@@ -253,10 +253,6 @@ func TestAmazonOutputLegacyAPI(t *testing.T) {
 
 		resp, err := llm.GenerateContent(ctx, msgs, llms.WithModel(model), llms.WithMaxTokens(512))
 		if err != nil {
-			// Check if this is a recording mismatch error
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-			}
 			t.Fatal(err)
 		}
 		for i, choice := range resp.Choices {
@@ -731,10 +727,6 @@ func TestAmazonNova(t *testing.T) {
 
 		resp, err := llm.GenerateContent(ctx, msgs, llms.WithModel(model), llms.WithMaxTokens(4096))
 		if err != nil {
-			// Check if this is a recording mismatch error
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-			}
 			t.Fatal(err)
 		}
 		for i, choice := range resp.Choices {
@@ -799,10 +791,6 @@ func TestAmazonNovaImage(t *testing.T) {
 
 		resp, err := llm.GenerateContent(ctx, msgs, llms.WithModel(model), llms.WithMaxTokens(4096))
 		if err != nil {
-			// Check if this is a recording mismatch error
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-			}
 			t.Fatal(err)
 		}
 		for i, choice := range resp.Choices {

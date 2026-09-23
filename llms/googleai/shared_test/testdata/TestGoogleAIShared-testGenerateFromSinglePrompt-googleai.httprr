@@ -1,0 +1,57 @@
+httprr trace v1
+770 2544
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 450
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"name all the planets in the solar system"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 2131
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:11:43 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=1694
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "There are **eight** officially recognized planets in our solar system. In order of their distance from the Sun, they are:\n\n1. **Mercury**\n2. **Venus**\n3. **Earth**\n4. **Mars**\n5. **Jupiter**\n6. **Saturn**\n7. **Uranus**\n8. **Neptune**\n\n*(Note: **Pluto** was classified as the ninth planet until 2006, when the International Astronomical Union reclassified it as a \"dwarf planet.\")*",
+            "thoughtSignature": "EskGCsYGAWkUfRN5P0rJAqhg+HP6e5hLO5EkQjUYWuQpaYpT9h51BIolwFGpCe6DQlOkXInrQHCs8kaHAEuU1VqNxbcUj3aIL6fguY0SxlClQhWMPWmzOLn3J/hi2rRsVk5o+B7J1h42tGOdAQ+C09eQTBEBn+rCOoW8abFS0a1qVz0ZKrhHnXQYBCoEvgf27FEkkG9mrxJz5Hz6vjsjrPoi09LK/mcdWFdsKLcdH0DtoepsIH8I9y+6HUnV6zEUE/K4Gq8bkxejg/lSLrhA/FqeKcOJn1B8R/NxhgS1kh18l4+9ygh0YEAxdngOAuoBwrw0lOpKeLujOqhp1YFNyK6FepOgihotmPs0zLu50/wnZbPvR6l3MN/8jfqfCWJilvTkt6z1BauksmRIMEyBgO3WTLScR0rGJAFtoW4ukfeoj57wHtAmr1OxJPcA/4gbJF33Um+uwFED3EYgkImxO1//1VLjOn0f2DiyIFCVnTe4z4sf4TQPkFTRyIQnI7vYD1ALIW5XdjorCqOu92vTV+4rIgK+9IkOkbXGwfHq89AT4oWnafnoXiV91wxavamrsSVSQnCzxPRAzm+ETPztg8pDpe+26lAIDiZJSk+hcGvQMdAEwCgVCI5EEsMCZCpKimMg8yqKaozZIcYeHvvSDmtFWgbVRPklw3I6e4UoebFqBb1PGYL/4oT8TD45bdjfFqkBcBurM9uXTkZG21FRVDmsORnc+CViZd3ZPFkwSf7L9svQIoXmXUlFPUE7mw6353c2tQjxE5SZZkeblNm6s+7xv+wg3/rYu4kk4qIYtc3bOwhEXO9A530QYuAoiAqbUmoZWk8skKH0Cx4AvVMZxFPiRLzOD7kTDNp4fkuv9YOuOzACbel4LAJHm828Jsgm9RDLqackSGjLv8sMEN52BY0a6ezMfOvTGJrLWHxSmWjV5hDyRRUJiJ3BTzte1CToOpbruwOJrZKnTM3vfP29Cg4atW0eDHKpbNieLzTaTQkcYvAj+FcNrclqJ7vk28fvFatMT6zhtzP796Cbdsiu2edVP8Cy5dSrAr8VQjIXpIysLhLsVOgQyQ0j3ZAqCxr32YOSAridOBTA/1ODU1AAopR53u+DPcI0gdzFyQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 9,
+    "candidatesTokenCount": 115,
+    "totalTokenCount": 311,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 9
+      }
+    ],
+    "thoughtsTokenCount": 187,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "7bOzasDOPLiUxN8PqZqo2Qo"
+}

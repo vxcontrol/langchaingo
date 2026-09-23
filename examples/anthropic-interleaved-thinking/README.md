@@ -32,7 +32,7 @@ go run .
 // Enable interleaved thinking for tool use
 opts := []llms.CallOption{
     // Thinking mode for reasoning
-    llms.WithThinkingMode(llms.ThinkingModeMedium),
+    llms.WithReasoning(llms.ReasoningMedium, 0),
     
     // Enable interleaved thinking beta feature
     anthropic.WithInterleavedThinking(),

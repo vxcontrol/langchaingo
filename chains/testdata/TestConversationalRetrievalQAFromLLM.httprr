@@ -1,0 +1,208 @@
+httprr trace v1
+4468 1888
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 4265
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eTonight. I call on the Senate to: Pass the Freedom to Vote Act. Pass the John Lewis Voting Rights Act. And while you're at it, pass the Disclose Act so Americans can know who is funding our elections. \n\nTonight, I'd like to honor someone who has dedicated his life to serve this country: Justice Stephen Breyer—an Army veteran, Constitutional scholar, and retiring Justice of the United States Supreme Court. Justice Breyer, thank you for your service. \n\nOne of the most serious constitutional responsibilities a President has is nominating someone to serve on the United States Supreme Court. \n\nAnd I did that 4 days ago, when I nominated Circuit Court of Appeals Judge Ketanji Brown Jackson. One of our nation's top legal minds, who will continue Justice Breyer's legacy of excellence.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eA former top litigator in private practice. A former federal public defender. And from a family of public school educators and police officers. A consensus builder. Since she's been nominated, she's received a broad range of support—from the Fraternal Order of Police to former judges appointed by Democrats and Republicans. \n\nAnd if we are to advance liberty and justice, we need to secure the Border and fix the immigration system. \n\nWe can do both. At our border, we've installed new technology like cutting-edge scanners to better detect drug smuggling.  \n\nWe've set up joint patrols with Mexico and Guatemala to catch more human traffickers.  \n\nWe're putting in place dedicated immigration judges so families fleeing persecution and violence can have their cases heard faster. \n\nWe're securing commitments and supporting partners in South and Central America to host more refugees and secure their own borders.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eAnd for our LGBTQ+ Americans, let's finally get the bipartisan Equality Act to my desk. The onslaught of state laws targeting transgender Americans and their families is wrong. \n\nAs I said last year, especially to our younger transgender Americans, I will always have your back as your President, so you can be yourself and reach your God-given potential. \n\nWhile it often appears that we never agree, that isn't true. I signed 80 bipartisan bills into law last year. From preventing government shutdowns to protecting Asian-Americans from still-too-common hate crimes to reforming military justice. \n\nAnd soon, we'll strengthen the Violence Against Women Act that I first wrote three decades ago. It is important for us to show the nation that we can come together and do big things. \n\nSo tonight I'm offering a Unity Agenda for the Nation. Four big things we can do together.  \n\nFirst, beat the opioid epidemic.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eTonight, I'm announcing a crackdown on these companies overcharging American businesses and consumers. \n\nAnd as Wall Street firms take over more nursing homes, quality in those homes has gone down and costs have gone up.  \n\nThat ends on my watch. \n\nMedicare is going to set higher standards for nursing homes and make sure your loved ones get the care they deserve and expect. \n\nWe'll also cut costs and keep the economy going strong by giving workers a fair shot, provide more training and apprenticeships, hire them based on their skills not degrees. \n\nLet's pass the Paycheck Fairness Act and paid leave.  \n\nRaise the minimum wage to $15 an hour and extend the Child Tax Credit, so no one has to raise a family in poverty. \n\nLet's increase Pell Grants and increase our historic support of HBCUs, and invest in what Jill—our First Lady who teaches full-time—calls America's best-kept secret: community colleges.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: What did the president say about Ketanji Brown Jackson\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 1062
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:17:14 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 704
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999005
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_c2ec61af4d4144ad81cc16a3d9ade68f
+
+{
+  "id": "chatcmpl-ERFGLJlI46GmoQk9W3Xb8ttfksDK1",
+  "object": "chat.completion",
+  "created": 1790162233,
+  "model": "gpt-4.1-mini-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The president said that he nominated Circuit Court of Appeals Judge Ketanji Brown Jackson to the United States Supreme Court four days ago. He described her as one of the nation's top legal minds who will continue Justice Breyer's legacy of excellence.",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 804,
+    "completion_tokens": 48,
+    "total_tokens": 852,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_46ce4fdcea"
+}
+824 1698
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 622
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\nHuman: What did the president say about Ketanji Brown Jackson\nAI: The president said that he nominated Circuit Court of Appeals Judge Ketanji Brown Jackson to the United States Supreme Court four days ago. He described her as one of the nation's top legal minds who will continue Justice Breyer's legacy of excellence.\nFollow Up Input: Did he mention who she succeeded\nStandalone question:"}]}HTTP/2.0 200 OK
+Content-Length: 873
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:17:16 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 422
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149999860
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_41a44ba0ffb149289062aa0c08970102
+
+{
+  "id": "chatcmpl-ERFGNyj5bffZuwxCJvj48dFNz6zhk",
+  "object": "chat.completion",
+  "created": 1790162235,
+  "model": "gpt-4.1-mini-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Did the president mention whom Ketanji Brown Jackson succeeded?",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 115,
+    "completion_tokens": 12,
+    "total_tokens": 127,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_46ce4fdcea"
+}
+4625 1785
+POST https://api.openai.com/v1/chat/completions HTTP/1.1
+Host: api.openai.com
+User-Agent: langchaingo-httprr
+Content-Length: 4422
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eTonight. I call on the Senate to: Pass the Freedom to Vote Act. Pass the John Lewis Voting Rights Act. And while you're at it, pass the Disclose Act so Americans can know who is funding our elections. \n\nTonight, I'd like to honor someone who has dedicated his life to serve this country: Justice Stephen Breyer—an Army veteran, Constitutional scholar, and retiring Justice of the United States Supreme Court. Justice Breyer, thank you for your service. \n\nOne of the most serious constitutional responsibilities a President has is nominating someone to serve on the United States Supreme Court. \n\nAnd I did that 4 days ago, when I nominated Circuit Court of Appeals Judge Ketanji Brown Jackson. One of our nation's top legal minds, who will continue Justice Breyer's legacy of excellence.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eA former top litigator in private practice. A former federal public defender. And from a family of public school educators and police officers. A consensus builder. Since she's been nominated, she's received a broad range of support—from the Fraternal Order of Police to former judges appointed by Democrats and Republicans. \\n\\nAnd if we are to advance liberty and justice, we need to secure the Border and fix the immigration system. \\n\\nWe can do both. At our border, we've installed new technology like cutting-edge scanners to better detect drug smuggling.  \\n\\nWe've set up joint patrols with Mexico and Guatemala to catch more human traffickers.  \\n\\nWe're putting in place dedicated immigration judges so families fleeing persecution and violence can have their cases heard faster. \\n\\nWe're securing commitments and supporting partners in South and Central America to host more refugees and secure their own borders.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eMadam Speaker, Madam Vice President, our First Lady and Second Gentleman. Members of Congress and the Cabinet. Justices of the Supreme Court. My fellow Americans.  \n\nLast year COVID-19 kept us apart. This year we are finally together again. \n\nTonight, we meet as Democrats Republicans and Independents. But most importantly as Americans. \n\nWith a duty to one another to the American people to the Constitution. \n\nAnd with an unwavering resolve that freedom will always triumph over tyranny. \n\nSix days ago, Russia's Vladimir Putin sought to shake the foundations of the free world thinking he could make it bend to his menacing ways. But he badly miscalculated. \n\nHe thought he could roll into Ukraine and the world would roll over. Instead he met a wall of strength he never imagined. \n\nHe met the Ukrainian people. \n\nFrom President Zelenskyy to every Ukrainian, their fearlessness, their courage, their determination, inspires the world\u003c/content\u003e\n\n\u003c/document\u003e\n\n\n\n\u003cdocument\u003e\n\u003ccontent\u003eAs Ohio Senator Sherrod Brown says, 'It's time to bury the label 'Rust Belt.' \\n\\nIt's time. \\n\\nBut with all the bright spots in our economy, record job growth and higher wages, too many families are struggling to keep up with the bills.  \\n\\nInflation is robbing them of the gains they might otherwise feel. \\n\\nI get it. That's why my top priority is getting prices under control. \\n\\nLook, our economy roared back faster than most predicted, but the pandemic meant that businesses had a hard time hiring enough workers to keep up production in their factories. \\n\\nThe pandemic also disrupted global supply chains. \\n\\nWhen factories close, it takes longer to make goods and get them from the warehouse to the store, and prices go up. \\n\\nLook at cars. \\n\\nLast year, there weren't enough semiconductors to make all the cars that people wanted to buy. \\n\\nAnd guess what, prices of automobiles went up. \\n\\nSo—we have a choice. \\n\\nOne way to fight inflation is to drive down wages and make Americans poorer.\u003c/content\u003e\n\n\u003c/document\u003e\n\n\nQuestion: Did the president mention whom Ketanji Brown Jackson succeeded?\nHelpful Answer:"}]}HTTP/2.0 200 OK
+Content-Length: 960
+Access-Control-Expose-Headers: X-Request-ID
+Access-Control-Expose-Headers: CF-Ray
+Access-Control-Expose-Headers: CF-Ray
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Type: application/json
+Date: Wed, 23 Sep 2026 11:17:18 GMT
+Openai-Organization: lcgo-tst
+Openai-Processing-Ms: 595
+Openai-Project: proj_lcgo-tst
+Openai-Version: 2020-10-01
+Server: cloudflare
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Openai-Proxy-Wasm: v0.1
+X-Ratelimit-Limit-Requests: 30000
+X-Ratelimit-Limit-Tokens: 150000000
+X-Ratelimit-Remaining-Requests: 29999
+X-Ratelimit-Remaining-Tokens: 149998972
+X-Ratelimit-Reset-Requests: 2ms
+X-Ratelimit-Reset-Tokens: 0s
+X-Request-Id: req_4b13be1bc20c48a7aa59c6d7d60c41ec
+
+{
+  "id": "chatcmpl-ERFGPznmAzlAYWkwvkyg2vQwnq7g2",
+  "object": "chat.completion",
+  "created": 1790162237,
+  "model": "gpt-4.1-mini-2025-04-14",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Yes, the president mentioned that Ketanji Brown Jackson will continue Justice Stephen Breyer's legacy, implying that she is succeeding Justice Breyer.",
+        "refusal": null,
+        "annotations": []
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 876,
+    "completion_tokens": 29,
+    "total_tokens": 905,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "audio_tokens": 0,
+      "accepted_prediction_tokens": 0,
+      "rejected_prediction_tokens": 0
+    }
+  },
+  "service_tier": "default",
+  "system_fingerprint": "fp_46ce4fdcea"
+}

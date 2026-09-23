@@ -1,0 +1,16 @@
+httprr trace v1
+97 229
+GET https://httpbin.org/robots.txt HTTP/1.1
+Host: httpbin.org
+User-Agent: langchaingo-httprr
+
+HTTP/2.0 200 OK
+Content-Length: 30
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: *
+Content-Type: text/plain
+Date: Wed, 23 Sep 2026 11:01:15 GMT
+Server: gunicorn/19.9.0
+
+User-agent: *
+Disallow: /deny

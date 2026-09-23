@@ -35,20 +35,20 @@
 //   - A door that needs particular options to answer at all, such as the
 //     output budget a thinking model spends before its first word, declares
 //     them with WithCallOptions; every checked request carries them
-//   - Reasoning/Thinking mode (if supported)
 //   - Token counting (if usage information provided)
 //   - Context caching (if implemented)
 //
 // # Mock Implementation
 //
-// A MockLLM is provided for testing without making actual API calls:
+// A MockLLM is provided for testing without making actual API calls. It
+// answers in prose and never calls a tool, so it declares WithoutToolCalls:
 //
 //	mock := &llmtest.MockLLM{
-//	    CallFunc: func(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
-//	        return "mocked response", nil
+//	    GenerateResponse: &llms.ContentResponse{
+//	        Choices: []*llms.ContentChoice{{Content: "Hello"}},
 //	    },
 //	}
-//	llmtest.TestLLM(t, mock)
+//	llmtest.TestLLM(t, mock, llmtest.WithoutToolCalls())
 //
 // # Parallel Testing
 //

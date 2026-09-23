@@ -362,24 +362,57 @@ func TestConvertTools(t *testing.T) { //nolint:funlen // comprehensive test //no
 		assert.Nil(t, result)
 	})
 
-	t.Run("missing properties in parameters", func(t *testing.T) {
-		tools := []llms.Tool{
-			{
-				Type: "function",
-				Function: &llms.FunctionDefinition{
-					Name:        "test",
-					Description: "test function",
-					Parameters: map[string]any{
-						"type": "object",
-						// missing properties
+	t.Run("parameters without properties", func(t *testing.T) {
+		for name, params := range map[string]any{
+			"no properties":          map[string]any{"type": "object"},
+			"empty properties":       map[string]any{"type": "object", "properties": map[string]any{}},
+			"no required properties": map[string]any{"type": "object", "required": []string{}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				result, err := convertTools([]llms.Tool{{
+					Type: "function",
+					Function: &llms.FunctionDefinition{
+						Name:        "test",
+						Description: "test function",
+						Parameters:  params,
 					},
-				},
-			},
+				}})
+				require.NoError(t, err)
+				require.Len(t, result, 1)
+				require.Len(t, result[0].FunctionDeclarations, 1)
+				assert.Equal(t, "test", result[0].FunctionDeclarations[0].Name)
+				assert.Nil(t, result[0].FunctionDeclarations[0].Parameters,
+					"a function without arguments goes out without parameters")
+			})
 		}
-		result, err := convertTools(tools)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "expected to find a map of properties")
-		assert.Nil(t, result)
+	})
+
+	t.Run("required properties that are never declared", func(t *testing.T) {
+		for name, params := range map[string]any{
+			"no properties": map[string]any{
+				"type":     "object",
+				"required": []string{"location"},
+			},
+			"empty properties": map[string]any{
+				"type":       "object",
+				"properties": map[string]any{},
+				"required":   []string{"location"},
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				result, err := convertTools([]llms.Tool{{
+					Type: "function",
+					Function: &llms.FunctionDefinition{
+						Name:        "test",
+						Description: "test function",
+						Parameters:  params,
+					},
+				}})
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "expected to find a map of properties")
+				assert.Nil(t, result)
+			})
+		}
 	})
 
 	t.Run("valid function tool", func(t *testing.T) {
@@ -584,6 +617,23 @@ func TestConvertTools(t *testing.T) { //nolint:funlen // comprehensive test //no
 		assert.Contains(t, customizationsProp.Items.Required, "option")
 		assert.Contains(t, customizationsProp.Items.Required, "value")
 	})
+}
+
+func TestConvertPartsSendsAnImageLinkWithItsImageMIMEType(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte("png-bytes"))
+	}))
+	t.Cleanup(srv.Close)
+
+	parts, err := convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/parrot.png")})
+	require.NoError(t, err)
+	require.Len(t, parts, 1)
+	require.NotNil(t, parts[0].InlineData)
+	assert.Equal(t, "image/png", parts[0].InlineData.MIMEType, "Gemini refuses a bare subtype such as png")
+	assert.Equal(t, []byte("png-bytes"), parts[0].InlineData.Data)
 }
 
 func TestFunctionCallIDWrappers(t *testing.T) {

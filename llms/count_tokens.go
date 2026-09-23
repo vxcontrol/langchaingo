@@ -2,6 +2,7 @@ package llms
 
 import (
 	"log"
+	"strings"
 
 	"github.com/pkoukk/tiktoken-go"
 )
@@ -75,17 +76,35 @@ func GetModelContextSize(model string) int {
 	return contextSize
 }
 
-// CountTokens gets the number of tokens the text contains.
+// CountTokens gets the number of tokens the text contains. A model tiktoken
+// maps to an encoding is counted with that encoding; any other model, the empty
+// name included, gets an approximation of one token per four runes. No fallback
+// encoding is tried: tiktoken-go has no "gpt2" encoding, and each encoding it
+// has is downloaded on first use, which would make the count depend on the
+// network.
 func CountTokens(model, text string) int {
 	e, err := tiktoken.EncodingForModel(model)
 	if err != nil {
-		e, err = tiktoken.GetEncoding("gpt2")
-		if err != nil {
-			log.Printf("[WARN] Failed to calculate number of tokens for model, falling back to approximate count")
-			return len([]rune(text)) / _tokenApproximation
+		if tiktokenMapsModel(model) {
+			log.Printf("[WARN] Failed to load the token encoding for model %s, falling back to approximate count: %v",
+				model, err)
 		}
+		return len([]rune(text)) / _tokenApproximation
 	}
 	return len(e.Encode(text, nil, nil))
+}
+
+// tiktokenMapsModel reports whether tiktoken names an encoding for the model.
+func tiktokenMapsModel(model string) bool {
+	if _, ok := tiktoken.MODEL_TO_ENCODING[model]; ok {
+		return true
+	}
+	for prefix := range tiktoken.MODEL_PREFIX_TO_ENCODING {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // CalculateMaxTokens calculates the max number of tokens that could be added to a text.

@@ -1,25 +1,26 @@
 httprr trace v1
-814 1541
-POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=test-api-key HTTP/1.1
+759 1016
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 477
+Content-Length: 439
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"What is the capital of France"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"temperature":0.5,"topK":3,"topP":0.95},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 1162
+{"contents":[{"parts":[{"text":"What is the capital of France"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 605
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Type: application/json; charset=UTF-8
-Date: Thu, 22 Jan 2026 21:11:14 GMT
+Date: Wed, 23 Sep 2026 09:29:43 GMT
 Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=415
+Server-Timing: gfet4t7; dur=465
 Vary: Origin
 Vary: X-Origin
 Vary: Referer
 X-Content-Type-Options: nosniff
 X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
 
 {
@@ -28,50 +29,28 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "The capital of France is **Paris**.\n"
+            "text": "The capital of France is **Paris**."
           }
         ],
         "role": "model"
       },
       "finishReason": "STOP",
-      "safetyRatings": [
-        {
-          "category": "HARM_CATEGORY_HATE_SPEECH",
-          "probability": "NEGLIGIBLE"
-        },
-        {
-          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-          "probability": "NEGLIGIBLE"
-        },
-        {
-          "category": "HARM_CATEGORY_HARASSMENT",
-          "probability": "NEGLIGIBLE"
-        },
-        {
-          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          "probability": "NEGLIGIBLE"
-        }
-      ],
-      "avgLogprobs": -0.0259782075881958
+      "index": 0
     }
   ],
   "usageMetadata": {
-    "promptTokenCount": 6,
-    "candidatesTokenCount": 9,
-    "totalTokenCount": 15,
+    "promptTokenCount": 7,
+    "candidatesTokenCount": 8,
+    "totalTokenCount": 33,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
-        "tokenCount": 6
+        "tokenCount": 7
       }
     ],
-    "candidatesTokensDetails": [
-      {
-        "modality": "TEXT",
-        "tokenCount": 9
-      }
-    ]
+    "thoughtsTokenCount": 18,
+    "serviceTier": "standard"
   },
-  "modelVersion": "gemini-2.0-flash",
-  "responseId": "cZJyaabxNM_QjMcPl_6ZyA8"
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "B5yzarrPJKOrxN8PhPm14AI"
 }

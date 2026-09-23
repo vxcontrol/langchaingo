@@ -25,7 +25,7 @@ func ExampleNew_withInferenceProvider() {
 	// Use the LLM
 	result, err := llm.Call(ctx, "What is the capital of France?",
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(50),
+		llms.WithMaxTokens(50),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +49,7 @@ func ExampleNew_standardInference() {
 	// Use the LLM
 	result, err := llm.Call(ctx, "Hello, how are you?",
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(50),
+		llms.WithMaxTokens(50),
 	)
 	if err != nil {
 		log.Fatal(err)

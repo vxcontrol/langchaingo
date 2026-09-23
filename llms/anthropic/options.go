@@ -55,7 +55,7 @@ func WithExtendedOutput() llms.CallOption {
 //
 //	llm.GenerateContent(ctx, messages,
 //	    llms.WithTools(tools),
-//	    llms.WithThinkingMode(llms.ThinkingModeMedium),
+//	    llms.WithReasoning(llms.ReasoningMedium, 0),
 //	    anthropic.WithInterleavedThinking(),
 //	)
 func WithInterleavedThinking() llms.CallOption {

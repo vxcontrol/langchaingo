@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -175,8 +176,9 @@ func (s *Store) SimilaritySearch(
 		return nil, err
 	}
 
-	// already sorted by increasing distance, so reverse to get highest similarity first
-	slices.Reverse(docs)
+	// hnsw hands back its result heap as is, not sorted by distance, so order
+	// by similarity here, highest first.
+	slices.SortStableFunc(docs, func(a, b schema.Document) int { return cmp.Compare(b.Score, a.Score) })
 	return docs, nil
 }
 

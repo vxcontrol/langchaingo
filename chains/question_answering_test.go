@@ -83,8 +83,6 @@ func TestMapReduceQA(t *testing.T) {
 }
 
 func TestMapRerankQA(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
 	ctx := t.Context()
 
 	llm := createOpenAILLMForQA(t)
