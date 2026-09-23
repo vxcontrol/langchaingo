@@ -70,6 +70,7 @@ func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.Embedder
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	llm, err := openai.New(
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	)
 	require.NoError(t, err)
