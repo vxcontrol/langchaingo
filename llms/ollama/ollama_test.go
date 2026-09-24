@@ -578,6 +578,15 @@ func TestValidateStructuredOutput(t *testing.T) {
 		require.NoError(t, llm.validateStructuredOutput(opts, mk(`{"answer":`, "length")))
 	})
 
+	t.Run("a load or unload with no answer fails the schema", func(t *testing.T) {
+		t.Parallel()
+		for _, reason := range []string{"load", "unload"} {
+			var ve *llms.ErrStructuredOutputValidation
+			require.ErrorAs(t, llm.validateStructuredOutput(opts, mk("", reason)), &ve, reason)
+			assert.Equal(t, reason, ve.StopReason)
+		}
+	})
+
 	t.Run("no schema is a no-op", func(t *testing.T) {
 		t.Parallel()
 		require.NoError(t, llm.validateStructuredOutput(applyOpts(), mk(`not json`, "stop")))
@@ -648,5 +657,51 @@ func TestTheCloudDropWarningReachesTheResponse(t *testing.T) {
 			}
 		}
 		assert.Equal(t, want, drops, model)
+	}
+}
+
+func TestALoadOnlyAnswerToASchemaRequestIsNotASuccess(t *testing.T) {
+	t.Parallel()
+
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "answer", Schema: json.RawMessage(ollamaSOSchema)})
+	for _, tc := range []struct {
+		name     string
+		messages []llms.MessageContent
+		opts     []llms.CallOption
+		fails    bool
+	}{
+		{
+			name:     "a schema request the server only loaded the model for",
+			messages: []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")},
+			opts:     []llms.CallOption{schema},
+			fails:    true,
+		},
+		{name: "a request without messages still just loads the model", opts: []llms.CallOption{schema}},
+		{name: "a request without a schema is left as it was", messages: []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				w.Header().Set("Content-Type", "application/x-ndjson")
+				_, _ = io.WriteString(w, `{"model":"llama3","message":{"role":"assistant","content":""},`+
+					`"done":true,"done_reason":"load"}`+"\n")
+			}))
+			t.Cleanup(srv.Close)
+			llm, err := New(WithServerURL(srv.URL), WithModel("llama3"))
+			require.NoError(t, err)
+
+			resp, err := llm.GenerateContent(t.Context(), tc.messages, tc.opts...)
+			require.NotNil(t, resp, "the response comes back either way")
+			assert.Equal(t, "load", resp.Choices[0].StopReason)
+			if !tc.fails {
+				require.NoError(t, err)
+				return
+			}
+			var validation *llms.ErrStructuredOutputValidation
+			require.ErrorAs(t, err, &validation)
+			assert.Equal(t, "load", validation.StopReason)
+		})
 	}
 }

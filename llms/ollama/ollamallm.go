@@ -158,11 +158,15 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if err != nil {
 		return nil, err
 	}
+	emulated := o.emulatesStructuredOutput(model, opts)
+	if emulated {
+		req.Messages = injectStructuredOutputPrompt(req.Messages, opts.StructuredOutput.Schema, len(opts.Tools) > 0)
+	}
 
 	warn := &llms.Warnings{}
 	reportOllamaOptions(warn, model, opts)
 	if o.servesCloud(model) {
-		reportOllamaCloudFormat(warn, model, opts, o.options.format)
+		reportOllamaCloudFormat(warn, model, opts, o.options.format, emulated)
 	}
 
 	if err := o.processTools(req, opts.Tools); err != nil {
@@ -181,15 +185,21 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	response = o.createContentResponse(resp)
 	response.Warnings = warn.List()
+	if emulated {
+		unwrapFencedAnswers(response)
+	}
 
 	if err = llms.CheckTruncation(response, opts); err != nil {
 		return response, err
 	}
 
 	// When a schema was requested, validate the final response against it; the
-	// response is returned alongside the typed error so usage is preserved.
-	if err = o.validateStructuredOutput(opts, response); err != nil {
-		return response, err
+	// response is returned alongside the typed error so usage is preserved. A
+	// request without messages only loads the model and is left alone, as before.
+	if len(req.Messages) > 0 {
+		if err = o.validateStructuredOutput(opts, response); err != nil {
+			return response, err
+		}
 	}
 
 	return response, nil
@@ -205,7 +215,7 @@ func (o *LLM) validateStructuredOutput(opts llms.CallOptions, resp *llms.Content
 	}
 	model := o.getModel(opts)
 	for i, choice := range resp.Choices {
-		if choice.StopReason != "" && choice.StopReason != "stop" {
+		if choice.StopReason != "" && choice.StopReason != "stop" && !loadedOnly(choice.StopReason) {
 			continue
 		}
 		// A tool-call turn is an intermediate step, not the final schema-typed
@@ -218,6 +228,52 @@ func (o *LLM) validateStructuredOutput(opts llms.CallOptions, resp *llms.Content
 		}
 	}
 	return nil
+}
+
+// loadedOnly reports a done reason that says the server loaded or unloaded the
+// model and generated nothing: no final answer, so a requested schema is not met.
+func loadedOnly(doneReason string) bool {
+	return doneReason == "load" || doneReason == "unload"
+}
+
+// unwrapFencedAnswers strips the Markdown code fence a model put around its whole
+// answer despite the prompt instruction. It runs only for an emulated schema,
+// where nothing on the server constrains the output.
+func unwrapFencedAnswers(resp *llms.ContentResponse) {
+	for _, choice := range resp.Choices {
+		if len(choice.ToolCalls) == 0 && (choice.StopReason == "" || choice.StopReason == "stop") {
+			choice.Content = unwrapFencedJSON(choice.Content)
+		}
+	}
+}
+
+// unwrapFencedJSON returns the body of a text that is exactly one Markdown code
+// fence, untagged or tagged json. Anything else, such as prose around the fence
+// or a second fence, is returned unchanged for validation to judge.
+func unwrapFencedJSON(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if len(trimmed) < 6 || !strings.HasPrefix(trimmed, "```") || !strings.HasSuffix(trimmed, "```") {
+		return text
+	}
+	header, body, ok := strings.Cut(trimmed[3:len(trimmed)-3], "\n")
+	if !ok || containsFenceLine(body) {
+		return text
+	}
+	if tag := strings.TrimSpace(header); tag != "" && !strings.EqualFold(tag, "json") {
+		return text
+	}
+	return strings.TrimSpace(body)
+}
+
+// containsFenceLine reports a line that opens or closes a code fence. A JSON
+// string cannot hold a raw newline, so backticks inside one never start a line.
+func containsFenceLine(body string) bool {
+	for line := range strings.Lines(body) {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			return true
+		}
+	}
+	return false
 }
 
 // getModel determines which model to use based on options and defaults.
@@ -388,11 +444,16 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 // resolveFormat picks the Ollama `format` field. A per-call structured-output
 // schema is sent as the native JSON Schema (Ollama constrains generation to it);
 // otherwise the legacy string mode is preserved unchanged — the client-level
-// format, or "json" for JSONMode. Ollama Cloud always gets the empty format.
+// format, or "json" for JSONMode. Ollama Cloud always gets the empty format: it
+// ignores the field, so a schema there is refused, unless
+// WithCloudStructuredOutputFallback moves it into the prompt instead.
 func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 	if so := opts.StructuredOutput; so != nil {
 		if err := opts.ValidateStructuredOutput(); err != nil {
 			return nil, err
+		}
+		if o.emulatesStructuredOutput(o.getModel(opts), opts) {
+			return json.RawMessage(`""`), nil
 		}
 		if o.servesCloud(o.getModel(opts)) {
 			return nil, &llms.ErrStructuredOutputUnsupported{
@@ -414,6 +475,41 @@ func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 }
 
 const ollamaCloudFormatReason = "Ollama Cloud does not support structured outputs"
+
+// emulatesStructuredOutput reports whether a structured-output call travels as a
+// prompt instruction: the model runs on Ollama Cloud, which ignores the format
+// field, and the client opted in with WithCloudStructuredOutputFallback.
+func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool {
+	return opts.StructuredOutput != nil && o.options.cloudStructuredOutputFallback && o.servesCloud(model)
+}
+
+const (
+	structuredOutputInstruction = "Reply with exactly one JSON value that validates against the JSON Schema below. " +
+		"This overrides any earlier instruction about format or style: no Markdown, no code fences, " +
+		"no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser."
+	structuredOutputToolsNote = "You may still call the tools you are offered; this applies to your final answer."
+)
+
+// injectStructuredOutputPrompt appends the schema instruction to the last user
+// message. Ollama Cloud does not answer a conversation without a user turn, so
+// when there is none the instruction becomes that turn.
+func injectStructuredOutputPrompt(messages []api.Message, schema json.RawMessage, withTools bool) []api.Message {
+	instruction := structuredOutputInstruction
+	if withTools {
+		instruction += " " + structuredOutputToolsNote
+	}
+	instruction += "\nJSON Schema:\n" + string(schema)
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			if messages[i].Content != "" {
+				messages[i].Content += "\n\n"
+			}
+			messages[i].Content += instruction
+			return messages
+		}
+	}
+	return append(messages, api.Message{Role: "user", Content: instruction})
+}
 
 // servesCloud reports whether the model runs on Ollama Cloud: reached at
 // ollama.com, or a cloud model a local server offloads, tagged "-cloud".
@@ -457,6 +553,7 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		streamedResponse  strings.Builder
 		streamedThinking  strings.Builder
 		streamedToolCalls []api.ToolCall
+		finished          bool
 	)
 
 	splitter := reasoning.NewChunkContentSplitter()
@@ -493,6 +590,7 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 			streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
 		}
 
+		finished = finished || response.Done
 		if req.Stream == nil || !*req.Stream || response.Done {
 			resp = response
 			resp.Message = api.Message{
@@ -506,7 +604,10 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	}
 
 	err := o.client.Chat(ctx, req, fn)
-	if err != nil {
+	// A stream the server closed without its final frame, as Ollama up to 0.34.0
+	// does when it stops a model repeating itself, still delivered an answer:
+	// keep the text that arrived instead of an empty one.
+	if err != nil || !finished {
 		resp.Message = api.Message{
 			Role:      "assistant",
 			Content:   streamedResponse.String(),

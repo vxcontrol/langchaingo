@@ -36,7 +36,7 @@ func (t *removeTimestampTransport) RoundTrip(req *http.Request) (*http.Response,
 }
 
 // newCloudTestClient creates a test client configured for Ollama Cloud
-func newCloudTestClient(t *testing.T) *LLM {
+func newCloudTestClient(t *testing.T, extra ...Option) *LLM {
 	t.Helper()
 
 	// Check for required credentials and skip if not available
@@ -90,12 +90,12 @@ func newCloudTestClient(t *testing.T) *LLM {
 		cloudModel = envModel
 	}
 
-	opts := []Option{
+	opts := append([]Option{
 		WithServerURL(serverURL),
 		WithAPIKey(apiKey),
 		WithHTTPClient(wrappedClient),
 		WithModel(cloudModel),
-	}
+	}, extra...)
 
 	c, err := New(opts...)
 	require.NoError(t, err)
@@ -321,6 +321,61 @@ func TestCloudRefusesAStructuredOutputSchema(t *testing.T) {
 
 		var unsup *llms.ErrStructuredOutputUnsupported
 		require.ErrorAs(t, err, &unsup, model)
+	}
+}
+
+func TestCloudStructuredOutputFallback(t *testing.T) {
+	schema := json.RawMessage(`{"type":"object","properties":{` +
+		`"city":{"type":"string"},` +
+		`"population_millions":{"type":"number"},` +
+		`"landmarks":{"type":"array","minItems":2,"maxItems":3,"items":{"type":"object","properties":{` +
+		`"name":{"type":"string"},"kind":{"type":"string","enum":["museum","monument","park","church","other"]}},` +
+		`"required":["name","kind"],"additionalProperties":false}}},` +
+		`"required":["city","population_millions","landmarks"],"additionalProperties":false}`)
+
+	for _, stream := range []bool{false, true} {
+		name := "non-streaming"
+		if stream {
+			name = "streaming"
+		}
+		t.Run(name, func(t *testing.T) {
+			llm := newCloudTestClient(t, WithCloudStructuredOutputFallback())
+
+			opts := []llms.CallOption{llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "city", Schema: schema})}
+			var streamed strings.Builder
+			if stream {
+				opts = append(opts, llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+					if chunk.Type == streaming.ChunkTypeText {
+						streamed.WriteString(chunk.Content)
+					}
+					return nil
+				}))
+			}
+
+			resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+				llms.TextParts(llms.ChatMessageTypeSystem, "You are a travel guide. Answer in Markdown with headings."),
+				llms.TextParts(llms.ChatMessageTypeHuman, "Describe Paris briefly."),
+			}, opts...)
+			require.NoError(t, err, "the answer must validate against the schema")
+			require.Len(t, resp.Choices, 1)
+
+			var answer struct {
+				City      string `json:"city"`
+				Landmarks []struct {
+					Name string `json:"name"`
+				} `json:"landmarks"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(resp.Choices[0].Content), &answer))
+			assert.Equal(t, "Paris", answer.City)
+			assert.NotEmpty(t, answer.Landmarks)
+			if stream {
+				assert.Equal(t, resp.Choices[0].Content, unwrapFencedJSON(strings.TrimSpace(streamed.String())))
+			}
+
+			require.Len(t, resp.Warnings, 1)
+			assert.Equal(t, llms.WarningSubstitute, resp.Warnings[0].Kind)
+			assert.Equal(t, "WithStructuredOutput", resp.Warnings[0].Option)
+		})
 	}
 }
 

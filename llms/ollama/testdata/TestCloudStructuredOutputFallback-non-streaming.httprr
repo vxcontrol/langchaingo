@@ -1,0 +1,24 @@
+httprr trace v1
+1212 1762
+POST https://ollama.com/api/chat HTTP/1.1
+Host: ollama.com
+User-Agent: langchaingo-httprr
+Content-Length: 1034
+Accept: application/x-ndjson
+Content-Type: application/json
+
+{"model":"gpt-oss:120b","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Describe Paris briefly.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"population_millions\":{\"type\":\"number\"},\"landmarks\":{\"type\":\"array\",\"minItems\":2,\"maxItems\":3,\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"population_millions\",\"landmarks\"],\"additionalProperties\":false}"}],"stream":false,"format":"","options":{"num_predict":16384}}HTTP/2.0 200 OK
+Content-Length: 1256
+Alt-Svc: h3=":443"; ma=2592000
+Content-Type: application/json
+Date: Thu, 24 Sep 2026 13:47:06 GMT
+Server: Google Frontend
+Traceparent: 00-ce3fbe642d885882042e906179d04f13-a68928b9f25d0ddb-00
+Via: 1.1 google
+X-Build-Commit: 614f90b4fc81e84f478f88d324848f8028bf3d1f
+X-Build-Time: 2026-09-23T16:54:33-07:00
+X-Cloud-Trace-Context: ce3fbe642d885882042e906179d04f13/12000167461205642715
+X-Frame-Options: DENY
+X-Request-Id: 41ea435d-4794-424e-b715-8d8dd6cbf4f0
+
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:06.954340603Z","message":{"role":"assistant","content":"{\n  \"city\": \"Paris\",\n  \"population_millions\": 2.2,\n  \"landmarks\": [\n    {\n      \"name\": \"Eiffel Tower\",\n      \"kind\": \"monument\"\n    },\n    {\n      \"name\": \"Louvre Museum\",\n      \"kind\": \"museum\"\n    },\n    {\n      \"name\": \"Notre-Dame Cathedral\",\n      \"kind\": \"church\"\n    }\n  ]\n}","thinking":"The user wants a brief description of Paris but must output a JSON object conforming to the schema. No extra text, no markdown, no code fences, only JSON. Must include city, population_millions (number), landmarks array with 2-3 items, each having name and kind (enum). Let's provide 3 landmarks: Eiffel Tower (monument), Louvre Museum (museum), Notre-Dame Cathedral (church). Ensure kind matches enum: \"monument\", \"museum\", \"church\". Provide population maybe 2.2 million. Provide correct JSON.\n\nCheck schema: additionalProperties false for top level, so only city, population_millions, landmarks allowed. Provide no extra.\n\nReturn exactly JSON object.\n\n"},"done":true,"done_reason":"stop","total_duration":946439664,"prompt_eval_count":255,"prompt_eval_cached_count":48,"eval_count":244}

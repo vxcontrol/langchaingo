@@ -1,6 +1,7 @@
 package ollama
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -169,14 +170,29 @@ func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
 		name         string
 		opts         llms.CallOptions
 		clientFormat string
+		emulated     bool
 		option       string
+		kind         llms.WarningKind
+		asked, sent  string
 	}{
-		{name: "per-call JSON mode", opts: llms.CallOptions{JSONMode: true}, option: "WithJSONMode"},
-		{name: "client-level format", clientFormat: "json", option: "WithFormat"},
+		{name: "per-call JSON mode", opts: llms.CallOptions{JSONMode: true}, option: "WithJSONMode", kind: llms.WarningDrop, asked: "true"},
+		{name: "client-level format", clientFormat: "json", option: "WithFormat", kind: llms.WarningDrop, asked: "json"},
+		{
+			name: "an emulated schema", emulated: true, clientFormat: "json",
+			opts: llms.CallOptions{JSONMode: true, StructuredOutput: &llms.StructuredOutputConfig{
+				Name: "answer", Schema: json.RawMessage(ollamaSOSchema),
+			}},
+			option: "WithStructuredOutput", kind: llms.WarningSubstitute, asked: "answer", sent: "a prompt instruction",
+		},
+		{
+			name: "an emulated schema without a name", emulated: true,
+			opts:   llms.CallOptions{JSONMode: true, StructuredOutput: &llms.StructuredOutputConfig{Schema: json.RawMessage(ollamaSOSchema)}},
+			option: "WithStructuredOutput", kind: llms.WarningSubstitute, asked: "a JSON Schema", sent: "a prompt instruction",
+		},
 		{name: "nothing asked"},
 	} {
 		warn := &llms.Warnings{}
-		reportOllamaCloudFormat(warn, "gpt-oss:120b", tc.opts, tc.clientFormat)
+		reportOllamaCloudFormat(warn, "gpt-oss:120b", tc.opts, tc.clientFormat, tc.emulated)
 		got := warn.List()
 		if tc.option == "" {
 			if len(got) != 0 {
@@ -184,8 +200,9 @@ func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
 			}
 			continue
 		}
-		if len(got) != 1 || got[0].Kind != llms.WarningDrop || got[0].Option != tc.option {
-			t.Errorf("%s: want one drop of %s, got %v", tc.name, tc.option, got)
+		if len(got) != 1 || got[0].Kind != tc.kind || got[0].Option != tc.option ||
+			got[0].Asked != tc.asked || got[0].Sent != tc.sent {
+			t.Errorf("%s: want one %s of %s asked %q sent %q, got %v", tc.name, tc.kind, tc.option, tc.asked, tc.sent, got)
 		}
 	}
 }

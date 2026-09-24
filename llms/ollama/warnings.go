@@ -82,8 +82,23 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
 
-func reportOllamaCloudFormat(warn *llms.Warnings, model string, opts llms.CallOptions, clientFormat string) {
+const ollamaCloudStructuredOutputFallbackReason = "Ollama Cloud does not support structured outputs, " +
+	"so the schema travels in the prompt and the answer is validated locally"
+
+// reportOllamaCloudFormat reports the format a cloud-served model cannot take.
+// emulated marks a structured-output call that WithCloudStructuredOutputFallback
+// turned into a prompt instruction.
+func reportOllamaCloudFormat(warn *llms.Warnings, model string, opts llms.CallOptions, clientFormat string, emulated bool) {
 	switch {
+	case emulated:
+		asked := opts.StructuredOutput.Name
+		if asked == "" {
+			asked = "a JSON Schema"
+		}
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithStructuredOutput", Model: model,
+			Asked: asked, Sent: "a prompt instruction", Reason: ollamaCloudStructuredOutputFallbackReason,
+		})
 	case opts.JSONMode:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithJSONMode", Model: model,

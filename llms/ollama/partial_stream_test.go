@@ -2,10 +2,12 @@ package ollama
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,4 +92,89 @@ func TestABrokenStreamStillCarriesTheThinkingItDelivered(t *testing.T) {
 	require.Len(t, resp.Choices, 1)
 	require.NotNil(t, resp.Choices[0].Reasoning)
 	assert.Equal(t, "counting the free rooms", resp.Choices[0].Reasoning.Content)
+}
+
+// cutServer writes the given NDJSON lines and closes the response cleanly,
+// without the final frame (done: true) that normally ends an answer. Ollama up
+// to 0.34.0 ends a stream this way when it stops a model repeating itself.
+func cutServer(t *testing.T, lines ...string) *LLM {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		for _, line := range lines {
+			_, _ = io.WriteString(w, line+"\n")
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := New(WithServerURL(srv.URL), WithModel("llama3"))
+	require.NoError(t, err)
+	return llm
+}
+
+func cutFrame(content string) string {
+	frame, _ := json.Marshal(map[string]any{
+		"model": "llama3", "message": map[string]any{"role": "assistant", "content": content}, "done": false,
+	})
+	return string(frame)
+}
+
+func TestAStreamThatEndsBeforeItsFinalFrameKeepsItsText(t *testing.T) {
+	t.Parallel()
+
+	human := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "answer", Schema: json.RawMessage(ollamaSOSchema)})
+	ignore := llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })
+
+	t.Run("streaming keeps the text instead of an empty answer", func(t *testing.T) {
+		t.Parallel()
+
+		var streamed strings.Builder
+		resp, err := cutServer(t, cutFrame("Paris is "), cutFrame("the capital.")).GenerateContent(t.Context(), human,
+			llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+				if chunk.Type == streaming.ChunkTypeText {
+					streamed.WriteString(chunk.Content)
+				}
+				return nil
+			}))
+		require.NoError(t, err)
+		assert.Equal(t, "Paris is the capital.", resp.Choices[0].Content)
+		assert.Equal(t, "Paris is the capital.", streamed.String())
+	})
+
+	t.Run("a schema is judged on the text that arrived", func(t *testing.T) {
+		t.Parallel()
+
+		resp, err := cutServer(t, cutFrame(`{"answer":`), cutFrame(`"42"}`)).GenerateContent(t.Context(), human, schema, ignore)
+		require.NoError(t, err)
+		assert.Equal(t, `{"answer":"42"}`, resp.Choices[0].Content)
+
+		resp, err = cutServer(t, cutFrame(`{"answer":`), cutFrame(`"4`)).GenerateContent(t.Context(), human, schema, ignore)
+		var validation *llms.ErrStructuredOutputValidation
+		require.ErrorAs(t, err, &validation)
+		assert.Equal(t, `{"answer":"4`, resp.Choices[0].Content)
+	})
+
+	t.Run("a non-streaming answer without its final frame stays a success", func(t *testing.T) {
+		t.Parallel()
+
+		resp, err := cutServer(t, cutFrame("Paris")).GenerateContent(t.Context(), human)
+		require.NoError(t, err)
+		assert.Equal(t, "Paris", resp.Choices[0].Content)
+
+		out, err := llms.GenerateFromSinglePrompt(t.Context(), cutServer(t, cutFrame("Paris")), "question")
+		require.NoError(t, err)
+		assert.Equal(t, "Paris", out)
+	})
+
+	t.Run("nothing at all is still an empty answer", func(t *testing.T) {
+		t.Parallel()
+
+		resp, err := cutServer(t).GenerateContent(t.Context(), human, ignore)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Empty(t, resp.Choices[0].Content)
+	})
 }
