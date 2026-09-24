@@ -15,6 +15,7 @@ import (
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
+	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
 )
 
 // removeTimestampTransport removes 'ts' query parameter before passing to httprr.
@@ -369,7 +370,7 @@ func TestCloudStructuredOutputFallback(t *testing.T) {
 			assert.Equal(t, "Paris", answer.City)
 			assert.NotEmpty(t, answer.Landmarks)
 			if stream {
-				assert.Equal(t, resp.Choices[0].Content, unwrapFencedJSON(strings.TrimSpace(streamed.String())))
+				assert.Equal(t, resp.Choices[0].Content, structuredoutput.UnwrapFencedJSON(strings.TrimSpace(streamed.String())))
 			}
 
 			require.Len(t, resp.Warnings, 1)

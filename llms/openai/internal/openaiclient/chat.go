@@ -328,6 +328,10 @@ type ChatMessage struct { //nolint:musttag
 	// Thinking goes out as a thinking chunk at the head of a content list
 	// instead of reasoning_content. Requests only.
 	Thinking string
+
+	// KeepsEmptyReasoning sends reasoning_content even when it is empty, for a
+	// vendor that refuses an assistant turn without the field. Requests only.
+	KeepsEmptyReasoning bool
 }
 
 type contentChunk struct {
@@ -415,11 +419,13 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 			Refusal string `json:"-"`
 
 			Thinking string `json:"-"`
+
+			KeepsEmptyReasoning bool `json:"-"`
 		}(m)
 		if msg.ReasoningContent == "" && msg.Reasoning != "" {
 			msg.ReasoningContent = msg.Reasoning
 		}
-		return json.Marshal(msg)
+		return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
 	}
 	msg := struct {
 		Role         string             `json:"role"`
@@ -442,11 +448,24 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		Refusal string `json:"-"`
 
 		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
 	}(m)
 	if msg.ReasoningContent == "" && msg.Reasoning != "" {
 		msg.ReasoningContent = msg.Reasoning
 	}
-	return json.Marshal(msg)
+	return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
+}
+
+// marshalRequestMessage marshals an outgoing message and, when emptyReasoning is
+// set, ends it with the empty reasoning_content that omitempty drops. The object
+// always holds role, so the added field follows a comma.
+func marshalRequestMessage(msg any, emptyReasoning bool) ([]byte, error) {
+	out, err := json.Marshal(msg)
+	if err != nil || !emptyReasoning {
+		return out, err
+	}
+	return append(out[:len(out)-1], `,"reasoning_content":""}`...), nil
 }
 
 func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
@@ -479,6 +498,8 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 		Refusal string `json:"refusal,omitempty"`
 
 		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
 	}
 	var msg struct {
 		fields

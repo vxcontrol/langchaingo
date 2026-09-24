@@ -95,7 +95,7 @@ func TakesNoJSONSchema(model string) bool {
 		return false
 	}
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "deepseek") || strings.HasPrefix(form, "glm-") {
+		if strings.HasPrefix(form, "deepseek-") || strings.HasPrefix(form, "glm-") {
 			return true
 		}
 	}
@@ -117,6 +117,23 @@ func ReplaysReasoningOnEveryTurn(model string) bool {
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "deepseek") || strings.HasPrefix(form, "kimi-") || strings.HasPrefix(form, "glm-") ||
 			strings.HasPrefix(form, "qwen") {
+			return true
+		}
+	}
+	return false
+}
+
+// ReplaysEmptyReasoning reports whether an earlier assistant turn with no reasoning
+// to give back still carries reasoning_content, as an empty string. In thinking
+// mode DeepSeek refuses (400) an assistant turn after the last user message that
+// lacks the field, unless the turn's tool call ID is one DeepSeek issued, whose
+// reasoning it then restores on its side. Its own thinking turns can come back
+// with an empty reasoning, and a caller may rewrite the IDs or build the turn.
+// The empty string stops that restore, so a caller that drops the reasoning of
+// such a turn loses it; before the last user message DeepSeek restores nothing.
+func ReplaysEmptyReasoning(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "deepseek-") {
 			return true
 		}
 	}

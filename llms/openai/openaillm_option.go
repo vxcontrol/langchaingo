@@ -42,6 +42,9 @@ type options struct {
 	// preserve reasoning content in multi-turn conversations with tool calls
 	preserveReasoningContent bool
 
+	// carry a structured-output schema in the prompt for vendors without json_schema
+	structuredOutputFallback bool
+
 	// required when APIType is APITypeAzure or APITypeAzureAD
 	apiVersion          string
 	embeddingModel      string
@@ -179,9 +182,40 @@ func WithModernReasoningFormat() Option {
 // every turn as a thinking chunk at the head of content instead, and one that
 // does not reason there takes none. A MiniMax M-series model on MiniMax's API
 // takes it on every turn inside <think> tags at the head of content, unless the
-// content already opens with a <think> block.
+// content already opens with a <think> block. A DeepSeek ("deepseek-") assistant
+// turn that holds no reasoning goes back with an empty reasoning_content, which
+// DeepSeek's thinking mode requires after the last user message; keep the
+// reasoning DeepSeek returned in the history, since the empty field also stops
+// DeepSeek from restoring it by the turn's tool call ID.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
+	}
+}
+
+// WithStructuredOutputFallback lets a llms.WithStructuredOutput call reach a
+// model whose vendor takes no json_schema response format: DeepSeek
+// ("deepseek-" models) and Z.ai GLM ("glm-" models, not the ones Mistral serves),
+// which take json_object, and MiniMax M-series models on MiniMax's API, which
+// take no response_format at all. Instead of failing with
+// [llms.ErrStructuredOutputUnsupported], the call appends the JSON Schema to the
+// last user message (or adds a user message when there is none), sends
+// response_format json_object where the vendor has it, and reports an
+// [llms.WarningSubstitute]. The schema and its name are checked exactly as for
+// the native path, so one schema serves both.
+//
+// Nothing on the server holds the answer to the schema, so it is validated
+// locally: a single Markdown code fence around the whole answer and a thinking
+// block at its head are removed first (streamed text chunks still carry them),
+// and any other answer that is not exactly one JSON value matching the schema
+// comes back together with [llms.ErrStructuredOutputValidation], which a caller
+// should treat as retryable.
+// A tool-call turn and a truncated answer are not validated; on these vendors
+// max_tokens also covers the reasoning, so a tight budget can end on "length"
+// with an empty answer (see [llms.WithFailOnTruncation]). Every other model keeps
+// the native json_schema response format.
+func WithStructuredOutputFallback() Option {
+	return func(opts *options) {
+		opts.structuredOutputFallback = true
 	}
 }

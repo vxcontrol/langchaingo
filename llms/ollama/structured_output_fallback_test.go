@@ -18,6 +18,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
+	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
 )
 
 // fallbackServer answers every chat request with the same NDJSON lines and
@@ -106,7 +107,7 @@ func answerSchema() llms.CallOption {
 
 // instructed reports whether a wire message carries the injected instruction.
 func instructed(content string) bool {
-	return strings.Contains(content, structuredOutputInstruction) && strings.Contains(content, ollamaSOSchema)
+	return strings.Contains(content, structuredoutput.SchemaInstruction) && strings.Contains(content, ollamaSOSchema)
 }
 
 // placementCase is a conversation and where the fallback must put the schema.
@@ -161,14 +162,14 @@ func placementCases() []placementCase {
 		{
 			name:     "a user turn of its own when there is none, since the cloud answers no conversation without one",
 			messages: []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "sys")},
-			roles:    []string{"system", "user"}, instructed: 1, prefix: structuredOutputInstruction,
+			roles:    []string{"system", "user"}, instructed: 1, prefix: structuredoutput.SchemaInstruction,
 		},
 		{
 			name: "an image-only user turn without a blank separator",
 			messages: []llms.MessageContent{{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
 				llms.BinaryContent{MIMEType: "image/png", Data: []byte("png")},
 			}}},
-			roles: []string{"user"}, instructed: 0, prefix: structuredOutputInstruction,
+			roles: []string{"user"}, instructed: 0, prefix: structuredoutput.SchemaInstruction,
 		},
 	}
 }
@@ -223,7 +224,7 @@ func assertPlacement(t *testing.T, req wireRequest, tc placementCase) {
 	assert.True(t, instructed(got), "message %d must carry the schema: %q", tc.instructed, got)
 	assert.Equal(t, 1, strings.Count(got, ollamaSOSchema), "a repeated call must not stack the instruction")
 	assert.True(t, strings.HasPrefix(got, tc.prefix), "got %q", got)
-	assert.Equal(t, tc.toolsNote, strings.Contains(got, structuredOutputToolsNote))
+	assert.Equal(t, tc.toolsNote, strings.Contains(got, structuredoutput.ToolsNote))
 	// The phrases that make a model drop a caller's Markdown or fences, measured
 	// against Ollama Cloud; a weaker wording loses to a conflicting system prompt.
 	assert.Contains(t, got, "overrides any earlier instruction about format or style")
@@ -449,7 +450,7 @@ func TestTheCloudFallbackLetsAToolCallThrough(t *testing.T) {
 
 	req := srv.request(t, 0)
 	assert.Len(t, req.Tools, 1)
-	assert.Contains(t, req.Messages[0].Content, structuredOutputToolsNote)
+	assert.Contains(t, req.Messages[0].Content, structuredoutput.ToolsNote)
 }
 
 func TestTheCloudFallbackValidatesTheStreamedAnswer(t *testing.T) {
@@ -534,29 +535,4 @@ func TestAFailedCloudFallbackValidationClosesTheCallWithAnError(t *testing.T) {
 	require.Len(t, handler.errs, 1)
 	assert.ErrorAs(t, handler.errs[0], &validation)
 	assert.Zero(t, handler.ends)
-}
-
-func TestUnwrapFencedJSON(t *testing.T) {
-	t.Parallel()
-
-	for text, want := range map[string]string{
-		"```json\n{\"a\":1}\n```":            `{"a":1}`,
-		"```JSON\n{\"a\":1}\n```":            `{"a":1}`,
-		"  ```\n[1, 2]\n```  ":               "[1, 2]",
-		"```json\n{\n  \"a\": 1\n}\n```":     "{\n  \"a\": 1\n}",
-		`{"a":1}`:                            `{"a":1}`,
-		"```json {\"a\":1}```":               "```json {\"a\":1}```",
-		"```go\nfmt.Println()\n```":          "```go\nfmt.Println()\n```",
-		"note\n```json\n{}\n```":             "note\n```json\n{}\n```",
-		"```json\n{}\n```\n```json\n{}\n```": "```json\n{}\n```\n```json\n{}\n```",
-		"``````":                             "``````",
-		"```json\r\n{\"a\":1}\r\n```":        `{"a":1}`,
-		"``` json\n{\"a\":1}\n```":           `{"a":1}`,
-		"```json\n{\"a\":\"```\"}\n```":      "{\"a\":\"```\"}",
-		"```json\n```":                       "",
-		"```json\n\n```":                     "",
-		"````json\n{\"a\":1}\n````":          "````json\n{\"a\":1}\n````",
-	} {
-		assert.Equal(t, want, unwrapFencedJSON(text), "%q", text)
-	}
 }

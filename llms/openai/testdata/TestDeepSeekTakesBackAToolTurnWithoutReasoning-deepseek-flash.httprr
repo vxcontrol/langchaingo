@@ -1,0 +1,25 @@
+httprr trace v1
+851 1256
+POST https://api.deepseek.com/chat/completions HTTP/1.1
+Host: api.deepseek.com
+User-Agent: langchaingo-httprr
+Content-Length: 648
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"deepseek-flash","messages":[{"role":"user","content":"What is the weather in Paris? Use the tool."},{"role":"assistant","content":"","tool_calls":[{"id":"call_07_Z9fjqXcYkT3bQ2wRmN8pLs4v","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Paris\"}"}}],"reasoning_content":""},{"role":"tool","content":"Sunny, 21C","name":"get_weather","tool_call_id":"call_07_Z9fjqXcYkT3bQ2wRmN8pLs4v"}],"max_tokens":400,"tools":[{"type":"function","function":{"name":"get_weather","description":"Get the current weather for one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"}}}]}HTTP/2.0 200 OK
+Content-Length: 665
+Access-Control-Allow-Credentials: true
+Content-Type: application/json
+Date: Thu, 24 Sep 2026 19:53:00 GMT
+Server: elb
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: origin, access-control-request-method, access-control-request-headers
+Via: 1.1 f96816b40dac23679364d0e0033bb9d8.cloudfront.net (CloudFront)
+X-Amz-Cf-Id: MAxb7vvMy3-CxeUmC1h3iS44XMUNU-KojMILovGyx6dUiWxtcjKzAw==
+X-Amz-Cf-Pop: AMS56-P1
+X-Cache: Miss from cloudfront
+X-Content-Type-Options: nosniff
+X-Ds-Trace-Id: 61a2b26d65a023d163ff8d5b1b2a5830
+
+{"id":"eccca64d-9ffd-4312-a777-6d3924a1be46","object":"chat.completion","created":1790279580,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"The weather in Paris is currently **sunny with a temperature of 21°C** (about 70°F).","reasoning_content":"The tool returned \"Sunny, 21C\". Report it."},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":358,"completion_tokens":40,"total_tokens":398,"prompt_tokens_details":{"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":14},"prompt_cache_hit_tokens":128,"prompt_cache_miss_tokens":230},"system_fingerprint":"aeb56401ca74e127821c4f9126dcb669"}

@@ -79,8 +79,11 @@ func setClientResponseFormat(req *openaiclient.ChatRequest, model string, rf *Re
 // setStructuredOutput translates a per-call llms.StructuredOutput into OpenAI's
 // json_schema response format with strict:true. It takes precedence over the
 // schema-less JSONMode json_object and returns a typed conflict against a
-// client-level response format rather than silently overwriting one.
-func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+// client-level response format rather than silently overwriting one. Under
+// WithStructuredOutputFallback a model without json_schema gets the schema in
+// the prompt instead, with json_object where its vendor has it, after the same
+// checks.
+func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
 	so := opts.StructuredOutput
 	if so == nil {
 		return nil
@@ -98,7 +101,8 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 		}
 	}
 	model := o.effectiveModel(opts)
-	if reason := openAIStructuredOutputUnsupported(model); reason != "" {
+	emulated := o.emulatesStructuredOutput(model, opts)
+	if reason := openAIStructuredOutputUnsupported(model); reason != "" && !emulated {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerOpenAI,
 			Model:    model,
@@ -108,8 +112,93 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 	if err := validateOpenAIStructuredSchema(so.Schema); err != nil {
 		return err
 	}
+	if emulated {
+		sent, reason := "a prompt instruction", takesNoResponseFormat
+		if noJSONObjectReason(model) == "" {
+			req.SetResponseFormat(ResponseFormatJSON)
+			sent, reason = "json_object and a prompt instruction", "the vendor's chat completions response_format takes only text and json_object"
+		}
+		// addToolsToRequest has already moved functions into req.Tools.
+		req.Messages = injectSchemaInstruction(req.Messages, so.Schema, len(req.Tools) > 0)
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithStructuredOutput", Model: model,
+			Asked: so.Name, Sent: sent,
+			Reason: reason + ", so the schema travels in the prompt and the answer is validated locally",
+		})
+		return nil
+	}
 	req.SetStructuredOutputSchema(so.Name, so.Description, so.Schema)
 	return nil
+}
+
+// emulatesStructuredOutput reports whether a structured-output call travels as
+// a prompt instruction: the client opted in with WithStructuredOutputFallback,
+// and the model's vendor takes json_object but no json_schema, which then goes
+// along, or takes no response_format at all.
+func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool {
+	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
+		return false
+	}
+	return (reasoning.TakesNoJSONSchema(model) && noJSONObjectReason(model) == "") ||
+		reasoning.TakesNoResponseFormat(model)
+}
+
+// injectSchemaInstruction appends the schema instruction to the last user
+// message of the request. The messages are the request's own copies, but their
+// part slices are copied again before a part changes. Z.ai answers no
+// conversation without a user turn, so when there is none the instruction
+// becomes that turn.
+func injectSchemaInstruction(msgs []*ChatMessage, schema json.RawMessage, withTools bool) []*ChatMessage {
+	instruction := structuredoutput.PromptInstruction(schema, withTools)
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role != RoleUser {
+			continue
+		}
+		msg := *msgs[i]
+		switch {
+		case msg.Content != "":
+			msg.Content += "\n\n" + instruction
+		default:
+			parts := append([]llms.ContentPart(nil), msg.MultiContent...)
+			if last := len(parts) - 1; last >= 0 {
+				if text, ok := parts[last].(llms.TextContent); ok {
+					parts[last] = llms.TextContent{Text: text.Text + "\n\n" + instruction}
+					msg.MultiContent = parts
+					break
+				}
+			}
+			msg.MultiContent = append(parts, llms.TextContent{Text: instruction})
+		}
+		msgs[i] = &msg
+		return msgs
+	}
+	return append(msgs, &ChatMessage{Role: RoleUser, MultiContent: []llms.ContentPart{llms.TextContent{Text: instruction}}})
+}
+
+// unwrapEmulatedAnswers readies each final answer of an emulated structured
+// output call before it is read and validated: the whitespace around it goes, a
+// thinking block at its head is taken out, and then the Markdown code fence a
+// model put around its whole answer despite the prompt instruction is removed.
+// The block becomes the reasoning only when there is none: MiniMax M2.7 and M3
+// stream their thinking both as reasoning and inside <think> tags in the
+// content, which the client then leaves whole. Only a normal-final choice
+// without a tool call is touched.
+func unwrapEmulatedAnswers(result *openaiclient.ChatCompletionResponse) {
+	for _, choice := range result.Choices {
+		if choice == nil || choice.FinishReason != openaiclient.FinishReasonStop || len(choice.Message.ToolCalls) != 0 {
+			continue
+		}
+		msg := &choice.Message
+		content := strings.TrimSpace(msg.Content)
+		if strings.HasPrefix(content, "<think>") || strings.HasPrefix(content, "<thinking>") {
+			var thought string
+			thought, content = reasoning.SplitContent(content)
+			if msg.ReasoningContent == "" {
+				msg.ReasoningContent = thought
+			}
+		}
+		msg.Content = structuredoutput.UnwrapFencedJSON(content)
+	}
 }
 
 // validateStructuredResponse checks each normal-final ("stop") choice against the

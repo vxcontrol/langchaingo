@@ -20,6 +20,8 @@ type LLM struct {
 	CallbacksHandler callbacks.Handler
 	client           *openaiclient.Client
 	host             string
+
+	structuredOutputFallback bool
 }
 
 const (
@@ -39,9 +41,10 @@ func New(opts ...Option) (*LLM, error) {
 		return nil, err
 	}
 	return &LLM{
-		client:           c,
-		CallbacksHandler: opt.callbackHandler,
-		host:             hostnameFromURL(opt.baseURL),
+		client:                   c,
+		CallbacksHandler:         opt.callbackHandler,
+		host:                     hostnameFromURL(opt.baseURL),
+		structuredOutputFallback: opt.structuredOutputFallback,
 	}, err
 }
 
@@ -134,6 +137,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if len(result.Choices) == 0 {
 		return nil, ErrEmptyResponse
 	}
+	if o.emulatesStructuredOutput(o.effectiveModel(opts), opts) {
+		unwrapEmulatedAnswers(result)
+	}
 
 	response := o.processResponse(result, warn)
 
@@ -187,6 +193,7 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 				msg.MultiContent = withThinkTags(msg.MultiContent, extractReasoningContent(mc.Parts))
 			case len(toolCalls) > 0 || reasoning.ReplaysReasoningOnEveryTurn(model):
 				msg.ReasoningContent = extractReasoningContent(mc.Parts)
+				msg.KeepsEmptyReasoning = reasoning.ReplaysEmptyReasoning(model)
 			}
 		}
 
@@ -335,7 +342,7 @@ func (o *LLM) createChatRequest(
 
 	// per-call schema-constrained structured output takes precedence over JSONMode
 	// and conflicts with a client-level response format.
-	if err := o.setStructuredOutput(req, opts); err != nil {
+	if err := o.setStructuredOutput(req, opts, warn); err != nil {
 		return nil, err
 	}
 

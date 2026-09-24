@@ -230,3 +230,50 @@ func TestEffortWithTools(t *testing.T) {
 		}
 	}
 }
+
+func TestTakesNoJSONSchema(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]bool{
+		"deepseek-flash":           true,
+		"deepseek-v4-pro":          true,
+		"deepseek-chat":            true,
+		"deepseek/deepseek-v4-pro": true,
+		"DeepSeek-V4-Pro":          true,
+		"glm-5.3":                  true,
+		"zai/glm-5.3":              true,
+		"glm-5-2":                  false, // served by Mistral, which documents json_schema for it
+		"deepseekcoder":            false, // not a current DeepSeek name: every one reads "deepseek-..."
+		"gpt-4o":                   false,
+	} {
+		if got := TakesNoJSONSchema(model); got != want {
+			t.Errorf("TakesNoJSONSchema(%q) = %v, want %v", model, got, want)
+		}
+	}
+}
+
+func TestReplaysEmptyReasoning(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]bool{
+		"deepseek-flash":                      true,
+		"deepseek-v4-pro":                     true,
+		"DeepSeek-V4-Pro":                     true,
+		"deepseek-chat":                       true,
+		"deepseek-reasoner":                   true,
+		"deepseek/deepseek-v4-pro":            true,
+		"openrouter/deepseek/deepseek-v4-pro": true,
+		"deepseekcoder":                       false, // not a current DeepSeek name: every one reads "deepseek-..."
+		"kimi-k3":                             false,
+		"glm-5.3":                             false,
+		"qwen3.7-plus":                        false,
+		"MiniMax-M3":                          false,
+		"mistral-small-2603":                  false,
+		"grok-4.6":                            false,
+		"gpt-5.5":                             false,
+	} {
+		if got := ReplaysEmptyReasoning(model); got != want {
+			t.Errorf("ReplaysEmptyReasoning(%q) = %v, want %v", model, got, want)
+		}
+	}
+}

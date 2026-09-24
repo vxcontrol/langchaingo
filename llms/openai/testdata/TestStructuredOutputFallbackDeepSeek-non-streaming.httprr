@@ -1,0 +1,25 @@
+httprr trace v1
+1126 1605
+POST https://api.deepseek.com/chat/completions HTTP/1.1
+Host: api.deepseek.com
+User-Agent: langchaingo-httprr
+Content-Length: 923
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"deepseek-flash","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Name two landmarks of Paris.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"landmarks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"landmarks\"],\"additionalProperties\":false}"}],"response_format":{"type":"json_object"}}HTTP/2.0 200 OK
+Content-Length: 1013
+Access-Control-Allow-Credentials: true
+Content-Type: application/json
+Date: Thu, 24 Sep 2026 19:37:07 GMT
+Server: elb
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: origin, access-control-request-method, access-control-request-headers
+Via: 1.1 9adf50a068a92adaab58cf6a21118640.cloudfront.net (CloudFront)
+X-Amz-Cf-Id: Gd2HYwd6gzQpRPm-ESp6vxQo4yT8vlKZXrrMXz2uCFw1JPFvvIg6pg==
+X-Amz-Cf-Pop: AMS58-P5
+X-Cache: Miss from cloudfront
+X-Content-Type-Options: nosniff
+X-Ds-Trace-Id: 339b6bbbb0f54a92169100881d30f271
+
+{"id":"d0cd7de7-1b09-4e0d-83ae-82e047402113","object":"chat.completion","created":1790278627,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"{\"city\":\"Paris\",\"landmarks\":[{\"name\":\"Eiffel Tower\",\"kind\":\"monument\"},{\"name\":\"Louvre Museum\",\"kind\":\"museum\"}]}","reasoning_content":"The user asks for JSON output only. Provide city and landmarks array with exactly two items.\n\nBut system says \"You are a travel guide. Answer in Markdown with headings.\" and \"## Response Format: You MUST strictly adhere to the following schema to reply: {\"type\": \"json_object\"}\". The user instruction overrides format. I'll output JSON."},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":215,"completion_tokens":108,"total_tokens":323,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":72},"prompt_cache_hit_tokens":0,"prompt_cache_miss_tokens":215},"system_fingerprint":"aeb56401ca74e127821c4f9126dcb669"}
