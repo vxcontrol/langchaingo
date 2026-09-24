@@ -1,0 +1,57 @@
+httprr trace v1
+783 3188
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 463
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"I'm a pomeranian"},{"text":"What kind of mammal am I?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 2775
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:11:40 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=2619
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "You are a **canine**—specifically, a **domestic dog** (*Canis lupus familiaris*)! \n\nMore broadly, here is what kind of mammal you are:\n\n* **Placental mammal:** Like humans, whales, and bears, dogs give birth to live, developed young nourished via a placenta.\n* **Carnivoran (Order *Carnivora*):** You belong to the group of mammals historically adapted for predation and eating meat, though domestic dogs are technically omnivorous.\n* **Canid (Family *Canidae*):** You are part of the dog family, which includes wolves, jackals, foxes, and dingoes.\n* **Spitz type:** Within the dog world, Pomeranians descend from Arctic sled-dog breeds (the Spitz family), which is why you have that thick double coat and pointed ears, just shrunk down into a tiny \"toy\" size!",
+            "thoughtSignature": "EpEICo4IAWkUfRPQlTmWAu9b89RjIXpZ+0eAaizOcou5at1BJgti6jG+A/SbTf3Cd7e7eCKVI+s/mzuiI+JCNy2zneXOO0/VgC9At5x9zQv1+nSI0VSVhcPQ6FEli8Zf9z+p+Creb4QO/QPOUkdC67k4cFMOr68pTRBfuwhxKa5Od1Ef4vRmPc6QKzdSseLkrU7EJWn4NZm+p2vAUsZjpQMh/FbSaPmG1HlEqB4gWcxtXZxvvNWfShLwP7U/5vCkYFOkXdSBr8AOuNToIXjvAKHKU01bIYbVWyma16TLUQGF0hysu+A4dr+uF4v4Pu3XuB+D3fTdVplZQ79DuiVlqtYD+Z/TfRM3/3ojkw4dJ2W371o6awXrbtdH34NW/u8Lb3YL4GcdEQxNS6f9Hp9iFSMHSNEFGav6PdNAayhQRd+e7KMmrxC7Fwb8wCXZuSxSpjQ3Sgbwyqa+LirgjGTGVcNydBI0hF1pLBZ3Ykifg77dm+ZGmr7tYu4THc+vBsIykA1M8aT3IpOO9q9od9lGg2VzJMiQQjtLuGIM19l/Ji6iVqPwt9wa1OzhY58bRwn39qJ5qCYXQfTW1/W20W6GzKtnQ47ojSxeTJj6J0orO44olOJbiH33x8jWQ/czaLSk3IAna9al63fUzoQ22VhrNwACVGVKeOFs+x7Y+gOoHqfeBoioifJy4xdLpnNR80+Af57g8EU9xxZ9Hkr/FzA4M6gNkjNn3dv4P5cOW8q+LT9quiOnFyh06bkJMacouN3TiuEt7+gNnMtdOHya5rvjlhkwYAT/75XRmREsHRAKGmwb2+bWcC2794pxUPSXhHlT3UtimyqzwnirXl1GCUhFVZHWFetzzcc3Fg9z//hDm2J9dVH3AD2asiBfmujkMohc7/uNc510Mysl6D7U1NUKE5rWyw6Wd+jXVxE2NzObwl5E0o5w9JuMqhw7aoCCYZG/u7tEWDJ0jMdNt19EgrSD9iLjGYKWKm7w1EW4HPW4FMSXu0EZzLDvWHjr4FmH1YMkGPuDIzVyASOx3LaCzz/udgCjP5MQnZQD4tcIs/RDGOTNFDKjP8qoSJCM37RfloCRawGmMyTHHCZbjrY36tmr8DKf/IuMYSanChQ2hemm/XvLFWmv7bT9gbxaEeDZQtKODebaMRWteznC2IW4slXcR8cq8gdrdpBeohiEr2jLV6Xp682G1/nDKyoeN59/d1eh9lbz33qxjaqiolIzTByImUya1q9iifr8otnVqDKj5VGdUqpdn7jLxbcNb7d1LHeChM/eSnbr179h6HJ1Pab2hEbRbl18vtKW3CMfeRb0/gqMJHjxx0DiIxhg9aIaHab9+T0laUlF9DHy0h/ENsPsKz5V3qCeIvbWzrdRy0lZ7054TDB/"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 14,
+    "candidatesTokenCount": 189,
+    "totalTokenCount": 474,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 14
+      }
+    ],
+    "thoughtsTokenCount": 271,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "6rOzav6UFeH7vdIPo-P18As"
+}

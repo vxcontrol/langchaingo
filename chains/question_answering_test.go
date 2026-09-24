@@ -24,6 +24,7 @@ func createOpenAILLMForQA(t *testing.T) *openai.LLM {
 	}
 
 	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 
@@ -82,8 +83,6 @@ func TestMapReduceQA(t *testing.T) {
 }
 
 func TestMapRerankQA(t *testing.T) {
-	t.Skip("Test currently fails; see #415")
-	t.Parallel()
 	ctx := t.Context()
 
 	llm := createOpenAILLMForQA(t)

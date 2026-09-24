@@ -150,6 +150,10 @@ func (ToolCallResponse) isPart() {}
 // It can potentially return multiple content choices.
 type ContentResponse struct {
 	Choices []*ContentChoice
+
+	// Warnings lists the caller options this request lost, clamped or replaced.
+	// An empty list is not a promise that every option reached the vendor.
+	Warnings []Warning
 }
 
 // ContentChoice is one of the response choices returned by GenerateContent
@@ -160,6 +164,10 @@ type ContentChoice struct {
 
 	// StopReason is the reason the model stopped generating output.
 	StopReason string
+
+	// Truncated reports whether generation stopped at the output token limit,
+	// derived from StopReason, which keeps the vendor's own spelling.
+	Truncated bool
 
 	// GenerationInfo is arbitrary information the model adds to the response.
 	GenerationInfo map[string]any

@@ -1,6 +1,8 @@
 package bedrockclient
 
 import (
+	"bytes"
+	"encoding/json"
 	"reflect"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -97,14 +99,25 @@ func isSimpleType(t reflect.Type) bool {
 }
 
 // applyConverseStructuredOutput sets the native Converse OutputConfig.TextFormat
-// from a per-call schema. Converse Structured Outputs is not Claude-only, so there
-// is no local model gate here — an unsupported model surfaces as the provider 4xx.
-// The AWS JsonSchemaDefinition.Schema field is a JSON string, so the raw schema is
-// passed as-is with no second encoding.
+// from a per-call schema.
 func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockruntime.ConverseInput) error {
 	so := input.StructuredOutput
 	if so == nil {
 		return nil
+	}
+	if isAnthropicModelID(input.ModelID) && !reasoning.ClaudeSupportsStructuredOutputOnBedrock(input.ModelID) {
+		return &llms.ErrStructuredOutputUnsupported{
+			Provider: providerBedrock,
+			Model:    input.ModelID,
+			Reason:   bedrockClaudeStructuredOutputReason,
+		}
+	}
+	if !isAnthropicModelID(input.ModelID) && !reasoning.BedrockSupportsStructuredOutput(input.ModelID) {
+		return &llms.ErrStructuredOutputUnsupported{
+			Provider: providerBedrock,
+			Model:    input.ModelID,
+			Reason:   bedrockModelCardStructuredOutputReason,
+		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;
 	// surface that documented, locally-detectable requirement as a typed error.
@@ -126,18 +139,22 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	return nil
 }
 
+const (
+	bedrockClaudeStructuredOutputReason    = "Amazon Bedrock serves structured output for this Claude model on neither API"
+	bedrockModelCardStructuredOutputReason = "the model's Amazon Bedrock model card does not list structured outputs"
+)
+
 // applyAnthropicStructuredOutput folds a per-call schema into the legacy Anthropic
-// output_config.format, preserving any effort already set. A known-legacy model that
-// predates structured output is rejected with a typed error before the request.
+// output_config.format, preserving any effort already set.
 func applyAnthropicStructuredOutput(input *anthropicTextGenerationInput, modelID string, so *llms.StructuredOutputConfig) error {
 	if so == nil {
 		return nil
 	}
-	if !reasoning.ClaudeSupportsStructuredOutput(modelID) {
+	if !reasoning.ClaudeSupportsStructuredOutputOnBedrock(modelID) {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerBedrock,
 			Model:    modelID,
-			Reason:   "model predates the output_config.format JSON Schema mode",
+			Reason:   bedrockClaudeStructuredOutputReason,
 		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;
@@ -181,4 +198,10 @@ func validateStructuredResponse(so *llms.StructuredOutputConfig, model string, r
 		}
 	}
 	return nil
+}
+
+func decodeExactNumbers(payload []byte, into any) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	return decoder.Decode(into)
 }

@@ -12,7 +12,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -20,7 +19,6 @@ import (
 	"time"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
-	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/internal/testutil/testctr"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
@@ -28,7 +26,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mongodb"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -106,7 +106,7 @@ func cleanName(name string) string {
 // This uses sync.Once to ensure the MongoDB Atlas Local container is only
 // created once and shared across all tests for efficiency.
 // The container includes both MongoDB and Atlas Search capabilities.
-func setupTestEnv(t *testing.T, _ ...*http.Client) *testEnv {
+func setupTestEnv(t *testing.T) *testEnv {
 	t.Helper()
 
 	if testing.Short() {
@@ -120,9 +120,15 @@ func setupTestEnv(t *testing.T, _ ...*http.Client) *testEnv {
 		}
 		ctx := t.Context()
 
+		// Atlas Local restarts mongod while it wires up search, so the first
+		// "Waiting for connections" the module waits for comes before the
+		// restarts, and a search index created then fails with
+		// InterruptedAtShutdown. The image's healthcheck passes only once
+		// mongod and mongot are both up for good.
 		container, err := mongodb.Run(ctx, "mongodb/mongodb-atlas-local:7.0.5",
 			mongodb.WithUsername("admin"),
 			mongodb.WithPassword("password"),
+			testcontainers.WithAdditionalWaitStrategyAndDeadline(2*time.Minute, wait.ForHealthCheck()),
 		)
 		if err != nil {
 			setupErr = fmt.Errorf("failed to start MongoDB container: %w", err)
@@ -371,15 +377,10 @@ func TestNew(t *testing.T) {
 // TestStore_AddDocuments verifies document insertion functionality.
 // Each subtest gets its own collection to enable parallel execution.
 func TestStore_AddDocuments(t *testing.T) {
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MONGODB_URI")
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
-
-	if !rr.Recording() {
-		t.Parallel()
-	}
+	t.Parallel()
 
 	// Set up shared test environment for all subtests
-	env := setupTestEnv(t, rr.Client())
+	env := setupTestEnv(t)
 	ctx := t.Context()
 
 	tests := []struct {
@@ -843,7 +844,10 @@ func createVectorSearchIndex(
 			doc = cursor.Current
 		} else {
 			if time.Now().After(deadline) {
-				return "", fmt.Errorf("index %s did not become queryable before deadline (last error: %w)", searchName, lastErr)
+				if lastErr != nil {
+					return "", fmt.Errorf("index %s did not become queryable before deadline: %w", searchName, lastErr)
+				}
+				return "", fmt.Errorf("index %s did not become queryable before deadline", searchName)
 			}
 			time.Sleep(2 * time.Second)
 		}

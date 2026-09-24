@@ -75,6 +75,59 @@ func doRefresh(b *bytes.Buffer) error {
 	return nil
 }
 
+// lateBodyTransport answers at once and leaves the request body to be read
+// afterwards, as net/http's transport does when the response arrives before its
+// write loop has sent the whole body.
+type lateBodyTransport struct {
+	body chan io.ReadCloser
+}
+
+func (l lateBodyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	l.body <- req.Body
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader("early")),
+		Request:    req,
+	}, nil
+}
+
+// TestRecordLeavesTheTransportItsOwnBody pins that recording never touches the
+// body the transport may still be sending after RoundTrip returns. The recorder
+// used to reread that same body for the cassette, which raced with the
+// transport's write loop under -race and left it a drained body.
+func TestRecordLeavesTheTransportItsOwnBody(t *testing.T) {
+	t.Parallel()
+
+	transport := lateBodyTransport{body: make(chan io.ReadCloser, 1)}
+	rr, err := create(t.TempDir()+"/rr", transport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rr.Close()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "http://example.invalid/", strings.NewReader("payload"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := rr.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	sent, err := io.ReadAll(<-transport.body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(sent) != "payload" {
+		t.Fatalf("transport sent %q, want %q", sent, "payload")
+	}
+}
+
 func TestRecordReplay(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

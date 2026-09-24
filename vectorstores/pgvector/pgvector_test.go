@@ -55,6 +55,7 @@ func createOpenAILLMAndEmbedder(t *testing.T, rr *httprr.RecordReplay) (llm *ope
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(rr.Client()),
 	}
 	if !rr.Recording() {

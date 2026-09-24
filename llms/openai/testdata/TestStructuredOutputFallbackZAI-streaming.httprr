@@ -1,0 +1,87 @@
+httprr trace v1
+1201 6556
+POST https://api.z.ai/api/paas/v4/chat/completions HTTP/1.1
+Host: api.z.ai
+User-Agent: langchaingo-httprr
+Content-Length: 1001
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"glm-5.3-flash","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Name two landmarks of Paris.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"landmarks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"landmarks\"],\"additionalProperties\":false}"}],"stream":true,"reasoning_effort":"low","response_format":{"type":"json_object"},"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 6070
+Alt-Svc: h3=":443"; ma=3600
+Content-Type: text/event-stream;charset=UTF-8
+Date: Thu, 24 Sep 2026 19:37:15 GMT
+Ga-Traceid: a7f36d04885d475f0999acdbff546ef4
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Vary: Origin
+X-Log-Id: 20260925033713aac8b6560bef4705
+X-Request-Id: c480a857-f9a2-4207-ac53-a3988a76bd9e
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"{\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"city"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"Paris"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\",\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"land"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"marks"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":[{\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"name"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"E"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"iff"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"el"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":" Tower"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\",\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"kind"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"mon"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"ument"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\"},{\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"name"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"Lou"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"vre"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":" Museum"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\",\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"kind"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"\":\""}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"delta":{"role":"assistant","content":"museum\"}]}"}}]}
+
+data: {"id":"20260925033713aac8b6560bef4705","created":1790278634,"object":"chat.completion.chunk","model":"glm-5.3-flash","choices":[{"index":0,"finish_reason":"stop","delta":{"role":"assistant","content":""}}],"usage":{"prompt_tokens":228,"completion_tokens":34,"total_tokens":262,"prompt_tokens_details":{"cached_tokens":64},"completion_tokens_details":{"reasoning_tokens":0}}}
+
+data: [DONE]
+

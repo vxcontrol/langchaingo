@@ -15,6 +15,10 @@ const (
 	ProviderBedrock
 	ProviderOpenAI
 	ProviderGoogleAI
+	ProviderOllama
+
+	// providerCount must stay last: a new provider goes above it.
+	providerCount
 )
 
 // OffWire is how a provider expresses "thinking off" for a given model. It is the
@@ -30,8 +34,16 @@ const (
 	OffDisableClaude
 	// OffZeroBudget → Google thinkingBudget:0.
 	OffZeroBudget
+	// OffMinimalLevel → Google thinking_level:"minimal".
+	OffMinimalLevel
 	// OffEffortNone → OpenAI reasoning_effort:"none".
 	OffEffortNone
+	// OffDisableDashScope → DashScope enable_thinking:false.
+	OffDisableDashScope
+	// OffDisableThinkingObject → thinking:{type:"disabled"} on an OpenAI-shaped door.
+	OffDisableThinkingObject
+	// OffDisableThinkBool → Ollama think:false.
+	OffDisableThinkBool
 	// OffUnsupported: a known mandatory-thinking model that cannot be disabled
 	// (adaptive-only Claude, OpenAI o-series). The adapter returns a typed error.
 	OffUnsupported
@@ -47,20 +59,19 @@ func (e *ErrReasoningOffUnsupported) Error() string {
 
 // ResolveOff decides how to disable thinking for a model on a provider, from the
 // same capability tables the enable path reads. Unknown models get the provider's
-// best-effort disable wire (optimistic: attempt it and let an API error be the
-// backstop) rather than a silent omit, so a caller's explicit "off" is honored
-// wherever the provider can honor it.
+// best-effort disable wire rather than a silent omit, so a caller's explicit
+// "off" is honored wherever the provider can honor it.
 func ResolveOff(model string, p Provider) OffWire {
 	if isClaudeModel(model) {
 		switch {
 		case ClaudeThinkingAlwaysOn(model):
 			return OffUnsupported // Fable 5 / Mythos 5: thinking cannot be disabled
 		case ClaudeThinkingDefaultsOn(model):
-			// Only Anthropic-operated platforms accept thinking:{disabled} here. On
-			// Amazon Bedrock the adaptive-only default-on models (e.g. Sonnet 5) keep
-			// thinking always on, so a disable is rejected — report it as unsupported.
-			if p == ProviderBedrock {
-				return OffUnsupported
+			if p == ProviderOpenAI {
+				if !ClaudeThinkingObjectRoute(model) {
+					return OffUnsupported
+				}
+				return OffDisableThinkingObject
 			}
 			return OffDisableClaude
 		default:
@@ -69,10 +80,12 @@ func ResolveOff(model string, p Provider) OffWire {
 	}
 
 	switch p {
+	case ProviderOllama:
+		if takesOnlyOllamaLevels(model) {
+			return OffUnsupported
+		}
+		return OffDisableThinkBool
 	case ProviderGoogleAI:
-		// Gemini 3.x and Gemini 2.5 Pro cannot be disabled (budget:0 is ignored /
-		// rejected); Gemini 2.5 Flash / Flash-Lite, Gemma 4, and unknowns disable
-		// via thinkingBudget:0.
 		if !GeminiCanDisable(model) {
 			return OffUnsupported
 		}
@@ -81,36 +94,155 @@ func ResolveOff(model string, p Provider) OffWire {
 		if geminiKnownNonThinking(model) {
 			return OffOmit
 		}
+		if GeminiTogglesThinkingByLevel(model) || GeminiUsesThinkingLevel(model) {
+			return OffMinimalLevel
+		}
 		return OffZeroBudget
 	case ProviderOpenAI:
-		if !IsReasoningModel(model) {
-			return OffOmit // non-reasoning model does not think
-		}
-		// A model known to reject disabling (o-series, GPT-5 Pro) is unsupported;
-		// unknown models stay optimistic and attempt "none", with a 400 backstop.
-		if caps := OpenAIReasoningCapsFor(model); caps.Known && !caps.CanDisable {
+		return openAIOffWire(model)
+	default:
+		if mandatoryThinking(model) || IsGptOssModel(model) {
 			return OffUnsupported
 		}
-		return OffEffortNone
-	default:
 		// Bedrock non-Claude and everything else: no clean disable signal — omit.
 		return OffOmit
 	}
 }
 
 func isClaudeModel(model string) bool {
-	return strings.Contains(strings.ToLower(model), "claude")
+	return strings.Contains(baseModelName(model), "claude")
 }
 
 // openAIMandatoryReasoning reports the OpenAI reasoning families that cannot be
 // hard-disabled (their effort floor is minimal/low). GPT-5.x and unknowns are
 // treated as disablable and left to the API to reject if wrong.
 func openAIMandatoryReasoning(model string) bool {
-	m := strings.ToLower(model)
-	if idx := strings.LastIndex(m, "/"); idx != -1 {
-		m = m[idx+1:]
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "o1") ||
+			hasGeneration(form, "o3") ||
+			hasGeneration(form, "o4-mini") {
+			return true
+		}
 	}
-	return strings.HasPrefix(m, "o1") ||
-		strings.HasPrefix(m, "o3") ||
-		strings.HasPrefix(m, "o4-mini")
+	return false
+}
+
+func offByOmission(model string) bool {
+	if QwenThinkingEnabledByFlag(model) {
+		return true
+	}
+	for _, form := range modelSpellings(model) {
+		for _, family := range magistralSpellings {
+			if strings.HasPrefix(form, family) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// magistralSpellings mirrors the alias group of magistral in testdata/mistral_models.json.
+var magistralSpellings = []string{"magistral", "mistral-medium", "mistral-small", "mistral-vibe-cli"}
+
+func disablesByThinkingObject(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "minimax-m3") {
+			return true
+		}
+		for _, generation := range []string{
+			"glm-4.5", "glm-4.6", "glm-4.7", "glm-5", "glm-5.1",
+			"kimi-k2.5", "kimi-k2.6", "deepseek-v4", "deepseek-flash",
+		} {
+			if hasGeneration(form, generation) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func thinkingObjectOffOnHost(model string) OffWire {
+	if dashScopeGuestSpelling(model) != "" {
+		return OffDisableDashScope
+	}
+	if ServedByMistral(model) {
+		return OffOmit
+	}
+	return OffDisableThinkingObject
+}
+
+func openAIOffWire(model string) OffWire {
+	if !IsReasoningModel(model) {
+		return OffOmit // non-reasoning model does not think
+	}
+	if mandatoryThinking(model) {
+		return OffUnsupported
+	}
+	if offByOmission(model) {
+		return OffOmit
+	}
+	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) {
+		return OffDisableDashScope
+	}
+	if disablesByThinkingObject(model) {
+		return thinkingObjectOffOnHost(model)
+	}
+	// The disable token rides on the effort field, so a door that refuses that
+	// field cannot express "off" at all.
+	if caps := OpenAIReasoningCapsFor(model); caps.Known && !caps.CanDisable {
+		return OffUnsupported
+	}
+	if !AcceptsEffortWire(model) {
+		return OffUnsupported
+	}
+	return OffEffortNone
+}
+
+// OllamaEffortsFor returns the think levels a model takes on the ollama door; nil
+// when Ollama documents no level set for that model.
+func OllamaEffortsFor(model string) []string {
+	if takesOnlyOllamaLevels(model) {
+		return []string{"low", "medium", "high"}
+	}
+	return nil
+}
+
+func takesOnlyOllamaLevels(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "gpt-oss") {
+			return true
+		}
+	}
+	return false
+}
+
+func mandatoryThinking(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "glm-5.3") ||
+			hasGeneration(form, "glm-5-3") ||
+			form == "grok-build-latest" ||
+			strings.HasPrefix(form, "grok-4.5") ||
+			strings.HasPrefix(form, "grok-4.6") ||
+			strings.HasPrefix(form, "grok-4.7") ||
+			strings.HasPrefix(form, "minimax-m2") ||
+			form == "glm-latest" ||
+			form == "glm-flash-latest" ||
+			strings.HasPrefix(form, "kimi-k2-thinking") ||
+			strings.HasPrefix(form, "kimi-k2.7-code") ||
+			hasGeneration(form, "kimi-k3") ||
+			hasGeneration(form, "qwen3.8-2.4t-a95b") ||
+			strings.HasPrefix(form, "gpt-oss") ||
+			strings.HasPrefix(form, "aion-") ||
+			strings.HasPrefix(form, "step-3") ||
+			strings.HasPrefix(form, "reka-flash-3") ||
+			strings.HasPrefix(form, "fugu-ultra") ||
+			strings.HasPrefix(form, "nex-n2") ||
+			strings.HasPrefix(form, "lfm-2.5") ||
+			strings.HasPrefix(form, "deepseek-r1") ||
+			strings.HasPrefix(form, "deepseek-reasoner") ||
+			strings.Contains(form, "trinity-large-thinking") {
+			return true
+		}
+	}
+	return false
 }

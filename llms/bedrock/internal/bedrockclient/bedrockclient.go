@@ -3,6 +3,7 @@ package bedrockclient
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -114,24 +115,39 @@ func (c *Client) CreateCompletion(ctx context.Context,
 			Reason:   "legacy InvokeModel structured output is only implemented for Anthropic models; use the Converse API for other providers",
 		}
 	}
+	if options.Reasoning.ResolveMode() == llms.ReasoningOff &&
+		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: modelID}
+	}
+	warn := &llms.Warnings{}
+	reportLegacyOptions(warn, provider, modelID, options)
+
+	var (
+		resp *llms.ContentResponse
+		err  error
+	)
 	switch provider {
 	case "ai21":
-		return createAi21Completion(ctx, c.client, modelID, messages, options)
+		resp, err = createAi21Completion(ctx, c.client, modelID, messages, options, warn)
 	case "amazon":
-		return createAmazonCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createAmazonCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "nova":
-		return createNovaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createNovaCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "anthropic":
-		return createAnthropicCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createAnthropicCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "cohere":
-		return createCohereCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createCohereCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "meta":
-		return createMetaCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createMetaCompletion(ctx, c.client, modelID, messages, options, warn)
 	case "deepseek":
-		return createDeepSeekCompletion(ctx, c.client, modelID, messages, options)
+		resp, err = createDeepSeekCompletion(ctx, c.client, modelID, messages, options, warn)
 	default:
 		return nil, errors.New("unsupported provider")
 	}
+	if resp != nil {
+		resp.Warnings = warn.List()
+	}
+	return resp, err
 }
 
 // Helper function to process input text chat
@@ -155,6 +171,28 @@ func processInputMessagesGeneric(messages []Message) string {
 		sb.WriteString("AI: ")
 	}
 	return sb.String()
+}
+
+func IsAi21Jamba(modelID string) bool {
+	return strings.Contains(modelID, "jamba")
+}
+
+func IsCohereCommandR(modelID string) bool {
+	return strings.Contains(modelID, "command-r")
+}
+
+func maxTokensOnTheWire(
+	warn *llms.Warnings, modelID string, options llms.CallOptions, defaultValue int,
+) int {
+	sent := getMaxTokens(options.GetMaxTokens(), defaultValue)
+	if asked := options.MaxTokens; asked != nil && *asked <= 0 && sent != *asked {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
+			Reason: "the legacy payload has to name an answer limit, so the door named one",
+		})
+	}
+	return sent
 }
 
 func getMaxTokens(maxTokens, defaultValue int) int {

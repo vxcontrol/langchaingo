@@ -86,6 +86,19 @@ func WithVectorDimensions(size int) Option {
 	}
 }
 
+// WithMetadataIndexes declares indexes over keys inside the cmetadata column.
+// The store creates any of them it does not find when it starts.
+//
+// Without one, a filtered search reads every row of the table: the metadata
+// predicates narrow the candidate set only after a distance has already been
+// computed for each row, and on a table of embeddings that cost is dominated by
+// detoasting vectors that were never going to be returned.
+func WithMetadataIndexes(indexes ...MetadataIndex) Option {
+	return func(p *Store) {
+		p.metadataIndexes = indexes
+	}
+}
+
 // WithHNSWIndex is an option for specifying the HNSW index parameters.
 // See here for more details: https://github.com/pgvector/pgvector#hnsw
 //

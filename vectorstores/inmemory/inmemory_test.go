@@ -2,12 +2,13 @@ package inmemory_test
 
 import (
 	"context"
-	"os"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms/openai"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
@@ -106,22 +107,37 @@ func TestMockSimilarityScoreCalculation(t *testing.T) {
 	}
 }
 
-func preCheckEnvSetting(t *testing.T) {
+func createOpenAILLM(t *testing.T, rr *httprr.RecordReplay) *openai.LLM {
 	t.Helper()
 
-	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
-		t.Skip("OPENAI_API_KEY not set")
+	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
+		openai.WithEmbeddingModel("text-embedding-ada-002"),
+		openai.WithHTTPClient(rr.Client()),
 	}
+	if !rr.Recording() {
+		opts = append(opts, openai.WithToken("test-api-key"))
+	}
+
+	llm, err := openai.New(opts...)
+	require.NoError(t, err)
+
+	return llm
 }
 
 func TestInMemoryStoreRest(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -148,13 +164,18 @@ func TestInMemoryStoreRest(t *testing.T) {
 }
 
 func TestInMemoryStoreRestWithScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -200,13 +221,18 @@ func TestInMemoryStoreRestWithScoreThreshold(t *testing.T) {
 }
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -249,13 +275,18 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 }
 
 func TestInMemoryAsRetriever(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -289,13 +320,18 @@ func TestInMemoryAsRetriever(t *testing.T) {
 }
 
 func TestInMemoryAsRetrieverWithScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -334,13 +370,18 @@ func TestInMemoryAsRetrieverWithScoreThreshold(t *testing.T) {
 }
 
 func TestInMemoryAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -406,13 +447,18 @@ func TestInMemoryAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 }
 
 func TestInMemoryAsRetrieverWithMetadataFilters(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -469,13 +515,18 @@ func TestInMemoryAsRetrieverWithMetadataFilters(t *testing.T) {
 }
 
 func TestDeduplicater(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
-	preCheckEnvSetting(t)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
 	ctx := t.Context()
 
-	llm, err := openai.New()
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 

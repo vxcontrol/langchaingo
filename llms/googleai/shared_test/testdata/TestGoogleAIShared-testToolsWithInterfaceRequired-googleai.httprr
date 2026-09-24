@@ -1,0 +1,120 @@
+httprr trace v1
+1050 1658
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 730
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"What is the weather like in Chicago?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get the current weather in a given location","name":"getCurrentWeather","parameters":{"properties":{"location":{"description":"The city and state, e.g. San Francisco, CA","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 1246
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:26 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=722
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "getCurrentWeather",
+              "args": {
+                "location": "Chicago, IL"
+              },
+              "id": "call_32837"
+            },
+            "thoughtSignature": "EqYCCqMCAWkUfRM+MM4f3KZ/SubTg+xfJQ+8BWPwSSup3HrdtjoBBX30u9VoP7aJCjjGcU9yi8M4wDthubrcH9a1ArUNGgnArhClS0ZPc21hSOV/Ov5KE4GngWHVC8JwAS8rrCZ4nMMF96CJpXsrFqdP1IuTY7xEnmMmIjGFEQAVFFOowKHBfkV09q6WgabVW8mTy0eBUBlY9JwcQbBUDT0pvcf5jKOsO1lEVUCtAOTbugCMxh4AqTOqqDlqvx6Xi4Dv+6dlUa+DLvao1Tz6rhfZ+17wjZBWJwnTQmAWswzCtbOeQTTIJOKOMpLeLX+q/PlPRv69eC3brZW8j6imF89t/F/IwkmTFGIqK8T8f4QhIX4xOUOLnXOSe28PxqoZbB/xwwHPWtv7"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 71,
+    "candidatesTokenCount": 17,
+    "totalTokenCount": 135,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 71
+      }
+    ],
+    "thoughtsTokenCount": 47,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "GbSzat_cN5CM7M8Phc2V8As"
+}
+1709 1341
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 1388
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"What is the weather like in Chicago?"}],"role":"user"},{"parts":[{"functionCall":{"args":{"location":"Chicago, IL"},"id":"call_32837","name":"getCurrentWeather"},"thoughtSignature":"EqYCCqMCAWkUfRM+MM4f3KZ/SubTg+xfJQ+8BWPwSSup3HrdtjoBBX30u9VoP7aJCjjGcU9yi8M4wDthubrcH9a1ArUNGgnArhClS0ZPc21hSOV/Ov5KE4GngWHVC8JwAS8rrCZ4nMMF96CJpXsrFqdP1IuTY7xEnmMmIjGFEQAVFFOowKHBfkV09q6WgabVW8mTy0eBUBlY9JwcQbBUDT0pvcf5jKOsO1lEVUCtAOTbugCMxh4AqTOqqDlqvx6Xi4Dv+6dlUa+DLvao1Tz6rhfZ+17wjZBWJwnTQmAWswzCtbOeQTTIJOKOMpLeLX+q/PlPRv69eC3brZW8j6imF89t/F/IwkmTFGIqK8T8f4QhIX4xOUOLnXOSe28PxqoZbB/xwwHPWtv7"}],"role":"model"},{"parts":[{"functionResponse":{"name":"getCurrentWeather","response":{"response":"64 and sunny"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get the current weather in a given location","name":"getCurrentWeather","parameters":{"properties":{"location":{"description":"The city and state, e.g. San Francisco, CA","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 930
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:28 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=891
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "The current weather in Chicago is 64°F and sunny.",
+            "thoughtSignature": "EsQBCsEBAWkUfROSJ567taFaJJC2gn87GQbUB/wFkhoRNn/r5b+60GROp0RKptnJSlI8Bp8UayBi4juvoAYv1A9A090GVQTwJkl1HHTh1E9IUA14sdMlwCBQJCPfmiU4XiR6NnDBkw9xoPm9zxbS5g7PcmBCYcLLCEjunIseZwYYmJqxnwSNZYd4ajricBmB6PY8PDmm3rkhsqMX7XoUudzMecpbbqsw+q/vEZDCvgwKptbgX+bGGfIFokQxovfNpNnjajh6Ow=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 151,
+    "candidatesTokenCount": 14,
+    "totalTokenCount": 188,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 151
+      }
+    ],
+    "thoughtsTokenCount": 23,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "G7SzavjSJ82X3boPieeYmA8"
+}

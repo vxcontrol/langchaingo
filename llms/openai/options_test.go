@@ -183,7 +183,7 @@ func TestWebSearchOptionsConversion(t *testing.T) {
 }
 
 func TestWithExtraBody(t *testing.T) {
-	t.Run("sets extra body in metadata", func(t *testing.T) {
+	t.Run("sets extra body in its own field", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		extraBody := map[string]any{
 			"enable_thinking": false,
@@ -192,26 +192,31 @@ func TestWithExtraBody(t *testing.T) {
 
 		WithExtraBody(extraBody)(opts)
 
-		require.NotNil(t, opts.Metadata)
-		stored, ok := opts.Metadata["openai:extra_body"].(map[string]any)
-		require.True(t, ok)
+		stored := llms.ExtraBody(*opts)
+		require.NotNil(t, stored)
 		assert.Equal(t, false, stored["enable_thinking"])
 		assert.Equal(t, "value", stored["custom_param"])
+	})
+
+	t.Run("metadata set afterwards does not discard it", func(t *testing.T) {
+		opts := &llms.CallOptions{}
+		WithExtraBody(map[string]any{"a": 1})(opts)
+		llms.WithMetadata(map[string]any{"user": "u1"})(opts)
+
+		assert.Equal(t, map[string]any{"a": 1}, llms.ExtraBody(*opts))
+		assert.Equal(t, "u1", opts.Metadata["user"])
 	})
 
 	t.Run("nil extra body is handled", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		WithExtraBody(nil)(opts)
-		require.NotNil(t, opts.Metadata)
+		assert.Nil(t, llms.ExtraBody(*opts))
 	})
 
 	t.Run("empty extra body is handled", func(t *testing.T) {
 		opts := &llms.CallOptions{}
 		WithExtraBody(map[string]any{})(opts)
-		require.NotNil(t, opts.Metadata)
-		stored, ok := opts.Metadata["openai:extra_body"].(map[string]any)
-		require.True(t, ok)
-		assert.Empty(t, stored)
+		assert.Empty(t, llms.ExtraBody(*opts))
 	})
 }
 
@@ -231,25 +236,17 @@ func TestGetExtraBody(t *testing.T) {
 	})
 
 	t.Run("returns extra body when present", func(t *testing.T) {
-		extraBody := map[string]any{"key": "value"}
-		opts := &llms.CallOptions{
-			Metadata: map[string]any{
-				"openai:extra_body": extraBody,
-			},
-		}
+		opts := &llms.CallOptions{ExtraBody: map[string]any{"key": "value"}}
 		result := getExtraBody(opts)
 		require.NotNil(t, result)
 		assert.Equal(t, "value", result["key"])
 	})
 
-	t.Run("returns nil for wrong type", func(t *testing.T) {
+	t.Run("a metadata key of the old name is not read", func(t *testing.T) {
 		opts := &llms.CallOptions{
-			Metadata: map[string]any{
-				"openai:extra_body": "not a map",
-			},
+			Metadata: map[string]any{"openai:extra_body": map[string]any{"key": "value"}},
 		}
-		result := getExtraBody(opts)
-		assert.Nil(t, result)
+		assert.Nil(t, getExtraBody(opts))
 	})
 }
 
@@ -373,8 +370,6 @@ func TestQwenSamplingReachesWireVerbatim(t *testing.T) { //nolint:funlen // thre
 // default the client substitutes on the wire — not off an empty model. Otherwise
 // WithReasoningDisabled() on a zero-config client is a silent no-op.
 func TestZeroConfigReasoningDisabledUsesDefaultModel(t *testing.T) {
-	// Ensure no ambient model is configured so the client falls through to the
-	// package default (cannot use t.Parallel with t.Setenv).
 	t.Setenv("OPENAI_MODEL", "")
 
 	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
@@ -405,5 +400,53 @@ func TestZeroConfigReasoningDisabledUsesDefaultModel(t *testing.T) {
 	if !strings.Contains(body, `"reasoning_effort":"none"`) {
 		t.Fatalf("zero-config disable must send the disable wire for %s, got body: %s",
 			openaiclient.DefaultChatModel, body)
+	}
+}
+
+func TestZeroConfigTemperaturePinUsesDefaultModel(t *testing.T) {
+	t.Setenv("OPENAI_MODEL", "")
+
+	const completion = `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
+		`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],` +
+		`"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`
+
+	capture := func(t *testing.T, opts ...Option) string {
+		t.Helper()
+		var body string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b, _ := io.ReadAll(r.Body)
+			body = string(b)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, completion)
+		}))
+		defer srv.Close()
+
+		llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test")}, opts...)...)
+		if err != nil {
+			t.Fatalf("New() error: %v", err)
+		}
+		if _, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithTemperature(0.2)); err != nil {
+			t.Fatalf("GenerateContent() error: %v", err)
+		}
+		return body
+	}
+
+	// The policy must read the client's model, which no per-call option supplies.
+	clientModel := capture(t, WithModel("gpt-5.5"))
+	if strings.Contains(clientModel, `"temperature"`) {
+		t.Errorf("gpt-5.5 takes no temperature while it thinks, got body: %s", clientModel)
+	}
+
+	zeroConfig := capture(t)
+	if !strings.Contains(zeroConfig, `"temperature":0.2`) {
+		t.Errorf("%s takes the caller temperature, got body: %s",
+			openaiclient.DefaultChatModel, zeroConfig)
+	}
+
+	plain := capture(t, WithModel("gpt-4.1-mini"))
+	if !strings.Contains(plain, `"temperature":0.2`) {
+		t.Errorf("a non-reasoning model must keep the caller temperature, got body: %s", plain)
 	}
 }

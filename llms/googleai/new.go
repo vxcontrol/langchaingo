@@ -4,7 +4,9 @@ package googleai
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -59,6 +61,18 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 		}
 	}
 
+	if len(clientOptions.unhonoredOnREST) > 0 {
+		return gi, &ErrOptionNotHonored{Options: clientOptions.unhonoredOnREST}
+	}
+	credentials, err := clientOptions.detectCredentials()
+	if err != nil {
+		return gi, err
+	}
+	config.Credentials = credentials
+	if clientOptions.BaseURL != "" {
+		config.HTTPOptions.BaseURL = clientOptions.BaseURL
+	}
+
 	client, err := genai.NewClient(ctx, config)
 	if err != nil {
 		return gi, err
@@ -66,4 +80,16 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 
 	gi.client = client
 	return gi, nil
+}
+
+// ErrOptionNotHonored reports options this door cannot carry. Shape the
+// transport with WithHTTPClient.
+type ErrOptionNotHonored struct {
+	Options []string
+}
+
+func (e *ErrOptionNotHonored) Error() string {
+	return fmt.Sprintf(
+		"googleai: this client cannot honor %s; shape the transport with WithHTTPClient instead",
+		strings.Join(e.Options, ", "))
 }

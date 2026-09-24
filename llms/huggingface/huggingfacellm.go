@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -13,9 +14,11 @@ import (
 )
 
 var (
+	ErrEmptyMessages            = errors.New("huggingface: the call carried no message to send")
 	ErrEmptyResponse            = errors.New("empty response")
 	ErrMissingToken             = errors.New("missing the Hugging Face API token. Set it in the HF_TOKEN or HUGGINGFACEHUB_API_TOKEN environment variable, or save it to ~/.cache/huggingface/token") //nolint:lll
 	ErrUnexpectedResponseLength = errors.New("unexpected length of response")
+	ErrUnsupportedPart          = errors.New("huggingface: the door sends text and the message carries another part")
 )
 
 type LLM struct {
@@ -31,48 +34,79 @@ func (o *LLM) Call(ctx context.Context, prompt string, options ...llms.CallOptio
 }
 
 // GenerateContent implements the Model interface.
-func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) { //nolint: lll, cyclop, whitespace
-
+func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (resp *llms.ContentResponse, err error) { //nolint:lll,cyclop,nonamedreturns
 	if o.CallbacksHandler != nil {
 		o.CallbacksHandler.HandleLLMGenerateContentStart(ctx, messages)
+		defer func() {
+			if err != nil {
+				o.CallbacksHandler.HandleLLMError(ctx, err)
+			} else {
+				o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
+			}
+		}()
 	}
 
-	model := defaultModel
+	model := o.client.Model
+	if model == "" {
+		model = defaultModel
+	}
 	opts := &llms.CallOptions{Model: &model}
 	for _, opt := range options {
 		opt(opts)
 	}
 
-	// Assume we get a single text message
-	msg0 := messages[0]
-	part := msg0.Parts[0]
+	if len(messages) == 0 || len(messages[0].Parts) == 0 {
+		return nil, ErrEmptyMessages
+	}
+	part, ok := messages[0].Parts[0].(llms.TextContent)
+	if !ok {
+		return nil, fmt.Errorf("%w: %T", ErrUnsupportedPart, messages[0].Parts[0])
+	}
+
+	warn := &llms.Warnings{}
+	reportHuggingFaceOptions(warn, opts.GetModel(), opts, messages)
+
 	result, err := o.client.RunInference(ctx, &huggingfaceclient.InferenceRequest{
-		Model:             o.client.Model,
-		Prompt:            part.(llms.TextContent).Text,
-		Task:              huggingfaceclient.InferenceTaskTextGeneration,
-		Temperature:       opts.GetTemperature(),
-		TopP:              opts.GetTopP(),
-		TopK:              opts.GetTopK(),
-		MinLength:         opts.GetMinLength(),
-		MaxLength:         opts.GetMaxLength(),
-		RepetitionPenalty: opts.GetRepetitionPenalty(),
-		Seed:              opts.GetSeed(),
+		Model:       opts.GetModel(),
+		Prompt:      part.Text,
+		Temperature: opts.Temperature,
+		TopP:        opts.TopP,
+		MaxTokens:   opts.MaxTokens,
+		Seed:        opts.Seed,
+		Effort:      reasoningEffort(opts),
 	})
 	if err != nil {
-		if o.CallbacksHandler != nil {
-			o.CallbacksHandler.HandleLLMError(ctx, err)
-		}
 		return nil, err
 	}
 
-	resp := &llms.ContentResponse{
+	resp = &llms.ContentResponse{
 		Choices: []*llms.ContentChoice{
 			{
-				Content: result.Text,
+				Content:    result.Text,
+				StopReason: result.StopReason,
+				Truncated:  llms.IsTruncated(result.StopReason),
 			},
 		},
+		Warnings: warn.List(),
+	}
+	if err = llms.CheckTruncation(resp, *opts); err != nil {
+		return resp, err
 	}
 	return resp, nil
+}
+
+func reasoningEffort(opts *llms.CallOptions) string {
+	if opts.Reasoning == nil {
+		return ""
+	}
+	if opts.Reasoning.ResolveMode() == llms.ReasoningOff {
+		return "none"
+	}
+	if opts.Reasoning.DelegatesDepth() {
+		return ""
+	}
+
+	return string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 }
 
 func New(opts ...Option) (*LLM, error) {
@@ -88,11 +122,6 @@ func New(opts ...Option) (*LLM, error) {
 
 	if len(options.token) == 0 {
 		return nil, ErrMissingToken
-	}
-
-	// If a provider is specified, use the router URL
-	if options.provider != "" {
-		options.url = routerURL
 	}
 
 	var clientOpts []huggingfaceclient.Option
@@ -175,10 +204,6 @@ func (o *LLM) CreateEmbedding(
 ) ([][]float32, error) {
 	embeddings, err := o.client.CreateEmbedding(ctx, model, task, &huggingfaceclient.EmbeddingRequest{
 		Inputs: inputTexts,
-		Options: map[string]any{
-			"use_gpu":        false,
-			"wait_for_model": true,
-		},
 	})
 	if err != nil {
 		return nil, err
@@ -187,7 +212,7 @@ func (o *LLM) CreateEmbedding(
 		return nil, ErrEmptyResponse
 	}
 	if len(inputTexts) != len(embeddings) {
-		return embeddings, ErrUnexpectedResponseLength
+		return nil, ErrUnexpectedResponseLength
 	}
 	return embeddings, nil
 }

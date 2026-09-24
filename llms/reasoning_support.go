@@ -25,11 +25,25 @@ type ReasoningSupport struct {
 	CannotDisable bool
 	// RejectsSampling is set for models that reject temperature/top_p while thinking.
 	RejectsSampling bool
-	// Efforts are the effort tiers worth offering; nil when unknown.
+	// Efforts are the effort tiers worth offering; empty both when the model is
+	// unknown and when it takes none, so read Mechanism before offering a control.
 	Efforts []ReasoningEffort
+	// Mechanism reports whether the model takes an effort level, a token budget
+	// or either; ReasoningMechanismUnknown when unclassified.
+	Mechanism ReasoningMechanism
 	// DefaultOn reports whether thinking runs when reasoning is unset; nil when unknown.
 	DefaultOn *bool
 }
+
+// ReasoningMechanism describes how a model takes its thinking instruction.
+type ReasoningMechanism int
+
+const (
+	ReasoningMechanismUnknown ReasoningMechanism = iota
+	ReasoningMechanismAdaptive
+	ReasoningMechanismBudget
+	ReasoningMechanismAdaptiveAndBudget
+)
 
 var (
 	reasoningOverridesMu sync.RWMutex
@@ -66,8 +80,8 @@ func lookupReasoningOverride(model string) (ReasoningSupport, bool) {
 func boolPtr(b bool) *bool { return &b }
 
 // ReasoningSupportFor returns the reasoning-control hint for a model on a
-// provider. Registered overrides win; then Claude and OpenAI reasoning models are
-// classified from the shared tables; everything else returns Known=false
+// provider. Registered overrides win; then the models the shared tables classify
+// for that provider; everything else returns Known=false
 // (optimistic — the UI shows all controls and the API rejects what it cannot do).
 func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	if s, ok := lookupReasoningOverride(model); ok {
@@ -76,55 +90,96 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 
 	if reasoning.ClaudeSupportsThinking(model) {
 		return ReasoningSupport{
-			Supported: true,
-			Known:     true,
-			// Derive from the same resolver the wire uses so the hint tracks
-			// provider differences (e.g. Sonnet 5 is disablable on Anthropic but
-			// always on, hence not disablable, on Bedrock).
+			Supported:       true,
+			Known:           true,
 			CannotDisable:   reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
 			RejectsSampling: reasoning.ClaudeRejectsSampling(model),
-			Efforts:         claudeEfforts(reasoning.ClaudeReasoningKindFor(model)),
+			Efforts:         toReasoningEfforts(reasoning.ClaudeEffortsFor(model, p)),
+			Mechanism:       claudeMechanism(reasoning.ClaudeReasoningKindFor(model)),
 			DefaultOn:       boolPtr(reasoning.ClaudeThinkingDefaultsOn(model)),
 		}
 	}
 
+	if p == reasoning.ProviderBedrock && reasoning.IsGptOssModel(model) {
+		return levelOnlySupport(model, p, reasoning.GptOssEfforts(), true)
+	}
+
+	if p == reasoning.ProviderBedrock && reasoning.IsNovaReasoningModel(model) {
+		return levelOnlySupport(model, p, reasoning.NovaEfforts(), false)
+	}
+
+	if p == reasoning.ProviderBedrock && reasoning.IsBedrockNonReasoningModel(model) {
+		return ReasoningSupport{Known: true, DefaultOn: boolPtr(false)}
+	}
+
+	if caps := reasoning.OpenAIReasoningCapsFor(model); caps.Known {
+		return ReasoningSupport{
+			Supported:       true,
+			Known:           true,
+			CannotDisable:   !caps.CanDisable,
+			RejectsSampling: reasoning.RejectsSamplingWhileThinking(model),
+			Efforts:         toReasoningEfforts(caps.Efforts),
+			Mechanism:       ReasoningMechanismAdaptive,
+		}
+	}
+
 	if p == reasoning.ProviderOpenAI && reasoning.IsReasoningModel(model) {
-		// A classified model (e.g. GPT-5 Pro accepts only high, GPT-5.4 mini adds
-		// xhigh) advertises its own effort set; an unclassified one falls back to
-		// the conservative low/medium/high triple.
-		efforts := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
-		if caps := reasoning.OpenAIReasoningCapsFor(model); caps.Known {
-			efforts = toReasoningEfforts(caps.Efforts)
+		var defaultOn *bool
+		if reasoning.QwenThinkingEnabledByFlag(model) {
+			defaultOn = boolPtr(false)
 		}
 		return ReasoningSupport{
-			Supported:     true,
-			Known:         true,
-			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
-			Efforts:       efforts,
-			// DefaultOn is per-model on the GPT-5.x line (some default off) — leave unknown.
+			Supported:       true,
+			CannotDisable:   reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+			RejectsSampling: reasoning.RejectsSamplingWhileThinking(model),
+			DefaultOn:       defaultOn,
 		}
 	}
 
 	if p == reasoning.ProviderGoogleAI && reasoning.GeminiSupportsThinking(model) {
+		// Efforts stays unset: this package does not classify the Google level names.
+		mechanism := ReasoningMechanismBudget
+		switch {
+		case reasoning.GeminiUsesThinkingLevel(model), reasoning.GeminiTogglesThinkingByLevel(model):
+			mechanism = ReasoningMechanismAdaptive
+		}
 		return ReasoningSupport{
-			// Flash/Flash-Lite/Gemma disable via thinkingBudget:0; Pro and Gemini 3.x
-			// cannot fully disable — derive from the same resolver the wire uses.
 			CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
 			Supported:     true,
 			Known:         true,
-			// These families think by default (Flash-Lite / Gemma may still accept budget:0).
-			DefaultOn: boolPtr(true),
+			Mechanism:     mechanism,
+			DefaultOn:     boolPtr(!reasoning.GeminiThinkingOffByDefault(model)),
 		}
 	}
 
-	// Unrecognized: optimistic. Supported best-guessed from the shared classifier;
-	// the UI shows all controls and the provider teaches via a 400.
-	return ReasoningSupport{Supported: reasoning.IsReasoningModel(model), Known: false}
+	if efforts := reasoning.OllamaEffortsFor(model); p == reasoning.ProviderOllama && len(efforts) > 0 {
+		return levelOnlySupport(model, p, efforts, true)
+	}
+
+	return ReasoningSupport{
+		Supported:     reasoning.LikelyReasoningModel(model),
+		Known:         false,
+		CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+	}
+}
+
+func levelOnlySupport(model string, p reasoning.Provider, efforts []string, defaultOn bool) ReasoningSupport {
+	return ReasoningSupport{
+		Supported:     true,
+		Known:         true,
+		CannotDisable: reasoning.ResolveOff(model, p) == reasoning.OffUnsupported,
+		Efforts:       toReasoningEfforts(efforts),
+		Mechanism:     ReasoningMechanismAdaptive,
+		DefaultOn:     boolPtr(defaultOn),
+	}
 }
 
 // toReasoningEfforts converts the resolver's raw effort strings to the public
 // ReasoningEffort type for UI hints.
 func toReasoningEfforts(efforts []string) []ReasoningEffort {
+	if len(efforts) == 0 {
+		return nil
+	}
 	out := make([]ReasoningEffort, len(efforts))
 	for i, e := range efforts {
 		out[i] = ReasoningEffort(e)
@@ -132,15 +187,15 @@ func toReasoningEfforts(efforts []string) []ReasoningEffort {
 	return out
 }
 
-func claudeEfforts(kind reasoning.ClaudeReasoningKind) []ReasoningEffort {
+func claudeMechanism(kind reasoning.ClaudeReasoningKind) ReasoningMechanism {
 	switch kind {
 	case reasoning.ClaudeReasoningAdaptiveOnly:
-		return []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh, ReasoningMax}
-	case reasoning.ClaudeReasoningAdaptiveAndBudget:
-		return []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningMax}
+		return ReasoningMechanismAdaptive
 	case reasoning.ClaudeReasoningBudgetOnly:
-		return []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
+		return ReasoningMechanismBudget
+	case reasoning.ClaudeReasoningAdaptiveAndBudget:
+		return ReasoningMechanismAdaptiveAndBudget
 	default:
-		return nil
+		return ReasoningMechanismUnknown
 	}
 }

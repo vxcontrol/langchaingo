@@ -1,0 +1,18 @@
+httprr trace v1
+100 439
+GET https://httpbin.org/image/missing HTTP/1.1
+Host: httpbin.org
+User-Agent: langchaingo-httprr
+
+HTTP/2.0 404 Not Found
+Content-Length: 233
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: *
+Content-Type: text/html
+Date: Wed, 23 Sep 2026 11:01:14 GMT
+Server: gunicorn/19.9.0
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<title>404 Not Found</title>
+<h1>Not Found</h1>
+<p>The requested URL was not found on the server.  If you entered the URL manually please check your spelling and try again.</p>

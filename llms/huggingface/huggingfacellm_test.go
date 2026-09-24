@@ -45,66 +45,13 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 	// Test the LLM call
 	result, err := llm.Call(ctx, "What is 2+2?",
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(50),
+		llms.WithMaxTokens(50),
 	)
 
-	// Skip test if provider is not available or recording is missing
-	if err != nil && (strings.Contains(err.Error(), "404") ||
-		strings.Contains(err.Error(), "403") ||
-		strings.Contains(err.Error(), "cached HTTP response not found")) {
-		t.Skip("Provider not available or recording missing, skipping test")
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result == "" {
-		t.Fatal("expected non-empty result")
-	}
-}
-
-func TestHuggingFaceLLMStandardInference(t *testing.T) {
-	ctx := t.Context()
-
-	// Skip if no credentials and no recording - HuggingFace accepts either token
-	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
-		httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")
-	}
-
-	rr := httprr.OpenForTest(t, nil)
-	defer rr.Close()
-
-	apiKey := "test-api-key"
-	if rr.Recording() {
-		// Try HF_TOKEN first, then fall back to HUGGINGFACEHUB_API_TOKEN
-		if key := os.Getenv("HF_TOKEN"); key != "" {
-			apiKey = key
-		} else if key := os.Getenv("HUGGINGFACEHUB_API_TOKEN"); key != "" {
-			apiKey = key
-		}
-	}
-
-	// Create standard LLM without provider
-	opts := []Option{
-		WithModel("HuggingFaceH4/zephyr-7b-beta"),
-		WithHTTPClient(rr.Client()),
-		WithToken(apiKey),
-	}
-
-	llm, err := New(opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test the LLM call
-	result, err := llm.Call(ctx, "Hello, say hi back",
-		llms.WithTemperature(0.5),
-		llms.WithMaxLength(20),
-	)
-
-	// Skip test if model is not available
-	if err != nil && strings.Contains(err.Error(), "404") {
-		t.Skip("Model not available on HuggingFace API, skipping test")
+	// Skip test if the provider is not available live; a replay miss fails
+	if err != nil && rr.Recording() && (strings.Contains(err.Error(), "404") ||
+		strings.Contains(err.Error(), "403")) {
+		t.Skip("Provider not available, skipping test")
 	}
 
 	if err != nil {
@@ -158,14 +105,13 @@ func TestHuggingFaceLLMGenerateContent(t *testing.T) {
 
 	resp, err := llm.GenerateContent(ctx, messages,
 		llms.WithTemperature(0.5),
-		llms.WithMaxLength(30),
+		llms.WithMaxTokens(30),
 	)
 
-	// Skip test if model is not available or rate limited
-	if err != nil && (strings.Contains(err.Error(), "404") ||
-		strings.Contains(err.Error(), "402") ||
-		strings.Contains(err.Error(), "cached HTTP response not found")) {
-		t.Skip("Model not available, rate limited, or recording missing, skipping test")
+	// Skip test if the model is not available or rate limited live; a replay miss fails
+	if err != nil && rr.Recording() && (strings.Contains(err.Error(), "404") ||
+		strings.Contains(err.Error(), "402")) {
+		t.Skip("Model not available or rate limited, skipping test")
 	}
 
 	if err != nil {

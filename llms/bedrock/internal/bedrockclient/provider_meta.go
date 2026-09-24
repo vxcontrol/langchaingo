@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -68,6 +69,7 @@ func createMetaCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	txt := processInputMessagesGeneric(messages)
 
@@ -75,7 +77,7 @@ func createMetaCompletion(ctx context.Context,
 		Prompt:      txt,
 		Temperature: options.GetTemperature(),
 		TopP:        options.GetTopP(),
-		MaxGenLen:   getMaxTokens(options.GetMaxTokens(), 512),
+		MaxGenLen:   maxTokensOnTheWire(warn, modelID, options, 512),
 	}
 
 	body, err := json.Marshal(input)
@@ -117,13 +119,14 @@ func createMetaCompletion(ctx context.Context,
 			{
 				Content:    output.Generation,
 				StopReason: output.StopReason,
+				Truncated:  llms.IsTruncated(output.StopReason),
 				GenerationInfo: map[string]any{
 					"input_tokens":  output.PromptTokenCount,
 					"output_tokens": output.GenerationTokenCount,
 					// Standardized field names for cross-provider compatibility
-					"PromptTokens":     output.PromptTokenCount,
-					"CompletionTokens": output.GenerationTokenCount,
-					"TotalTokens":      output.PromptTokenCount + output.GenerationTokenCount,
+					"PromptTokens":     int(output.PromptTokenCount),
+					"CompletionTokens": int(output.GenerationTokenCount),
+					"TotalTokens":      int(output.PromptTokenCount) + int(output.GenerationTokenCount),
 				},
 			},
 		},
@@ -143,50 +146,60 @@ func parseMetaStreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var streamedContent strings.Builder
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp metaStreamingResponseChunk
 			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
 			if err != nil {
-				return nil, err
+				streamErr = err
+				break DoStream
 			}
 
 			// Send text chunk if available
 			if resp.Generation != "" {
+				streamedContent.WriteString(resp.Generation)
 				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.Generation); err != nil {
-					return nil, err
+					streamErr = err
+					break DoStream
 				}
-				contentchoices[0].Content += resp.Generation
 			}
 
 			// Set completion reason
 			if resp.StopReason != "" {
 				contentchoices[0].StopReason = resp.StopReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.StopReason)
 			}
 
 			// Set token counts
 			if resp.PromptTokenCount > 0 {
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.PromptTokenCount
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.PromptTokenCount
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.PromptTokenCount)
 			}
 			if resp.GenerationTokenCount > 0 {
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.GenerationTokenCount
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.GenerationTokenCount
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.GenerationTokenCount)
 			}
-			if resp.PromptTokenCount > 0 || resp.GenerationTokenCount > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.PromptTokenCount + resp.GenerationTokenCount
+			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)
+			completion, _ := contentchoices[0].GenerationInfo["CompletionTokens"].(int)
+			if prompt > 0 || completion > 0 {
+				contentchoices[0].GenerationInfo["TotalTokens"] = prompt + completion
 			}
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+
+	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }

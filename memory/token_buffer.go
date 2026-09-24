@@ -7,7 +7,9 @@ import (
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
-// ConversationTokenBuffer for storing conversation memory.
+// ConversationTokenBuffer for storing conversation memory. It drops the oldest
+// messages until the buffer fits MaxTokenLimit tokens, as llms.CountTokens
+// counts them for no particular model: one token per four runes.
 type ConversationTokenBuffer struct {
 	ConversationBuffer
 	LLM           llms.Model

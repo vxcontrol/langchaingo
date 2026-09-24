@@ -1,0 +1,104 @@
+httprr trace v1
+792 850
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 472
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"I'm a pomeranian"},{"text":"Describe my taxonomy, health and care"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":24},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 439
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:11 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=767
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {},
+      "finishReason": "MAX_TOKENS",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 14,
+    "totalTokenCount": 35,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 14
+      }
+    ],
+    "thoughtsTokenCount": 21,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "CrSzauu5IPjwnsEP-8Hj8Ao"
+}
+794 10157
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 474
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"I'm a pomeranian"},{"text":"Describe my taxonomy, health and care"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":8192},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 9744
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:20 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=8203
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Hello, little puffball! Despite weighing in at a mere 3 to 7 pounds, you carry the heart and lineage of an Arctic sled dog. \n\nHere is a comprehensive breakdown of your taxonomy, health profile, and care requirements.\n\n---\n\n### 1. Taxonomy & Heritage\n\nScientifically, you belong to the domestic dog subspecies, but your specific lineage places you in the ancient **Spitz** family.\n\n*   **Domain:** Eukaryota (Organisms with complex cells)\n*   **Kingdom:** Animalia (Animals)\n*   **Phylum:** Chordata (Vertebrates)\n*   **Class:** Mammalia (Mammals)\n*   **Order:** Carnivora (Carnivores)\n*   **Family:** Canidae (Canines)\n*   **Genus:** *Canis*\n*   **Species:** *Canis lupus* (Wolf)\n*   **Subspecies:** *Canis lupus familiaris* (Domestic Dog)\n*   **Breed Group:** Toy Group (AKC), Spitz / Primitive types (FCI)\n\n**Origins:** You are named after the **Pomerania** region (now part of north-west Poland and north-east Germany). Your ancestors were much larger (around 30 lbs) working dogs used for herding and pulling sleds. You were bred down to companion size in the 19th century, popularized largely by Britain's Queen Victoria, who had her own prized kennel of small Pomeranians.\n\n---\n\n### 2. Health\n\nPomeranians are generally hardy and have a long lifespan, typically living **12 to 16 years**. However, because of your miniature size and Spitz genetics, you are prone to specific health conditions:\n\n*   **Tracheal Collapse:** The cartilage rings in your windpipe can weaken and flatten, leading to a dry, harsh cough (often sounding like a goose honk). *Always walk on a harness, never a neck collar.*\n*   **Luxating Patella:** A common issue in toy breeds where the kneecap slips out of its groove. It can range from mild to severe enough to require surgery.\n*   **Dental Disease:** Because your jaw is so small, your 42 adult teeth are crowded together. This leads to rapid plaque buildup, gingivitis, and early tooth loss if not maintained.\n*   **Alopecia X (\"Black Skin Disease\"):** A cosmetic, genetic condition common to Pomeranians that causes gradual hair loss and hyperpigmentation (darkening) of the skin.\n*   **Hypoglycemia:** More common as a puppy, rapid drops in blood sugar can occur if you skip meals or over-exert yourself.\n*   **Eye and Heart Issues:** Prone to dry eye, cataracts, and degenerative mitral valve disease (common in aging toy breeds).\n\n---\n\n### 3. Daily Care & Living Requirements\n\n#### Grooming (High Maintenance)\nYou have a famous **double coat** consisting of a dense, woolly undercoat and a long, straight outer coat.\n*   **Brushing:** Requires thorough brushing 2–3 times a week (daily during seasonal sheds) using a slicker brush and metal comb to prevent painful matting down at the skin level.\n*   **Never Shave:** Do not shave your double coat in the summer. The coat insulates you from heat just as it does from cold; shaving it can permanently ruin the texture and lead to Alopecia X.\n*   **Teeth:** Daily tooth brushing with dog-safe enzymatic toothpaste is essential.\n\n#### Diet and Nutrition\n*   **Metabolism:** You have a fast metabolism, but a tiny stomach. Feed high-quality food formulated for \"toy breeds\" (smaller kibble size is easier to chew).\n*   **Weight Management:** Keep a strict eye on portions. Just one extra pound on a 5-pound dog is a 20% weight increase, putting immense stress on tiny knees and airways.\n\n#### Exercise and Training\n*   **Physical Activity:** Moderate. Two 15- to 20-minute walks per day plus some indoor play are usually enough to burn your energy.\n*   **Mental Stimulation:** Poms are exceptionally intelligent and curious. Puzzle toys, trick training, and agility courses keep you from getting bored.\n*   **Vocalization:** You are a natural watchdog with a loud voice. Early training is needed to prevent alert-barking from turning into nuisance barking.\n*   **Safety:** Your bones are delicate. Discourage jumping off high beds or couches (use pet stairs), and always supervise interactions with large dogs or predatory birds outside.",
+            "thoughtSignature": "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"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 14,
+    "candidatesTokenCount": 973,
+    "totalTokenCount": 1901,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 14
+      }
+    ],
+    "thoughtsTokenCount": 914,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "DLSzao2WE-jinsEP6I73iAw"
+}

@@ -1,7 +1,9 @@
 package httprr
 
 import (
-	"regexp"
+	"net/http"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -14,22 +16,42 @@ func TestNormalizeGoogleAPIClientHeader(t *testing.T) {
 		{
 			name:     "Google API client header with versions",
 			input:    "gl-go/1.24.4 gccl/v0.15.1 genai-go/0.15.1 gapic/0.7.0 gax/2.14.1 rest/UNKNOWN",
-			expected: "gl-go/X.XX.X gccl/vX.XX.X genai-go/X.XX.X gapic/X.X.X gax/X.XX.X rest/UNKNOWN",
+			expected: "gl-go/X.XX.X gccl/vX.XX.X genai-go/X.XX.X gapic/X.XX.X gax/X.XX.X rest/UNKNOWN",
 		},
 		{
 			name:     "Google API client header with different versions",
 			input:    "gl-go/1.24.6 gccl/v0.15.2 genai-go/0.16.0 gapic/0.8.1 gax/2.15.0 rest/UNKNOWN",
-			expected: "gl-go/X.XX.X gccl/vX.XX.X genai-go/X.XX.X gapic/X.X.X gax/X.XX.X rest/UNKNOWN",
+			expected: "gl-go/X.XX.X gccl/vX.XX.X genai-go/X.XX.X gapic/X.XX.X gax/X.XX.X rest/UNKNOWN",
 		},
 		{
 			name:     "Mixed version formats",
 			input:    "client/1.2 sdk/v3.4.5 lib/0.1.0-beta rest/UNKNOWN",
-			expected: "client/X.X sdk/vX.X.X lib/X.X.X-beta rest/UNKNOWN",
+			expected: "client/X.X sdk/vX.XX.X lib/X.XX.X-beta rest/UNKNOWN",
 		},
 		{
 			name:     "No versions",
 			input:    "client/unknown sdk/latest rest/UNKNOWN",
 			expected: "client/unknown sdk/latest rest/UNKNOWN",
+		},
+		{
+			name:     "Go toolchain version carries a go prefix",
+			input:    "google-genai-sdk/1.29.0 gl-go/go1.26.5",
+			expected: "google-genai-sdk/X.XX.X gl-go/goX.XX.X",
+		},
+		{
+			name:     "A newer patch of the same toolchain normalizes the same way",
+			input:    "google-genai-sdk/1.29.0 gl-go/go1.26.7",
+			expected: "google-genai-sdk/X.XX.X gl-go/goX.XX.X",
+		},
+		{
+			name:     "A two-digit patch normalizes to the same shape as a one-digit one",
+			input:    "google-genai-sdk/1.29.0 gl-go/go1.26.10",
+			expected: "google-genai-sdk/X.XX.X gl-go/goX.XX.X",
+		},
+		{
+			name:     "A two-digit minor normalizes the same way too",
+			input:    "google-genai-sdk/1.29.0 gl-go/go1.100.2",
+			expected: "google-genai-sdk/X.XX.X gl-go/goX.XX.X",
 		},
 	}
 
@@ -38,10 +60,6 @@ func TestNormalizeGoogleAPIClientHeader(t *testing.T) {
 			result := normalizeGoogleAPIClientHeader(tt.input)
 			if result != tt.expected {
 				t.Errorf("normalizeGoogleAPIClientHeader(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-			// Verify byte count is preserved
-			if len(result) != len(tt.input) {
-				t.Errorf("Byte count not preserved: input len=%d, result len=%d", len(tt.input), len(result))
 			}
 		})
 	}
@@ -110,57 +128,33 @@ func TestVersionNormalizationConsistency(t *testing.T) {
 }
 
 func TestOpenAIProjectHeaderScrubbing(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name: "Remove OpenAI-Project header",
-			input: `POST /v1/chat/completions HTTP/1.1
-Host: api.openai.com
-User-Agent: Go-http-client/1.1
-Authorization: Bearer sk-test
-openai-project: proj-123456789
-Content-Type: application/json
+	rr, err := create(filepath.Join(t.TempDir(), "scrub.httprr"), http.DefaultTransport)
+	if err != nil {
+		t.Fatalf("create() error: %v", err)
+	}
+	t.Cleanup(func() { _ = rr.Close() })
 
-{"model":"gpt-4"}`,
-			expected: `POST /v1/chat/completions HTTP/1.1
-Host: api.openai.com
-User-Agent: langchaingo-httprr
-Authorization: Bearer sk-test
-Content-Type: application/json
+	req, err := http.NewRequest(http.MethodPost, "https://api.openai.com/v1/chat/completions",
+		strings.NewReader(`{"model":"gpt-4"}`))
+	if err != nil {
+		t.Fatalf("NewRequest() error: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer sk-test")
+	req.Header.Set("openai-project", "proj-123456789")
+	req.Header.Set("User-Agent", "Go-http-client/1.1")
 
-{"model":"gpt-4"}`,
-		},
-		{
-			name: "No OpenAI-Project header present",
-			input: `POST /v1/chat/completions HTTP/1.1
-Host: api.openai.com
-User-Agent: Go-http-client/1.1
-Authorization: Bearer sk-test
-Content-Type: application/json
-
-{"model":"gpt-4"}`,
-			expected: `POST /v1/chat/completions HTTP/1.1
-Host: api.openai.com
-User-Agent: langchaingo-httprr
-Authorization: Bearer sk-test
-Content-Type: application/json
-
-{"model":"gpt-4"}`,
-		},
+	wire, err := rr.reqWire(req)
+	if err != nil {
+		t.Fatalf("reqWire() error: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// This simulates what happens in reqWire during request serialization
-			result := regexp.MustCompile(`(?m)^User-Agent: .*$`).ReplaceAllString(tt.input, "User-Agent: langchaingo-httprr")
-			result = regexp.MustCompile(`(?m)^openai-project: .*\n`).ReplaceAllString(result, "")
-
-			if result != tt.expected {
-				t.Errorf("OpenAI-Project header scrubbing failed:\nGot:\n%s\n\nExpected:\n%s", result, tt.expected)
-			}
-		})
+	if strings.Contains(strings.ToLower(wire), "openai-project") {
+		t.Errorf("the project header must not reach the cassette match key:\n%s", wire)
+	}
+	if strings.Contains(wire, "Go-http-client") {
+		t.Errorf("the user agent must be normalized in the match key:\n%s", wire)
+	}
+	if !strings.Contains(wire, `{"model":"gpt-4"}`) {
+		t.Errorf("the body must survive scrubbing:\n%s", wire)
 	}
 }

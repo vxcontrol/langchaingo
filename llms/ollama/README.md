@@ -582,7 +582,8 @@ HTTPRR_RECORD=. HTTPRR_DEBUG=true go test -v -run TestCloud
    - Cloud model generation
    - Cloud streaming
    - Cloud tool calling
-   - Cloud JSON mode
+   - Cloud JSON mode is dropped with a warning; a schema is refused before the request, unless
+     `WithCloudStructuredOutputFallback()` moves it into the prompt (recorded against gpt-oss:120b)
    - Various options (temperature, seed)
    - Uses `httprr.SkipIfNoCredentialsAndRecordingMissing("OLLAMA_API_KEY")` to skip when no credentials
 
@@ -961,7 +962,8 @@ Models ending in `-cloud` are automatically routed to Ollama's cloud infrastruct
 | Tool Calling | ✅ | ✅ | Most models |
 | Reasoning | ✅ | ✅ | DeepSeek R1, QwQ, etc. |
 | Vision (Images) | ✅ | ❌ | llama3.2-vision, etc. |
-| JSON Mode | ✅ | ✅ | Compatible models only |
+| JSON Mode | ✅ | ❌ | Cloud (ollama.com, or a `-cloud` model on a local server): dropped with a warning — Ollama Cloud does not support structured outputs |
+| Structured Output (JSON Schema) | ✅ | ❌ | Cloud: `ErrStructuredOutputUnsupported` before the request; with `WithCloudStructuredOutputFallback()` the schema is appended to the last user message, a `WarningSubstitute` is reported, a single ```` ```json ```` or ```` ``` ```` fence around the whole answer is removed from the final content (streamed chunks still carry it) and the answer is validated locally (`ErrStructuredOutputValidation` on mismatch) |
 | Embeddings | ✅ | ❌ | nomic-embed-text, etc. |
 | Auto Model Pull | ✅ | ❌ | Local only |
 | Custom Templates | ✅ | ❌ | Local only |

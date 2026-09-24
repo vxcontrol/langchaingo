@@ -2,11 +2,29 @@ package embeddings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/sliceutil"
 )
+
+var (
+	ErrNoEmbedding    = errors.New("embeddings: the client returned no vector for the query")
+	ErrShortEmbedding = errors.New("embeddings: the client returned fewer vectors than inputs")
+)
+
+// CheckEmbeddings reports whether the client answered every input with a vector.
+func CheckEmbeddings(embs [][]float32, inputs int) error {
+	if len(embs) == 0 {
+		return ErrNoEmbedding
+	}
+	if len(embs) != inputs {
+		return fmt.Errorf("%w: %d for %d inputs", ErrShortEmbedding, len(embs), inputs)
+	}
+
+	return nil
+}
 
 // NewEmbedder creates a new Embedder from the given EmbedderClient, with
 // some options that affect how embedding will be done.
@@ -62,6 +80,9 @@ func (ei *EmbedderImpl) EmbedQuery(ctx context.Context, text string) ([]float32,
 	if err != nil {
 		return nil, fmt.Errorf("error embedding query: %w", err)
 	}
+	if len(emb) == 0 {
+		return nil, ErrNoEmbedding
+	}
 
 	return emb[0], nil
 }
@@ -105,6 +126,9 @@ func BatchedEmbed(ctx context.Context, embedder EmbedderClient, texts []string, 
 		curBatchEmbeddings, err := embedder.CreateEmbedding(ctx, batch)
 		if err != nil {
 			return nil, fmt.Errorf("error embedding batch: %w", err)
+		}
+		if err := CheckEmbeddings(curBatchEmbeddings, len(batch)); err != nil {
+			return nil, err
 		}
 		emb = append(emb, curBatchEmbeddings...)
 	}

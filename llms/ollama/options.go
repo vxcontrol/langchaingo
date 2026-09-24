@@ -10,18 +10,19 @@ import (
 )
 
 type options struct {
-	ollamaServerURL     *url.URL
-	httpClient          *http.Client
-	apiKey              string
-	model               string
-	ollamaOptions       api.Options
-	pullProgressFunc    api.PullProgressFunc
-	customModelTemplate string
-	system              string
-	format              string
-	keepAlive           *time.Duration
-	pullModel           bool
-	pullTimeout         time.Duration
+	ollamaServerURL               *url.URL
+	httpClient                    *http.Client
+	apiKey                        string
+	model                         string
+	ollamaOptions                 api.Options
+	pullProgressFunc              api.PullProgressFunc
+	customModelTemplate           string
+	system                        string
+	format                        string
+	cloudStructuredOutputFallback bool
+	keepAlive                     *time.Duration
+	pullModel                     bool
+	pullTimeout                   time.Duration
 }
 
 type Option func(*options)
@@ -42,6 +43,25 @@ func WithModel(model string) Option {
 func WithFormat(format string) Option {
 	return func(opts *options) {
 		opts.format = format
+	}
+}
+
+// WithCloudStructuredOutputFallback lets a llms.WithStructuredOutput call reach a
+// model served by Ollama Cloud (ollama.com or *.ollama.com, or a model tagged
+// "cloud" / "-cloud" on a local server), which ignores the format field. Instead
+// of failing with [llms.ErrStructuredOutputUnsupported], the call appends the JSON
+// Schema to the last user message (or adds a user message when there is none),
+// sends an empty format and reports an [llms.WarningSubstitute]. The final answer
+// is validated locally. A single Markdown code fence around the whole answer
+// (```json or ```) is removed first, so the content holds the bare JSON; while
+// streaming, the chunks still carry the fence. Any other answer that is not
+// exactly one JSON value matching the schema, such as prose around it, comes back
+// together with [llms.ErrStructuredOutputValidation]. A tool-call turn and a
+// truncated answer are not validated (see [llms.WithFailOnTruncation]). Local
+// models keep the native schema, and JSON mode alone is still dropped on the cloud.
+func WithCloudStructuredOutputFallback() Option {
+	return func(opts *options) {
+		opts.cloudStructuredOutputFallback = true
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -157,6 +158,16 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if err != nil {
 		return nil, err
 	}
+	emulated := o.emulatesStructuredOutput(model, opts)
+	if emulated {
+		req.Messages = injectStructuredOutputPrompt(req.Messages, opts.StructuredOutput.Schema, len(opts.Tools) > 0)
+	}
+
+	warn := &llms.Warnings{}
+	reportOllamaOptions(warn, model, opts)
+	if o.servesCloud(model) {
+		reportOllamaCloudFormat(warn, model, opts, o.options.format, emulated)
+	}
 
 	if err := o.processTools(req, opts.Tools); err != nil {
 		return nil, err
@@ -164,15 +175,31 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	resp, err := o.handleChat(ctx, req, opts)
 	if err != nil {
-		return nil, err
+		partial := o.createContentResponse(resp)
+		if len(partial.Choices) == 0 || isEmptyChoice(partial.Choices[0]) {
+			return nil, err
+		}
+		partial.Warnings = warn.List()
+		return partial, err
 	}
 
 	response = o.createContentResponse(resp)
+	response.Warnings = warn.List()
+	if emulated {
+		unwrapFencedAnswers(response)
+	}
+
+	if err = llms.CheckTruncation(response, opts); err != nil {
+		return response, err
+	}
 
 	// When a schema was requested, validate the final response against it; the
-	// response is returned alongside the typed error so usage is preserved.
-	if err = o.validateStructuredOutput(opts, response); err != nil {
-		return response, err
+	// response is returned alongside the typed error so usage is preserved. A
+	// request without messages only loads the model and is left alone, as before.
+	if len(req.Messages) > 0 {
+		if err = o.validateStructuredOutput(opts, response); err != nil {
+			return response, err
+		}
 	}
 
 	return response, nil
@@ -188,7 +215,7 @@ func (o *LLM) validateStructuredOutput(opts llms.CallOptions, resp *llms.Content
 	}
 	model := o.getModel(opts)
 	for i, choice := range resp.Choices {
-		if choice.StopReason != "" && choice.StopReason != "stop" {
+		if choice.StopReason != "" && choice.StopReason != "stop" && !loadedOnly(choice.StopReason) {
 			continue
 		}
 		// A tool-call turn is an intermediate step, not the final schema-typed
@@ -201,6 +228,23 @@ func (o *LLM) validateStructuredOutput(opts llms.CallOptions, resp *llms.Content
 		}
 	}
 	return nil
+}
+
+// loadedOnly reports a done reason that says the server loaded or unloaded the
+// model and generated nothing: no final answer, so a requested schema is not met.
+func loadedOnly(doneReason string) bool {
+	return doneReason == "load" || doneReason == "unload"
+}
+
+// unwrapFencedAnswers strips the Markdown code fence a model put around its whole
+// answer despite the prompt instruction. It runs only for an emulated schema,
+// where nothing on the server constrains the output.
+func unwrapFencedAnswers(resp *llms.ContentResponse) {
+	for _, choice := range resp.Choices {
+		if len(choice.ToolCalls) == 0 && (choice.StopReason == "" || choice.StopReason == "stop") {
+			choice.Content = structuredoutput.UnwrapFencedJSON(choice.Content)
+		}
+	}
 }
 
 // getModel determines which model to use based on options and defaults.
@@ -279,12 +323,55 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 		},
 	}
 
-	err := json.Unmarshal([]byte(toolCall.FunctionCall.Arguments), &tc.Function.Arguments)
+	fields, err := toolcall.DecodeFields(toolCall.FunctionCall.Arguments)
 	if err != nil {
 		return api.ToolCall{}, fmt.Errorf("error unmarshalling tool call arguments: %w", err)
 	}
+	tc.Function.Arguments = api.NewToolCallFunctionArguments()
+	for _, field := range fields {
+		tc.Function.Arguments.Set(field.Key, field.Value)
+	}
 
 	return tc, nil
+}
+
+func resolveThink(model string, opts llms.CallOptions) *api.ThinkValue {
+	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningDefault leaves the field unset
+	case llms.ReasoningOff:
+		return &api.ThinkValue{Value: false}
+	case llms.ReasoningOn:
+		if opts.Reasoning.DelegatesDepth() {
+			return nil
+		}
+		effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
+		if takesOnlyGPTOSSLevels(model) {
+			return &api.ThinkValue{Value: gptOSSLevel(effort)}
+		}
+		if level := (&api.ThinkValue{Value: string(effort)}); level.IsValid() {
+			return level
+		}
+		return &api.ThinkValue{Value: true}
+	}
+	return nil
+}
+
+func takesOnlyGPTOSSLevels(model string) bool {
+	name := strings.ToLower(model)
+	if idx := strings.LastIndex(name, "/"); idx != -1 {
+		name = name[idx+1:]
+	}
+	return strings.HasPrefix(name, "gpt-oss")
+}
+
+func gptOSSLevel(effort llms.ReasoningEffort) string {
+	switch effort {
+	case llms.ReasoningMinimal, llms.ReasoningLow:
+		return "low"
+	case llms.ReasoningMedium:
+		return "medium"
+	default:
+		return "high"
+	}
 }
 
 // createChatRequest creates a chat request with the given parameters.
@@ -300,6 +387,11 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		return nil, fmt.Errorf("error creating ollama options: %w", err)
 	}
 
+	if opts.Reasoning.IsDisabled() &&
+		reasoning.ResolveOff(model, reasoning.ProviderOllama) == reasoning.OffUnsupported {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
+	}
+
 	stream := opts.StreamingFunc != nil
 
 	req := &api.ChatRequest{
@@ -309,6 +401,7 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
+		Think:    resolveThink(model, opts),
 	}
 
 	keepAlive := o.options.keepAlive
@@ -322,19 +415,73 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 // resolveFormat picks the Ollama `format` field. A per-call structured-output
 // schema is sent as the native JSON Schema (Ollama constrains generation to it);
 // otherwise the legacy string mode is preserved unchanged — the client-level
-// format, or "json" for JSONMode.
+// format, or "json" for JSONMode. Ollama Cloud always gets the empty format: it
+// ignores the field, so a schema there is refused, unless
+// WithCloudStructuredOutputFallback moves it into the prompt instead.
 func (o *LLM) resolveFormat(opts llms.CallOptions) (json.RawMessage, error) {
 	if so := opts.StructuredOutput; so != nil {
 		if err := opts.ValidateStructuredOutput(); err != nil {
 			return nil, err
 		}
+		if o.emulatesStructuredOutput(o.getModel(opts), opts) {
+			return json.RawMessage(`""`), nil
+		}
+		if o.servesCloud(o.getModel(opts)) {
+			return nil, &llms.ErrStructuredOutputUnsupported{
+				Provider: providerOllama,
+				Model:    o.getModel(opts),
+				Reason:   ollamaCloudFormatReason,
+			}
+		}
 		return so.Schema, nil
+	}
+	if o.servesCloud(o.getModel(opts)) {
+		return json.RawMessage(`""`), nil
 	}
 	format := o.options.format
 	if opts.JSONMode {
 		format = "json"
 	}
 	return json.RawMessage(fmt.Sprintf(`"%s"`, format)), nil
+}
+
+const ollamaCloudFormatReason = "Ollama Cloud does not support structured outputs"
+
+// emulatesStructuredOutput reports whether a structured-output call travels as a
+// prompt instruction: the model runs on Ollama Cloud, which ignores the format
+// field, and the client opted in with WithCloudStructuredOutputFallback.
+func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool {
+	return opts.StructuredOutput != nil && o.options.cloudStructuredOutputFallback && o.servesCloud(model)
+}
+
+// injectStructuredOutputPrompt appends the schema instruction to the last user
+// message. Ollama Cloud does not answer a conversation without a user turn, so
+// when there is none the instruction becomes that turn.
+func injectStructuredOutputPrompt(messages []api.Message, schema json.RawMessage, withTools bool) []api.Message {
+	instruction := structuredoutput.PromptInstruction(schema, withTools)
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			if messages[i].Content != "" {
+				messages[i].Content += "\n\n"
+			}
+			messages[i].Content += instruction
+			return messages
+		}
+	}
+	return append(messages, api.Message{Role: "user", Content: instruction})
+}
+
+// servesCloud reports whether the model runs on Ollama Cloud: reached at
+// ollama.com, or a cloud model a local server offloads, tagged "-cloud".
+func (o *LLM) servesCloud(model string) bool {
+	if _, tag, ok := strings.Cut(strings.ToLower(model), ":"); ok && (tag == "cloud" || strings.HasSuffix(tag, "-cloud")) {
+		return true
+	}
+	if o.options.ollamaServerURL == nil {
+		return false
+	}
+	host := strings.ToLower(o.options.ollamaServerURL.Hostname())
+	return host == "ollama.com" || strings.HasSuffix(host, ".ollama.com")
 }
 
 // processTools adds tools to the chat request.
@@ -363,13 +510,16 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 
 	var (
 		resp              api.ChatResponse
-		streamedResponse  string
+		streamedResponse  strings.Builder
+		streamedThinking  strings.Builder
 		streamedToolCalls []api.ToolCall
+		finished          bool
 	)
 
 	splitter := reasoning.NewChunkContentSplitter()
 	fn := func(response api.ChatResponse) error {
 		textContent, reasoningContent := splitter.Split(response.Message.Content)
+		reasoningContent += response.Message.Thinking
 		if opts.StreamingFunc != nil {
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, opts.StreamingFunc, reasoning); err != nil {
@@ -393,17 +543,20 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		}
 
 		if response.Message.Content != "" {
-			streamedResponse += response.Message.Content
+			streamedResponse.WriteString(response.Message.Content)
 		}
+		streamedThinking.WriteString(response.Message.Thinking)
 		if len(response.Message.ToolCalls) > 0 {
 			streamedToolCalls = append(streamedToolCalls, response.Message.ToolCalls...)
 		}
 
+		finished = finished || response.Done
 		if req.Stream == nil || !*req.Stream || response.Done {
 			resp = response
 			resp.Message = api.Message{
 				Role:      "assistant",
-				Content:   streamedResponse,
+				Content:   streamedResponse.String(),
+				Thinking:  streamedThinking.String(),
 				ToolCalls: streamedToolCalls,
 			}
 		}
@@ -411,17 +564,34 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	}
 
 	err := o.client.Chat(ctx, req, fn)
+	// A stream the server closed without its final frame, as Ollama up to 0.34.0
+	// does when it stops a model repeating itself, still delivered an answer:
+	// keep the text that arrived instead of an empty one.
+	if err != nil || !finished {
+		resp.Message = api.Message{
+			Role:      "assistant",
+			Content:   streamedResponse.String(),
+			Thinking:  streamedThinking.String(),
+			ToolCalls: streamedToolCalls,
+		}
+	}
 	return resp, err
 }
 
 // createContentResponse creates a LangChain content response from Ollama response.
+func isEmptyChoice(choice *llms.ContentChoice) bool {
+	return choice.Content == "" && len(choice.ToolCalls) == 0 && choice.Reasoning.IsEmpty()
+}
+
 func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
-	reasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
+	contentReasoning.Content += resp.Message.Thinking
 	choices := []*llms.ContentChoice{
 		{
 			Content:    content,
-			Reasoning:  reasoning,
+			Reasoning:  contentReasoning,
 			StopReason: resp.DoneReason,
+			Truncated:  llms.IsTruncated(resp.DoneReason),
 			GenerationInfo: map[string]any{
 				"CompletionTokens": resp.EvalCount,
 				"PromptTokens":     resp.PromptEvalCount,

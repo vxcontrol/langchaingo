@@ -28,7 +28,10 @@ llm, err = ollama.New(
 ```
 
 Ollama supports schema-constrained output through its native `format` field, wired
-up by the provider-neutral `llms.WithStructuredOutput` option.
+up by the provider-neutral `llms.WithStructuredOutput` option. Ollama Cloud ignores
+that field, so a schema there is refused unless the client sets
+`ollama.WithCloudStructuredOutputFallback()`: the schema then travels in the prompt
+and the answer is validated locally.
 
 For a full walkthrough, see the [Ollama quickstart](/docs/getting-started/guide-ollama).
 
