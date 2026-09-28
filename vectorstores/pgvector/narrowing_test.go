@@ -323,3 +323,46 @@ func explainSimilaritySearch(
 	require.NoError(t, rows.Err())
 	return plan.String()
 }
+
+func TestSimilaritySearchReadsATableWrittenByPythonLangchainPostgres(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
+	collections, embeddings := "py_collection_"+suffix, "py_embedding_"+suffix
+
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
+		_ = conn.Close(context.Background())
+	})
+	_, err = conn.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector")
+	require.NoError(t, err)
+	_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE TABLE %[1]s (uuid uuid PRIMARY KEY, name varchar NOT NULL UNIQUE, cmetadata json);
+CREATE TABLE %[2]s (id varchar PRIMARY KEY, collection_id uuid REFERENCES %[1]s (uuid) ON DELETE CASCADE,
+	embedding vector, document varchar, cmetadata jsonb)`, collections, embeddings))
+	require.NoError(t, err)
+
+	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("py"), WithCollectionTableName(collections), WithEmbeddingTableName(embeddings))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+
+	var collectionID string
+	require.NoError(t, conn.QueryRow(ctx, "SELECT uuid::text FROM "+collections+" WHERE name = 'py'").Scan(&collectionID))
+	vector := fixedEmbedder{dims: 64}.vector("written by python")
+	literal := make([]string, len(vector))
+	for i, v := range vector {
+		literal[i] = strconv.FormatFloat(float64(v), 'f', -1, 32)
+	}
+	_, err = conn.Exec(ctx, "INSERT INTO "+embeddings+" (id, collection_id, embedding, document, cmetadata) "+
+		"VALUES ('doc-1', $1, $2::vector, 'written by python', '{}')", collectionID, "["+strings.Join(literal, ",")+"]")
+	require.NoError(t, err)
+
+	docs, err := store.SimilaritySearch(ctx, "written by python", 5)
+	require.NoError(t, err, "the Python schema keys rows by id, not uuid")
+	require.Len(t, docs, 1)
+	require.Equal(t, "written by python", docs[0].PageContent)
+}

@@ -341,7 +341,6 @@ func (s Store) SimilaritySearch(
 	// fails outright with "different vector dimensions" without it.
 	sql := fmt.Sprintf(`WITH filtered_embedding_dims AS MATERIALIZED (
 	SELECT
-		%[1]s.uuid,
 		%[1]s.document,
 		%[1]s.cmetadata,
 		%[1]s.embedding <=> $2 AS distance
@@ -359,7 +358,7 @@ FROM filtered_embedding_dims AS data
 WHERE %[4]s
 ORDER BY
 	data.distance,
-	data.uuid
+	data.document
 LIMIT $3`, s.embeddingTableName, s.collectionTableName, innerQuery, outerQuery)
 	rows, err := s.conn.Query(ctx, sql, args...)
 	if err != nil {
