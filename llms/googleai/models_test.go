@@ -46,3 +46,26 @@ func TestListModelsStripsTheResourcePrefix(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"gemini-3.8-flash", "gemma-4-31b-it"}, ids)
 }
+
+func TestListModelsOnVertexReturnsTheNamesCallersPass(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"models": []map[string]any{
+				{"name": "publishers/google/models/gemini-2.5-flash"},
+				{"name": "publishers/google/models/gemini-3.1-pro-preview"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	llm, err := New(t.Context(), WithCloudProject("p"), WithCloudLocation("europe-west4"),
+		WithHTTPClient(&http.Client{Transport: redirectTransport{host: srv.URL}}))
+	require.NoError(t, err)
+
+	ids, err := llm.ListModels(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gemini-2.5-flash", "gemini-3.1-pro-preview"}, ids)
+}

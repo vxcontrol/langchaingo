@@ -17,7 +17,11 @@ func (g *GoogleAI) ListModels(ctx context.Context) ([]string, error) {
 		if model == nil {
 			continue
 		}
-		if id := strings.TrimPrefix(model.Name, "models/"); id != "" {
+		id := model.Name
+		if idx := strings.LastIndex(id, "models/"); idx != -1 {
+			id = id[idx+len("models/"):]
+		}
+		if id != "" {
 			ids = append(ids, id)
 		}
 	}
