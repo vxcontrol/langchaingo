@@ -130,10 +130,7 @@ func (m MetadataIndex) ddl(table string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// IS DISTINCT FROM rather than <>, so a row without the key is indexed
-		// instead of being dropped by a NULL comparison.
-		predicates = append(predicates,
-			fmt.Sprintf("(cmetadata ->> '%s') IS DISTINCT FROM %s", key, literal))
+		predicates = append(predicates, fmt.Sprintf("(cmetadata ->> '%s') <> %s", key, literal))
 	}
 
 	return statement + " WHERE " + strings.Join(predicates, " AND "), nil
@@ -157,7 +154,7 @@ func quoteLiteral(value string) (string, error) {
 // advisory lock, so concurrent stores opening against one table serialise here
 // rather than racing. That also rules out CREATE INDEX CONCURRENTLY, which
 // cannot run inside a transaction: the first build takes a ShareLock and blocks
-// writers for its duration, and every start afterwards is a catalog lookup.
+// writers for its duration.
 func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) error {
 	if len(s.metadataIndexes) == 0 {
 		return nil
@@ -168,6 +165,7 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 	}
 
 	definitions := make(map[string]string, len(s.metadataIndexes))
+	built := false
 	for _, index := range s.metadataIndexes {
 		statement, err := index.ddl(s.embeddingTableName)
 		if err != nil {
@@ -180,17 +178,27 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
 		}
 		definitions[folded] = definition
+
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+			WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, folded).Scan(&exists); err != nil {
+			return fmt.Errorf("look up metadata index %s: %w", name, err)
+		}
+		if exists {
+			continue
+		}
 		if _, err := tx.Exec(ctx, statement); err != nil {
 			return fmt.Errorf("create metadata index %s: %w", name, err)
 		}
+		built = true
+	}
+	if !built {
+		return nil
 	}
 
 	// An expression index carries no statistics of its own until the table is
 	// analysed, and until then the planner costs it off the column's own
 	// distribution and can reject it outright.
-	if _, err := tx.Exec(ctx, "ANALYZE "+s.embeddingTableName); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := tx.Exec(ctx, "ANALYZE "+s.embeddingTableName)
+	return err
 }

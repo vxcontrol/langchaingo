@@ -366,3 +366,81 @@ CREATE TABLE %[2]s (id varchar PRIMARY KEY, collection_id uuid REFERENCES %[1]s 
 	require.Len(t, docs, 1)
 	require.Equal(t, "written by python", docs[0].PageContent)
 }
+
+func newIsolatedIndexedStore(t *testing.T, url string, indexes ...MetadataIndex) (Store, *pgx.Conn) {
+	t.Helper()
+
+	ctx := t.Context()
+	suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
+	embeddings, collections := "idx_embedding_"+suffix, "idx_collection_"+suffix
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
+		_ = conn.Close(context.Background())
+	})
+
+	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("c"), WithEmbeddingTableName(embeddings), WithCollectionTableName(collections),
+		WithMetadataIndexes(indexes...))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	return store, conn
+}
+
+func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	index := MetadataIndex{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}}
+	store, conn := newIsolatedIndexedStore(t, url, index)
+
+	predicates, args, err := filterPredicates("", map[string]any{"doc_type": "answer"}, 0)
+	require.NoError(t, err)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	_, err = tx.Exec(ctx, "SET LOCAL enable_seqscan = off")
+	require.NoError(t, err)
+	rows, err := tx.Query(ctx, "EXPLAIN SELECT 1 FROM "+store.embeddingTableName+" WHERE "+predicates[0], args...)
+	require.NoError(t, err)
+	var plan []string
+	for rows.Next() {
+		var line string
+		require.NoError(t, rows.Scan(&line))
+		plan = append(plan, line)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingTableName),
+		"an equality filter on another value must be able to use the exclude index")
+}
+
+func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	store, conn := newIsolatedIndexedStore(t, url,
+		MetadataIndex{Keys: []string{"doc_type"}},
+		MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}})
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	require.NoError(t, store.createMetadataIndexesIfNotExist(ctx, tx))
+
+	rows, err := tx.Query(ctx, "SELECT mode FROM pg_locks WHERE locktype = 'relation' "+
+		"AND relation = $1::regclass AND pid = pg_backend_pid()", store.embeddingTableName)
+	require.NoError(t, err)
+	var modes []string
+	for rows.Next() {
+		var mode string
+		require.NoError(t, rows.Scan(&mode))
+		modes = append(modes, mode)
+	}
+	require.NoError(t, rows.Err())
+	require.Empty(t, modes, "indexes that exist need neither a build lock nor fresh statistics, so writers wait for nothing")
+}
