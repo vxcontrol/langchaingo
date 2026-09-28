@@ -1,0 +1,1175 @@
+package openaiclient
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+)
+
+const (
+	// DefaultChatModel is the model the client substitutes when none is set. It is
+	// exported so capability decisions in the adapter key off the same model the
+	// request will actually run on.
+	DefaultChatModel = "gpt-5.4-mini"
+)
+
+var ErrContentExclusive = errors.New("only one of Content / MultiContent allowed in message")
+
+type StreamOptions struct {
+	// If set, an additional chunk will be streamed before the data: [DONE] message.
+	// The usage field on this chunk shows the token usage statistics for the entire request,
+	// and the choices field will always be an empty array.
+	// All other chunks will also include a usage field, but with a null value.
+	IncludeUsage bool `json:"include_usage,omitempty"`
+}
+
+// ReasoningOptions is enabling reasoning if the model supports it.
+// There should have to use one of the fields: effort or max_tokens.
+type ReasoningOptions struct {
+	Effort    llms.ReasoningEffort `json:"effort,omitempty"`
+	MaxTokens int                  `json:"max_tokens,omitempty"`
+}
+
+type ThinkingOptions struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
+	Display      string `json:"display,omitempty"`
+}
+
+// ChatRequest is a request to complete a chat completion..
+type ChatRequest struct {
+	Model               string           `json:"model"`
+	Messages            []*ChatMessage   `json:"messages"`
+	Temperature         *float64         `json:"temperature,omitempty"`
+	TopK                *int             `json:"top_k,omitempty"`
+	TopP                *float64         `json:"top_p,omitempty"`
+	MinP                *float64         `json:"min_p,omitempty"`
+	EnableThinking      *bool            `json:"enable_thinking,omitempty"`
+	ThinkingBudget      *int             `json:"thinking_budget,omitempty"`
+	Thinking            *ThinkingOptions `json:"thinking,omitempty"`
+	MaxTokens           *int             `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int             `json:"max_completion_tokens,omitempty"`
+	N                   *int             `json:"n,omitempty"`
+	StopWords           []string         `json:"stop,omitempty"`
+	Stream              bool             `json:"stream,omitempty"`
+	FrequencyPenalty    *float64         `json:"frequency_penalty,omitempty"`
+	PresencePenalty     *float64         `json:"presence_penalty,omitempty"`
+	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
+	Verbosity           *string          `json:"verbosity,omitempty"`
+	Seed                *int             `json:"seed,omitempty"`
+
+	// ReasoningEffort enables reasoning mode for models that support it.
+	// Set this field when you want to use the legacy reasoning configuration.
+	// Do not use ReasoningEffort together with Reasoning; only one should be set at a time.
+	ReasoningEffort *llms.ReasoningEffort `json:"reasoning_effort,omitempty"`
+
+	// Reasoning provides advanced reasoning configuration for models that support it.
+	// Use either the Effort or MaxTokens field to control reasoning behavior.
+	// This field should be set when using the modern reasoning format.
+	// Do not set both Reasoning and ReasoningEffort at the same time, as they are mutually exclusive.
+	Reasoning *ReasoningOptions `json:"reasoning,omitempty"`
+
+	// ResponseFormat is the format of the response. Its wire value is either the
+	// typed public builder or a verbatim WithStructuredOutput schema; both are held
+	// by the internal responseFormatField so the raw-schema path never rides on the
+	// public ResponseFormat type. Set it via SetResponseFormat / SetStructuredOutputSchema.
+	ResponseFormat *responseFormatField `json:"response_format,omitempty"`
+
+	// LogProbs indicates whether to return log probabilities of the output tokens or not.
+	// If true, returns the log probabilities of each output token returned in the content of message.
+	// This option is currently not available on the gpt-4-vision-preview model.
+	LogProbs bool `json:"logprobs,omitempty"`
+	// TopLogProbs is an integer between 0 and 5 specifying the number of most likely tokens to return at each
+	// token position, each with an associated log probability.
+	// logprobs must be set to true if this parameter is used.
+	TopLogProbs int `json:"top_logprobs,omitempty"`
+
+	Tools []Tool `json:"tools,omitempty"`
+	// This can be either a string or a ToolChoice object.
+	// If it is a string, it should be one of 'none', or 'auto', otherwise it should be a ToolChoice object specifying a specific tool to use.
+	ToolChoice any `json:"tool_choice,omitempty"`
+
+	// Options for streaming response. Only set this when you set stream: true.
+	StreamOptions *StreamOptions `json:"stream_options,omitempty"`
+
+	// StreamingFunc is a function to be called for each chunk of a streaming response.
+	// Return an error to stop streaming early.
+	StreamingFunc streaming.Callback `json:"-"`
+
+	// Deprecated: use Tools instead.
+	Functions []FunctionDefinition `json:"functions,omitempty"`
+	// Deprecated: use ToolChoice instead.
+	FunctionCallBehavior FunctionCallBehavior `json:"function_call,omitempty"`
+
+	// Metadata allows you to specify additional information that will be passed to the model.
+	Metadata map[string]any `json:"metadata,omitempty"`
+
+	// WebSearchOptions configures web search behavior for search-enabled models
+	// like gpt-4o-search-preview and gpt-4o-mini-search-preview.
+	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
+
+	// ExtraBody allows passing additional fields that will be merged into the request body.
+	ExtraBody map[string]any `json:"-"`
+}
+
+// SetResponseFormat sets the response_format from the typed public builder (or the
+// json_object shortcut). Passing nil clears it.
+func (r *ChatRequest) SetResponseFormat(rf *ResponseFormat) {
+	if rf == nil {
+		r.ResponseFormat = nil
+		return
+	}
+	r.ResponseFormat = &responseFormatField{typed: rf}
+}
+
+// ToolType is the type of a tool.
+type ToolType string
+
+const (
+	ToolTypeFunction ToolType = "function"
+)
+
+// WebSearchOptions configures web search behavior for OpenAI models.
+// This is used with search-enabled models like gpt-4o-search-preview.
+type WebSearchOptions struct {
+	// SearchContextSize controls how much context is gathered from web search.
+	// Valid values: "low", "medium", "high". Higher values provide more context
+	// but increase latency and cost.
+	SearchContextSize string `json:"search_context_size,omitempty"`
+
+	// UserLocation provides approximate user location for localized search results.
+	UserLocation *UserLocation `json:"user_location,omitempty"`
+}
+
+// UserLocation represents the user's approximate location for web search.
+type UserLocation struct {
+	// Type must be "approximate" for user-provided location.
+	Type string `json:"type"`
+
+	// Approximate contains the approximate location details.
+	Approximate *ApproximateLocation `json:"approximate,omitempty"`
+}
+
+// ApproximateLocation contains approximate location information.
+type ApproximateLocation struct {
+	// Country is the two-letter ISO country code (e.g., "US", "GB").
+	Country string `json:"country,omitempty"`
+
+	// City is the city name (e.g., "San Francisco", "London").
+	City string `json:"city,omitempty"`
+
+	// Region is the region or state (e.g., "California", "London").
+	Region string `json:"region,omitempty"`
+}
+
+// Tool is a tool to use in a chat request.
+type Tool struct {
+	Type     ToolType           `json:"type"`
+	Function FunctionDefinition `json:"function,omitempty"`
+}
+
+// ToolChoice is a choice of a tool to use.
+type ToolChoice struct {
+	Type     ToolType     `json:"type"`
+	Function ToolFunction `json:"function,omitempty"`
+}
+
+// ToolFunction is a function to be called in a tool choice.
+type ToolFunction struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+// ToolCall is a call to a tool.
+type ToolCall struct {
+	ID       string       `json:"id,omitempty"`
+	Type     ToolType     `json:"type"`
+	Function ToolFunction `json:"function,omitempty"`
+}
+
+type ResponseFormatJSONSchemaProperty struct {
+	Type                 string                                       `json:"type"`
+	Description          string                                       `json:"description,omitempty"`
+	Enum                 []interface{}                                `json:"enum,omitempty"`
+	Items                *ResponseFormatJSONSchemaProperty            `json:"items,omitempty"`
+	Properties           map[string]*ResponseFormatJSONSchemaProperty `json:"properties,omitempty"`
+	AdditionalProperties bool                                         `json:"additionalProperties"`
+	Required             []string                                     `json:"required,omitempty"`
+	Ref                  string                                       `json:"$ref,omitempty"`
+}
+
+// ResponseFormatJSONSchema is the provider-specific typed JSON Schema builder. Its
+// shape is unchanged (exported via the openai package alias) so it stays source
+// compatible: same fields, still comparable.
+type ResponseFormatJSONSchema struct {
+	Name   string                            `json:"name"`
+	Strict bool                              `json:"strict"`
+	Schema *ResponseFormatJSONSchemaProperty `json:"schema"`
+}
+
+// ResponseFormat is the format of the response. It carries only the exported
+// public shape (Type, JSONSchema) so the type stays comparable and, as a public
+// alias, keeps its layout and default marshaling — the verbatim-schema path for
+// the general WithStructuredOutput flow lives on ChatRequest instead (see
+// ChatRequest.rawResponseFormat), never on this public type.
+type ResponseFormat struct {
+	Type       string                    `json:"type"`
+	JSONSchema *ResponseFormatJSONSchema `json:"json_schema,omitempty"`
+}
+
+// rawResponseFormatJSONSchema carries a verbatim JSON Schema for the general
+// WithStructuredOutput path. It is internal to ChatRequest serialization and is
+// never exposed through the public openai aliases, so an arbitrary JSON Schema
+// construct reaches the wire without touching the public types.
+type rawResponseFormatJSONSchema struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Strict      bool            `json:"strict"`
+	Schema      json.RawMessage `json:"schema"`
+}
+
+// rawResponseFormatEnvelope is the response_format object emitted for a raw schema.
+type rawResponseFormatEnvelope struct {
+	Type       string                       `json:"type"`
+	JSONSchema *rawResponseFormatJSONSchema `json:"json_schema,omitempty"`
+}
+
+// responseFormatField is ChatRequest's internal response_format value. It carries
+// either the typed public builder or a verbatim raw schema and serializes to the
+// same wire shape either would, so raw-schema support stays off the public
+// ResponseFormat type without changing the request wire format or field order.
+type responseFormatField struct {
+	typed *ResponseFormat
+	raw   *rawResponseFormatJSONSchema
+}
+
+func (f responseFormatField) MarshalJSON() ([]byte, error) {
+	if f.raw != nil {
+		return json.Marshal(rawResponseFormatEnvelope{Type: "json_schema", JSONSchema: f.raw})
+	}
+	return json.Marshal(f.typed)
+}
+
+// FormatType reports the response_format "type" this field serializes to
+// ("json_schema" for a raw schema, otherwise the typed builder's Type).
+func (f *responseFormatField) FormatType() string {
+	if f.raw != nil {
+		return "json_schema"
+	}
+	if f.typed != nil {
+		return f.typed.Type
+	}
+	return ""
+}
+
+// SetStructuredOutputSchema records a verbatim JSON Schema to emit as a strict
+// json_schema response_format for the general llms.WithStructuredOutput path,
+// keeping the raw schema off the public ResponseFormat type.
+func (r *ChatRequest) SetStructuredOutputSchema(name, description string, schema json.RawMessage) {
+	r.ResponseFormat = &responseFormatField{
+		raw: &rawResponseFormatJSONSchema{
+			Name:        name,
+			Description: description,
+			Strict:      true,
+			Schema:      schema,
+		},
+	}
+}
+
+// ChatMessage is a message in a chat request.
+type ChatMessage struct { //nolint:musttag
+	// The role of the author of this message. One of system, user, assistant, function, or tool.
+	Role string
+
+	// The content of the message.
+	// This field is mutually exclusive with MultiContent.
+	Content string
+
+	// MultiContent is a list of content parts to use in the message.
+	MultiContent []llms.ContentPart
+
+	// The name of the author of this message. May contain a-z, A-Z, 0-9, and underscores,
+	// with a maximum length of 64 characters.
+	Name string
+
+	// ToolCalls is a list of tools that were called in the message.
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+
+	// FunctionCall represents a function call that was made in the message.
+	// Deprecated: use ToolCalls instead.
+	FunctionCall *FunctionCall
+
+	// ToolCallID is the ID of the tool call this message is for.
+	// Only present in tool messages.
+	ToolCallID string `json:"tool_call_id,omitempty"`
+
+	// This field is primarily used by reasoning-capable models. It contains
+	// the assistant's step-by-step reasoning or thought process, provided before the final answer.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+
+	// This field serves as a fallback for ReasoningContent. If ReasoningContent is empty,
+	// Reasoning may contain the assistant's reasoning or explanation.
+	Reasoning string `json:"reasoning,omitempty"`
+
+	// Refusal is set on a response message when the model declines to answer
+	// (Structured Outputs). It must not be validated as final JSON.
+	Refusal string `json:"refusal,omitempty"`
+
+	// Thinking goes out as a thinking chunk at the head of a content list
+	// instead of reasoning_content. Requests only.
+	Thinking string
+
+	// KeepsEmptyReasoning sends reasoning_content even when it is empty, for a
+	// vendor that refuses an assistant turn without the field. Requests only.
+	KeepsEmptyReasoning bool
+}
+
+type contentChunk struct {
+	Type     string         `json:"type"`
+	Text     string         `json:"text,omitempty"`
+	Thinking []contentChunk `json:"thinking,omitempty"`
+}
+
+func decodeContent(raw json.RawMessage) (text, thinking string, err error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	if raw[0] != '[' {
+		err = json.Unmarshal(raw, &text)
+		return text, "", err
+	}
+	var chunks []contentChunk
+	if err := json.Unmarshal(raw, &chunks); err != nil {
+		return "", "", err
+	}
+	var answer, thought strings.Builder
+	for _, chunk := range chunks {
+		switch chunk.Type {
+		case "text":
+			answer.WriteString(chunk.Text)
+		case "thinking":
+			for _, inner := range chunk.Thinking {
+				thought.WriteString(inner.Text)
+			}
+		}
+	}
+	return answer.String(), thought.String(), nil
+}
+
+func (m ChatMessage) contentAfterThinking() []any {
+	content := []any{contentChunk{Type: "thinking", Thinking: []contentChunk{{Type: "text", Text: m.Thinking}}}}
+	for _, part := range m.MultiContent {
+		var chunk any = part
+		if text, isText := part.(llms.TextContent); isText {
+			chunk = contentChunk{Type: "text", Text: text.Text}
+		}
+		content = append(content, chunk)
+	}
+	return content
+}
+
+func (m ChatMessage) MarshalJSON() ([]byte, error) {
+	if m.Content != "" && m.MultiContent != nil {
+		return nil, ErrContentExclusive
+	}
+	if m.Thinking != "" {
+		return json.Marshal(struct {
+			Role         string        `json:"role"`
+			Content      []any         `json:"content"`
+			Name         string        `json:"name,omitempty"`
+			ToolCalls    []ToolCall    `json:"tool_calls,omitempty"`
+			FunctionCall *FunctionCall `json:"function_call,omitempty"`
+			ToolCallID   string        `json:"tool_call_id,omitempty"`
+		}{m.Role, m.contentAfterThinking(), m.Name, m.ToolCalls, m.FunctionCall, m.ToolCallID})
+	}
+	if text, ok := isSingleTextContent(m.MultiContent); ok {
+		m.Content = text
+		m.MultiContent = nil
+	}
+	if len(m.MultiContent) > 0 {
+		msg := struct {
+			Role         string             `json:"role"`
+			Content      string             `json:"-"`
+			MultiContent []llms.ContentPart `json:"content,omitempty"`
+			Name         string             `json:"name,omitempty"`
+			ToolCalls    []ToolCall         `json:"tool_calls,omitempty"`
+
+			// Deprecated: use ToolCalls instead.
+			FunctionCall *FunctionCall `json:"function_call,omitempty"`
+
+			// ToolCallID is the ID of the tool call this message is for.
+			// Only present in tool messages.
+			ToolCallID string `json:"tool_call_id,omitempty"`
+
+			// Reasoning content result fields
+			ReasoningContent string `json:"reasoning_content,omitempty"`
+			Reasoning        string `json:"reasoning,omitempty"`
+
+			// Refusal is response-only; never sent on a request.
+			Refusal string `json:"-"`
+
+			Thinking string `json:"-"`
+
+			KeepsEmptyReasoning bool `json:"-"`
+		}(m)
+		if msg.ReasoningContent == "" && msg.Reasoning != "" {
+			msg.ReasoningContent = msg.Reasoning
+		}
+		return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
+	}
+	msg := struct {
+		Role         string             `json:"role"`
+		Content      string             `json:"content"`
+		MultiContent []llms.ContentPart `json:"-"`
+		Name         string             `json:"name,omitempty"`
+		ToolCalls    []ToolCall         `json:"tool_calls,omitempty"`
+		// Deprecated: use ToolCalls instead.
+		FunctionCall *FunctionCall `json:"function_call,omitempty"`
+
+		// ToolCallID is the ID of the tool call this message is for.
+		// Only present in tool messages.
+		ToolCallID string `json:"tool_call_id,omitempty"`
+
+		// Reasoning content result fields
+		ReasoningContent string `json:"reasoning_content,omitempty"`
+		Reasoning        string `json:"reasoning,omitempty"`
+
+		// Refusal is response-only; never sent on a request.
+		Refusal string `json:"-"`
+
+		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
+	}(m)
+	if msg.ReasoningContent == "" && msg.Reasoning != "" {
+		msg.ReasoningContent = msg.Reasoning
+	}
+	return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
+}
+
+// marshalRequestMessage marshals an outgoing message and, when emptyReasoning is
+// set, ends it with the empty reasoning_content that omitempty drops. The object
+// always holds role, so the added field follows a comma.
+func marshalRequestMessage(msg any, emptyReasoning bool) ([]byte, error) {
+	out, err := json.Marshal(msg)
+	if err != nil || !emptyReasoning {
+		return out, err
+	}
+	return append(out[:len(out)-1], `,"reasoning_content":""}`...), nil
+}
+
+func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
+	if len(parts) != 1 {
+		return "", false
+	}
+	tc, isText := parts[0].(llms.TextContent)
+	return tc.Text, isText
+}
+
+func (m *ChatMessage) UnmarshalJSON(data []byte) error {
+	type fields struct {
+		Role         string             `json:"role"`
+		Content      string             `json:"-"`
+		MultiContent []llms.ContentPart `json:"-"` // not expected in response
+		Name         string             `json:"name,omitempty"`
+		ToolCalls    []ToolCall         `json:"tool_calls,omitempty"`
+		// Deprecated: use ToolCalls instead.
+		FunctionCall *FunctionCall `json:"function_call,omitempty"`
+
+		// ToolCallID is the ID of the tool call this message is for.
+		// Only present in tool messages.
+		ToolCallID string `json:"tool_call_id,omitempty"`
+
+		// Reasoning content result fields
+		ReasoningContent string `json:"reasoning_content,omitempty"`
+		Reasoning        string `json:"reasoning,omitempty"`
+
+		// Refusal is populated when the model declines under Structured Outputs.
+		Refusal string `json:"refusal,omitempty"`
+
+		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
+	}
+	var msg struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(msg.Content)
+	if err != nil {
+		return err
+	}
+	*m = ChatMessage(msg.fields)
+	m.Content = text
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = m.Reasoning
+	}
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = thinking
+	}
+	return nil
+}
+
+type TopLogProbs struct {
+	Token   string  `json:"token"`
+	LogProb float64 `json:"logprob"`
+	Bytes   []byte  `json:"bytes,omitempty"`
+}
+
+// LogProb represents the probability information for a token.
+type LogProb struct {
+	Token   string  `json:"token"`
+	LogProb float64 `json:"logprob"`
+	Bytes   []byte  `json:"bytes,omitempty"` // Omitting the field if it is null
+	// TopLogProbs is a list of the most likely tokens and their log probability, at this token position.
+	// In rare cases, there may be fewer than the number of requested top_logprobs returned.
+	TopLogProbs []TopLogProbs `json:"top_logprobs"`
+}
+
+// LogProbs is the top-level structure containing the log probability information.
+type LogProbs struct {
+	// Content is a list of message content tokens with log probability information.
+	Content []LogProb `json:"content"`
+}
+
+type FinishReason string
+
+const (
+	FinishReasonStop          FinishReason = "stop"
+	FinishReasonLength        FinishReason = "length"
+	FinishReasonFunctionCall  FinishReason = "function_call"
+	FinishReasonToolCalls     FinishReason = "tool_calls"
+	FinishReasonContentFilter FinishReason = "content_filter"
+	FinishReasonNull          FinishReason = "null"
+)
+
+func (r FinishReason) MarshalJSON() ([]byte, error) {
+	if r == FinishReasonNull || r == "" {
+		return []byte("null"), nil
+	}
+	return []byte(`"` + string(r) + `"`), nil // best effort to not break future API changes
+}
+
+// ChatCompletionChoice is a choice in a chat response.
+type ChatCompletionChoice struct {
+	Index        int          `json:"index"`
+	Message      ChatMessage  `json:"message"`
+	FinishReason FinishReason `json:"finish_reason"`
+	LogProbs     *LogProbs    `json:"logprobs,omitempty"`
+}
+
+// ChatUsage is the usage of a chat completion request.
+type ChatUsage struct {
+	PromptTokens        int `json:"prompt_tokens"`
+	CompletionTokens    int `json:"completion_tokens"`
+	TotalTokens         int `json:"total_tokens"`
+	PromptTokensDetails struct {
+		CachedTokens     int `json:"cached_tokens"`
+		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
+		AudioTokens      int `json:"audio_tokens,omitempty"`
+	} `json:"prompt_tokens_details"`
+	CompletionTokensDetails struct {
+		ReasoningTokens          int `json:"reasoning_tokens"`
+		AudioTokens              int `json:"audio_tokens"`
+		AcceptedPredictionTokens int `json:"accepted_prediction_tokens"`
+		RejectedPredictionTokens int `json:"rejected_prediction_tokens"`
+	} `json:"completion_tokens_details"`
+	CostDetails struct {
+		UpstreamInferencePromptCost      *float64 `json:"upstream_inference_prompt_cost,omitempty"`
+		UpstreamInferenceCompletionsCost *float64 `json:"upstream_inference_completions_cost,omitempty"`
+	} `json:"cost_details,omitempty"`
+}
+
+// ChatCompletionResponse is a response to a chat request.
+type ChatCompletionResponse struct {
+	ID                string                  `json:"id,omitempty"`
+	Created           int64                   `json:"created,omitempty"`
+	Choices           []*ChatCompletionChoice `json:"choices,omitempty"`
+	Model             string                  `json:"model,omitempty"`
+	Object            string                  `json:"object,omitempty"`
+	Usage             ChatUsage               `json:"usage,omitempty"`
+	SystemFingerprint string                  `json:"system_fingerprint"`
+}
+
+type Usage struct {
+	PromptTokens        int `json:"prompt_tokens"`
+	CompletionTokens    int `json:"completion_tokens"`
+	TotalTokens         int `json:"total_tokens"`
+	PromptTokensDetails struct {
+		CachedTokens     int `json:"cached_tokens"`
+		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
+		AudioTokens      int `json:"audio_tokens"`
+	} `json:"prompt_tokens_details"`
+	CompletionTokensDetails struct {
+		ReasoningTokens          int `json:"reasoning_tokens"`
+		AudioTokens              int `json:"audio_tokens"`
+		AcceptedPredictionTokens int `json:"accepted_prediction_tokens"`
+		RejectedPredictionTokens int `json:"rejected_prediction_tokens"`
+	} `json:"completion_tokens_details"`
+	CostDetails struct {
+		UpstreamInferencePromptCost      *float64 `json:"upstream_inference_prompt_cost,omitempty"`
+		UpstreamInferenceCompletionsCost *float64 `json:"upstream_inference_completions_cost,omitempty"`
+	} `json:"cost_details,omitempty"`
+}
+
+// StreamedToolCall is a call to a tool.
+type StreamedToolCall struct {
+	Index    *int         `json:"index,omitempty"`
+	ID       string       `json:"id,omitempty"`
+	Type     ToolType     `json:"type"`
+	Function ToolFunction `json:"function,omitempty"`
+}
+
+type StreamedChatResponseChunkDelta struct {
+	Role         string        `json:"role,omitempty"`
+	Content      string        `json:"content,omitempty"`
+	FunctionCall *FunctionCall `json:"function_call,omitempty"`
+	// ToolCalls is a list of tools that were called in the message.
+	ToolCalls []*StreamedToolCall `json:"tool_calls,omitempty"`
+	// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
+	// Fallback field for reasoning content (it depends on the model and the provider)
+	Reasoning string `json:"reasoning,omitempty"`
+	// Refusal streams in when the model declines under Structured Outputs; it must
+	// be accumulated and surfaced separately from Content, never validated as JSON.
+	Refusal string `json:"refusal,omitempty"`
+}
+
+func (d *StreamedChatResponseChunkDelta) UnmarshalJSON(data []byte) error {
+	type fields StreamedChatResponseChunkDelta
+	var delta struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &delta); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(delta.Content)
+	if err != nil {
+		return err
+	}
+	*d = StreamedChatResponseChunkDelta(delta.fields)
+	d.Content = text
+	if d.ReasoningContent == "" {
+		d.ReasoningContent = thinking
+	}
+	return nil
+}
+
+// StreamedChatResponseChunk is a chunk from the stream.
+type StreamedChatResponseChunk struct {
+	Index        int                             `json:"index"`
+	FinishReason FinishReason                    `json:"finish_reason,omitempty"`
+	Delta        *StreamedChatResponseChunkDelta `json:"delta,omitempty"`
+}
+
+// StreamedChatResponsePayload is a SSE paylaod from the stream.
+type StreamedChatResponsePayload struct {
+	ID                string                      `json:"id,omitempty"`
+	Created           float64                     `json:"created,omitempty"`
+	Model             string                      `json:"model,omitempty"`
+	Object            string                      `json:"object,omitempty"`
+	Choices           []StreamedChatResponseChunk `json:"choices,omitempty"`
+	SystemFingerprint string                      `json:"system_fingerprint"`
+	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
+	// When present, it contains a null value except for the last chunk which contains the token usage statistics
+	// for the entire request.
+	Usage *Usage `json:"usage,omitempty"`
+	Error error  `json:"-"` // use for error handling only
+}
+
+// FunctionDefinition is a definition of a function that can be called by the model.
+type FunctionDefinition struct {
+	// Name is the name of the function.
+	Name string `json:"name"`
+	// Description is a description of the function.
+	Description string `json:"description,omitempty"`
+	// Parameters is a list of parameters for the function.
+	Parameters any `json:"parameters"`
+	// Strict is a flag to enable structured output mode.
+	Strict bool `json:"strict,omitempty"`
+}
+
+// FunctionCallBehavior is the behavior to use when calling functions.
+type FunctionCallBehavior string
+
+const (
+	// FunctionCallBehaviorUnspecified is the empty string.
+	FunctionCallBehaviorUnspecified FunctionCallBehavior = ""
+	// FunctionCallBehaviorNone will not call any functions.
+	FunctionCallBehaviorNone FunctionCallBehavior = "none"
+	// FunctionCallBehaviorAuto will call functions automatically.
+	FunctionCallBehaviorAuto FunctionCallBehavior = "auto"
+)
+
+// FunctionCall is a call to a function.
+type FunctionCall struct {
+	// Name is the name of the function to call.
+	Name string `json:"name"`
+	// Arguments is the set of arguments to pass to the function.
+	Arguments string `json:"arguments"`
+}
+
+func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCompletionResponse, error) {
+	if payload.StreamingFunc != nil {
+		payload.Stream = true
+		if payload.StreamOptions == nil {
+			payload.StreamOptions = &StreamOptions{IncludeUsage: true}
+		}
+	}
+
+	// Filter out internal metadata that shouldn't be sent to the API
+	originalMetadata := payload.Metadata
+	if payload.Metadata != nil {
+		filteredMetadata := make(map[string]any)
+		for k, v := range payload.Metadata {
+			// Skip internal openai: prefixed metadata fields
+			if !strings.HasPrefix(k, "openai:") {
+				filteredMetadata[k] = v
+			}
+		}
+		if len(filteredMetadata) > 0 {
+			payload.Metadata = filteredMetadata
+		} else {
+			payload.Metadata = nil
+		}
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+
+	// Restore original metadata
+	payload.Metadata = originalMetadata
+
+	if err != nil {
+		return nil, err
+	}
+
+	if payloadBytes, err = mergeExtraBody(payloadBytes, payload.ExtraBody); err != nil {
+		return nil, err
+	}
+
+	// Build request
+	body := bytes.NewReader(payloadBytes)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.buildURL("/chat/completions", payload.Model), body)
+	if err != nil {
+		return nil, err
+	}
+
+	c.setHeaders(req)
+
+	// Send request
+	r, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, sanitizeHTTPError(err)
+	}
+	defer r.Body.Close()
+
+	if r.StatusCode != http.StatusOK {
+		return nil, statusError(r.StatusCode, r.Body)
+	}
+	if payload.Stream {
+		return parseStreamingChatResponse(ctx, r, payload)
+	}
+
+	return parseChatResponse(r.Body)
+}
+
+func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
+	if len(extraBody) == 0 {
+		return payload, nil
+	}
+	extra, err := json.Marshal(extraBody)
+	if err != nil {
+		return nil, err
+	}
+	return mergeJSON(payload, extra)
+}
+
+func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
+	baseFields, baseIsObject := jsonObject(base)
+	extraFields, extraIsObject := jsonObject(extra)
+	if !baseIsObject || !extraIsObject || selectsAnotherVariant(baseFields, extraFields) {
+		return extra, nil
+	}
+	for key, value := range extraFields {
+		merged, err := mergeJSON(baseFields[key], value)
+		if err != nil {
+			return nil, err
+		}
+		baseFields[key] = merged
+	}
+	return json.Marshal(baseFields)
+}
+
+func selectsAnotherVariant(base, extra map[string]json.RawMessage) bool {
+	baseType, baseTyped := base["type"]
+	extraType, extraTyped := extra["type"]
+	return baseTyped && extraTyped && !bytes.Equal(baseType, extraType)
+}
+
+func jsonObject(value json.RawMessage) (map[string]json.RawMessage, bool) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(value, &fields); err != nil || fields == nil {
+		return nil, false
+	}
+	return fields, true
+}
+
+func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
+	var response ChatCompletionResponse
+	if err := json.NewDecoder(body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("error decoding response: %w", err)
+	}
+
+	// Try to restore reasoning content (some model providers don't return reasoning content)
+	for _, choice := range response.Choices {
+		if choice.Message.ReasoningContent == "" {
+			choice.Message.ReasoningContent = choice.Message.Reasoning
+		}
+		if choice.Message.ReasoningContent == "" {
+			choice.Message.ReasoningContent, choice.Message.Content = reasoning.SplitContent(choice.Message.Content)
+		}
+	}
+
+	return &response, nil
+}
+
+const (
+	initialStreamBuffer = 64 * 1024
+	maxStreamLine       = 8 * 1024 * 1024
+)
+
+func parseStreamingChatResponse(
+	ctx context.Context,
+	r *http.Response,
+	payload *ChatRequest,
+) (*ChatCompletionResponse, error) {
+	// Parse response
+	scanner := bufio.NewScanner(r.Body)
+	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
+	responseChan := make(chan StreamedChatResponsePayload)
+
+	_, stopProducer := context.WithCancel(ctx)
+	defer stopProducer()
+
+	go func() {
+		defer close(responseChan)
+		for scanner.Scan() {
+			// Check if context is cancelled
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+
+			// Skip SSE comment lines (any line starting with ':')
+			// According to SSE spec: https://www.w3.org/TR/eventsource/
+			// "Lines that start with a U+003A COLON character (:) are comments"
+			if strings.HasPrefix(line, ":") {
+				continue
+			}
+
+			// Only process lines that start with "data:"
+			if !strings.HasPrefix(line, "data:") {
+				// Skip any other non-data lines (like event:, id:, retry:, etc.)
+				continue
+			}
+
+			data := strings.TrimPrefix(line, "data:") // here use `data:` instead of `data: ` for compatibility
+			data = strings.TrimSpace(data)
+			if data == "[DONE]" {
+				return
+			}
+			if !looksLikeJSONObject(data) {
+				continue
+			}
+
+			var streamPayload StreamedChatResponsePayload
+			err := json.NewDecoder(bytes.NewReader([]byte(data))).Decode(&streamPayload)
+			if err != nil {
+				// Skip non-JSON data values that some providers might send
+				// This could happen if the data field contains non-JSON content
+				continue
+			}
+
+			// Non-blocking send with context check
+			select {
+			case <-ctx.Done():
+				return
+			case responseChan <- streamPayload:
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			select {
+			case <-ctx.Done():
+				return
+			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("error reading streaming response: %w", err)}:
+			}
+			return
+		}
+	}()
+
+	// Combine response
+	return combineStreamingChatResponse(ctx, payload, responseChan)
+}
+
+// looksLikeJSONObject must not parse the chunk: whether it really parses is
+// answered by the decode that follows.
+func looksLikeJSONObject(data string) bool {
+	data = strings.Trim(data, " \n\r\t")
+	return strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}")
+}
+
+//nolint:gocognit,cyclop
+func combineStreamingChatResponse(
+	ctx context.Context,
+	payload *ChatRequest,
+	responseChan chan StreamedChatResponsePayload,
+) (*ChatCompletionResponse, error) {
+	defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
+
+	var (
+		response          ChatCompletionResponse
+		splitters         []reasoning.ChunkContentSplitter
+		accums            []*streamedText
+		toolCallNameCache = make(map[string]string) // Cache tool call names by ID for streaming
+	)
+
+	var streamErr error
+
+DoStream:
+	for streamResponse := range responseChan {
+		if streamResponse.Error != nil {
+			streamErr = streamResponse.Error
+			break DoStream
+		}
+
+		updateChatUsage(&response.Usage, streamResponse.Usage)
+
+		if len(streamResponse.Choices) == 0 {
+			continue
+		}
+
+		for _, choice := range streamResponse.Choices {
+			// Grow response.Choices slice to the length of the streamResponse.Choices
+			for idx := range choice.Index + 1 {
+				if len(response.Choices) <= idx {
+					response.Choices = append(response.Choices, &ChatCompletionChoice{})
+					splitters = append(splitters, reasoning.NewChunkContentSplitter())
+					accums = append(accums, &streamedText{})
+				}
+			}
+			// Get current updatable values
+			splitter := splitters[choice.Index]
+			responseChoice := response.Choices[choice.Index]
+
+			if choice.FinishReason != "" { // Update to last non-empty finish reason
+				responseChoice.FinishReason = choice.FinishReason
+			}
+			if choice.Delta == nil { // Unexpected case, skip
+				continue
+			}
+
+			content, reasoningContent := getChunkContent(choice, splitter)
+			accum := accums[choice.Index]
+			accum.content.WriteString(content)
+			accum.reasoningContent.WriteString(reasoningContent)
+			accum.refusal.WriteString(choice.Delta.Refusal)
+
+			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
+			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
+				streamErr = fmt.Errorf("streaming reasoning func returned an error: %w", err)
+				break DoStream
+			}
+			if err := streaming.CallWithText(ctx, payload.StreamingFunc, content); err != nil {
+				streamErr = fmt.Errorf("streaming text func returned an error: %w", err)
+				break DoStream
+			}
+
+			if choice.Delta.FunctionCall != nil {
+				functionCall := choice.Delta.FunctionCall
+				updateFunctionCall(&responseChoice.Message, functionCall)
+
+				toolCall := streaming.NewToolCall("", functionCall.Name, functionCall.Arguments)
+				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
+				}
+			}
+
+			for _, toolCall := range choice.Delta.ToolCalls {
+				updateToolCall(&responseChoice.Message, toolCall, toolCallNameCache)
+
+				toolCall := streaming.NewToolCall(toolCall.ID, toolCall.Function.Name, toolCall.Function.Arguments)
+				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
+				}
+			}
+		}
+	}
+
+	for idx, accum := range accums {
+		accum.flushInto(&response.Choices[idx].Message)
+	}
+
+	removeEmptyToolCalls(&response)
+
+	return &response, streamErr
+}
+
+// streamedText collects one choice's text across deltas.
+type streamedText struct {
+	content          strings.Builder
+	reasoningContent strings.Builder
+	refusal          strings.Builder
+}
+
+func (t *streamedText) flushInto(msg *ChatMessage) {
+	msg.Content = t.content.String()
+	msg.ReasoningContent = t.reasoningContent.String()
+	msg.Refusal = t.refusal.String()
+}
+
+func getChunkContent(choice StreamedChatResponseChunk, splitter reasoning.ChunkContentSplitter) (string, string) {
+	content := choice.Delta.Content
+	reasoningContent := choice.Delta.ReasoningContent
+
+	// Fallback to legacy reasoning field if reasoningContent is empty
+	if reasoningContent == "" {
+		reasoningContent = choice.Delta.Reasoning
+	}
+
+	// If reasoning content is received separately from the main content, just return it
+	if reasoningContent != "" {
+		return content, reasoningContent
+	}
+
+	// Try to split the content into content and reasoning content
+	return splitter.Split(content)
+}
+
+func updateChatUsage(chatUsage *ChatUsage, streamUsage *Usage) {
+	if streamUsage == nil {
+		return
+	}
+
+	chatUsage.CompletionTokens = streamUsage.CompletionTokens
+	chatUsage.PromptTokens = streamUsage.PromptTokens
+	chatUsage.TotalTokens = streamUsage.TotalTokens
+	chatUsage.PromptTokensDetails.AudioTokens = streamUsage.PromptTokensDetails.AudioTokens
+	chatUsage.PromptTokensDetails.CachedTokens = streamUsage.PromptTokensDetails.CachedTokens
+	chatUsage.PromptTokensDetails.CacheWriteTokens = streamUsage.PromptTokensDetails.CacheWriteTokens
+	chatUsage.CompletionTokensDetails.AudioTokens = streamUsage.CompletionTokensDetails.AudioTokens
+	chatUsage.CompletionTokensDetails.AcceptedPredictionTokens = streamUsage.CompletionTokensDetails.AcceptedPredictionTokens
+	chatUsage.CompletionTokensDetails.RejectedPredictionTokens = streamUsage.CompletionTokensDetails.RejectedPredictionTokens
+	chatUsage.CompletionTokensDetails.ReasoningTokens = streamUsage.CompletionTokensDetails.ReasoningTokens
+	chatUsage.CostDetails.UpstreamInferencePromptCost = streamUsage.CostDetails.UpstreamInferencePromptCost
+	chatUsage.CostDetails.UpstreamInferenceCompletionsCost = streamUsage.CostDetails.UpstreamInferenceCompletionsCost
+}
+
+func updateFunctionCall(message *ChatMessage, functionCall *FunctionCall) {
+	if message.FunctionCall == nil {
+		message.FunctionCall = functionCall
+	} else {
+		message.FunctionCall.Arguments += functionCall.Arguments
+	}
+}
+
+func updateToolCall(message *ChatMessage, delta *StreamedToolCall, nameCache map[string]string) {
+	if delta == nil || nameCache == nil {
+		return
+	}
+
+	// If index is not set, update the last tool call by rules
+	if delta.Index == nil {
+		// An identifying chunk (ID + name) starts a new tool call. Type is optional
+		// since some providers omit it; requiring it would drop the whole call.
+		if delta.ID != "" && delta.Function.Name != "" {
+			message.ToolCalls = append(message.ToolCalls, ToolCall{})
+		}
+		// Get the index of the last tool call
+		lastIdx := len(message.ToolCalls) - 1
+		delta.Index = &lastIdx
+	}
+
+	// Grow the tool calls slice to the length of the index
+	for idx := range *delta.Index + 1 {
+		if len(message.ToolCalls) <= idx {
+			message.ToolCalls = append(message.ToolCalls, ToolCall{})
+		}
+	}
+
+	// A leading non-identifying chunk (no index, no ID/name) targets index -1 with
+	// no tool call to attach to; drop it rather than panic on ToolCalls[-1].
+	if *delta.Index < 0 {
+		return
+	}
+
+	// Get current tool call which is being updated
+	toolCall := &message.ToolCalls[*delta.Index]
+
+	switch {
+	case delta.ID != "" && delta.Function.Name != "":
+		// Identifying chunk: set fields (Type optional) and start arguments.
+		toolCall.ID = delta.ID
+		if delta.Type != "" {
+			toolCall.Type = delta.Type
+		}
+		toolCall.Function.Name = delta.Function.Name
+		toolCall.Function.Arguments = delta.Function.Arguments
+		// Cache the tool call name by ID for subsequent chunks
+		nameCache[delta.ID] = delta.Function.Name
+	case delta.ID == "":
+		// Standard continuation: no ID in subsequent chunks (most providers). Append
+		// arguments and complete the fields from the stored tool call.
+		toolCall.Function.Arguments += delta.Function.Arguments
+		delta.Function.Name = toolCall.Function.Name
+		delta.ID = toolCall.ID
+		delta.Type = toolCall.Type
+	default:
+		// ID present but name missing (some providers omit the name on subsequent
+		// chunks). Append arguments regardless so the bytes are never dropped;
+		// restore the name from cache when we have it.
+		toolCall.Function.Arguments += delta.Function.Arguments
+		delta.Type = toolCall.Type
+		if cachedName, ok := nameCache[delta.ID]; ok {
+			delta.Function.Name = cachedName
+		}
+	}
+}
+
+// some providers starts streaming tool calls since the first index number istead of zero
+func removeEmptyToolCalls(response *ChatCompletionResponse) {
+	for _, choice := range response.Choices {
+		if len(choice.Message.ToolCalls) == 0 {
+			continue
+		}
+		toolCalls := make([]ToolCall, 0, len(choice.Message.ToolCalls))
+		for _, toolCall := range choice.Message.ToolCalls {
+			if toolCall.ID == "" || toolCall.Function.Name == "" {
+				continue
+			}
+			toolCalls = append(toolCalls, toolCall)
+		}
+		choice.Message.ToolCalls = toolCalls
+	}
+}

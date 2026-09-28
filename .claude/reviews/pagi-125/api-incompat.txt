@@ -1,0 +1,19 @@
+- ./testing/llmtest.(*MockLLM).GenerateContentStream: removed
+- ./testing/llmtest.TestLLM: changed from func(*testing.T, github.com/vxcontrol/langchaingo/llms.Model) to func(*testing.T, github.com/vxcontrol/langchaingo/llms.Model, ...Option)
+- ./llms/anthropic.ErrModelRefusal: changed from ErrModelRefusal to github.com/vxcontrol/langchaingo/llms.ErrModelRefusal
+- ./tools/perplexity.ModelR11776: removed
+- ./tools/perplexity.ModelSonarReasoning: removed
+- ./llms/googleai/vertex.CITATIONS: removed
+- ./llms/googleai/vertex.ErrInvalidMimeType: removed
+- ./llms/googleai/vertex.ErrNoContentInResponse: removed
+- ./llms/googleai/vertex.ErrUnknownPartInResponse: removed
+- ./llms/googleai/vertex.ResponseMIMETypeJson: removed
+- ./llms/googleai/vertex.RoleModel: removed
+- ./llms/googleai/vertex.RoleSystem: removed
+- ./llms/googleai/vertex.RoleTool: removed
+- ./llms/googleai/vertex.RoleUser: removed
+- ./llms/googleai/vertex.SAFETY: removed
+- ./llms/googleai/vertex.Vertex.CallbacksHandler: removed
+- ./llms/reasoning.ClaudeSupportsEffortWithBudget: changed from func(string) bool to func(string, Provider) bool
+- ./llms/reasoning.OffEffortNone: value changed from 3 to 4
+- ./llms/reasoning.OffUnsupported: value changed from 4 to 8
