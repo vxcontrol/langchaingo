@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
 	"github.com/vxcontrol/langchaingo/schema"
@@ -210,14 +211,16 @@ func (s Store) getDocumentsFromMatches(queryResult *pinecone.QueryVectorsRespons
 			resultDocuments = append(resultDocuments, doc)
 		}
 	}
-	// Keep relevance order, and break score ties by text so retriever
-	// prompts stay stable across approximate nearest-neighbor reordering.
-	sort.SliceStable(resultDocuments, func(i, j int) bool {
-		if resultDocuments[i].Score != resultDocuments[j].Score {
-			return resultDocuments[i].Score > resultDocuments[j].Score
+	for start := 0; start < len(resultDocuments); {
+		end := start + 1
+		for end < len(resultDocuments) && resultDocuments[end].Score == resultDocuments[start].Score {
+			end++
 		}
-		return resultDocuments[i].PageContent < resultDocuments[j].PageContent
-	})
+		slices.SortStableFunc(resultDocuments[start:end], func(a, b schema.Document) int {
+			return strings.Compare(a.PageContent, b.PageContent)
+		})
+		start = end
+	}
 	return resultDocuments, nil
 }
 

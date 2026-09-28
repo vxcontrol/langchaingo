@@ -245,20 +245,24 @@ func TestGetDocumentsFromMatchesStableOrder(t *testing.T) {
 		}
 	}
 
-	docs, err := store.getDocumentsFromMatches(&pinecone.QueryVectorsResponse{
-		Matches: []*pinecone.ScoredVector{
-			match("The color of the desk is orange.", 0.81),
-			match("The color of the chair beside the desk is beige.", 0.81),
-			match("The color of the lamp beside the desk is black.", 0.90),
-			match("The color of the car is red.", 0.70),
-		},
-	}, 0.8)
-	require.NoError(t, err)
-	require.Equal(t, []string{
-		"The color of the lamp beside the desk is black.",
-		"The color of the chair beside the desk is beige.",
-		"The color of the desk is orange.",
-	}, []string{docs[0].PageContent, docs[1].PageContent, docs[2].PageContent})
+	texts := func(matches ...*pinecone.ScoredVector) []string {
+		t.Helper()
+		docs, err := store.getDocumentsFromMatches(&pinecone.QueryVectorsResponse{Matches: matches}, 0)
+		require.NoError(t, err)
+		out := make([]string, 0, len(docs))
+		for _, d := range docs {
+			out = append(out, d.PageContent)
+		}
+		return out
+	}
+
+	assert.Equal(t, []string{"lamp", "chair", "desk", "car"}, texts(
+		match("lamp", 0.90), match("desk", 0.81), match("chair", 0.81), match("car", 0.70),
+	), "cosine: best first as Pinecone sent it, a tie ordered by text")
+
+	assert.Equal(t, []string{"lamp", "chair", "desk", "car"}, texts(
+		match("lamp", 0.05), match("desk", 0.40), match("chair", 0.40), match("car", 1.20),
+	), "euclidean: the lowest distance is the best match and stays first")
 }
 
 func TestGetScoreThreshold(t *testing.T) {
