@@ -166,8 +166,29 @@ func TestSimilaritySearchRefusesAFilterKeyItCannotInline(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.SimilaritySearch(ctx, "anything", 10,
-		vectorstores.WithFilters(map[string]any{"flow id": "1"}))
+		vectorstores.WithFilters(map[string]any{"flow\\id": "1"}))
 	require.ErrorIs(t, err, ErrInvalidFilterKey)
+}
+
+func TestSimilaritySearchFiltersOnAKeyThatIsNotAnIdentifier(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	collection := narrowingCollection()
+	ctx := t.Context()
+
+	store := newNarrowingStore(t, url, collection, 64)
+	_, err := store.AddDocuments(ctx, []schema.Document{
+		{PageContent: "mine", Metadata: map[string]any{"doc-id": "1"}},
+		{PageContent: "theirs", Metadata: map[string]any{"doc-id": "2"}},
+	})
+	require.NoError(t, err)
+
+	docs, err := store.SimilaritySearch(ctx, "anything", 10,
+		vectorstores.WithFilters(map[string]any{"doc-id": "1"}))
+	require.NoError(t, err)
+	require.Len(t, docs, 1)
+	require.Equal(t, "mine", docs[0].PageContent)
 }
 
 func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
