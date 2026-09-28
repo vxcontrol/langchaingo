@@ -64,13 +64,18 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 	if len(clientOptions.unhonoredOnREST) > 0 {
 		return gi, &ErrOptionNotHonored{Options: clientOptions.unhonoredOnREST}
 	}
-	credentials, err := clientOptions.detectCredentials()
-	if err != nil {
-		return gi, err
+	if config.Backend == genai.BackendVertexAI || config.APIKey == "" {
+		credentials, err := clientOptions.detectCredentials()
+		if err != nil {
+			return gi, err
+		}
+		config.Credentials = credentials
 	}
-	config.Credentials = credentials
-	if clientOptions.BaseURL != "" {
-		config.HTTPOptions.BaseURL = clientOptions.BaseURL
+	if baseURL := clientOptions.BaseURL; baseURL != "" {
+		if !strings.Contains(baseURL, "://") {
+			baseURL = "https://" + baseURL
+		}
+		config.HTTPOptions.BaseURL = baseURL
 	}
 
 	client, err := genai.NewClient(ctx, config)

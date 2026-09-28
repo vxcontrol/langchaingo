@@ -1,9 +1,15 @@
 package googleai
 
 import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vxcontrol/langchaingo/llms"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,4 +64,32 @@ func TestACallerWhoNamedNoCredentialsKeepsTheDefaultChain(t *testing.T) {
 	detected, err := options.detectCredentials()
 	require.NoError(t, err)
 	assert.Nil(t, detected, "application default credentials stay in charge")
+}
+
+func TestAnAPIKeyAuthenticatesTheGeminiAPIWhenCredentialsAreAlsoNamed(t *testing.T) {
+	t.Parallel()
+
+	var gotKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey = r.Header.Get("x-goog-api-key")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	for name, opt := range map[string]Option{
+		"WithCredentialsFile": WithCredentialsFile(credentialsFile(t)),
+		"WithCredentialsJSON": WithCredentialsJSON([]byte(refreshTokenCredentials)),
+	} {
+		llm, err := New(t.Context(), WithAPIKey("the-callers-key"), opt,
+			WithEndpoint(server.URL), WithDefaultModel("gemini-2.5-flash"))
+		require.NoError(t, err, name)
+		assert.NotContains(t, fmt.Sprint(err), "the-callers-key", name)
+
+		_, err = llm.GenerateContent(t.Context(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+		require.NoError(t, err, name)
+		assert.Equal(t, "the-callers-key", gotKey, name)
+	}
 }
