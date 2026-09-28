@@ -805,6 +805,10 @@ func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
 		return extra, nil
 	}
 	for key, value := range extraFields {
+		if key == "schema" {
+			baseFields[key] = value
+			continue
+		}
 		merged, err := mergeJSON(baseFields[key], value)
 		if err != nil {
 			return nil, err
