@@ -22,7 +22,15 @@ func reportHuggingFaceOptions(
 	}
 	reportHuggingFaceShapedOptions(opts, drop)
 	if cfg := opts.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
-		drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
+		if effort := reasoningEffort(opts); cfg.Effort == llms.ReasoningNone && effort != "" {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: strconv.Itoa(cfg.Tokens) + " tokens", Sent: effort,
+				Reason: "the door sends an effort, so the budget travels as the nearest one",
+			})
+		} else {
+			drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
+		}
 	}
 	reportHuggingFaceMessages(warn, model, messages)
 }

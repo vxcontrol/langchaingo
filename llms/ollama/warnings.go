@@ -53,9 +53,10 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 
 	asked := cfg.GetEffort(opts.GetMaxTokens())
 	effort := string(asked)
+	sent := effort
 	switch {
 	case takesOnlyGPTOSSLevels(model):
-		if sent := gptOSSLevel(asked); sent != effort {
+		if sent = gptOSSLevel(asked); sent != effort {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
 				Asked: effort, Sent: sent,
@@ -64,20 +65,30 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 		}
 	default:
 		if level := (&api.ThinkValue{Value: effort}); !level.IsValid() {
+			sent = "true"
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
-				Asked: effort, Sent: "true",
+				Asked: effort, Sent: sent,
 				Reason: "ollama takes a think level from a closed set and this effort is not in it",
 			})
 		}
 	}
-	if cfg.HasExplicitTokens() {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
-			Asked:  strconv.Itoa(cfg.Tokens),
-			Reason: "ollama expresses thinking as a level, so a token budget has nowhere to go",
-		})
+	if !cfg.HasExplicitTokens() {
+		return
 	}
+	if cfg.Effort == llms.ReasoningNone {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+			Asked: strconv.Itoa(cfg.Tokens), Sent: sent,
+			Reason: "ollama expresses thinking as a level, so the budget travels as the nearest one",
+		})
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+		Asked:  strconv.Itoa(cfg.Tokens),
+		Reason: "ollama expresses thinking as a level, so a token budget has nowhere to go",
+	})
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

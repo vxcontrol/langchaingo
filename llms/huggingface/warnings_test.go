@@ -133,3 +133,15 @@ func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
 	}
 	require.Contains(t, seen, "WithLogProbs", "the door builds no logprobs field")
 }
+
+func TestABudgetWithoutAnEffortIsReportedAsTheEffortItBecame(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, oneMessage(), llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+
+	w, ok := hfWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok)
+	require.Equal(t, llms.WarningSubstitute, w.Kind, "an effort went out, so nothing was dropped")
+	require.Equal(t, "800 tokens", w.Asked)
+	require.Equal(t, "low", w.Sent)
+}

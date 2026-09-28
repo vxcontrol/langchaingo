@@ -206,3 +206,17 @@ func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
 		}
 	}
 }
+
+func TestABudgetWithoutAnEffortIsReportedAsTheLevelItBecame(t *testing.T) {
+	t.Parallel()
+
+	for model, level := range map[string]string{"glm-5": "low", "gpt-oss:20b": "low"} {
+		resp := generateForWarningsOn(t, model, llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+
+		w, ok := ollamaWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.True(t, ok, model)
+		require.Equal(t, llms.WarningSubstitute, w.Kind, "%s: a level went out, so nothing was dropped", model)
+		require.Equal(t, "800", w.Asked, model)
+		require.Equal(t, level, w.Sent, model)
+	}
+}
