@@ -1,0 +1,210 @@
+{
+ "ctx": "# Context\nYou are part of an exhaustive release review of PR #1 in the Go library github.com/vxcontrol/langchaingo (a fork of langchaingo): branch fix/PAGI-125-release-review-findings -> main-vxcontrol. Callers of this library are applications; a release must not silently break them.\n\nCheckouts (read-only: never create, modify or delete files in them, nor in /home/user/langchaingo):\n- HEAD (the PR, commit 355dc71): {{SCRATCH}}/head\n- BASE (previous release, commit da7016e): {{SCRATCH}}/base\nNet diff of the PR: git -C <HEAD> diff da7016e 355dc71 -- <paths> (BASE is exactly the merge base). Intent of a change: git -C <HEAD> log --format='%h %s' da7016e..355dc71 -- <path>, then git -C <HEAD> show <sha>.\n\nProbes: to check behaviour, write a throwaway test file in your own directory {{SCRATCH}}/probes/<unique-name>/ and run it through Go's overlay so the checkouts stay untouched:\n  cd <HEAD> && go test -p 2 -overlay=<probe-dir>/overlay.json -run '^TestProbe' -v ./<pkg>/\nwhere overlay.json is {\"Replace\":{\"<HEAD>/<pkg>/zz_probe_<unique-name>_test.go\":\"<probe-dir>/probe_test.go\"}} with absolute paths. The file's package clause must match the package (internal test) or be <pkg>_test. Run the same probe in BASE (its own overlay.json with BASE paths) to compare with the previous release. Use unique names; touch nothing outside your probe directory.\n\nEnvironment: Go 1.26.5; 4 CPUs shared with other reviewers (always pass -p 2 to go test/build); no real API keys; tests replay recorded HTTP cassettes (internal/httprr, testdata/*.httprr) offline. The sandbox sets AWS_CA_BUNDLE, which breaks Bedrock tests: run them as env -u AWS_CA_BUNDLE go test ... . Tests that need Docker/testcontainers may not start here; skip them. Vendor documentation can be checked with WebSearch/WebFetch (load them with ToolSearch query \"select:WebSearch,WebFetch\").\nDo not post anything to GitHub, do not commit, do not push.",
+ "existing_all": [
+  {
+   "n": 1,
+   "file": "llms/ollama/ollamallm.go",
+   "line": 350,
+   "summary": "resolveThink sends think (a level or true) on every ReasoningOn request regardless of whether the model can think; the base door never sent think.",
+   "failure_scenario": "WithModel(\"llama3.2\") + WithReasoning(ReasoningHigh,0) puts \"think\":\"high\" in the request; Ollama returns HTTP 400 \"llama3.2 does not support thinking\"."
+  },
+  {
+   "n": 2,
+   "file": "llms/openai/structured_output.go",
+   "line": 235,
+   "summary": "TakesNoJSONSchema looks only at the model name, so WithStructuredOutput is refused locally for any deepseek-*/glm-* model on any host, including hosts that serve json_schema.",
+   "failure_scenario": "OpenRouter deepseek/deepseek-chat-v3.1 or z-ai/glm-4.6, vLLM zai-org/GLM-4.5-Air or deepseek-ai/DeepSeek-V3 return ErrStructuredOutputUnsupported."
+  },
+  {
+   "n": 3,
+   "file": "vectorstores/pgvector/pgvector.go",
+   "line": 490,
+   "summary": "filterPredicates rejects any filter key that is not a bare identifier, although quoteLiteral would keep keys safe.",
+   "failure_scenario": "WithFilters(map[string]any{\"doc-id\":\"42\"}) returns ErrInvalidFilterKey; the base returned the matching rows."
+  },
+  {
+   "n": 4,
+   "file": "internal/toolcall/arguments.go",
+   "line": 30,
+   "summary": "DecodeFields/Decode reject tool-call arguments that are the JSON literal null, which the replaced json.Unmarshal calls accepted.",
+   "failure_scenario": "The googleai door writes Arguments \"null\" when Gemini returns a call with nil Args; replaying that turn fails with ErrNotAnObject; Bedrock fails the same way."
+  },
+  {
+   "n": 5,
+   "file": "llms/openai/openaillm.go",
+   "line": 311,
+   "summary": "The Qwen stream-only and enable_thinking rules treat bare qwen3-<N>b names as DashScope names on any host.",
+   "failure_scenario": "LM Studio or vLLM serving qwen3-8b with WithReasoning on a non-streaming call fails locally with ErrThinkingRequiresStream; plain calls get enable_thinking:false added."
+  },
+  {
+   "n": 6,
+   "file": "llms/reasoning/effort_wire.go",
+   "line": 12,
+   "summary": "RejectsPenalties removes frequency/presence penalties for every deepseek*/grok* model name on any host.",
+   "failure_scenario": "Together or vLLM with deepseek-ai/DeepSeek-V3 and WithFrequencyPenalty(0.5): the field is dropped with only a warning."
+  },
+  {
+   "n": 7,
+   "file": "llms/googleai/option.go",
+   "line": 52,
+   "summary": "The googleai/vertex default max output tokens rose from 2048 to 16384 and is always sent.",
+   "failure_scenario": "vertex.New + gemini-2.0-flash (8k output) without WithMaxTokens sends maxOutputTokens=16384 and Vertex rejects it with 400."
+  },
+  {
+   "n": 8,
+   "file": "llms/googleai/googleai.go",
+   "line": 1096,
+   "summary": "newGenerationConfig forwards frequency/presence penalties to every Gemini model; the base never sent them.",
+   "failure_scenario": "Callers setting penalties get 400 \"Penalty is not enabled for models/...\" from Gemini models without penalty support."
+  },
+  {
+   "n": 9,
+   "file": "llms/reasoning/claude_capability.go",
+   "line": 285,
+   "summary": "noPrefillClaude is missing the -latest aliases that are classified as adaptive-only elsewhere.",
+   "failure_scenario": "ClaudeRejectsAssistantPrefill(\"claude-opus-latest\") is false while claude-opus-4-7 is true; a prefill request gets a vendor 400 instead of ErrAssistantPrefillUnsupported."
+  },
+  {
+   "n": 10,
+   "file": "llms/reasoning_support.go",
+   "line": 115,
+   "summary": "The OpenAI effort-caps branch is not limited to ProviderOpenAI, so the reasoning hint advertises controls other doors never send.",
+   "failure_scenario": "ReasoningSupportFor(\"openai.gpt-5.6-luna\", ProviderBedrock) reports efforts low..xhigh while the Bedrock door resolves MechanismNone."
+  },
+  {
+   "n": 11,
+   "file": "llms/anthropic/anthropicllm.go",
+   "line": 922,
+   "summary": "handleToolMessage fails on any part of a tool message that is not a ToolCallResponse.",
+   "failure_scenario": "A tool message with parts [ToolCallResponse, TextContent] returns an error; the base used Parts[0] and ignored the rest."
+  },
+  {
+   "n": 12,
+   "file": "vectorstores/pgvector/metadata_index.go",
+   "line": 191,
+   "summary": "ANALYZE on the embeddings table runs on every store start while holding the advisory lock.",
+   "failure_scenario": "Every pgvector.New with WithMetadataIndexes samples the table under the lock, so concurrent store constructions wait."
+  },
+  {
+   "n": 13,
+   "file": "llms/ollama/ollamallm.go",
+   "line": 358,
+   "summary": "The Ollama door keeps its own gpt-oss detection and level mapping, duplicating reasoning.OllamaEffortsFor and GptOssEffort.",
+   "failure_scenario": "gptOSSLevel(\"\") returns \"high\" while GptOssEffort(\"\") returns \"\"."
+  },
+  {
+   "n": 14,
+   "file": "llms/options.go",
+   "line": 130,
+   "summary": "GetEffort's doc comment is attached to HasExplicitTokens because new methods were inserted between them.",
+   "failure_scenario": "Godoc shows the GetEffort text as HasExplicitTokens' documentation."
+  },
+  {
+   "n": 15,
+   "file": "embeddings/jina/options.go",
+   "line": 86,
+   "summary": "The new comment says _models holds vector dimensions, yet the code uses those values as the default BatchSize.",
+   "failure_scenario": "Default batch size is 512/768/1024 derived from dimensions, contradicting the comment."
+  }
+ ],
+ "slices": [
+  {
+   "name": "llms-core",
+   "kind": "source",
+   "gap": true,
+   "paths": [
+    "llms/*.go (top-level llms package, non-test)",
+    "llms/structuredoutput (non-test)",
+    "llms/cache (non-test)",
+    "llms/fake (non-test)",
+    "internal/toolcall (non-test)",
+    "internal/numutil (non-test)",
+    "internal/testutil (non-test)"
+   ],
+   "focus": "Shared llms types and options: CallOptions and option helpers, reasoning options, warnings, turns, stop reasons, errors, token counting, structured-output helpers, tool-call argument decoding, cache and fake LLM. Check API compatibility of exported types and functions for callers, zero-value behaviour, option precedence, error wrapping (errors.Is/As), and consistency with how the provider doors consume these helpers."
+  },
+  {
+   "name": "vectorstores-chains-embeddings",
+   "kind": "source",
+   "gap": true,
+   "paths": [
+    "vectorstores/ (non-test, mainly pgvector)",
+    "chains/ (non-test)",
+    "embeddings/ (non-test)",
+    "memory/, tools/, prompts/, agents/ (non-test)",
+    "examples/",
+    "doc.go"
+   ],
+   "focus": "pgvector changes (metadata indexes, filters, index naming, init transaction and cancellation, advisory locks, SQL construction and identifier/literal quoting, injection), other vectorstores, chains (map_rerank_documents), embeddings (jina, voyageai, bedrock batch sizes and dimensions), examples that must still compile."
+  },
+  {
+   "name": "test-infra",
+   "kind": "infra",
+   "gap": false,
+   "paths": [
+    "testing/llmtest",
+    "internal/httprr",
+    "internal/devtools",
+    "internal/testutil",
+    "all testdata/*.httprr cassettes added or changed in the PR"
+   ],
+   "focus": "Test infrastructure correctness and cassette integrity."
+  },
+  {
+   "name": "cross-cutting",
+   "kind": "cross",
+   "gap": false,
+   "paths": [
+    "the whole PR"
+   ],
+   "focus": "Public API compatibility, vet/lint/race, go.mod, docs and examples."
+  }
+ ],
+ "existing_verify": [
+  {
+   "n": 3,
+   "file": "vectorstores/pgvector/pgvector.go",
+   "line": 490,
+   "title": "filter keys must be bare identifiers",
+   "summary": "filterPredicates now rejects any filter key that is not a bare identifier, although quoteLiteral would keep keys safe and indexable.",
+   "failure_scenario": "WithFilters(map[string]any{\"doc-id\":\"42\"}) returns ErrInvalidFilterKey; the base returned the matching rows.",
+   "evidence": "earlier review, code reading"
+  },
+  {
+   "n": 4,
+   "file": "internal/toolcall/arguments.go",
+   "line": 30,
+   "title": "null tool-call arguments rejected",
+   "summary": "DecodeFields/Decode reject tool-call arguments that are the JSON literal null, which the json.Unmarshal calls it replaced accepted as an empty map.",
+   "failure_scenario": "The googleai door writes Arguments \"null\" when Gemini returns a call with nil Args. Replaying that turn makes convertParts fail with ErrNotAnObject, and GenerateContent aborts; Bedrock fails the same way.",
+   "evidence": "earlier review, vendor behaviour not re-measured"
+  },
+  {
+   "n": 12,
+   "file": "vectorstores/pgvector/metadata_index.go",
+   "line": 191,
+   "title": "ANALYZE on every start",
+   "summary": "ANALYZE on the embeddings table runs on every store start, contrary to the comment saying later starts are only a catalog lookup.",
+   "failure_scenario": "Every pgvector.New with WithMetadataIndexes samples the whole table while holding the advisory lock, so concurrent store constructions wait on it.",
+   "evidence": "earlier review, code reading"
+  },
+  {
+   "n": 14,
+   "file": "llms/options.go",
+   "line": 130,
+   "title": "misplaced GetEffort doc comment",
+   "summary": "GetEffort's doc comment is now attached to HasExplicitTokens because the new methods were inserted between them.",
+   "failure_scenario": "Godoc shows the GetEffort text as HasExplicitTokens' documentation, and GetEffort has none.",
+   "evidence": "earlier review, code reading"
+  },
+  {
+   "n": 15,
+   "file": "embeddings/jina/options.go",
+   "line": 86,
+   "title": "jina comment vs BatchSize",
+   "summary": "The new comment says _models holds vector dimensions, yet the code still uses those values as the default BatchSize.",
+   "failure_scenario": "The default batch size is 512, 768 or 1024 depending on the model, derived from dimensions, while the comment claims otherwise; either the comment or the code is wrong.",
+   "evidence": "earlier review, code reading"
+  }
+ ]
+}
