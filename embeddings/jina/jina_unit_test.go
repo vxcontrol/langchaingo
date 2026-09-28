@@ -354,3 +354,28 @@ func TestTheCallersBatchSizeReachesTheWire(t *testing.T) {
 	assert.Equal(t, []string{"c", "d"}, batches[1])
 	assert.Equal(t, []string{"e"}, batches[2])
 }
+
+func TestABatchSizeBelowOneFallsBackToTheModelsDefault(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req EmbeddingRequest
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		items := make([]string, 0, len(req.Input))
+		for i := range req.Input {
+			items = append(items, fmt.Sprintf(`{"object":"embedding","index":%d,"embedding":[0.1,0.2]}`, i))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"model":%q,"object":"list","data":[%s]}`, req.Model, strings.Join(items, ","))
+	}))
+	defer server.Close()
+
+	for _, model := range []string{BaseModel, "jina-embeddings-v3"} {
+		for _, size := range []int{0, -1} {
+			j, err := NewJina(WithAPIBaseURL(server.URL), WithAPIKey("test-key"), WithModel(model), WithBatchSize(size))
+			require.NoError(t, err)
+
+			emb, err := j.EmbedDocuments(t.Context(), []string{"a", "b"})
+			require.NoError(t, err, "%s, batch size %d", model, size)
+			assert.Len(t, emb, 2, "%s, batch size %d", model, size)
+		}
+	}
+}
