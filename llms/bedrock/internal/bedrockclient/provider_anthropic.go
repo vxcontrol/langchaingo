@@ -257,7 +257,7 @@ func createAnthropicCompletion(ctx context.Context,
 		TopK:             options.GetTopK(),
 		StopSequences:    options.StopWords,
 		Tools:            tools,
-		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice),
+		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice, len(tools) > 0),
 	}
 
 	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens); err != nil {
@@ -388,7 +388,10 @@ func createAnthropicCompletion(ctx context.Context,
 	return contentResp, nil
 }
 
-func anthropicToolChoiceOnWire(choice any) any {
+func anthropicToolChoiceOnWire(choice any, hasTools bool) any {
+	if !hasTools {
+		return nil
+	}
 	switch kind, name := llms.ClassifyToolChoice(choice); kind {
 	case llms.ToolChoiceNamed:
 		return map[string]any{"type": "tool", "name": name}

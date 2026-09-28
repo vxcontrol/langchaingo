@@ -191,3 +191,14 @@ func TestFableTakesAForcedToolChoiceWithoutThinking(t *testing.T) {
 		"tool on this model, so a local refusal would take away working behaviour")
 	assert.Contains(t, sent, `"tool_choice":{"type":"any"}`)
 }
+
+func TestNoToolChoiceGoesOutWithoutTools(t *testing.T) {
+	t.Parallel()
+
+	for _, choice := range []any{"none", "auto", "required"} {
+		p, _ := captureMessagesRequest(t,
+			llms.WithModel("claude-sonnet-4-6"), llms.WithToolChoice(choice), llms.WithMaxTokens(64))
+		_, sent := p["tool_choice"]
+		assert.False(t, sent, "%v with no tools must not reach the wire", choice)
+	}
+}

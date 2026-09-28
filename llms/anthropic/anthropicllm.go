@@ -320,7 +320,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		TopK:          topK,
 		Speed:         opts.InferenceSpeed,
 		Tools:         tools,
-		ToolChoice:    anthropicToolChoice(opts.ToolChoice),
+		ToolChoice:    anthropicToolChoiceWith(tools, opts.ToolChoice),
 		Thinking:      thinking,
 		OutputConfig:  outputConfig,
 		BetaHeaders:   betaHeaders,
@@ -1054,6 +1054,13 @@ func appendIfMissing(slice []string, val string) []string {
 
 func getFloatPointer(f float64) *float64 {
 	return &f
+}
+
+func anthropicToolChoiceWith(tools []anthropicclient.Tool, choice any) any {
+	if len(tools) == 0 {
+		return nil
+	}
+	return anthropicToolChoice(choice)
 }
 
 func anthropicToolChoice(choice any) any {

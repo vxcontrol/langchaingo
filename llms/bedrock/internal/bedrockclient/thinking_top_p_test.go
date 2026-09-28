@@ -74,3 +74,13 @@ func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		})
 	}
 }
+
+func TestLegacyClaudeSendsNoToolChoiceWithoutTools(t *testing.T) {
+	t.Parallel()
+
+	named := map[string]any{"type": "function", "function": map[string]any{"name": "echo"}}
+	for _, choice := range []any{"none", "auto", "required", named} {
+		assert.Nil(t, anthropicToolChoiceOnWire(choice, false), "%v with no tools", choice)
+		assert.NotNil(t, anthropicToolChoiceOnWire(choice, true), "%v with tools", choice)
+	}
+}
