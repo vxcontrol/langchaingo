@@ -285,6 +285,16 @@ var noPrefillClaude = []string{
 	"claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-mythos-5",
 }
 
+var noForcedToolClaude = []string{
+	"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1",
+}
+
+// ClaudeRejectsForcedToolUse reports whether the model answers a forced tool
+// choice (any or a named tool) with a 400, whatever the thinking settings.
+func ClaudeRejectsForcedToolUse(model string) bool {
+	return containsAny(canonicalClaude(model), noForcedToolClaude)
+}
+
 // ClaudeRejectsAssistantPrefill reports whether the model rejects a prefilled
 // assistant response outright, so the request must not be sent.
 func ClaudeRejectsAssistantPrefill(model string) bool {

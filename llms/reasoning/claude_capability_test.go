@@ -293,3 +293,17 @@ func TestClaudeMutuallyExclusiveSampling(t *testing.T) {
 		}
 	}
 }
+
+func TestClaudeModelsThatRejectAForcedToolChoice(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string]bool{
+		"claude-opus-5-5": true, "us.anthropic.claude-opus-5-5": true, "claude-sonnet-5-5": true,
+		"claude-fable-5-1": true, "claude-mythos-5-1": true,
+		"claude-opus-5": false, "claude-sonnet-5": false, "claude-fable-5": false, "claude-opus-4-8": false,
+	} {
+		if got := ClaudeRejectsForcedToolUse(model); got != want {
+			t.Errorf("ClaudeRejectsForcedToolUse(%q) = %v, want %v", model, got, want)
+		}
+	}
+}

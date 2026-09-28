@@ -235,6 +235,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) {
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
+	if err := llms.CheckForcedToolUse(model, *opts); err != nil {
+		return nil, err
+	}
 
 	if reasoning.ClaudeRejectsAssistantPrefill(model) && llms.HasAssistantPrefill(messages) {
 		return nil, &ErrAssistantPrefillUnsupported{Model: model}

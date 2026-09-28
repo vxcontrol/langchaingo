@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
@@ -260,4 +261,30 @@ func TestATextPartAfterAToolResultFollowsItOnTheWire(t *testing.T) {
 	require.Len(t, last.Content, 2)
 	assert.Equal(t, "tool_result", last.Content[0]["type"])
 	assert.Equal(t, map[string]any{"type": "text", "text": "answer in one word"}, last.Content[1])
+}
+
+func TestAForcedChoiceOnOpus55IsRefusedBeforeTheRequest(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("k"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-5-5"))
+	require.NoError(t, err)
+
+	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "get_weather", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}
+	_, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{tool}), llms.WithToolChoice("required"), llms.WithMaxTokens(64))
+
+	var refused *reasoning.ErrForcedToolChoiceUnsupported
+	require.ErrorAs(t, err, &refused)
+	assert.False(t, called)
 }

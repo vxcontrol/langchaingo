@@ -1,6 +1,11 @@
 package llms
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+)
 
 func TestForcesToolUseAcceptsEveryFormOfTheChoice(t *testing.T) {
 	t.Parallel()
@@ -75,5 +80,25 @@ func TestANamedChoiceKeepsItsToolWhateverTheFunctionShape(t *testing.T) {
 		if kind != ToolChoiceNamed || tool != "b" {
 			t.Errorf("%s: got (%v, %q), want the named tool b", name, kind, tool)
 		}
+	}
+}
+
+func TestAForcedChoiceIsRefusedOnAClaudeModelThatRejectsIt(t *testing.T) {
+	t.Parallel()
+
+	tools := []Tool{{Type: "function", Function: &FunctionDefinition{Name: "echo"}}}
+	for _, choice := range []any{"required", map[string]any{"type": "tool", "name": "echo"}} {
+		err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1",
+			CallOptions{Tools: tools, ToolChoice: choice}, nil)
+		var refused *reasoning.ErrForcedToolChoiceUnsupported
+		if !errors.As(err, &refused) {
+			t.Errorf("%v: got %v, want ErrForcedToolChoiceUnsupported", choice, err)
+		}
+	}
+	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{Tools: tools, ToolChoice: "auto"}, nil); err != nil {
+		t.Errorf("auto must pass, got %v", err)
+	}
+	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{ToolChoice: "required"}, nil); err != nil {
+		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
 	}
 }
