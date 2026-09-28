@@ -410,8 +410,7 @@ func (o *LLM) setReasoning(
 	}
 
 	mode := opts.Reasoning.ResolveMode()
-	delegated := opts.Reasoning.DelegatesDepth()
-	if delegated {
+	if opts.Reasoning.DelegatesDepth() && !o.claudeThinksOnlyAtAnAskedDepth(model) {
 		mode = llms.ReasoningDefault
 	}
 	switch mode { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
@@ -531,6 +530,12 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 		reasoning.ClaudeSupportsThinking(model) &&
 		reasoning.ResolveClaudeAdaptive(model, true) &&
 		!reasoning.ClaudeThinkingDefaultsOn(model)
+}
+
+func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
+	return reasoning.ClaudeSupportsThinking(model) &&
+		!reasoning.ClaudeThinkingDefaultsOn(model) &&
+		!o.sendsClaudeAdaptive(model)
 }
 
 const anthropicAPIHost = "api.anthropic.com"
