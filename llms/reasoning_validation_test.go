@@ -70,6 +70,14 @@ func TestTheEffortNoneReadsAsReasoningOff(t *testing.T) {
 		t.Errorf("the caller's config must stay as written, got %+v", shared)
 	}
 
+	adaptive := CallOptions{Reasoning: &ReasoningConfig{Effort: ReasoningEffort("none"), Adaptive: true}}
+	if err := adaptive.ValidateReasoning(); err != nil {
+		t.Fatalf("WithAdaptiveReasoning(none) is valid, got %v", err)
+	}
+	if got := adaptive.Reasoning.ResolveMode(); got != ReasoningOff || adaptive.Reasoning.DelegatesDepth() {
+		t.Errorf("none turns reasoning off even beside adaptive, got %+v", adaptive.Reasoning)
+	}
+
 	budget := CallOptions{Reasoning: &ReasoningConfig{Effort: ReasoningEffort("none"), Tokens: 2048}}
 	if err := budget.ValidateReasoning(); err != nil {
 		t.Fatalf("none beside a budget leaves the depth to the budget, got %v", err)

@@ -184,8 +184,8 @@ func (o *CallOptions) ValidateReasoning() error {
 	if o.Reasoning.Effort == ReasoningEffort(reasoning.OpenAIDisableEffort) {
 		r := *o.Reasoning
 		r.Effort = ReasoningNone
-		if r.Mode == ReasoningDefault && !r.Adaptive && !r.HasExplicitTokens() {
-			r.Mode = ReasoningOff
+		if r.Mode == ReasoningDefault && !r.HasExplicitTokens() {
+			r.Mode, r.Adaptive = ReasoningOff, false
 		}
 		o.Reasoning = &r
 	}
