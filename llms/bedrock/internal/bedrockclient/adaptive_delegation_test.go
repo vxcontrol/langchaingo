@@ -39,3 +39,19 @@ func TestNovaTakesTheDelegationInsteadOfTheTopEffort(t *testing.T) {
 	require.NotNil(t, built.InferenceConfig.MaxTokens,
 		"the top effort clears the sampling limits; a delegation must not")
 }
+
+func TestTheLegacyNovaDoorTakesTheDelegationToo(t *testing.T) {
+	t.Parallel()
+
+	maxTokens, temperature, topP := 500, 0.3, 0.9
+	body, err := novaInputToJSON(nil, "", "us.amazon.nova-2-lite-v1:0", llms.CallOptions{
+		MaxTokens: &maxTokens, Temperature: &temperature, TopP: &topP,
+		Reasoning: &llms.ReasoningConfig{Adaptive: true},
+	}, &llms.Warnings{})
+	require.NoError(t, err)
+
+	assert.Contains(t, string(body), `"reasoningConfig":{"type":"enabled"}`, "the caller left the depth to the vendor")
+	assert.Contains(t, string(body), `"maxTokens":500`)
+	assert.Contains(t, string(body), `"temperature":0.3`)
+	assert.Contains(t, string(body), `"topP":0.9`)
+}
