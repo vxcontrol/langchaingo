@@ -178,6 +178,9 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	}
 	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled"}
+		if options.MaxTokens == nil {
+			inferenceConfig.MaxTokens = 0
+		}
 	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn && reasoning.IsNovaReasoningModel(modelID) {
 		effort := reasoning.NovaEffort(string(options.Reasoning.GetEffort(options.GetMaxTokens())))
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}

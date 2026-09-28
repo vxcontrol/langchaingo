@@ -55,3 +55,19 @@ func TestTheLegacyNovaDoorTakesTheDelegationToo(t *testing.T) {
 	assert.Contains(t, string(body), `"temperature":0.3`)
 	assert.Contains(t, string(body), `"topP":0.9`)
 }
+
+func TestTheLegacyNovaDelegationSendsNoLimitTheCallerDidNotSet(t *testing.T) {
+	t.Parallel()
+
+	body, err := novaInputToJSON(nil, "", "us.amazon.nova-2-lite-v1:0", llms.CallOptions{
+		Reasoning: &llms.ReasoningConfig{Adaptive: true},
+	}, &llms.Warnings{})
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "maxTokens", "Converse sends only the caller's limit")
+
+	body, err = novaInputToJSON(nil, "", "us.amazon.nova-pro-v1:0", llms.CallOptions{
+		Reasoning: &llms.ReasoningConfig{Adaptive: true},
+	}, &llms.Warnings{})
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "reasoningConfig", "a Nova that does not reason gets no reasoning config")
+}

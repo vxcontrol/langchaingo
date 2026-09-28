@@ -433,7 +433,12 @@ func TestConverse_StructuredOutput_ReadsTheModelBehindAnARN(t *testing.T) {
 		require.NotNil(t, captured.OutputConfig, model)
 	}
 
-	_, err := send("arn:aws:bedrock:us-east-1::foundation-model/us.amazon.nova-pro-v1:0")
-	var unsup *llms.ErrStructuredOutputUnsupported
-	require.ErrorAs(t, err, &unsup, "a named model the cards do not list is still refused")
+	for _, model := range []string{
+		"arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0",
+		"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.amazon.nova-pro-v1:0",
+	} {
+		_, err := send(model)
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, "%s: a named model the cards do not list is still refused", model)
+	}
 }
