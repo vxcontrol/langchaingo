@@ -2,13 +2,18 @@ package anthropicclient
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func legacyStream(t *testing.T, body string) (*CompletionResponsePayload, error) {
@@ -46,4 +51,25 @@ func TestALegacyLineOverTheCeilingReportsTheFailure(t *testing.T) {
 		"the read failure must reach the caller by name, not as an empty-response error")
 	require.NotErrorIs(t, err, ErrEmptyResponse)
 	assert.Nil(t, got)
+}
+
+func TestALegacyStreamStopsItsReaderWhenTheConsumerGivesUp(t *testing.T) {
+	body := strings.Repeat(`data: {"completion":"x","model":"claude-2"}`+"\n", 5)
+	gaveUp := errors.New("consumer gave up")
+
+	runtime.GC()
+	time.Sleep(50 * time.Millisecond)
+	before := runtime.NumGoroutine()
+
+	resp := &http.Response{Body: io.NopCloser(strings.NewReader(body))}
+	_, err := parseStreamingCompletionResponse(context.Background(), resp, &completionPayload{
+		StreamingFunc: func(context.Context, streaming.Chunk) error { return gaveUp },
+	})
+	require.ErrorIs(t, err, gaveUp)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	assert.LessOrEqual(t, runtime.NumGoroutine(), before, "the reader must not stay blocked on a consumer that left")
 }

@@ -98,6 +98,16 @@ func parseStreamingCompletionResponse(ctx context.Context, r *http.Response, pay
 	scanner := bufio.NewScanner(r.Body)
 	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	responseChan := make(chan CompletionEvent)
+	done := make(chan struct{})
+	defer close(done)
+	send := func(ev CompletionEvent) bool {
+		select {
+		case responseChan <- ev:
+			return true
+		case <-done:
+			return false
+		}
+	}
 	go func() {
 		defer close(responseChan)
 		for scanner.Scan() {
@@ -112,13 +122,15 @@ func parseStreamingCompletionResponse(ctx context.Context, r *http.Response, pay
 			streamPayload := &CompletionResponsePayload{}
 			err := json.NewDecoder(bytes.NewReader([]byte(data))).Decode(&streamPayload)
 			if err != nil {
-				responseChan <- CompletionEvent{Response: nil, Err: fmt.Errorf("failed to parse stream event: %w", err)}
+				send(CompletionEvent{Response: nil, Err: fmt.Errorf("failed to parse stream event: %w", err)})
 				return
 			}
-			responseChan <- CompletionEvent{Response: streamPayload, Err: nil}
+			if !send(CompletionEvent{Response: streamPayload, Err: nil}) {
+				return
+			}
 		}
 		if err := scanner.Err(); err != nil {
-			responseChan <- CompletionEvent{Response: nil, Err: fmt.Errorf("failed to read stream: %w", err)}
+			send(CompletionEvent{Response: nil, Err: fmt.Errorf("failed to read stream: %w", err)})
 		}
 	}()
 	// Parse response
