@@ -26,6 +26,7 @@ func TestIsTruncatedCoversEveryVendorSpelling(t *testing.T) {
 		"googleai":         "MAX_TOKENS",
 		"vertex":           "MAX_TOKENS",
 		"mistral context":  "model_length",
+		"claude context":   "model_context_window_exceeded",
 	}
 	for vendor, reason := range truncated {
 		assert.True(t, IsTruncated(reason), "%s spells truncation %q", vendor, reason)

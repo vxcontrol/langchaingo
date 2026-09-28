@@ -6,9 +6,10 @@ import (
 )
 
 var truncationStopReasons = map[string]bool{
-	"length":       true,
-	"max_tokens":   true,
-	"model_length": true,
+	"length":                        true,
+	"max_tokens":                    true,
+	"model_length":                  true,
+	"model_context_window_exceeded": true,
 }
 
 // IsTruncated reports whether a vendor stop reason means generation stopped at
