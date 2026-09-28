@@ -1153,6 +1153,9 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		// thinking_level on Gemini 3.x (its native control, where thinking_budget is
 		// deprecated); an explicit budget or a 2.5 model still uses thinking_budget.
 		if cfg.Tokens <= 0 && reasoning.GeminiUsesThinkingLevel(model) {
+			if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 {
+				return &genai.ThinkingConfig{IncludeThoughts: true}, nil
+			}
 			if level := thinkingLevelForEffort(model, cfg.GetEffort(maxTokens)); level != "" {
 				return &genai.ThinkingConfig{ThinkingLevel: level, IncludeThoughts: true}, nil
 			}
@@ -1241,6 +1244,28 @@ func checkEmptyStream(
 // xhigh/max collapse to HIGH (the top level); an unset effort returns empty so
 // the caller falls back to a budget or the model default.
 func thinkingLevelForEffort(model string, effort llms.ReasoningEffort) genai.ThinkingLevel {
+	level := levelForEffort(model, effort)
+	levels := reasoning.GeminiThinkingLevels(model)
+	if level == "" || len(levels) == 0 || slices.Contains(levels, strings.ToLower(string(level))) {
+		return level
+	}
+	accepted := genai.ThinkingLevel(strings.ToUpper(levels[0]))
+	for _, candidate := range levels {
+		if geminiLevelRank[strings.ToUpper(candidate)] <= geminiLevelRank[string(level)] {
+			accepted = genai.ThinkingLevel(strings.ToUpper(candidate))
+		}
+	}
+	return accepted
+}
+
+var geminiLevelRank = map[string]int{
+	string(genai.ThinkingLevelMinimal): 0,
+	string(genai.ThinkingLevelLow):     1,
+	string(genai.ThinkingLevelMedium):  2,
+	string(genai.ThinkingLevelHigh):    3,
+}
+
+func levelForEffort(model string, effort llms.ReasoningEffort) genai.ThinkingLevel {
 	switch effort {
 	case llms.ReasoningMinimal:
 		if reasoning.GeminiAcceptsMinimalLevel(model) {

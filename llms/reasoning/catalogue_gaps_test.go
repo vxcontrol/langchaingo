@@ -1,6 +1,9 @@
 package reasoning
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestModelsThatReasonAreInTheCatalogue(t *testing.T) {
 	t.Parallel()
@@ -585,5 +588,24 @@ func TestAliasNamesTheVendorListingsCarry(t *testing.T) {
 	if got := ResolveOff("glm-flash-latest", ProviderOpenAI); got != OffUnsupported {
 		t.Errorf("ResolveOff(glm-flash-latest) = %v, want unsupported: its target answers "+
 			"an explicit disable with 159 characters of reasoning", got)
+	}
+}
+
+func TestGeminiThinkingLevelsFollowTheVendorTable(t *testing.T) {
+	t.Parallel()
+
+	for model, want := range map[string][]string{
+		"gemini-3.1-flash-image":         {"minimal", "high"},
+		"gemini-3.1-flash-image-preview": {"minimal", "high"},
+		"gemini-3.1-flash-lite-image":    {"minimal", "high"},
+		"gemini-3-pro-image-preview":     {},
+		"gemini-3-pro-preview":           {"low", "high"},
+		"gemini-3.1-pro-preview":         nil,
+		"gemini-3-flash-preview":         nil,
+		"gemini-2.5-flash":               nil,
+	} {
+		if got := GeminiThinkingLevels(model); !slices.Equal(got, want) || (got == nil) != (want == nil) {
+			t.Errorf("GeminiThinkingLevels(%q) = %#v, want %#v", model, got, want)
+		}
 	}
 }

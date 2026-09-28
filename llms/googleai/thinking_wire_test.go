@@ -131,14 +131,39 @@ func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
 	}
 }
 
-func TestAGemini3ImageModelKeepsItsThinkingLevel(t *testing.T) {
+func TestAGemini3ModelGetsOnlyTheLevelsItsVendorDocuments(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"} {
-		tc := thinkingConfigFor(t, model, llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithMaxTokens(8192))
-		assert.Equal(t, "HIGH", tc["thinkingLevel"], model)
-		assert.Equal(t, true, tc["includeThoughts"], model)
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		want   string
+	}{
+		{"gemini-3.1-flash-image-preview", llms.ReasoningHigh, "HIGH"},
+		{"gemini-3.1-flash-image-preview", llms.ReasoningMedium, "MINIMAL"},
+		{"gemini-3.1-flash-lite-image", llms.ReasoningLow, "MINIMAL"},
+		{"gemini-3-pro-preview", llms.ReasoningMedium, "LOW"},
+		{"gemini-3-pro-preview", llms.ReasoningHigh, "HIGH"},
+		{"gemini-3.1-pro-preview", llms.ReasoningMedium, "MEDIUM"},
+	} {
+		got := thinkingConfigFor(t, tc.model, llms.WithReasoning(tc.effort, 0), llms.WithMaxTokens(8192))
+		assert.Equal(t, tc.want, got["thinkingLevel"], "%s asked %s", tc.model, tc.effort)
+		assert.Equal(t, true, got["includeThoughts"], tc.model)
 	}
+}
+
+func TestGemini3ProImageThinksWithoutALevelItsVendorNeverNames(t *testing.T) {
+	t.Parallel()
+
+	got := thinkingConfigFor(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true}, got)
+
+	resp := generateForWarnings(t, "gemini-3-pro-image-preview", llms.WithReasoning(llms.ReasoningHigh, 0))
+	w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the dropped level must be reported, got %v", resp.Warnings)
+	assert.Equal(t, llms.WarningDrop, w.Kind)
+	assert.Equal(t, "high", w.Asked)
 }
 
 func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {

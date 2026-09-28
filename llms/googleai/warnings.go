@@ -66,6 +66,16 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 		return
 	}
 
+	if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 && !cfg.HasExplicitTokens() {
+		if asked := string(cfg.GetEffort(opts.GetMaxTokens())); cfg.Effort != "" {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: asked,
+				Reason: "the vendor documents no thinking level for this model, which thinks at its own depth",
+			})
+		}
+		return
+	}
+
 	if tc != nil && tc.ThinkingLevel != "" {
 		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
 		if cfg.Effort != "" && !strings.EqualFold(asked, string(tc.ThinkingLevel)) {

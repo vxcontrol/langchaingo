@@ -66,6 +66,23 @@ func GeminiUsesThinkingLevel(model string) bool {
 	return hasFamily(baseModelName(model), "gemini-3")
 }
 
+// GeminiThinkingLevels returns the thinking levels Google documents for a model
+// that takes fewer than all of them: an empty set means the model thinks but no
+// level is documented, nil means no narrower set is recorded.
+func GeminiThinkingLevels(model string) []string {
+	m := baseModelName(model)
+	image := strings.Contains(m, "-image")
+	switch {
+	case image && hasFamily(m, "gemini-3.1-flash"):
+		return []string{"minimal", "high"}
+	case image && hasFamily(m, "gemini-3-pro"):
+		return []string{}
+	case hasFamily(m, "gemini-3-pro"):
+		return []string{"low", "high"}
+	}
+	return nil
+}
+
 // GeminiAcceptsMinimalLevel reports whether the model takes thinking_level
 // MINIMAL. A name this package has not measured reports false and falls back
 // to LOW, so extending this set means measuring first, not guessing.
