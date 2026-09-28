@@ -295,7 +295,7 @@ func (o *LLM) createChatRequest(
 		PresencePenalty:      opts.PresencePenalty,
 		RepetitionPenalty:    opts.RepetitionPenalty,
 		Verbosity:            opts.Verbosity,
-		LogProbs:             opts.LogProbs != nil && *opts.LogProbs,
+		LogProbs:             opts.LogProbs != nil && *opts.LogProbs || derefInt(opts.TopLogProbs) > 0,
 		TopLogProbs:          derefInt(opts.TopLogProbs),
 		ToolChoice:           openaiToolChoice(opts.ToolChoice),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),

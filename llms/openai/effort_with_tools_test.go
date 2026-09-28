@@ -347,3 +347,12 @@ func TestTheEffortNoneStillTurnsReasoningOffOnTheWire(t *testing.T) {
 		t.Errorf("want reasoning_effort none on the wire, got %s", body)
 	}
 }
+
+func TestTopLogProbsAsksForTheLogProbsTheyNeed(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-4o", llms.WithTopLogProbs(3))
+	if !strings.Contains(body, `"logprobs":true`) || !strings.Contains(body, `"top_logprobs":3`) {
+		t.Errorf("OpenAI takes top_logprobs only beside logprobs true, got %s", body)
+	}
+}
