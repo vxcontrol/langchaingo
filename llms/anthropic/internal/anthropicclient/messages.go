@@ -786,11 +786,6 @@ func handleSignatureDelta(_ context.Context, delta map[string]interface{},
 }
 
 func handleContentBlockStopEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
-	if index, ok := event["index"].(float64); ok && int(index) < len(response.Content) {
-		if tuc, ok := response.Content[int(index)].(*ToolUseContent); ok {
-			tuc.streamOpen = false
-		}
-	}
 	for _, content := range response.Content {
 		if content == nil {
 			continue
@@ -803,6 +798,11 @@ func handleContentBlockStopEvent(event map[string]interface{}, response MessageR
 		err := tuc.DecodeStream()
 		if err != nil {
 			return response, fmt.Errorf("error decoding stream tool data: %w", err)
+		}
+	}
+	if index, ok := event["index"].(float64); ok && int(index) < len(response.Content) {
+		if tuc, ok := response.Content[int(index)].(*ToolUseContent); ok {
+			tuc.streamOpen = false
 		}
 	}
 
