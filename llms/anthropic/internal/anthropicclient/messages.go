@@ -426,16 +426,6 @@ func parseStreamingMessageResponse(
 	scanner := bufio.NewScanner(r.Body)
 	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	eventChan := make(chan MessageEvent)
-	done := make(chan struct{})
-	defer close(done)
-	send := func(ev MessageEvent) bool {
-		select {
-		case eventChan <- ev:
-			return true
-		case <-done:
-			return false
-		}
-	}
 
 	go func() {
 		defer close(eventChan)
@@ -450,11 +440,11 @@ func parseStreamingMessageResponse(
 			if !strings.HasPrefix(line, "data:") {
 				// it's happening when the server answer is not a streaming response
 				// we need to parse the response as a normal response and return it
-				if err := parseMessageResponse(ctx, line, payload, send); err != nil {
-					send(MessageEvent{
+				if err := parseMessageResponse(ctx, line, payload, eventChan); err != nil {
+					eventChan <- MessageEvent{
 						Response: nil,
 						Err:      fmt.Errorf("failed to parse stream message response: %w", err),
-					})
+					}
 					return
 				}
 				continue
@@ -463,22 +453,22 @@ func parseStreamingMessageResponse(
 			event, err := parseStreamEvent(data)
 			if err != nil {
 				partial := response
-				send(MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)})
+				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)}
 				return
 			}
-			response, err = processStreamEvent(ctx, event, payload, response, send)
+			response, err = processStreamEvent(ctx, event, payload, response, eventChan)
 			if errors.Is(err, errStreamEnded) {
 				return
 			}
 			if err != nil {
 				partial := response
-				send(MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)})
+				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)}
 				return
 			}
 		}
 		if err := scanner.Err(); err != nil {
 			partial := response
-			send(MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)})
+			eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)}
 		}
 	}()
 
@@ -496,7 +486,7 @@ func parseStreamingMessageResponse(
 }
 
 func parseMessageResponse(ctx context.Context, line string,
-	payload *messagePayload, send func(MessageEvent) bool,
+	payload *messagePayload, eventChan chan<- MessageEvent,
 ) error {
 	var response MessageResponsePayload
 	if err := json.Unmarshal([]byte(line), &response); err != nil {
@@ -528,7 +518,7 @@ func parseMessageResponse(ctx context.Context, line string,
 		}
 	}
 
-	send(MessageEvent{Response: &response, Err: nil})
+	eventChan <- MessageEvent{Response: &response, Err: nil}
 	return nil
 }
 
@@ -538,7 +528,7 @@ func parseStreamEvent(data string) (map[string]interface{}, error) {
 }
 
 func processStreamEvent(ctx context.Context, event map[string]interface{}, payload *messagePayload,
-	response MessageResponsePayload, send func(MessageEvent) bool,
+	response MessageResponsePayload, eventChan chan<- MessageEvent,
 ) (MessageResponsePayload, error) {
 	eventType, ok := event["type"].(string)
 	if !ok {
@@ -557,12 +547,12 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "message_delta":
 		return handleMessageDeltaEvent(event, response)
 	case "message_stop":
-		send(MessageEvent{Response: &response, Err: nil})
+		eventChan <- MessageEvent{Response: &response, Err: nil}
 	case "ping":
 		// Nothing to do here
 	case "error":
 		partial := response
-		send(MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)})
+		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)}
 		return response, errStreamEnded
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)
