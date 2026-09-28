@@ -3,6 +3,7 @@ package llms
 import (
 	"fmt"
 
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
@@ -175,10 +176,19 @@ func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	return ReasoningNone
 }
 
-// ValidateReasoning reports an effort no door accepts.
+// ValidateReasoning reports an effort no door accepts. The OpenAI effort
+// "none" is read as reasoning off, or as no effort beside a token budget.
 func (o *CallOptions) ValidateReasoning() error {
 	if o == nil || o.Reasoning == nil {
 		return nil
+	}
+	if o.Reasoning.Effort == ReasoningEffort(reasoning.OpenAIDisableEffort) {
+		r := *o.Reasoning
+		r.Effort = ReasoningNone
+		if r.Mode == ReasoningDefault && !r.Adaptive && !r.HasExplicitTokens() {
+			r.Mode = ReasoningOff
+		}
+		o.Reasoning = &r
 	}
 	switch o.Reasoning.Effort {
 	case ReasoningNone, ReasoningMinimal, ReasoningLow,

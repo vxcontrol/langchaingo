@@ -338,3 +338,12 @@ func TestAskingForTheNoneLevelWithToolsIsNotARefusal(t *testing.T) {
 		t.Errorf("a caller who named the none level asked for what the vendor serves\nbody: %s", body)
 	}
 }
+
+func TestTheEffortNoneStillTurnsReasoningOffOnTheWire(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-5.1", llms.WithReasoning(llms.ReasoningEffort("none"), 0))
+	if !strings.Contains(body, `"reasoning_effort":"none"`) {
+		t.Errorf("want reasoning_effort none on the wire, got %s", body)
+	}
+}

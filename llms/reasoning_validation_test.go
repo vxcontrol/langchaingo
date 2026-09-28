@@ -54,3 +54,27 @@ func TestTheCeilingRisesOnlyWhenTheBudgetWouldNotFit(t *testing.T) {
 		})
 	}
 }
+
+func TestTheEffortNoneReadsAsReasoningOff(t *testing.T) {
+	t.Parallel()
+
+	shared := &ReasoningConfig{Effort: ReasoningEffort("none")}
+	opts := CallOptions{Reasoning: shared}
+	if err := opts.ValidateReasoning(); err != nil {
+		t.Fatalf("OpenAI documents none as an effort, got %v", err)
+	}
+	if got := opts.Reasoning.ResolveMode(); got != ReasoningOff {
+		t.Errorf("mode = %v, want ReasoningOff", got)
+	}
+	if shared.Effort != ReasoningEffort("none") {
+		t.Errorf("the caller's config must stay as written, got %+v", shared)
+	}
+
+	budget := CallOptions{Reasoning: &ReasoningConfig{Effort: ReasoningEffort("none"), Tokens: 2048}}
+	if err := budget.ValidateReasoning(); err != nil {
+		t.Fatalf("none beside a budget leaves the depth to the budget, got %v", err)
+	}
+	if budget.Reasoning.ResolveMode() != ReasoningOn || budget.Reasoning.Effort != ReasoningNone {
+		t.Errorf("none with a budget must think on the budget alone, got %+v", budget.Reasoning)
+	}
+}
