@@ -917,21 +917,25 @@ type ToolResult struct {
 
 func handleToolMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
 	results := make([]anthropicclient.Content, 0, len(msg.Parts))
+	var texts []anthropicclient.Content
 	for _, part := range msg.Parts {
-		toolCallResponse, ok := part.(llms.ToolCallResponse)
-		if !ok {
+		switch p := part.(type) {
+		case llms.ToolCallResponse:
+			results = append(results, &anthropicclient.ToolResultContent{
+				Type:      "tool_result",
+				ToolUseID: p.ToolCallID,
+				Content:   p.Content,
+			})
+		case llms.TextContent:
+			texts = append(texts, &anthropicclient.TextContent{Type: "text", Text: p.Text})
+		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
 		}
-		results = append(results, &anthropicclient.ToolResultContent{
-			Type:      "tool_result",
-			ToolUseID: toolCallResponse.ToolCallID,
-			Content:   toolCallResponse.Content,
-		})
 	}
 	if len(results) == 0 {
 		return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
 	}
-	return anthropicclient.ChatMessage{Role: RoleUser, Content: results}, nil
+	return anthropicclient.ChatMessage{Role: RoleUser, Content: append(results, texts...)}, nil
 }
 
 const (

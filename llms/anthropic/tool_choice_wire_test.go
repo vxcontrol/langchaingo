@@ -2,6 +2,7 @@ package anthropic_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -216,4 +217,47 @@ func TestNoToolChoiceGoesOutWithoutTools(t *testing.T) {
 		_, sent := p["tool_choice"]
 		assert.False(t, sent, "%v with no tools must not reach the wire", choice)
 	}
+}
+
+func TestATextPartAfterAToolResultFollowsItOnTheWire(t *testing.T) {
+	t.Parallel()
+
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"claude-opus-4-6",` +
+			`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("k"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-4-6"))
+	require.NoError(t, err)
+
+	history := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "weather?"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{
+			ID: "t1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{}`},
+		}}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "t1", Name: "get_weather", Content: "sunny"},
+			llms.TextContent{Text: "answer in one word"},
+		}},
+	}
+	_, err = llm.GenerateContent(context.Background(), history, llms.WithMaxTokens(64))
+	require.NoError(t, err)
+
+	var payload struct {
+		Messages []struct {
+			Role    string           `json:"role"`
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(body, &payload))
+	last := payload.Messages[len(payload.Messages)-1]
+	require.Len(t, last.Content, 2)
+	assert.Equal(t, "tool_result", last.Content[0]["type"])
+	assert.Equal(t, map[string]any{"type": "text", "text": "answer in one word"}, last.Content[1])
 }

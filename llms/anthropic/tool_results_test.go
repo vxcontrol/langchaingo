@@ -56,7 +56,7 @@ func TestAToolMessageWithANonResultPartIsRefusedBeforeTheRequest(t *testing.T) {
 		}},
 		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
 			llms.ToolCallResponse{ToolCallID: "a", Name: "lookup", Content: "1"},
-			llms.TextContent{Text: "note for the model"},
+			llms.ToolCall{ID: "b", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: "{}"}},
 		}},
 	}, llms.WithTools([]llms.Tool{lookupTool()}))
 
