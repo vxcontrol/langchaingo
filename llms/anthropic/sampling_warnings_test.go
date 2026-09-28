@@ -236,3 +236,12 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestAnInferenceSpeedTheDoorSendsIsNotReportedLost(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForModel(t, "claude-opus-5", llms.WithInferenceSpeed("fast"))
+	for _, w := range resp.Warnings {
+		require.NotEqual(t, "WithInferenceSpeed", w.Option, "the speed reached the wire: %+v", w)
+	}
+}

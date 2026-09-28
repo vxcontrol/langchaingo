@@ -112,6 +112,7 @@ var unreadCatalogue = []struct {
 	}},
 	{"WithVerbosity", func(o CallOptions) string { return askedString(o.Verbosity) }},
 	{"WithResponseMIMEType", func(o CallOptions) string { return askedString(o.ResponseMIMEType) }},
+	{"WithInferenceSpeed", func(o CallOptions) string { return askedString(o.InferenceSpeed) }},
 	{"WithLogProbs", func(o CallOptions) string {
 		if o.LogProbs != nil && *o.LogProbs {
 			return "true"

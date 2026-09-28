@@ -13,7 +13,7 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	const unread = "the door builds no field for it"
 
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
-	warn.AddUnreadOptions(model, opts, unread, "WithTopK")
+	warn.AddUnreadOptions(model, opts, unread, "WithTopK", "WithInferenceSpeed")
 }
 
 func reportAnthropicEffort(
