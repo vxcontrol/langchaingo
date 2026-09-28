@@ -64,3 +64,34 @@ func TestTheEmbeddingsBodyCarriesNothingButTheInputs(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &sent))
 	assert.Equal(t, []string{"inputs"}, slices.Sorted(maps.Keys(sent)))
 }
+
+func TestABaseThatNamesTheProviderIsNotGivenItTwice(t *testing.T) {
+	t.Parallel()
+
+	var path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[[0.1,0.2]]`)
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, tc := range []struct{ base, provider, want string }{
+		{srv.URL + "/hf-inference", "", "/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/hf-inference/", "", "/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/scaleway", "scaleway", "/scaleway/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/my-hf-inference", "", "/my-hf-inference/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/hf-inference/v1", "", "/hf-inference/v1/hf-inference/models/m/pipeline/feature-extraction"},
+	} {
+		opts := []Option{WithToken("t"), WithURL(tc.base)}
+		if tc.provider != "" {
+			opts = append(opts, WithInferenceProvider(tc.provider))
+		}
+		llm, err := New(opts...)
+		require.NoError(t, err)
+
+		_, err = llm.CreateEmbedding(context.Background(), []string{"hi"}, "m", "feature-extraction")
+		require.NoError(t, err, tc.base)
+		assert.Equal(t, tc.want, path, tc.base)
+	}
+}

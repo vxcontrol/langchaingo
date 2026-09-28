@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type embeddingPayload struct {
@@ -28,7 +29,11 @@ func (c *Client) createEmbedding(ctx context.Context, model, task string, payloa
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
-	url := fmt.Sprintf("%s/%s/models/%s/pipeline/%s", c.url, c.embeddingProvider(), model, task)
+	base := strings.TrimRight(c.url, "/")
+	if provider := "/" + c.embeddingProvider(); !strings.HasSuffix(base, provider) {
+		base += provider
+	}
+	url := fmt.Sprintf("%s/models/%s/pipeline/%s", base, model, task)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
