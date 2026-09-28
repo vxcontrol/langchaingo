@@ -127,3 +127,29 @@ data: {"type":"content_block_stop","index":1}
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 	assert.Empty(t, resp.Choices[0].ToolCalls, "arguments that never parsed are not a call")
 }
+
+func TestAFinishedToolCallStaysInThePartialAnswer(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamThenFail(t, `event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_1","name":"list_files","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"path\": \"/tmp\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: error
+data: {"type":"error","error":{"type":"overloaded_error","message":"overloaded"}}
+`)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.Choices)
+	require.Len(t, resp.Choices[0].ToolCalls, 1, "the model finished this call before the stream broke")
+	assert.JSONEq(t, `{"path":"/tmp"}`, resp.Choices[0].ToolCalls[0].FunctionCall.Arguments)
+}
