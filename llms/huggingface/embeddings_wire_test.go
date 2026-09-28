@@ -64,3 +64,24 @@ func TestTheEmbeddingsBodyCarriesNothingButTheInputs(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &sent))
 	assert.Equal(t, []string{"inputs"}, slices.Sorted(maps.Keys(sent)))
 }
+
+func TestABaseThatNamesTheProviderIsNotGivenItTwice(t *testing.T) {
+	t.Parallel()
+
+	var path string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[[0.1,0.2]]`)
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, base := range []string{srv.URL + "/hf-inference", srv.URL + "/hf-inference/"} {
+		llm, err := New(WithToken("t"), WithURL(base))
+		require.NoError(t, err)
+
+		_, err = llm.CreateEmbedding(context.Background(), []string{"hi"}, "BAAI/bge-small-en-v1.5", "feature-extraction")
+		require.NoError(t, err, base)
+		assert.Equal(t, "/hf-inference/models/BAAI/bge-small-en-v1.5/pipeline/feature-extraction", path, base)
+	}
+}
