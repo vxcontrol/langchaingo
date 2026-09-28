@@ -134,8 +134,8 @@ func createAmazonCompletion(ctx context.Context,
 			StopReason: result.CompletionReason,
 			Truncated:  llms.IsTruncated(result.CompletionReason),
 			GenerationInfo: map[string]any{
-				"input_tokens":  output.InputTextTokenCount,
-				"output_tokens": result.TokenCount,
+				"input_tokens":  int(output.InputTextTokenCount),
+				"output_tokens": int(result.TokenCount),
 				// Standardized field names for cross-provider compatibility
 				"PromptTokens":     int(output.InputTextTokenCount),
 				"CompletionTokens": int(result.TokenCount),
@@ -197,11 +197,11 @@ DoStream:
 
 			// Set token counts
 			if resp.InputTextTokenCount > 0 {
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.InputTextTokenCount
+				contentchoices[0].GenerationInfo["input_tokens"] = int(resp.InputTextTokenCount)
 				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.InputTextTokenCount)
 			}
 			if resp.OutputTextTokenCount > 0 {
-				contentchoices[0].GenerationInfo["output_tokens"] = resp.OutputTextTokenCount
+				contentchoices[0].GenerationInfo["output_tokens"] = int(resp.OutputTextTokenCount)
 				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.OutputTextTokenCount)
 			}
 			if resp.InputTextTokenCount > 0 || resp.OutputTextTokenCount > 0 {

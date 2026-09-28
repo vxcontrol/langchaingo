@@ -121,8 +121,8 @@ func createMetaCompletion(ctx context.Context,
 				StopReason: output.StopReason,
 				Truncated:  llms.IsTruncated(output.StopReason),
 				GenerationInfo: map[string]any{
-					"input_tokens":  output.PromptTokenCount,
-					"output_tokens": output.GenerationTokenCount,
+					"input_tokens":  int(output.PromptTokenCount),
+					"output_tokens": int(output.GenerationTokenCount),
 					// Standardized field names for cross-provider compatibility
 					"PromptTokens":     int(output.PromptTokenCount),
 					"CompletionTokens": int(output.GenerationTokenCount),
@@ -181,11 +181,11 @@ DoStream:
 
 			// Set token counts
 			if resp.PromptTokenCount > 0 {
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.PromptTokenCount
+				contentchoices[0].GenerationInfo["input_tokens"] = int(resp.PromptTokenCount)
 				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.PromptTokenCount)
 			}
 			if resp.GenerationTokenCount > 0 {
-				contentchoices[0].GenerationInfo["output_tokens"] = resp.GenerationTokenCount
+				contentchoices[0].GenerationInfo["output_tokens"] = int(resp.GenerationTokenCount)
 				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.GenerationTokenCount)
 			}
 			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)

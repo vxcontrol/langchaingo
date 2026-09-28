@@ -24,7 +24,9 @@ type counterCase struct {
 	stop   string
 }
 
-var wantCounters = map[string]int{"PromptTokens": 5, "CompletionTokens": 3, "TotalTokens": 8}
+var wantCounters = map[string]int{
+	"PromptTokens": 5, "CompletionTokens": 3, "TotalTokens": 8, "input_tokens": 5, "output_tokens": 3,
+}
 
 func legacyCounterFamilies() []counterCase {
 	return []counterCase{
