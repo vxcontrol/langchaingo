@@ -46,7 +46,7 @@ func GeminiSupportsThinking(model string) bool {
 func geminiNonChatSurface(model string) bool {
 	return strings.Contains(model, "-tts") ||
 		strings.Contains(model, "-live-translate") ||
-		strings.Contains(model, "-image") ||
+		(strings.Contains(model, "-image") && !hasFamily(model, "gemini-3")) ||
 		strings.Contains(model, "transcribe")
 }
 

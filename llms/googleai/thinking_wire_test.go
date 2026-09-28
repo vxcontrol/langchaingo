@@ -131,6 +131,16 @@ func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
 	}
 }
 
+func TestAGemini3ImageModelKeepsItsThinkingLevel(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"} {
+		tc := thinkingConfigFor(t, model, llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithMaxTokens(8192))
+		assert.Equal(t, "HIGH", tc["thinkingLevel"], model)
+		assert.Equal(t, true, tc["includeThoughts"], model)
+	}
+}
+
 func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {
 	t.Parallel()
 

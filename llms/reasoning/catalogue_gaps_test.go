@@ -66,6 +66,22 @@ func TestQwen3HybridsAreInTheCatalogueNowThatOffIsExpressible(t *testing.T) {
 	}
 }
 
+func TestGemini3ImageModelsThinkWhileTheOlderImageModelDoesNot(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"gemini-3.1-flash-image", "gemini-3.1-flash-image-preview",
+		"gemini-3-pro-image", "gemini-3-pro-image-preview", "gemini-3.1-flash-lite-image",
+	} {
+		if !GeminiSupportsThinking(model) {
+			t.Errorf("GeminiSupportsThinking(%q) = false, but the vendor documents thinking for it", model)
+		}
+	}
+	if GeminiSupportsThinking("gemini-2.5-flash-image") {
+		t.Error(`GeminiSupportsThinking("gemini-2.5-flash-image") = true, but an effort makes the vendor refuse it`)
+	}
+}
+
 func TestChatGoogleFamiliesStillThink(t *testing.T) {
 	t.Parallel()
 
