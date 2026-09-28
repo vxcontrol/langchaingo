@@ -152,6 +152,7 @@ func TestClaudeThinkingDefaultAndAlwaysOn(t *testing.T) {
 		{"claude-sonnet-5", true, false, "defaults on, still disablable"},
 		{"claude-opus-4-8", false, false, "defaults off"},
 		{"claude-fable-5", true, true, "always on, cannot disable"},
+		{"claude-opus-5-5", true, true, "always on, cannot disable"},
 		{"claude-mythos-5", true, true, "always on, cannot disable"},
 		{"claude-mythos-preview", true, true, "always on, cannot disable"},
 	}

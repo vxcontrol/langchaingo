@@ -10,6 +10,9 @@ func TestResolveOff(t *testing.T) {
 		want  OffWire
 	}{
 		{"claude-fable-5", ProviderAnthropic, OffUnsupported},
+		{"claude-opus-5-5", ProviderAnthropic, OffUnsupported},
+		{"us.anthropic.claude-opus-5-5", ProviderBedrock, OffUnsupported},
+		{"anthropic/claude-opus-5-5", ProviderOpenAI, OffUnsupported},
 		{"us.anthropic.claude-mythos-5", ProviderBedrock, OffUnsupported},
 		{"claude-sonnet-5", ProviderAnthropic, OffDisableClaude},
 		{"us.anthropic.claude-sonnet-5", ProviderBedrock, OffDisableClaude},

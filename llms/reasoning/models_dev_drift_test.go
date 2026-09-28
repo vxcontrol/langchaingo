@@ -12,13 +12,6 @@ import (
 // tables only when a vendor probe says so.
 var knownDrift = map[string]string{
 	"google/gemini-2.5-flash-image":            "image route: effort is rejected by Gemini",
-	"google/gemini-3-pro-image":                "image route",
-	"google/gemini-3-pro-image-preview":        "image route",
-	"google/gemini-3.1-flash-image":            "image route",
-	"google/gemini-3.1-flash-image-preview":    "image route",
-	"google/gemini-3.1-flash-lite-image":       "image route",
-	"google-vertex/gemini-3-pro-image":         "image route",
-	"google-vertex/gemini-3.1-flash-image":     "image route",
 	"google/gemini-3.1-flash-tts-preview":      "speech route: 400 Thinking level is not supported",
 	"google/gemini-omni-flash-preview":         "not chat: vendor returns 400",
 	"google/deep-research-preview-04-2026":     "route is not served",

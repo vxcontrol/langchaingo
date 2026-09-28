@@ -86,7 +86,7 @@ func ClaudeSupportsThinking(model string) bool {
 // because this SDK never sends effort alongside a disable request).
 var (
 	alwaysOnClaude = []string{
-		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview",
+		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview", "claude-opus-5-5",
 		"claude-fable-latest",
 	}
 	defaultOnClaude = []string{

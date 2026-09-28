@@ -131,6 +131,68 @@ func TestABudgetOutsideTheModelRangeIsHeldInside(t *testing.T) {
 	}
 }
 
+func TestAGemini3ModelGetsOnlyTheLevelsItsVendorDocuments(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		want   string
+	}{
+		{"gemini-3.1-flash-image-preview", llms.ReasoningHigh, "HIGH"},
+		{"gemini-3.1-flash-image-preview", llms.ReasoningMedium, "MINIMAL"},
+		{"gemini-3.1-flash-lite-image", llms.ReasoningLow, "MINIMAL"},
+		{"gemini-3-pro-preview", llms.ReasoningMedium, "LOW"},
+		{"gemini-3-pro-preview", llms.ReasoningHigh, "HIGH"},
+		{"gemini-3.1-pro-preview", llms.ReasoningMedium, "MEDIUM"},
+	} {
+		got := thinkingConfigFor(t, tc.model, llms.WithReasoning(tc.effort, 0), llms.WithMaxTokens(8192))
+		assert.Equal(t, tc.want, got["thinkingLevel"], "%s asked %s", tc.model, tc.effort)
+		assert.Equal(t, true, got["includeThoughts"], tc.model)
+	}
+}
+
+func TestAnExplicitBudgetOnAGemini3ImageModelBecomesALevel(t *testing.T) {
+	t.Parallel()
+
+	flash := thinkingConfigFor(t, "gemini-3.1-flash-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true, "thinkingLevel": "HIGH"}, flash)
+
+	flashResp := generateForWarnings(t, "gemini-3.1-flash-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	sub, ok := googleWarningsByOption(flashResp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the budget sent as a level must be reported, got %v", flashResp.Warnings)
+	assert.Equal(t, llms.WarningSubstitute, sub.Kind)
+	assert.Equal(t, "4096 tokens", sub.Asked)
+	assert.Equal(t, "HIGH", sub.Sent)
+
+	pro := thinkingConfigFor(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true}, pro)
+
+	resp := generateForWarnings(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the dropped budget must be reported, got %v", resp.Warnings)
+	assert.Equal(t, llms.WarningDrop, w.Kind)
+	assert.Equal(t, "4096 tokens", w.Asked)
+}
+
+func TestGemini3ProImageThinksWithoutALevelItsVendorNeverNames(t *testing.T) {
+	t.Parallel()
+
+	got := thinkingConfigFor(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true}, got)
+
+	resp := generateForWarnings(t, "gemini-3-pro-image-preview", llms.WithReasoning(llms.ReasoningHigh, 0))
+	w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the dropped level must be reported, got %v", resp.Warnings)
+	assert.Equal(t, llms.WarningDrop, w.Kind)
+	assert.Equal(t, "high", w.Asked)
+}
+
 func TestAModelThatDoesNotThinkGetsNoThinkingConfig(t *testing.T) {
 	t.Parallel()
 
