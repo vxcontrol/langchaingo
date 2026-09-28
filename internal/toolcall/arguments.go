@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -20,6 +21,9 @@ type Field struct {
 // DecodeFields decodes tool call arguments, keeping the order of the keys and
 // the exact value of integers wider than float64 can hold.
 func DecodeFields(raw string) ([]Field, error) {
+	if strings.TrimSpace(raw) == "null" {
+		return nil, nil
+	}
 	dec := json.NewDecoder(strings.NewReader(raw))
 	dec.UseNumber()
 
@@ -49,6 +53,9 @@ func DecodeFields(raw string) ([]Field, error) {
 	}
 	if _, err := dec.Token(); err != nil {
 		return nil, err
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("%w: data follows the object: %s", ErrNotAnObject, raw)
 	}
 
 	return fields, nil
