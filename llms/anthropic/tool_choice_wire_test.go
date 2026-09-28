@@ -2,6 +2,7 @@ package anthropic_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
@@ -55,6 +57,16 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 			"required",
 			map[string]any{"type": "any"},
 		},
+		{
+			"named, one call per turn",
+			map[string]any{"type": "tool", "name": "get_weather", "disable_parallel_tool_use": true},
+			map[string]any{"type": "tool", "name": "get_weather", "disable_parallel_tool_use": true},
+		},
+		{
+			"any tool, one call per turn",
+			map[string]any{"type": "any", "disable_parallel_tool_use": true},
+			map[string]any{"type": "any", "disable_parallel_tool_use": true},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -74,6 +86,11 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 		want   map[string]any
 	}{
 		{"auto as a raw map", map[string]any{"type": "auto"}, map[string]any{"type": "auto"}},
+		{
+			"auto, one call per turn",
+			map[string]any{"type": "auto", "disable_parallel_tool_use": true},
+			map[string]any{"type": "auto", "disable_parallel_tool_use": true},
+		},
 		{"auto as a bare string", "auto", map[string]any{"type": "auto"}},
 		{"auto as a struct", llms.ToolChoice{Type: "auto"}, map[string]any{"type": "auto"}},
 		{"none as a bare string", "none", map[string]any{"type": "none"}},
@@ -190,4 +207,84 @@ func TestFableTakesAForcedToolChoiceWithoutThinking(t *testing.T) {
 	require.NoError(t, err, "the vendor answers 200 with a tool call for any, auto and a named "+
 		"tool on this model, so a local refusal would take away working behaviour")
 	assert.Contains(t, sent, `"tool_choice":{"type":"any"}`)
+}
+
+func TestNoToolChoiceGoesOutWithoutTools(t *testing.T) {
+	t.Parallel()
+
+	for _, choice := range []any{"none", "auto", "required"} {
+		p, _ := captureMessagesRequest(t,
+			llms.WithModel("claude-sonnet-4-6"), llms.WithToolChoice(choice), llms.WithMaxTokens(64))
+		_, sent := p["tool_choice"]
+		assert.False(t, sent, "%v with no tools must not reach the wire", choice)
+	}
+}
+
+func TestATextPartAfterAToolResultFollowsItOnTheWire(t *testing.T) {
+	t.Parallel()
+
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"m","type":"message","role":"assistant","model":"claude-opus-4-6",` +
+			`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("k"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-4-6"))
+	require.NoError(t, err)
+
+	history := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "weather?"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{
+			ID: "t1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{}`},
+		}}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "t1", Name: "get_weather", Content: "sunny"},
+			llms.TextContent{Text: "answer in one word"},
+		}},
+	}
+	_, err = llm.GenerateContent(context.Background(), history, llms.WithMaxTokens(64))
+	require.NoError(t, err)
+
+	var payload struct {
+		Messages []struct {
+			Role    string           `json:"role"`
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(body, &payload))
+	last := payload.Messages[len(payload.Messages)-1]
+	require.Len(t, last.Content, 2)
+	assert.Equal(t, "tool_result", last.Content[0]["type"])
+	assert.Equal(t, map[string]any{"type": "text", "text": "answer in one word"}, last.Content[1])
+}
+
+func TestAForcedChoiceOnOpus55IsRefusedBeforeTheRequest(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("k"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-5-5"))
+	require.NoError(t, err)
+
+	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "get_weather", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}
+	_, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{tool}), llms.WithToolChoice("required"), llms.WithMaxTokens(64))
+
+	var refused *reasoning.ErrForcedToolChoiceUnsupported
+	require.ErrorAs(t, err, &refused)
+	assert.False(t, called)
 }

@@ -62,12 +62,30 @@ func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {
 	case map[string]any:
 		t, _ := c["type"].(string)
 		name, _ := c["name"].(string)
-		if fn, ok := c["function"].(map[string]any); ok {
+		switch fn := c["function"].(type) {
+		case map[string]any:
 			name, _ = fn["name"].(string)
+		case map[string]string:
+			name = fn["name"]
+		case FunctionReference:
+			name = fn.Name
+		case *FunctionReference:
+			name = functionName(fn)
 		}
 		return kindOf(t, name)
 	}
 	return ToolChoiceUnset, ""
+}
+
+// DisablesParallelToolUse reports whether a raw map choice asks for at most one
+// tool call per turn, Anthropic's disable_parallel_tool_use.
+func DisablesParallelToolUse(choice any) bool {
+	c, ok := choice.(map[string]any)
+	if !ok {
+		return false
+	}
+	disabled, _ := c["disable_parallel_tool_use"].(bool)
+	return disabled
 }
 
 // ForcesToolUse reports whether a tool choice demands a tool call rather than
@@ -89,6 +107,19 @@ func ForcedToolName(choice any) (name string, forced bool) {
 		return "", true
 	}
 	return "", false
+}
+
+// CheckForcedToolUse refuses a forced tool choice on a Claude model that
+// rejects one.
+func CheckForcedToolUse(model string, opts CallOptions) error {
+	name, forced := ForcedToolName(opts.ToolChoice)
+	if !forced || (len(opts.Tools) == 0 && len(opts.Functions) == 0) || !reasoning.ClaudeRejectsForcedToolUse(model) {
+		return nil
+	}
+	if name == "" {
+		name = "any"
+	}
+	return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
 }
 
 func functionName(fn *FunctionReference) string {
@@ -132,6 +163,9 @@ func CheckClaudeTurnLimitsOnWire(
 		budget > 0
 	if budgetThinking && ForcesToolUse(opts.ToolChoice) {
 		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
+	}
+	if err := CheckForcedToolUse(model, opts); err != nil {
+		return err
 	}
 
 	if reasoning.ClaudeRejectsAssistantPrefill(model) && HasAssistantPrefill(messages) {

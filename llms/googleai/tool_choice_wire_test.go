@@ -104,3 +104,45 @@ func weatherTool() []llms.Tool {
 		},
 	}}
 }
+
+func TestAReplayedCallWithNullArgumentsReachesTheWire(t *testing.T) {
+	t.Parallel()
+
+	var body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		body = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"candidates":[{"content":{"role":"model","parts":[{"text":"done"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	llm, err := New(t.Context(), WithAPIKey("unit-test-key"), WithEndpoint(server.URL),
+		WithDefaultModel("gemini-2.5-flash"))
+	require.NoError(t, err)
+
+	history := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "what time is it?"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{
+			ID: "c1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "clock", Arguments: "null"},
+		}}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{llms.ToolCallResponse{
+			ToolCallID: "c1", Name: "clock", Content: "noon",
+		}}},
+	}
+	_, err = llm.GenerateContent(t.Context(), history)
+	require.NoError(t, err, "a call the model made without arguments must replay")
+	assert.Contains(t, body, `"functionCall":{"id":"c1","name":"clock"}`,
+		"null arguments replay as a call with no args")
+}
+
+func TestNoToolConfigGoesOutWithoutTools(t *testing.T) {
+	t.Parallel()
+
+	for _, choice := range []any{"none", "auto", "required"} {
+		body := thinkingWireFor(t, "gemini-2.5-flash", llms.WithToolChoice(choice))
+		assert.NotContains(t, body, "toolConfig", "%v with no tools must not reach the wire", choice)
+	}
+}

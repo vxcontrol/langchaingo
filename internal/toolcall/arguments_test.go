@@ -45,3 +45,22 @@ func TestDecodeKeepsFractionsAndStrings(t *testing.T) {
 	assert.Equal(t, true, args["flag"])
 	assert.Equal(t, []any{int64(1), int64(2)}, args["list"])
 }
+
+func TestNullArgumentsDecodeAsNoArguments(t *testing.T) {
+	t.Parallel()
+
+	fields, err := toolcall.DecodeFields(`null`)
+	require.NoError(t, err)
+	assert.Empty(t, fields)
+
+	args, err := toolcall.Decode(` null `)
+	require.NoError(t, err)
+	assert.Empty(t, args)
+}
+
+func TestDataAfterTheArgumentsObjectIsRefused(t *testing.T) {
+	t.Parallel()
+
+	_, err := toolcall.DecodeFields(`{"city":"Paris"}{"city":"London"}`)
+	require.ErrorIs(t, err, toolcall.ErrNotAnObject, "a second object is another call's arguments, not something to drop")
+}

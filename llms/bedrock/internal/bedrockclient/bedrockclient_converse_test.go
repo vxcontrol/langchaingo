@@ -1482,3 +1482,47 @@ func TestConverseReasoningStreamKeepsEachBlockApart(t *testing.T) {
 		{Text: "second", Signature: []byte("s2"), AfterToolCalls: 1},
 	}, acc.result().Sequence())
 }
+
+func TestConverseRefusesANamedToolChoiceOnFamiliesAWSDoesNotListForIt(t *testing.T) {
+	t.Parallel()
+
+	tools := []llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "echo", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}}
+	named := map[string]any{"type": "function", "function": map[string]any{"name": "echo"}}
+	build := func(model string, choice any) (*bedrockruntime.ConverseInput, error) {
+		return NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+			ModelID:    model,
+			Messages:   []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			Tools:      tools,
+			ToolChoice: choice,
+		})
+	}
+
+	for _, model := range []string{"us.meta.llama4-maverick-17b-instruct-v1:0", "openai.gpt-oss-120b-1:0", "qwen.qwen3-32b-v1:0"} {
+		_, err := build(model, named)
+		var refused *reasoning.ErrForcedToolChoiceUnsupported
+		require.ErrorAs(t, err, &refused, model)
+
+		got, err := build(model, "required")
+		require.NoError(t, err, "%s: AWS names no family limit for any", model)
+		assert.IsType(t, &types.ToolChoiceMemberAny{}, got.ToolConfig.ToolChoice, model)
+
+		got, err = NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+			ModelID:    model,
+			Messages:   []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			ToolChoice: named,
+		})
+		require.NoError(t, err, "%s: with no tools the choice never reaches the wire", model)
+		assert.Nil(t, got.ToolConfig, model)
+	}
+
+	for _, model := range []string{
+		"us.anthropic.claude-sonnet-4-5-20250929-v1:0", "us.amazon.nova-pro-v1:0",
+		"arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abc",
+	} {
+		got, err := build(model, named)
+		require.NoError(t, err, model)
+		assert.IsType(t, &types.ToolChoiceMemberTool{}, got.ToolConfig.ToolChoice, model)
+	}
+}

@@ -173,7 +173,10 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		converseInput.System = systemPrompts
 	}
 
-	kind, _ := llms.ClassifyToolChoice(input.ToolChoice)
+	kind, toolName := llms.ClassifyToolChoice(input.ToolChoice)
+	if kind == llms.ToolChoiceNamed && len(input.Tools) > 0 && !converseTakesNamedToolChoice(input.ModelID) {
+		return nil, &reasoning.ErrForcedToolChoiceUnsupported{Model: input.ModelID, Choice: toolName}
+	}
 	if len(input.Tools) > 0 && (kind != llms.ToolChoiceNone || carriesToolBlocks(converseMessages)) {
 		toolConfig, err := c.convertToolsToToolConfig(input.Tools, input.ToolChoice)
 		if err != nil {
@@ -1106,6 +1109,11 @@ func (c *ConverseClient) supportsReasoning(modelID string) bool {
 
 // isAnthropicModelID reports whether the Bedrock model ID belongs to the Claude
 // family (with or without a region prefix such as "us.").
+func converseTakesNamedToolChoice(modelID string) bool {
+	id := strings.ToLower(modelID)
+	return strings.HasPrefix(id, "arn:") || isAnthropicModelID(id) || GetProvider(id) == "nova"
+}
+
 func isAnthropicModelID(modelID string) bool {
 	return strings.Contains(modelID, "anthropic.claude")
 }

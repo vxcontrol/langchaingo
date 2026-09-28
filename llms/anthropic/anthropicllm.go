@@ -235,6 +235,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) {
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
+	if err := llms.CheckForcedToolUse(model, *opts); err != nil {
+		return nil, err
+	}
 
 	if reasoning.ClaudeRejectsAssistantPrefill(model) && llms.HasAssistantPrefill(messages) {
 		return nil, &ErrAssistantPrefillUnsupported{Model: model}
@@ -320,7 +323,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		TopK:          topK,
 		Speed:         opts.InferenceSpeed,
 		Tools:         tools,
-		ToolChoice:    anthropicToolChoice(opts.ToolChoice),
+		ToolChoice:    anthropicToolChoiceWith(tools, opts.ToolChoice),
 		Thinking:      thinking,
 		OutputConfig:  outputConfig,
 		BetaHeaders:   betaHeaders,
@@ -917,21 +920,25 @@ type ToolResult struct {
 
 func handleToolMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
 	results := make([]anthropicclient.Content, 0, len(msg.Parts))
+	var texts []anthropicclient.Content
 	for _, part := range msg.Parts {
-		toolCallResponse, ok := part.(llms.ToolCallResponse)
-		if !ok {
+		switch p := part.(type) {
+		case llms.ToolCallResponse:
+			results = append(results, &anthropicclient.ToolResultContent{
+				Type:      "tool_result",
+				ToolUseID: p.ToolCallID,
+				Content:   p.Content,
+			})
+		case llms.TextContent:
+			texts = append(texts, &anthropicclient.TextContent{Type: "text", Text: p.Text})
+		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
 		}
-		results = append(results, &anthropicclient.ToolResultContent{
-			Type:      "tool_result",
-			ToolUseID: toolCallResponse.ToolCallID,
-			Content:   toolCallResponse.Content,
-		})
 	}
 	if len(results) == 0 {
 		return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for tool message", ErrInvalidContentType)
 	}
-	return anthropicclient.ChatMessage{Role: RoleUser, Content: results}, nil
+	return anthropicclient.ChatMessage{Role: RoleUser, Content: append(results, texts...)}, nil
 }
 
 const (
@@ -1056,14 +1063,22 @@ func getFloatPointer(f float64) *float64 {
 	return &f
 }
 
+func anthropicToolChoiceWith(tools []anthropicclient.Tool, choice any) any {
+	if len(tools) == 0 {
+		return nil
+	}
+	return anthropicToolChoice(choice)
+}
+
 func anthropicToolChoice(choice any) any {
+	oneCall := llms.DisablesParallelToolUse(choice)
 	switch kind, name := llms.ClassifyToolChoice(choice); kind {
 	case llms.ToolChoiceNamed:
-		return anthropicclient.ToolChoice{Type: "tool", Name: name}
+		return anthropicclient.ToolChoice{Type: "tool", Name: name, DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceAny:
-		return anthropicclient.ToolChoice{Type: "any"}
+		return anthropicclient.ToolChoice{Type: "any", DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceAuto:
-		return anthropicclient.ToolChoice{Type: "auto"}
+		return anthropicclient.ToolChoice{Type: "auto", DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceNone:
 		return anthropicclient.ToolChoice{Type: "none"}
 	default:
