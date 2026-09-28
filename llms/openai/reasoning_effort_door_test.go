@@ -67,7 +67,7 @@ func TestReasoningEffortOmittedOnDoorsThatRejectIt(t *testing.T) {
 		})
 	}
 
-	for _, model := range []string{"glm-5.2", "zai/glm-5.2", "dashscope/glm-5.1"} {
+	for _, model := range []string{"glm-5.2", "zai/glm-5.2", "dashscope/glm-5.1", "zai-glm-5-2", "mistral/glm-5-2"} {
 		t.Run(model+" carries the effort to the wire", func(t *testing.T) {
 			body, err := capture(t, model, llms.WithReasoning(llms.ReasoningMedium, 0))
 			if err != nil {
@@ -79,26 +79,28 @@ func TestReasoningEffortOmittedOnDoorsThatRejectIt(t *testing.T) {
 		})
 	}
 
-	t.Run("kimi-k3 receives the effort inside the vendor enum", func(t *testing.T) {
-		body, err := capture(t, "kimi-k3", llms.WithReasoning(llms.ReasoningMedium, 0))
-		if err != nil {
-			t.Fatalf("GenerateContent() error: %v", err)
-		}
-		if !strings.Contains(body, `"reasoning_effort":"low"`) {
-			t.Fatalf("kimi-k3 accepts reasoning_effort, and the vendor enum is low, high and max, "+
-				"so a requested medium must arrive as low, got body: %s", body)
-		}
-	})
+	for _, model := range []string{"kimi-k3", "zai-glm-5-3", "mistral/zai-glm-5-3"} {
+		t.Run(model+" receives the effort inside the vendor enum", func(t *testing.T) {
+			body, err := capture(t, model, llms.WithReasoning(llms.ReasoningMedium, 0))
+			if err != nil {
+				t.Fatalf("GenerateContent() error: %v", err)
+			}
+			if !strings.Contains(body, `"reasoning_effort":"low"`) {
+				t.Fatalf("%s accepts reasoning_effort, and the vendor enum is low, high and max, "+
+					"so a requested medium must arrive as low, got body: %s", model, body)
+			}
+		})
 
-	t.Run("kimi-k3 refuses to be disabled", func(t *testing.T) {
-		body, err := capture(t, "kimi-k3", llms.WithReasoningDisabled())
-		var unsupported *reasoning.ErrReasoningOffUnsupported
-		if !errors.As(err, &unsupported) {
-			t.Fatalf("the vendor enum is low, high and max and the model always reasons, "+
-				"so off cannot be honored: want ErrReasoningOffUnsupported, got err %v, body %s", err, body)
-		}
-		if strings.Contains(body, "reasoning_effort") {
-			t.Fatalf("no request may leave when off cannot be honored, got body: %s", body)
-		}
-	})
+		t.Run(model+" refuses to be disabled", func(t *testing.T) {
+			body, err := capture(t, model, llms.WithReasoningDisabled())
+			var unsupported *reasoning.ErrReasoningOffUnsupported
+			if !errors.As(err, &unsupported) {
+				t.Fatalf("the vendor enum is low, high and max and the model always reasons, "+
+					"so off cannot be honored: want ErrReasoningOffUnsupported, got err %v, body %s", err, body)
+			}
+			if strings.Contains(body, "reasoning_effort") {
+				t.Fatalf("no request may leave when off cannot be honored, got body: %s", body)
+			}
+		})
+	}
 }

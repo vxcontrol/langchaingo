@@ -196,6 +196,21 @@ func TestAClosedVendorEnumClampsAndAMappedOneDoesNot(t *testing.T) {
 			efforts: []string{"low", "high", "max"},
 			clamped: map[string]string{"medium": "low", "xhigh": "high"},
 		},
+		{
+			model:   "zai-glm-5-3",
+			efforts: []string{"low", "high", "max"},
+			clamped: map[string]string{"minimal": "low", "medium": "low", "xhigh": "high", "low": "low", "high": "high", "max": "max"},
+		},
+		{
+			model:   "glm-5-3",
+			efforts: []string{"low", "high", "max"},
+			clamped: map[string]string{"medium": "low", "xhigh": "high"},
+		},
+		{
+			model:   "mistral/zai-glm-5-3",
+			efforts: []string{"low", "high", "max"},
+			clamped: map[string]string{"medium": "low", "xhigh": "high"},
+		},
 	} {
 		t.Run(tc.model, func(t *testing.T) {
 			t.Parallel()
@@ -214,7 +229,7 @@ func TestAClosedVendorEnumClampsAndAMappedOneDoesNot(t *testing.T) {
 		})
 	}
 
-	for _, model := range []string{"deepseek-v4-pro", "deepseek-v4-flash", "glm-5.2"} {
+	for _, model := range []string{"deepseek-v4-pro", "deepseek-v4-flash", "glm-5.2", "zai-glm-5-2", "glm-5-2"} {
 		t.Run("mapped/"+model, func(t *testing.T) {
 			t.Parallel()
 			for _, asked := range []string{"minimal", "medium", "xhigh"} {
@@ -231,7 +246,7 @@ func TestAClosedVendorEnumClampsAndAMappedOneDoesNot(t *testing.T) {
 func TestTheClosedEnumStopsAtItsOwnGeneration(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"glm-5.31", "glm-5.4", "kimi-k30", "kimi-k4", "kimi-k2.6"} {
+	for _, model := range []string{"glm-5.31", "glm-5.4", "zai-glm-5-31", "zai-glm-5-4", "kimi-k30", "kimi-k4", "kimi-k2.6"} {
 		if OpenAIReasoningCapsFor(model).Known {
 			t.Errorf("%s is classified, but no vendor documentation covers it", model)
 		}

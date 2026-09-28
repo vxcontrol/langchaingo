@@ -113,7 +113,7 @@ func openAIGPT5Base(m string) bool {
 }
 
 func nonOpenAILowHighMax(m string) bool {
-	return hasGeneration(m, "kimi-k3") || hasGeneration(m, "glm-5.3")
+	return hasGeneration(m, "kimi-k3") || hasGeneration(m, "glm-5.3") || hasGeneration(m, "glm-5-3")
 }
 
 func openAIXHighCeiling(m string) bool {
