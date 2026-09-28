@@ -1,10 +1,36 @@
 package llms
 
 import (
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
+
+func TestReasoningSupportForNewerGeneration(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		model    string
+		provider reasoning.Provider
+		want     bool
+	}{
+		{"gpt-6", reasoning.ProviderOpenAI, true},
+		{"claude-opus-6", reasoning.ProviderAnthropic, true},
+		{"gemini-4-pro", reasoning.ProviderGoogleAI, true},
+		{"gpt-4o", reasoning.ProviderOpenAI, false},
+		{"claude-3-5-sonnet-latest", reasoning.ProviderAnthropic, false},
+	}
+	for _, tc := range cases {
+		s := ReasoningSupportFor(tc.model, tc.provider)
+		if s.Supported != tc.want {
+			t.Errorf("ReasoningSupportFor(%q).Supported = %v, want %v", tc.model, s.Supported, tc.want)
+		}
+		if s.Known {
+			t.Errorf("ReasoningSupportFor(%q).Known = true, want false: the tiers are a guess, not a fact", tc.model)
+		}
+	}
+}
 
 func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven test
 	t.Parallel()
@@ -50,12 +76,15 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		}
 	})
 
-	t.Run("Sonnet 5 disable hint is provider-aware", func(t *testing.T) {
-		// Disablable on the Anthropic API, not disablable on Bedrock (always on).
+	t.Run("Sonnet 5 can be disabled on every door, the OpenAI-shaped one included", func(t *testing.T) {
 		anthropic := ReasoningSupportFor("claude-sonnet-5", reasoning.ProviderAnthropic)
 		eq(t, "CannotDisable(Anthropic)", anthropic.CannotDisable, false)
 		bedrock := ReasoningSupportFor("us.anthropic.claude-sonnet-5", reasoning.ProviderBedrock)
-		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, true)
+		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, false)
+		gateway := ReasoningSupportFor("anthropic/claude-sonnet-5", reasoning.ProviderOpenAI)
+		eq(t, "CannotDisable(OpenAI gateway)", gateway.CannotDisable, false)
+		reseller := ReasoningSupportFor("deepinfra/anthropic/claude-sonnet-5", reasoning.ProviderOpenAI)
+		eq(t, "CannotDisable(a gateway route that takes no thinking object)", reseller.CannotDisable, true)
 	})
 
 	t.Run("Opus 5 defaults on but is disablable, like Sonnet 5 unlike Opus 4.8", func(t *testing.T) {
@@ -66,9 +95,8 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		if s.DefaultOn == nil || !*s.DefaultOn {
 			t.Errorf("Opus 5 DefaultOn = %v, want true", s.DefaultOn)
 		}
-		// Provider-aware, same rule as Sonnet 5: not disablable on Bedrock.
 		bedrock := ReasoningSupportFor("us.anthropic.claude-opus-5", reasoning.ProviderBedrock)
-		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, true)
+		eq(t, "CannotDisable(Bedrock)", bedrock.CannotDisable, false)
 	})
 
 	t.Run("OpenAI o-series cannot disable", func(t *testing.T) {
@@ -85,6 +113,56 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		if s.DefaultOn != nil {
 			t.Errorf("GPT-5.x DefaultOn should be unknown (nil), got %v", *s.DefaultOn)
 		}
+	})
+
+	t.Run("an unclassified OpenAI model names no effort tiers", func(t *testing.T) {
+		s := ReasoningSupportFor("gpt-5.7", reasoning.ProviderOpenAI)
+		eq(t, "Supported", s.Supported, true)
+		if s.Efforts != nil {
+			t.Errorf("Efforts = %v, want nil: the tiers of gpt-5.7 are not classified", s.Efforts)
+		}
+	})
+
+	t.Run("a classified OpenAI generation names its effort tiers", func(t *testing.T) {
+		s := ReasoningSupportFor("gpt-5.5", reasoning.ProviderOpenAI)
+		want := []ReasoningEffort{"low", "medium", "high", "xhigh"}
+		if !slices.Equal(s.Efforts, want) {
+			t.Errorf("Efforts = %v, want %v", s.Efforts, want)
+		}
+	})
+
+	t.Run("mechanism follows the Claude generation", func(t *testing.T) {
+		cases := []struct {
+			model string
+			want  ReasoningMechanism
+		}{
+			{"claude-sonnet-5", ReasoningMechanismAdaptive},
+			{"us.anthropic.claude-opus-4-8", ReasoningMechanismAdaptive},
+			{"claude-opus-4-6", ReasoningMechanismAdaptiveAndBudget},
+			{"claude-sonnet-4-5", ReasoningMechanismBudget},
+			{"claude-haiku-4-5", ReasoningMechanismBudget},
+		}
+		for _, tc := range cases {
+			got := ReasoningSupportFor(tc.model, reasoning.ProviderAnthropic).Mechanism
+			if got != tc.want {
+				t.Errorf("Mechanism(%q) = %v, want %v", tc.model, got, tc.want)
+			}
+		}
+		eq(t, "gpt-5.5 Mechanism",
+			ReasoningSupportFor("gpt-5.5", reasoning.ProviderOpenAI).Mechanism, ReasoningMechanismAdaptive)
+		eq(t, "unclassified model Mechanism",
+			ReasoningSupportFor("gpt-5.3", reasoning.ProviderOpenAI).Mechanism, ReasoningMechanismUnknown)
+	})
+
+	t.Run("a model outside the capability table is not reported as classified", func(t *testing.T) {
+		classified := ReasoningSupportFor("gpt-5.5", reasoning.ProviderOpenAI)
+		eq(t, "gpt-5.5 Known", classified.Known, true)
+		eq(t, "gpt-5.5 Efforts present", len(classified.Efforts) > 0, true)
+
+		unclassified := ReasoningSupportFor("gpt-5.3", reasoning.ProviderOpenAI)
+		eq(t, "gpt-5.3 Supported", unclassified.Supported, true)
+		eq(t, "gpt-5.3 Known", unclassified.Known, false)
+		eq(t, "gpt-5.3 Efforts empty", len(unclassified.Efforts), 0)
 	})
 
 	t.Run("OpenAI effort set is model-dependent", func(t *testing.T) {
@@ -119,6 +197,27 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		}
 	})
 
+	t.Run("only Gemini 2.5 Flash-Lite is off until asked", func(t *testing.T) {
+		lite := ReasoningSupportFor("gemini-2.5-flash-lite", reasoning.ProviderGoogleAI)
+		eq(t, "2.5 Flash-Lite Supported", lite.Supported, true)
+		eq(t, "2.5 Flash-Lite CannotDisable", lite.CannotDisable, false)
+		if lite.DefaultOn == nil || *lite.DefaultOn {
+			t.Errorf("gemini-2.5-flash-lite DefaultOn = %v, want false", lite.DefaultOn)
+		}
+		for _, model := range []string{"gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.6-flash"} {
+			s := ReasoningSupportFor(model, reasoning.ProviderGoogleAI)
+			eq(t, model+" Supported", s.Supported, true)
+			eq(t, model+" CannotDisable", s.CannotDisable, false)
+			if s.DefaultOn == nil || !*s.DefaultOn {
+				t.Errorf("%s DefaultOn = %v, want true", model, s.DefaultOn)
+			}
+		}
+		for _, model := range []string{"gemini-3.7-flash", "gemini-3.8-flash"} {
+			s := ReasoningSupportFor(model, reasoning.ProviderGoogleAI)
+			eq(t, model+" CannotDisable", s.CannotDisable, true)
+		}
+	})
+
 	t.Run("Gemini 2.5 disable hint is model-dependent", func(t *testing.T) {
 		flash := ReasoningSupportFor("gemini-2.5-flash", reasoning.ProviderGoogleAI)
 		eq(t, "2.5 Flash CannotDisable", flash.CannotDisable, false)
@@ -132,10 +231,10 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 			model         string
 			cannotDisable bool
 		}{
-			{"gemini-3.5-flash", true},
+			{"gemini-3.5-flash", false},
 			{"gemini-3.1-pro-preview", true},
 			{"gemini-3.1-pro-preview-customtools", true},
-			{"gemini-3.1-flash-lite", true},
+			{"gemini-3.1-flash-lite", false},
 			{"gemini-2.5-pro", true},
 			{"gemini-2.5-flash", false},
 			{"gemini-2.5-flash-lite", false},
@@ -168,4 +267,568 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 			t.Errorf("override DefaultOn = %v, want true", s.DefaultOn)
 		}
 	})
+}
+
+func TestOpenAIHintSurvivesTheTransportLabel(t *testing.T) {
+	t.Parallel()
+
+	labels := []reasoning.Provider{
+		reasoning.ProviderUnknown,
+		reasoning.ProviderGoogleAI,
+		reasoning.ProviderBedrock,
+		reasoning.ProviderAnthropic,
+	}
+
+	for _, model := range []string{"gpt-5-pro", "gpt-5", "gpt-5-mini", "o3", "o4-mini", "gpt-5.1", "gpt-5.2"} {
+		want := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+		if !want.Known || len(want.Efforts) == 0 {
+			t.Fatalf("%s: the OpenAI label must know this model, got %+v", model, want)
+		}
+		for _, p := range labels {
+			got := ReasoningSupportFor(model, p)
+			if !got.Known {
+				t.Errorf("%s behind label %v: Known = false, want the same hint as the OpenAI label", model, p)
+			}
+			if !slices.Equal(got.Efforts, want.Efforts) {
+				t.Errorf("%s behind label %v: Efforts = %v, want %v", model, p, got.Efforts, want.Efforts)
+			}
+			if got.CannotDisable != want.CannotDisable {
+				t.Errorf("%s behind label %v: CannotDisable = %v, want %v", model, p, got.CannotDisable, want.CannotDisable)
+			}
+		}
+	}
+}
+
+func TestNonOpenAIModelsKeepTheirOwnBranch(t *testing.T) {
+	t.Parallel()
+
+	gemini := ReasoningSupportFor("gemini-2.5-flash", reasoning.ProviderGoogleAI)
+	if gemini.DefaultOn == nil {
+		t.Fatal("gemini on its own provider must still report DefaultOn from the Google branch")
+	}
+	if len(gemini.Efforts) != 0 {
+		t.Fatalf("gemini has no effort ladder, got %v", gemini.Efforts)
+	}
+
+	for _, model := range []string{"grok-4", "glm-5", "gemini-2.5-flash"} {
+		if got := ReasoningSupportFor(model, reasoning.ProviderUnknown); got.Known {
+			t.Errorf("%s behind an unknown label must stay unclassified, got %+v", model, got)
+		}
+	}
+}
+
+func TestCannotDisableFollowsTheResolverOnEveryProvider(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		p     reasoning.Provider
+		want  bool
+	}{
+		{"claude-sonnet-5", reasoning.ProviderAnthropic, false},
+		{"claude-sonnet-5", reasoning.ProviderBedrock, false},
+		{"claude-sonnet-5", reasoning.ProviderOpenAI, false},
+		{"claude-fable-5", reasoning.ProviderOpenAI, true},
+		{"claude-sonnet-5", reasoning.ProviderUnknown, false},
+		{"claude-fable-5", reasoning.ProviderAnthropic, true},
+		{"claude-fable-5", reasoning.ProviderBedrock, true},
+		{"claude-fable-5", reasoning.ProviderUnknown, true},
+		{"claude-opus-4-6", reasoning.ProviderUnknown, false},
+	} {
+		if got := ReasoningSupportFor(tc.model, tc.p).CannotDisable; got != tc.want {
+			t.Errorf("CannotDisable(%q, provider=%d) = %v, want %v", tc.model, tc.p, got, tc.want)
+		}
+	}
+}
+
+func TestGoogleHintNamesItsMechanism(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  ReasoningMechanism
+	}{
+		{"gemini-3-pro-preview", ReasoningMechanismAdaptive},
+		{"gemini-2.5-flash", ReasoningMechanismBudget},
+		{"gemini-2.5-pro", ReasoningMechanismBudget},
+	} {
+		got := ReasoningSupportFor(tc.model, reasoning.ProviderGoogleAI)
+		if !got.Known {
+			t.Fatalf("%q is a classified Google thinking model", tc.model)
+		}
+		if got.Mechanism != tc.want {
+			t.Errorf("ReasoningSupportFor(%q).Mechanism = %v, want %v", tc.model, got.Mechanism, tc.want)
+		}
+	}
+}
+
+func TestABudgetModelWithNoEffortTierIsKnownAndEmpty(t *testing.T) {
+	t.Parallel()
+
+	support := ReasoningSupportFor("claude-sonnet-4-5", reasoning.ProviderAnthropic)
+
+	if !support.Known {
+		t.Fatal("the model is classified, so Known must stay true")
+	}
+	if len(support.Efforts) != 0 {
+		t.Fatalf("a model that takes no effort must offer none, got %v", support.Efforts)
+	}
+	if support.Mechanism != ReasoningMechanismBudget {
+		t.Fatalf("Mechanism must tell the caller what to offer instead, got %v", support.Mechanism)
+	}
+}
+
+func TestAdvertisedEffortsFollowTheWireOfEachProvider(t *testing.T) {
+	t.Parallel()
+
+	const opus45 = "us.anthropic.claude-opus-4-5-20251101-v1:0"
+
+	for _, tc := range []struct {
+		provider reasoning.Provider
+		want     bool
+	}{
+		{reasoning.ProviderAnthropic, true},
+		{reasoning.ProviderBedrock, false},
+	} {
+		sends := reasoning.ClaudeSupportsEffortWithBudget(opus45, tc.provider)
+		if sends != tc.want {
+			t.Fatalf("wire assumption changed: ClaudeSupportsEffortWithBudget(%v) = %v", tc.provider, sends)
+		}
+
+		efforts := ReasoningSupportFor(opus45, tc.provider).Efforts
+		if sends && len(efforts) == 0 {
+			t.Errorf("%v sends an effort with the budget, so the hint must list some", tc.provider)
+		}
+		if !sends && len(efforts) > 0 {
+			t.Errorf("%v never sends an effort for this model, yet the hint advertises %v", tc.provider, efforts)
+		}
+	}
+}
+
+func TestTheHintDoesNotOfferOffOnAModelThatAlwaysReasons(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model             string
+		wantCannotDisable bool
+	}{
+		{"kimi-k3", true},
+		{"kimi-k2.7-code", true},
+		{"kimi-k2-thinking", true},
+		{"kimi-k2.6", false},
+	} {
+		s := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI)
+		if !s.Supported {
+			t.Errorf("%s reasons, so the hint must say so", tc.model)
+		}
+		if s.CannotDisable != tc.wantCannotDisable {
+			t.Errorf("%s CannotDisable = %v, want %v", tc.model, s.CannotDisable, tc.wantCannotDisable)
+		}
+	}
+}
+
+func TestTheBedrockHintReportsTheRefusalTheDoorWillGive(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model             string
+		wantCannotDisable bool
+	}{
+		{"moonshot.kimi-k2-thinking", true},
+		{"us.deepseek.r1-v1:0", true},
+		{"openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-120b-1:0", true},
+		{"us-gov.openai.gpt-oss-20b-1:0", true},
+		{"us.xai.grok-4.6", true},
+		{"us.amazon.nova-2-lite-v1:0", false},
+		{"us.amazon.nova-pro-v1:0", false},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+
+			wire := reasoning.ResolveOff(tc.model, reasoning.ProviderBedrock)
+			if got := wire == reasoning.OffUnsupported; got != tc.wantCannotDisable {
+				t.Fatalf("%s: wire refuses = %v, want %v — the case no longer covers what it claims",
+					tc.model, got, tc.wantCannotDisable)
+			}
+			if got := ReasoningSupportFor(tc.model, reasoning.ProviderBedrock).CannotDisable; got != tc.wantCannotDisable {
+				t.Errorf("%s: hint CannotDisable = %v, want %v — a consumer building its interface from the hint "+
+					"would offer a control that the door answers with a typed error",
+					tc.model, got, tc.wantCannotDisable)
+			}
+		})
+	}
+}
+
+func TestTheBedrockHintOffersOnlyTheLevelsTheConverseDoorSends(t *testing.T) {
+	t.Parallel()
+
+	levels := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
+	for _, tc := range []struct {
+		model     string
+		efforts   []ReasoningEffort
+		mechanism ReasoningMechanism
+	}{
+		{"openai.gpt-oss-120b-1:0", levels, ReasoningMechanismAdaptive},
+		{"openai.gpt-oss-20b-1:0", levels, ReasoningMechanismAdaptive},
+		{"us.deepseek.r1-v1:0", nil, ReasoningMechanismUnknown},
+		{"qwen.qwen3-32b-v1:0", nil, ReasoningMechanismUnknown},
+		{"mistral.magistral-small-2509", nil, ReasoningMechanismUnknown},
+		{"moonshot.kimi-k2-thinking", nil, ReasoningMechanismUnknown},
+		{"zai.glm-4.7", nil, ReasoningMechanismUnknown},
+		{"zai.glm-4.7-flash", nil, ReasoningMechanismUnknown},
+		{"zai.glm-5", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2.5", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2.1", nil, ReasoningMechanismUnknown},
+		{"minimax.minimax-m2", nil, ReasoningMechanismUnknown},
+		{"nvidia.nemotron-super-3-120b", nil, ReasoningMechanismUnknown},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(tc.model, reasoning.ProviderBedrock)
+			if !slices.Equal(s.Efforts, tc.efforts) {
+				t.Errorf("%s: hint Efforts = %v, want %v", tc.model, s.Efforts, tc.efforts)
+			}
+			if s.Mechanism != tc.mechanism {
+				t.Errorf("%s: hint Mechanism = %v, want %v", tc.model, s.Mechanism, tc.mechanism)
+			}
+			for _, effort := range s.Efforts {
+				if sent := reasoning.GptOssEffort(string(effort)); sent != string(effort) {
+					t.Errorf("%s: the hint offers %q but the door sends %q", tc.model, effort, sent)
+				}
+			}
+			if len(tc.efforts) == 0 {
+				return
+			}
+			if !s.Supported || !s.Known {
+				t.Errorf("%s: a model whose levels are documented is known to reason: %+v", tc.model, s)
+			}
+			if s.DefaultOn == nil || !*s.DefaultOn {
+				t.Errorf("%s: the model reasons when reasoning is unset, the hint must say so", tc.model)
+			}
+			if other := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI); len(other.Efforts) > 0 {
+				t.Errorf("%s: the openai door never sends the Converse field, yet its hint advertises %v",
+					tc.model, other.Efforts)
+			}
+		})
+	}
+}
+
+func TestTheBedrockHintOffersNovaOffAndTheLevelsTheDoorSends(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"us.amazon.nova-2-lite-v1:0", "amazon.nova-2-lite-v1:0", "global.amazon.nova-2-lite-v1:0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s: Nova 2 Lite takes a documented reasoningConfig, so it is known to reason: %+v", model, s)
+			}
+			if want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}; !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s: hint Efforts = %v, want %v", model, s.Efforts, want)
+			}
+			for _, effort := range s.Efforts {
+				if sent := reasoning.NovaEffort(string(effort)); sent != string(effort) {
+					t.Errorf("%s: the hint offers %q but the door sends %q", model, effort, sent)
+				}
+			}
+			if s.Mechanism != ReasoningMechanismAdaptive {
+				t.Errorf("%s: hint Mechanism = %v, want an effort level", model, s.Mechanism)
+			}
+			if wire := reasoning.ResolveOff(model, reasoning.ProviderBedrock); wire != reasoning.OffOmit {
+				t.Fatalf("%s: off wire = %v, want the omission Nova reads as disabled", model, wire)
+			}
+			if s.DefaultOn == nil || *s.DefaultOn {
+				t.Errorf("%s: DefaultOn = %v, want false — Off travels as an omitted field, which a consumer "+
+					"can only offer when it knows the model does not reason unasked", model, s.DefaultOn)
+			}
+			if s.CannotDisable {
+				t.Errorf("%s: the door honours Off, yet the hint says it cannot", model)
+			}
+		})
+	}
+
+	if s := ReasoningSupportFor("us.amazon.nova-pro-v1:0", reasoning.ProviderBedrock); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("Nova Pro takes no reasoningConfig, yet its hint is classified: %+v", s)
+	}
+	if s := ReasoningSupportFor("us.amazon.nova-2-lite-v1:0", reasoning.ProviderOpenAI); len(s.Efforts) > 0 || s.DefaultOn != nil {
+		t.Errorf("the openai door never sends reasoningConfig, yet its hint classifies Nova: %+v", s)
+	}
+}
+
+func TestTheHintNamesTheMechanismTheDoorActuallyUses(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model string
+		want  ReasoningMechanism
+	}{
+		{"gemma-4-31b-it", ReasoningMechanismAdaptive},
+		{"gemma-4-26b-a4b-it", ReasoningMechanismAdaptive},
+		{"gemini-2.5-flash", ReasoningMechanismBudget},
+		{"gemini-3-pro", ReasoningMechanismAdaptive},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+			if got := ReasoningSupportFor(tc.model, reasoning.ProviderGoogleAI).Mechanism; got != tc.want {
+				t.Errorf("%s: hint Mechanism = %v, want %v — a consumer builds its control from this field, "+
+					"and the door drops a budget it advertises", tc.model, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTheHintReportsQwenThinkingOffUntilAsked(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"qwen-plus", "qwen-flash", "qwen-turbo", "qwen3-max",
+		"qwen3-vl-plus", "qwen3-vl-flash", "dashscope/qwen3-max",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+			switch {
+			case s.DefaultOn == nil:
+				t.Errorf("%s DefaultOn = nil, want false: DashScope leaves its thinking off until "+
+					"enable_thinking asks for it, and a consumer reads nil as an off control that does nothing", model)
+			case *s.DefaultOn:
+				t.Errorf("%s DefaultOn = true, want false", model)
+			}
+		})
+	}
+
+	for _, model := range []string{"qwen3.6-plus", "qwen3.5-flash"} {
+		if d := ReasoningSupportFor(model, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+			t.Errorf("%s DefaultOn = false, but DashScope turns its thinking on by default", model)
+		}
+	}
+}
+
+func TestOptInAloneDoesNotMakeTheHintReportThinkingOff(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model             string
+		inCapabilityTable bool
+	}{
+		{"mistral-medium-latest", true},
+		{"mistral-small-latest", true},
+		{"magistral-medium-latest", false},
+		{"magistral-small-latest", false},
+	} {
+		if !reasoning.ThinkingOptIn(tc.model) || !reasoning.IsReasoningModel(tc.model) ||
+			reasoning.OpenAIReasoningCapsFor(tc.model).Known != tc.inCapabilityTable {
+			t.Fatalf("%s: no longer an opt-in reasoning model with capability table membership %v, "+
+				"so the case no longer covers what it claims", tc.model, tc.inCapabilityTable)
+		}
+		if d := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI).DefaultOn; d != nil {
+			t.Errorf("%s DefaultOn = %v, want nil: Mistral documents no default for reasoning_effort, and the "+
+				"door's off sends nothing, so a false here offers an off that may do nothing", tc.model, *d)
+		}
+	}
+
+	const marked = "ernie-4.5-21b-a3b-thinking"
+	if !reasoning.ThinkingOptIn(marked) || !reasoning.ThinkingMarkedInName(marked) {
+		t.Fatalf("%s: no longer both opt-in and marked thinking, so the case no longer covers what it claims", marked)
+	}
+	if d := ReasoningSupportFor(marked, reasoning.ProviderOpenAI).DefaultOn; d != nil && !*d {
+		t.Errorf("%s DefaultOn = false, but the door counts the thinking marker in its name as thinking on", marked)
+	}
+}
+
+func TestDeepSeekFlashResolvesLikeTheNameItReplaced(t *testing.T) {
+	t.Parallel()
+
+	const replaced = "deepseek-v4-flash"
+	for _, model := range []string{"deepseek-flash", "deepseek/deepseek-flash", "DeepSeek-Flash"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+		if off := reasoning.ResolveOff(model, reasoning.ProviderOpenAI); !s.Supported || off != reasoning.OffDisableThinkingObject {
+			t.Errorf("%s: Supported = %v, off = %v; want a reasoning model switched off by the thinking object",
+				model, s.Supported, off)
+		}
+
+		for _, p := range []reasoning.Provider{
+			reasoning.ProviderUnknown, reasoning.ProviderAnthropic, reasoning.ProviderBedrock,
+			reasoning.ProviderOpenAI, reasoning.ProviderGoogleAI, reasoning.ProviderOllama,
+		} {
+			if got, want := ReasoningSupportFor(model, p), ReasoningSupportFor(replaced, p); !reflect.DeepEqual(got, want) {
+				t.Errorf("%s on provider %d: hint %+v, want the hint of %s %+v", model, p, got, replaced, want)
+			}
+			if got, want := reasoning.ResolveOff(model, p), reasoning.ResolveOff(replaced, p); got != want {
+				t.Errorf("%s on provider %d: off = %v, want the off of %s %v", model, p, got, replaced, want)
+			}
+		}
+	}
+}
+
+func TestTheOllamaDoorKeepsTheOffControlItsVendorDocuments(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"deepseek-r1:7b", "qwen3:8b", "magistral-small:24b"} {
+		if ReasoningSupportFor(model, reasoning.ProviderOllama).CannotDisable {
+			t.Errorf("%s: the hint hides an off control the ollama door sends", model)
+		}
+	}
+
+	if !ReasoningSupportFor("deepseek-r1", reasoning.ProviderOpenAI).CannotDisable {
+		t.Error("deepseek-r1 on its vendor door refuses an off, the hint should say so")
+	}
+
+	if !ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderOllama).CannotDisable {
+		t.Error("gpt-oss ignores booleans and its trace cannot be disabled: the hint must say so")
+	}
+}
+
+func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
+	t.Parallel()
+
+	want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh}
+	for _, model := range []string{"gpt-oss:120b", "gpt-oss:20b", "gpt-oss:120b-cloud", "library/gpt-oss:20b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOllama)
+		if !slices.Equal(s.Efforts, want) {
+			t.Errorf("%s Efforts = %v, want %v: a consumer offers only the levels the hint lists", model, s.Efforts, want)
+		}
+		if !s.Known || !s.Supported || !s.CannotDisable {
+			t.Errorf("%s = %+v, want a classified reasoning model whose thinking cannot be turned off", model, s)
+		}
+		if s.Mechanism != ReasoningMechanismAdaptive {
+			t.Errorf("%s Mechanism = %v, want adaptive: ollama takes a level, never a token budget", model, s.Mechanism)
+		}
+		if s.DefaultOn == nil || !*s.DefaultOn {
+			t.Errorf("%s DefaultOn = %v, want true: ollama thinks by default and gpt-oss cannot stop", model, s.DefaultOn)
+		}
+	}
+
+	for _, model := range []string{"deepseek-r1:7b", "qwen3:8b", "llama3.2"} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderOllama); s.Known || len(s.Efforts) != 0 {
+			t.Errorf("%s = %+v: ollama names no level set for this model, so the hint must not claim one", model, s)
+		}
+	}
+
+	if efforts := ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderUnknown).Efforts; len(efforts) != 0 {
+		t.Errorf("gpt-oss:120b on an unknown provider offers %v, but these levels are what ollama documents for its own door",
+			efforts)
+	}
+}
+
+func TestTheBedrockHintPresentsNoReasoningWhereTheConverseDoorHasNone(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5",
+		"us.zai.glm-5", "eu.zai.glm-4.7", "apac.zai.glm-4.7-flash",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified model that does not reason on Bedrock: AWS documents no "+
+					"reasoning field for it and the Converse door answers without reasoning content", model, s)
+			}
+			if s.CannotDisable || len(s.Efforts) != 0 || s.Mechanism != ReasoningMechanismUnknown {
+				t.Errorf("%s = %+v, want no control at all", model, s)
+			}
+			if s.DefaultOn == nil || *s.DefaultOn {
+				t.Errorf("%s DefaultOn = %v, want false", model, s.DefaultOn)
+			}
+			if !reasoning.IsReasoningModel(model) {
+				t.Errorf("%s: the door-agnostic classification must stay as it is", model)
+			}
+			if other := ReasoningSupportFor(model, reasoning.ProviderOpenAI); !other.Supported {
+				t.Errorf("%s on the openai door = %+v: the Converse verdict must not reach another door", model, other)
+			}
+		})
+	}
+
+	for _, model := range []string{"glm-4.7", "glm-4.7-flash", "glm-5"} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderOpenAI); !s.Supported {
+			t.Errorf("%s on its own vendor's door = %+v, want a reasoning model", model, s)
+		}
+	}
+
+	for _, model := range []string{
+		"us.deepseek.r1-v1:0", "moonshot.kimi-k2-thinking", "mistral.magistral-small-2509",
+		"openai.gpt-oss-120b-1:0", "us.amazon.nova-2-lite-v1:0",
+	} {
+		if s := ReasoningSupportFor(model, reasoning.ProviderBedrock); !s.Supported {
+			t.Errorf("%s = %+v: AWS documents reasoning for it, so the verdict must not reach it", model, s)
+		}
+	}
+
+	if s := ReasoningSupportFor("zai.glm-5.1", reasoning.ProviderBedrock); s.Known {
+		t.Errorf("zai.glm-5.1 = %+v: a generation nobody measured on the door must stay unclassified", s)
+	}
+}
+
+func TestTheSafeguardHintOffersTheLevelsOpenAIDocumentsForIt(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified reasoning model", model, s)
+			}
+			want := []ReasoningEffort{"low", "medium", "high"}
+			if !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s Efforts = %v, want %v", model, s.Efforts, want)
+			}
+			if !s.CannotDisable {
+				t.Errorf("%s CannotDisable = false: the vendor documents no level that turns thinking off", model)
+			}
+		})
+	}
+}
+
+func TestTheBedrockHintDoesNotPresentOffForNemotronSuper(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"nvidia.nemotron-super-3-120b", "us-gov.nvidia.nemotron-super-3-120b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderBedrock)
+		if !s.Supported {
+			t.Errorf("%s = %+v, want a reasoning model: the Converse door returns its reasoning in the text "+
+				"on requests that ask for none", model, s)
+		}
+		if len(s.Efforts) != 0 || s.Mechanism != ReasoningMechanismUnknown {
+			t.Errorf("%s = %+v: AWS documents no reasoning field for it, so the hint must offer no level", model, s)
+		}
+		if off := reasoning.ResolveOff(model, reasoning.ProviderBedrock); off != reasoning.OffOmit {
+			t.Errorf("%s ResolveOff = %v, want OffOmit: AWS documents no field that disables it", model, off)
+		}
+		if s.DefaultOn != nil && !*s.DefaultOn {
+			t.Errorf("%s DefaultOn = false, want unknown: an omitted Off would read as working while the model "+
+				"still reasons on some requests", model)
+		}
+	}
+}
+
+func TestTheAstraHintOffersTheLevelsItsCardListsAndNoDisable(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-6-astra", "openai/gpt-6-astra"} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			s := ReasoningSupportFor(model, reasoning.ProviderOpenAI)
+			if !s.Supported || !s.Known {
+				t.Errorf("%s = %+v, want a classified reasoning model: the card lists its effort levels", model, s)
+			}
+			if !s.CannotDisable {
+				t.Errorf("%s CannotDisable = false, want true: the vendor answers HTTP 400 to reasoning_effort none", model)
+			}
+			want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh}
+			if !slices.Equal(s.Efforts, want) {
+				t.Errorf("%s efforts = %v, want %v: the vendor refuses max with this model", model, s.Efforts, want)
+			}
+		})
+	}
 }

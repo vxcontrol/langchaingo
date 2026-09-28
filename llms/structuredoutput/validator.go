@@ -24,8 +24,10 @@ func Compile(schema json.RawMessage) (*Compiled, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse schema: %w", err)
 	}
+	doc = admitNullable(doc)
 	const resource = "structuredoutput:schema"
 	comp := jsonschema.NewCompiler()
+	comp.UseLoader(jsonschema.SchemeURLLoader{})
 	if err := comp.AddResource(resource, doc); err != nil {
 		return nil, fmt.Errorf("load schema: %w", err)
 	}
@@ -34,6 +36,64 @@ func Compile(schema json.RawMessage) (*Compiled, error) {
 		return nil, fmt.Errorf("compile schema: %w", err)
 	}
 	return &Compiled{schema: sch}, nil
+}
+
+func admitNullable(node any) any {
+	schema, ok := node.(map[string]any)
+	if !ok {
+		return node
+	}
+	for _, key := range schemaGroupKeywords {
+		group, ok := schema[key].(map[string]any)
+		if !ok {
+			continue
+		}
+		for name, member := range group {
+			group[name] = admitNullable(member)
+		}
+	}
+	for _, key := range schemaValueKeywords {
+		if value, ok := schema[key]; ok {
+			schema[key] = admitNullableValue(value)
+		}
+	}
+	if nullable, ok := schema["nullable"].(bool); ok && nullable {
+		if declared, ok := schema["type"]; ok {
+			schema["type"] = withNull(declared)
+		}
+	}
+	return schema
+}
+
+func admitNullableValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return admitNullable(typed)
+	case []any:
+		for i, item := range typed {
+			typed[i] = admitNullableValue(item)
+		}
+		return typed
+	}
+	return value
+}
+
+func withNull(declared any) any {
+	switch typed := declared.(type) {
+	case string:
+		if typed == "null" {
+			return typed
+		}
+		return []any{typed, "null"}
+	case []any:
+		for _, entry := range typed {
+			if name, _ := entry.(string); name == "null" {
+				return typed
+			}
+		}
+		return append(typed, "null")
+	}
+	return declared
 }
 
 // ValidateText parses text as exactly one JSON value (trailing text or a second
@@ -76,4 +136,25 @@ func wrap(provider, model string, choice int, stopReason string, cause error) er
 		StopReason: stopReason,
 		Cause:      cause,
 	}
+}
+
+// ValidateFinalChoices validates every choice that finished normally against the
+// schema. normalStop is the vendor's spelling of an ordinary finish: a choice
+// that stopped for any other reason, or that answered with a tool call, carries
+// no final JSON and is left alone.
+func ValidateFinalChoices(
+	schema json.RawMessage, provider, model, normalStop string, resp *llms.ContentResponse,
+) error {
+	if len(schema) == 0 || resp == nil {
+		return nil
+	}
+	for i, choice := range resp.Choices {
+		if choice.StopReason != normalStop || len(choice.ToolCalls) > 0 {
+			continue
+		}
+		if err := Validate(schema, provider, model, i, choice.StopReason, choice.Content); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -26,7 +26,7 @@ go run .
 // Enable both capabilities together
 opts := []llms.CallOption{
     // Extended thinking for complex reasoning
-    llms.WithThinkingMode(llms.ThinkingModeHigh),
+    llms.WithReasoning(llms.ReasoningHigh, 0),
     
     // Extended output for up to 128K tokens
     anthropic.WithExtendedOutput(),

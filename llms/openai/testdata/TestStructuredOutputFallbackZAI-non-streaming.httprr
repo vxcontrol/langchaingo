@@ -1,0 +1,26 @@
+httprr trace v1
+1146 1035
+POST https://api.z.ai/api/paas/v4/chat/completions HTTP/1.1
+Host: api.z.ai
+User-Agent: langchaingo-httprr
+Content-Length: 947
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"glm-5.3-flash","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Name two landmarks of Paris.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"landmarks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"landmarks\"],\"additionalProperties\":false}"}],"reasoning_effort":"low","response_format":{"type":"json_object"}}HTTP/2.0 200 OK
+Content-Length: 550
+Alt-Svc: h3=":443"; ma=3600
+Content-Type: application/json; charset=UTF-8
+Date: Thu, 24 Sep 2026 19:37:12 GMT
+Ga-Traceid: b1fc9c6ad8479c699a8ba41e7130c591
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+Vary: Origin
+X-Log-Id: 202609250337119b18877e0db84743
+X-Request-Id: a00274d3-f687-44c2-9b63-00af1e01b3b8
+
+{"choices":[{"finish_reason":"stop","index":0,"message":{"content":"{\"city\":\"Paris\",\"landmarks\":[{\"name\":\"Eiffel Tower\",\"kind\":\"monument\"},{\"name\":\"Louvre Museum\",\"kind\":\"museum\"}]}","role":"assistant"}}],"created":1790278632,"id":"202609250337119b18877e0db84743","model":"glm-5.3-flash","object":"chat.completion","request_id":"202609250337119b18877e0db84743","usage":{"completion_tokens":34,"completion_tokens_details":{"reasoning_tokens":0},"prompt_tokens":228,"prompt_tokens_details":{"cached_tokens":0},"total_tokens":262}}

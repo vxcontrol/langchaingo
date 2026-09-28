@@ -1,10 +1,12 @@
 package googleai
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,6 +34,7 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -53,21 +56,10 @@ func newHTTPRRClient(t *testing.T, opts ...Option) *GoogleAI {
 	// Configure client with httprr
 	opts = append(opts, WithRest(), WithHTTPClient(rr.Client()))
 
-	// Add API key if available
-	if apiKey != "" {
-		opts = append(opts, WithAPIKey(apiKey))
-	} else {
-		t.Skip("No API key found, skipping test")
-	}
+	opts = append(opts, WithAPIKey(cmp.Or(apiKey, "test-api-key")))
 
 	llm, err := New(t.Context(), opts...)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	return llm
 }
 
@@ -84,13 +76,7 @@ func TestGoogleAIGenerateContent(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(t.Context(), content)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 	assert.Contains(t, resp.Choices[0].Content, "Paris")
@@ -121,13 +107,7 @@ func TestGoogleAIGenerateContentWithMultipleMessages(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-2.5-flash"))
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 	assert.Contains(t, resp.Choices[0].Content, "Alice")
@@ -152,13 +132,7 @@ func TestGoogleAIGenerateContentWithSystemMessage(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-2.5-flash"))
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
@@ -167,13 +141,7 @@ func TestGoogleAICall(t *testing.T) {
 	llm := newHTTPRRClient(t)
 
 	output, err := llm.Call(t.Context(), "What is 2 + 2?")
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	assert.NotEmpty(t, output)
 	assert.Contains(t, output, "4")
 }
@@ -184,13 +152,7 @@ func TestGoogleAICreateEmbedding(t *testing.T) {
 	texts := []string{"hello world", "goodbye world", "hello world"}
 
 	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	assert.Len(t, embeddings, 3)
 	assert.NotEmpty(t, embeddings[0])
 	assert.NotEmpty(t, embeddings[1])
@@ -216,13 +178,7 @@ func TestGoogleAIWithOptions(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(t.Context(), content)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
@@ -259,13 +215,7 @@ func TestGoogleAIWithStreaming(t *testing.T) {
 		}),
 	)
 
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.True(t, streamDone, "Streaming should be done")
 	assert.NotEmpty(t, resp.Choices)
@@ -318,13 +268,7 @@ func TestGoogleAIWithTools(t *testing.T) {
 		llms.WithTools(tools),
 	)
 
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 
@@ -433,13 +377,7 @@ func TestGoogleAIWithJSONMode(t *testing.T) {
 		llms.WithJSONMode(),
 	)
 
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 	// Response should be valid JSON
@@ -469,12 +407,7 @@ func TestGoogleAIStructuredOutput(t *testing.T) { //nolint:funlen // table of ht
 
 		resp, err := llm.GenerateContent(t.Context(), content,
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "capital", Schema: schema}))
-		if err != nil {
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording missing. Hint: re-run with HTTPRR_RECORD=. to record")
-			}
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.NotEmpty(t, resp.Choices)
 
@@ -504,12 +437,7 @@ func TestGoogleAIStructuredOutput(t *testing.T) { //nolint:funlen // table of ht
 
 		resp, err := llm.GenerateContent(t.Context(), content,
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "colors", Schema: schema}))
-		if err != nil {
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording missing. Hint: re-run with HTTPRR_RECORD=. to record")
-			}
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.NotEmpty(t, resp.Choices)
 
@@ -548,9 +476,7 @@ func TestGoogleAIStructuredOutput(t *testing.T) { //nolint:funlen // table of ht
 				return nil
 			}),
 		)
-		if err != nil {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 		require.NotNil(t, resp)
 		require.NotEmpty(t, resp.Choices)
 		// The finish reason must be surfaced on the streamed choice.
@@ -588,13 +514,7 @@ func TestGoogleAIErrorHandling(t *testing.T) {
 		WithAPIKey("invalid-key"),
 		WithHTTPClient(rr.Client()),
 	)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	content := []llms.MessageContent{
 		{
@@ -606,7 +526,11 @@ func TestGoogleAIErrorHandling(t *testing.T) {
 	}
 
 	_, err = llm.GenerateContent(t.Context(), content)
-	assert.Error(t, err)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "cached HTTP response not found",
+		"the cassette must answer this request; a replay miss would satisfy a bare Error assertion")
+	require.Contains(t, strings.ToLower(err.Error()), "api key",
+		"the recorded rejection must reach the caller")
 }
 
 func TestGoogleAIMultiModalContent(t *testing.T) {
@@ -614,13 +538,7 @@ func TestGoogleAIMultiModalContent(t *testing.T) {
 
 	// Read the test image
 	imageData, err := os.ReadFile("shared_test/testdata/parrot-icon.png")
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	content := []llms.MessageContent{
 		{
@@ -638,13 +556,7 @@ func TestGoogleAIMultiModalContent(t *testing.T) {
 		llms.WithModel("gemini-2.5-flash"),
 	)
 
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
@@ -660,13 +572,7 @@ func TestGoogleAIBatchEmbedding(t *testing.T) {
 
 	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
 
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	assert.Len(t, embeddings, 105)
 	for i, emb := range embeddings {
 		assert.NotEmpty(t, emb, "embedding at index %d should not be empty", i)
@@ -688,13 +594,7 @@ func TestGoogleAIWithHarmThreshold(t *testing.T) {
 	}
 
 	resp, err := llm.GenerateContent(t.Context(), content)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Choices)
 }
@@ -737,13 +637,7 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 		content,
 		llms.WithTools(tools),
 	)
-	if err != nil {
-		// Check if this is a recording mismatch error
-		if strings.Contains(err.Error(), "cached HTTP response not found") {
-			t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-		}
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	require.NotNil(t, resp1)
 
 	// If tool was called, send back response
@@ -775,13 +669,7 @@ func TestGoogleAIToolCallResponse(t *testing.T) {
 			content,
 			llms.WithTools(tools),
 		)
-		if err != nil {
-			// Check if this is a recording mismatch error
-			if strings.Contains(err.Error(), "cached HTTP response not found") {
-				t.Skip("Recording format has changed or is incompatible. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-			}
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 		require.NotNil(t, resp2)
 		assert.Contains(t, resp2.Choices[0].Content, "105")
 	}
@@ -870,4 +758,19 @@ func TestGoogleAIThinkingModels(t *testing.T) {
 			assert.Equal(t, resp.Choices[0].Reasoning.Content, thinkingContent.String())
 		}
 	})
+}
+
+func TestRecordingsCarryNoProxyHeaders(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob("testdata/*.httprr")
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		require.NoError(t, err)
+		assert.False(t, strings.Contains(strings.ToLower(string(data)), "x-litellm-"),
+			"%s carries proxy headers", file)
+	}
 }

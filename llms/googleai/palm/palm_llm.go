@@ -120,5 +120,5 @@ func newClient(opts ...Option) (*palmclient.PaLMClient, error) {
 		palmclient.WithClientOptions(options.clientOptions...),
 	}
 
-	return palmclient.New(context.TODO(), options.location, options.projectID, palmOptions...)
+	return palmclient.New(context.TODO(), options.projectID, options.location, palmOptions...)
 }

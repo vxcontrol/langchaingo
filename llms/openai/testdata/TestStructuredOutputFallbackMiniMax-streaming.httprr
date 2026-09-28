@@ -1,0 +1,54 @@
+httprr trace v1
+1136 6824
+POST https://api.minimax.io/v1/chat/completions HTTP/1.1
+Host: api.minimax.io
+User-Agent: langchaingo-httprr
+Content-Length: 934
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"MiniMax-M2.7","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Name two landmarks of Paris.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"landmarks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"landmarks\"],\"additionalProperties\":false}"}],"stream":true,"stream_options":{"include_usage":true}}HTTP/2.0 200 OK
+Content-Length: 6235
+Access-Control-Allow-Origin: *
+Alb_receive_time: 1790286718.35
+Alb_request_id: ce1d93a59e85685e2c8b91444c1efe568d7388da
+Cache-Control: max-age=0, no-cache, no-store
+Content-Type: text/event-stream; charset=utf-8
+Date: Thu, 24 Sep 2026 21:51:59 GMT
+Expires: Thu, 24 Sep 2026 21:51:59 GMT
+Minimax-Request-Id: e04e376ae86591177b7d5ade75f8166c
+Pragma: no-cache
+Trace-Id: 0704ce7e5c25aec8c6789c745c1afe8d
+Vary: Accept-Encoding
+X-From: ak
+X-Mm-Request-Id: 2078484896493347777_1790286719s06zto
+X-Session-Id: e17187c5048bda17aa8387acb7d1492b
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"<think>\nThe user","role":"assistant","reasoning":"The user"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":" says: \"Name two landmarks of Paris. Reply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings,","role":"assistant","reasoning":" says: \"Name two landmarks of Paris. Reply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings,"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":" and no text before or after the JSON. The whole reply is parsed by a JSON parser.\"\n\nWe need to produce JSON with fields: \"city\": string, \"land","role":"assistant","reasoning":" and no text before or after the JSON. The whole reply is parsed by a JSON parser.\"\n\nWe need to produce JSON with fields: \"city\": string, \"land"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"marks\": array of objects each with name and kind (enum). So output something like:\n\n{\n  \"city\": \"Paris\",\n  \"","role":"assistant","reasoning":"marks\": array of objects each with name and kind (enum). So output something like:\n\n{\n  \"city\": \"Paris\",\n  \""}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"landmarks\": [\n    {\"name\": \"Eiffel Tower\", \"kind\": \"monument\"},\n    {\"name\": \"Louvre Museum\", \"kind\": \"museum\"}\n  ]\n}\n\nNo extra text before or after, no","role":"assistant","reasoning":"landmarks\": [\n    {\"name\": \"Eiffel Tower\", \"kind\": \"monument\"},\n    {\"name\": \"Louvre Museum\", \"kind\": \"museum\"}\n  ]\n}\n\nNo extra text before or after, no"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":" code fences. The response must be exactly that JSON.\n\nCheck for validity: The schema requires \"city\" and \"landmarks\" as","role":"assistant","reasoning":" code fences. The response must be exactly that JSON.\n\nCheck for validity: The schema requires \"city\" and \"landmarks\" as"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":" required fields. Landmarks items must have name and kind; kind must be one of \"museum\",\"monument\",\"park\",\"church\",\"other\". Use \"mon","role":"assistant","reasoning":" required fields. Landmarks items must have name and kind; kind must be one of \"museum\",\"monument\",\"park\",\"church\",\"other\". Use \"mon"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"ument\" and \"museum\". Both are allowed.\n\nThus produce JSON exactly. Ensure no extra spaces maybe okay. It must be a JSON","role":"assistant","reasoning":"ument\" and \"museum\". Both are allowed.\n\nThus produce JSON exactly. Ensure no extra spaces maybe okay. It must be a JSON"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":" value. Provide a JSON object. Use proper quoting, no trailing commas.\n\nThus final answer:\n\n{\n  \"city\": \"Paris\",\n  \"land","role":"assistant","reasoning":" value. Provide a JSON object. Use proper quoting, no trailing commas.\n\nThus final answer:\n\n{\n  \"city\": \"Paris\",\n  \"land"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"marks\": [\n    {\n      \"name\": \"Eiffel Tower\",\n      \"kind\": \"monument\"\n    },\n    {\n      \"name\": \"Louvre Museum\",\n      \"kind\": \"museum\"\n    }\n  ]\n}\n\nNo extra text","role":"assistant","reasoning":"marks\": [\n    {\n      \"name\": \"Eiffel Tower\",\n      \"kind\": \"monument\"\n    },\n    {\n      \"name\": \"Louvre Museum\",\n      \"kind\": \"museum\"\n    }\n  ]\n}\n\nNo extra text"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":". Ensure no Markdown.","role":"assistant","reasoning":". Ensure no Markdown."}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"\n</think>\n\n{\"city\":\"Paris\",\"landmarks\":[{\"name\":\"Eiffel Tower\",\"kind\":\"monument\"},{\"name\":\"Louvre Museum\",\"kind\":\"museum\"}]}","role":"assistant"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"finish_reason":"stop","index":0,"delta":{"content":"","role":"assistant"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"finish_reason":"stop","index":0,"delta":{"content":"","role":"assistant"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":{"total_tokens":525,"total_characters":0,"prompt_tokens":167,"completion_tokens":358,"completion_tokens_details":{"reasoning_tokens":327},"prompt_tokens_details":{"cached_tokens":0}}}
+

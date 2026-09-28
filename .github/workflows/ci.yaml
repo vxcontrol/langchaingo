@@ -64,6 +64,7 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          set -o pipefail
           go test -timeout=20m -race -v -json -coverprofile=coverage-${{ steps.go-version.outputs.version }}.out ./... | tee test-results-${{ steps.go-version.outputs.version }}.ndjson
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -80,7 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

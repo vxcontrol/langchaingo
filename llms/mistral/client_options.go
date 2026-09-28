@@ -1,10 +1,13 @@
 package mistral
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 )
+
+const defaultModel = "ministral-8b-latest"
 
 type clientOptions struct {
 	apiKey           string
@@ -12,7 +15,10 @@ type clientOptions struct {
 	maxRetries       int
 	timeout          time.Duration
 	model            string
+	embeddingModel   string
 	callbacksHandler callbacks.Handler
+
+	embeddingHTTPClient *http.Client
 }
 
 type Option func(*clientOptions)
@@ -45,10 +51,26 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
-// Sets the model name for the Model being instantiated. Defaults to "open-mistral-7b". See https://docs.mistral.ai/platform/endpoints/ for a full list of supported models.
+// Sets the model name for the Model being instantiated. See https://docs.mistral.ai/models/overview for the models the vendor currently serves.
 func WithModel(model string) Option {
 	return func(o *clientOptions) {
 		o.model = model
+	}
+}
+
+// Sets the model name the Model being instantiated embeds with. A gateway routes
+// by its own name, so a prefixed spelling goes here rather than in the endpoint.
+func WithEmbeddingModel(embeddingModel string) Option {
+	return func(o *clientOptions) {
+		o.embeddingModel = embeddingModel
+	}
+}
+
+// Sets the HTTP client the embeddings request travels on. The chat surface takes
+// no client: it is built on the vendor SDK, which makes its own.
+func WithEmbeddingHTTPClient(client *http.Client) Option {
+	return func(o *clientOptions) {
+		o.embeddingHTTPClient = client
 	}
 }
 

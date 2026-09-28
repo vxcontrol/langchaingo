@@ -1,0 +1,25 @@
+httprr trace v1
+852 1321
+POST https://api.deepseek.com/chat/completions HTTP/1.1
+Host: api.deepseek.com
+User-Agent: langchaingo-httprr
+Content-Length: 649
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"deepseek-v4-pro","messages":[{"role":"user","content":"What is the weather in Paris? Use the tool."},{"role":"assistant","content":"","tool_calls":[{"id":"call_07_Z9fjqXcYkT3bQ2wRmN8pLs4v","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Paris\"}"}}],"reasoning_content":""},{"role":"tool","content":"Sunny, 21C","name":"get_weather","tool_call_id":"call_07_Z9fjqXcYkT3bQ2wRmN8pLs4v"}],"max_tokens":400,"tools":[{"type":"function","function":{"name":"get_weather","description":"Get the current weather for one city.","parameters":{"properties":{"city":{"type":"string"}},"required":["city"],"type":"object"}}}]}HTTP/2.0 200 OK
+Content-Length: 730
+Access-Control-Allow-Credentials: true
+Content-Type: application/json
+Date: Thu, 24 Sep 2026 19:53:00 GMT
+Server: elb
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: origin, access-control-request-method, access-control-request-headers
+Via: 1.1 f96816b40dac23679364d0e0033bb9d8.cloudfront.net (CloudFront)
+X-Amz-Cf-Id: CE_fKfCNGon61mTVFDuWIVXpMtx029Q9P_1VOl2RAnIrpFsvQLVS-w==
+X-Amz-Cf-Pop: AMS56-P1
+X-Cache: Miss from cloudfront
+X-Content-Type-Options: nosniff
+X-Ds-Trace-Id: 703c642648a2a84d7864dffc5d6ad7d9
+
+{"id":"7369edac-7103-483a-9c6b-aca82fa29b12","object":"chat.completion","created":1790279580,"model":"deepseek-v4-pro","choices":[{"index":0,"message":{"role":"assistant","content":"The weather in Paris is **Sunny, 21°C**.","reasoning_content":"The user asked for the weather in Paris and to use the tool. I called the tool and got \"Sunny, 21C\". Now I need to respond with the weather information."},"logprobs":null,"finish_reason":"stop"}],"usage":{"prompt_tokens":427,"completion_tokens":53,"total_tokens":480,"prompt_tokens_details":{"cached_tokens":384},"completion_tokens_details":{"reasoning_tokens":38},"prompt_cache_hit_tokens":384,"prompt_cache_miss_tokens":43},"system_fingerprint":"a307abda487cd1b463329ccb945ce396"}

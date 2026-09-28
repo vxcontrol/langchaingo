@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"bytes"
+	"log"
 	"net/http"
 	"testing"
 
@@ -107,4 +109,33 @@ func TestTokenBufferMemoryWithPreLoadedHistory(t *testing.T) {
 	require.NoError(t, err)
 	expected := map[string]any{"history": "Human: bar\nAI: foo"}
 	assert.Equal(t, expected, result)
+}
+
+// TestTokenBufferMemoryPrunesOldestMessages swaps the package-wide log output,
+// so it does not run in parallel.
+func TestTokenBufferMemoryPrunesOldestMessages(t *testing.T) {
+	ctx := t.Context()
+	var logs bytes.Buffer
+	logWriter := log.Writer()
+	log.SetOutput(&logs)
+	t.Cleanup(func() { log.SetOutput(logWriter) })
+
+	// The buffer is counted for no particular model: one token per four runes.
+	m := NewConversationTokenBuffer(nil, 10)
+
+	require.NoError(t, m.SaveContext(ctx, map[string]any{"input": "one"}, map[string]any{"output": "two"}))
+	require.NoError(t, m.SaveContext(ctx, map[string]any{"input": "three"}, map[string]any{"output": "four"}))
+
+	// 40 runes are 10 tokens, which the limit still holds.
+	result, err := m.LoadMemoryVariables(ctx, map[string]any{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"history": "Human: one\nAI: two\nHuman: three\nAI: four"}, result)
+
+	// 60 runes are 15 tokens: the two oldest messages go, leaving 41 runes.
+	require.NoError(t, m.SaveContext(ctx, map[string]any{"input": "five"}, map[string]any{"output": "six"}))
+
+	result, err = m.LoadMemoryVariables(ctx, map[string]any{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"history": "Human: three\nAI: four\nHuman: five\nAI: six"}, result)
+	assert.Empty(t, logs.String())
 }

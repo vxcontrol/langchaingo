@@ -24,4 +24,13 @@
 //	    llms.WithMaxTokens(100),
 //	    openai.WithLegacyMaxTokensField(), // Forces use of max_tokens field
 //	)
+//
+// # API Keys
+//
+// An API key is required when the base URL is empty, meaning the default
+// OpenAI endpoint; when its host is one of the known public OpenAI-compatible
+// providers (see APIKeyRequiredBaseURLs); when the host sits in a
+// tenant-specific Azure OpenAI or OpenAI data-residency zone; or whenever
+// APIType is Azure or Azure AD, whatever the base URL. Local servers such as
+// vLLM, Ollama, llama.cpp, and SGLang can be used without a key.
 package openai

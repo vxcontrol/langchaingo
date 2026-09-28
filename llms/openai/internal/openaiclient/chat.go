@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strings"
 
@@ -41,23 +40,33 @@ type ReasoningOptions struct {
 	MaxTokens int                  `json:"max_tokens,omitempty"`
 }
 
+type ThinkingOptions struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
+	Display      string `json:"display,omitempty"`
+}
+
 // ChatRequest is a request to complete a chat completion..
 type ChatRequest struct {
-	Model               string         `json:"model"`
-	Messages            []*ChatMessage `json:"messages"`
-	Temperature         *float64       `json:"temperature,omitempty"`
-	TopK                *int           `json:"top_k,omitempty"`
-	TopP                *float64       `json:"top_p,omitempty"`
-	MinP                *float64       `json:"min_p,omitempty"`
-	MaxTokens           *int           `json:"max_tokens,omitempty"`
-	MaxCompletionTokens *int           `json:"max_completion_tokens,omitempty"`
-	N                   *int           `json:"n,omitempty"`
-	StopWords           []string       `json:"stop,omitempty"`
-	Stream              bool           `json:"stream,omitempty"`
-	FrequencyPenalty    *float64       `json:"frequency_penalty,omitempty"`
-	PresencePenalty     *float64       `json:"presence_penalty,omitempty"`
-	RepetitionPenalty   *float64       `json:"repetition_penalty,omitempty"`
-	Seed                *int           `json:"seed,omitempty"`
+	Model               string           `json:"model"`
+	Messages            []*ChatMessage   `json:"messages"`
+	Temperature         *float64         `json:"temperature,omitempty"`
+	TopK                *int             `json:"top_k,omitempty"`
+	TopP                *float64         `json:"top_p,omitempty"`
+	MinP                *float64         `json:"min_p,omitempty"`
+	EnableThinking      *bool            `json:"enable_thinking,omitempty"`
+	ThinkingBudget      *int             `json:"thinking_budget,omitempty"`
+	Thinking            *ThinkingOptions `json:"thinking,omitempty"`
+	MaxTokens           *int             `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int             `json:"max_completion_tokens,omitempty"`
+	N                   *int             `json:"n,omitempty"`
+	StopWords           []string         `json:"stop,omitempty"`
+	Stream              bool             `json:"stream,omitempty"`
+	FrequencyPenalty    *float64         `json:"frequency_penalty,omitempty"`
+	PresencePenalty     *float64         `json:"presence_penalty,omitempty"`
+	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
+	Verbosity           *string          `json:"verbosity,omitempty"`
+	Seed                *int             `json:"seed,omitempty"`
 
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.
@@ -110,7 +119,6 @@ type ChatRequest struct {
 	WebSearchOptions *WebSearchOptions `json:"web_search_options,omitempty"`
 
 	// ExtraBody allows passing additional fields that will be merged into the request body.
-	// These fields take precedence over the standard fields.
 	ExtraBody map[string]any `json:"-"`
 }
 
@@ -316,11 +324,73 @@ type ChatMessage struct { //nolint:musttag
 	// Refusal is set on a response message when the model declines to answer
 	// (Structured Outputs). It must not be validated as final JSON.
 	Refusal string `json:"refusal,omitempty"`
+
+	// Thinking goes out as a thinking chunk at the head of a content list
+	// instead of reasoning_content. Requests only.
+	Thinking string
+
+	// KeepsEmptyReasoning sends reasoning_content even when it is empty, for a
+	// vendor that refuses an assistant turn without the field. Requests only.
+	KeepsEmptyReasoning bool
+}
+
+type contentChunk struct {
+	Type     string         `json:"type"`
+	Text     string         `json:"text,omitempty"`
+	Thinking []contentChunk `json:"thinking,omitempty"`
+}
+
+func decodeContent(raw json.RawMessage) (text, thinking string, err error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	if raw[0] != '[' {
+		err = json.Unmarshal(raw, &text)
+		return text, "", err
+	}
+	var chunks []contentChunk
+	if err := json.Unmarshal(raw, &chunks); err != nil {
+		return "", "", err
+	}
+	var answer, thought strings.Builder
+	for _, chunk := range chunks {
+		switch chunk.Type {
+		case "text":
+			answer.WriteString(chunk.Text)
+		case "thinking":
+			for _, inner := range chunk.Thinking {
+				thought.WriteString(inner.Text)
+			}
+		}
+	}
+	return answer.String(), thought.String(), nil
+}
+
+func (m ChatMessage) contentAfterThinking() []any {
+	content := []any{contentChunk{Type: "thinking", Thinking: []contentChunk{{Type: "text", Text: m.Thinking}}}}
+	for _, part := range m.MultiContent {
+		var chunk any = part
+		if text, isText := part.(llms.TextContent); isText {
+			chunk = contentChunk{Type: "text", Text: text.Text}
+		}
+		content = append(content, chunk)
+	}
+	return content
 }
 
 func (m ChatMessage) MarshalJSON() ([]byte, error) {
 	if m.Content != "" && m.MultiContent != nil {
 		return nil, ErrContentExclusive
+	}
+	if m.Thinking != "" {
+		return json.Marshal(struct {
+			Role         string        `json:"role"`
+			Content      []any         `json:"content"`
+			Name         string        `json:"name,omitempty"`
+			ToolCalls    []ToolCall    `json:"tool_calls,omitempty"`
+			FunctionCall *FunctionCall `json:"function_call,omitempty"`
+			ToolCallID   string        `json:"tool_call_id,omitempty"`
+		}{m.Role, m.contentAfterThinking(), m.Name, m.ToolCalls, m.FunctionCall, m.ToolCallID})
 	}
 	if text, ok := isSingleTextContent(m.MultiContent); ok {
 		m.Content = text
@@ -347,11 +417,15 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 
 			// Refusal is response-only; never sent on a request.
 			Refusal string `json:"-"`
+
+			Thinking string `json:"-"`
+
+			KeepsEmptyReasoning bool `json:"-"`
 		}(m)
 		if msg.ReasoningContent == "" && msg.Reasoning != "" {
 			msg.ReasoningContent = msg.Reasoning
 		}
-		return json.Marshal(msg)
+		return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
 	}
 	msg := struct {
 		Role         string             `json:"role"`
@@ -372,11 +446,26 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 
 		// Refusal is response-only; never sent on a request.
 		Refusal string `json:"-"`
+
+		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
 	}(m)
 	if msg.ReasoningContent == "" && msg.Reasoning != "" {
 		msg.ReasoningContent = msg.Reasoning
 	}
-	return json.Marshal(msg)
+	return marshalRequestMessage(msg, msg.KeepsEmptyReasoning && msg.ReasoningContent == "")
+}
+
+// marshalRequestMessage marshals an outgoing message and, when emptyReasoning is
+// set, ends it with the empty reasoning_content that omitempty drops. The object
+// always holds role, so the added field follows a comma.
+func marshalRequestMessage(msg any, emptyReasoning bool) ([]byte, error) {
+	out, err := json.Marshal(msg)
+	if err != nil || !emptyReasoning {
+		return out, err
+	}
+	return append(out[:len(out)-1], `,"reasoning_content":""}`...), nil
 }
 
 func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
@@ -388,9 +477,9 @@ func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
 }
 
 func (m *ChatMessage) UnmarshalJSON(data []byte) error {
-	msg := struct {
+	type fields struct {
 		Role         string             `json:"role"`
-		Content      string             `json:"content"`
+		Content      string             `json:"-"`
 		MultiContent []llms.ContentPart `json:"-"` // not expected in response
 		Name         string             `json:"name,omitempty"`
 		ToolCalls    []ToolCall         `json:"tool_calls,omitempty"`
@@ -407,15 +496,30 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 
 		// Refusal is populated when the model declines under Structured Outputs.
 		Refusal string `json:"refusal,omitempty"`
-	}{}
-	err := json.Unmarshal(data, &msg)
+
+		Thinking string `json:"-"`
+
+		KeepsEmptyReasoning bool `json:"-"`
+	}
+	var msg struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(msg.Content)
 	if err != nil {
 		return err
 	}
-	if msg.ReasoningContent == "" && msg.Reasoning != "" {
-		msg.ReasoningContent = msg.Reasoning
+	*m = ChatMessage(msg.fields)
+	m.Content = text
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = m.Reasoning
 	}
-	*m = ChatMessage(msg)
+	if m.ReasoningContent == "" {
+		m.ReasoningContent = thinking
+	}
 	return nil
 }
 
@@ -505,8 +609,9 @@ type Usage struct {
 	CompletionTokens    int `json:"completion_tokens"`
 	TotalTokens         int `json:"total_tokens"`
 	PromptTokensDetails struct {
-		CachedTokens int `json:"cached_tokens"`
-		AudioTokens  int `json:"audio_tokens"`
+		CachedTokens     int `json:"cached_tokens"`
+		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
+		AudioTokens      int `json:"audio_tokens"`
 	} `json:"prompt_tokens_details"`
 	CompletionTokensDetails struct {
 		ReasoningTokens          int `json:"reasoning_tokens"`
@@ -514,6 +619,10 @@ type Usage struct {
 		AcceptedPredictionTokens int `json:"accepted_prediction_tokens"`
 		RejectedPredictionTokens int `json:"rejected_prediction_tokens"`
 	} `json:"completion_tokens_details"`
+	CostDetails struct {
+		UpstreamInferencePromptCost      *float64 `json:"upstream_inference_prompt_cost,omitempty"`
+		UpstreamInferenceCompletionsCost *float64 `json:"upstream_inference_completions_cost,omitempty"`
+	} `json:"cost_details,omitempty"`
 }
 
 // StreamedToolCall is a call to a tool.
@@ -537,6 +646,27 @@ type StreamedChatResponseChunkDelta struct {
 	// Refusal streams in when the model declines under Structured Outputs; it must
 	// be accumulated and surfaced separately from Content, never validated as JSON.
 	Refusal string `json:"refusal,omitempty"`
+}
+
+func (d *StreamedChatResponseChunkDelta) UnmarshalJSON(data []byte) error {
+	type fields StreamedChatResponseChunkDelta
+	var delta struct {
+		fields
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &delta); err != nil {
+		return err
+	}
+	text, thinking, err := decodeContent(delta.Content)
+	if err != nil {
+		return err
+	}
+	*d = StreamedChatResponseChunkDelta(delta.fields)
+	d.Content = text
+	if d.ReasoningContent == "" {
+		d.ReasoningContent = thinking
+	}
+	return nil
 }
 
 // StreamedChatResponseChunk is a chunk from the stream.
@@ -627,19 +757,8 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 		return nil, err
 	}
 
-	// If ExtraBody is provided, merge it with the standard payload
-	if len(payload.ExtraBody) > 0 {
-		var baseMap map[string]any
-		if err := json.Unmarshal(payloadBytes, &baseMap); err != nil {
-			return nil, err
-		}
-
-		// Merge ExtraBody with priority (ExtraBody overwrites existing fields)
-		maps.Copy(baseMap, payload.ExtraBody)
-
-		if payloadBytes, err = json.Marshal(baseMap); err != nil {
-			return nil, err
-		}
+	if payloadBytes, err = mergeExtraBody(payloadBytes, payload.ExtraBody); err != nil {
+		return nil, err
 	}
 
 	// Build request
@@ -659,22 +778,54 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		msg := fmt.Sprintf("API returned unexpected status code: %d", r.StatusCode)
-
-		// No need to check the error here: if it fails, we'll just return the
-		// status code.
-		var errResp errorMessage
-		if err := json.NewDecoder(r.Body).Decode(&errResp); err != nil {
-			return nil, errors.New(msg)
-		}
-
-		return nil, fmt.Errorf("%s: %s", msg, errResp.Error.Message)
+		return nil, statusError(r.StatusCode, r.Body)
 	}
 	if payload.Stream {
 		return parseStreamingChatResponse(ctx, r, payload)
 	}
 
 	return parseChatResponse(r.Body)
+}
+
+func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
+	if len(extraBody) == 0 {
+		return payload, nil
+	}
+	extra, err := json.Marshal(extraBody)
+	if err != nil {
+		return nil, err
+	}
+	return mergeJSON(payload, extra)
+}
+
+func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
+	baseFields, baseIsObject := jsonObject(base)
+	extraFields, extraIsObject := jsonObject(extra)
+	if !baseIsObject || !extraIsObject || selectsAnotherVariant(baseFields, extraFields) {
+		return extra, nil
+	}
+	for key, value := range extraFields {
+		merged, err := mergeJSON(baseFields[key], value)
+		if err != nil {
+			return nil, err
+		}
+		baseFields[key] = merged
+	}
+	return json.Marshal(baseFields)
+}
+
+func selectsAnotherVariant(base, extra map[string]json.RawMessage) bool {
+	baseType, baseTyped := base["type"]
+	extraType, extraTyped := extra["type"]
+	return baseTyped && extraTyped && !bytes.Equal(baseType, extraType)
+}
+
+func jsonObject(value json.RawMessage) (map[string]json.RawMessage, bool) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(value, &fields); err != nil || fields == nil {
+		return nil, false
+	}
+	return fields, true
 }
 
 func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
@@ -696,6 +847,11 @@ func parseChatResponse(body io.Reader) (*ChatCompletionResponse, error) {
 	return &response, nil
 }
 
+const (
+	initialStreamBuffer = 64 * 1024
+	maxStreamLine       = 8 * 1024 * 1024
+)
+
 func parseStreamingChatResponse(
 	ctx context.Context,
 	r *http.Response,
@@ -703,14 +859,18 @@ func parseStreamingChatResponse(
 ) (*ChatCompletionResponse, error) {
 	// Parse response
 	scanner := bufio.NewScanner(r.Body)
+	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	responseChan := make(chan StreamedChatResponsePayload)
+
+	producerCtx, stopProducer := context.WithCancel(ctx)
+	defer stopProducer()
 
 	go func() {
 		defer close(responseChan)
 		for scanner.Scan() {
 			// Check if context is cancelled
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			default:
 			}
@@ -738,7 +898,7 @@ func parseStreamingChatResponse(
 			if data == "[DONE]" {
 				return
 			}
-			if !isValidJSON(data) {
+			if !looksLikeJSONObject(data) {
 				continue
 			}
 
@@ -752,14 +912,14 @@ func parseStreamingChatResponse(
 
 			// Non-blocking send with context check
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			case responseChan <- streamPayload:
 			}
 		}
 		if err := scanner.Err(); err != nil {
 			select {
-			case <-ctx.Done():
+			case <-producerCtx.Done():
 				return
 			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("error reading streaming response: %w", err)}:
 			}
@@ -771,13 +931,11 @@ func parseStreamingChatResponse(
 	return combineStreamingChatResponse(ctx, payload, responseChan)
 }
 
-func isValidJSON(data string) bool {
-	var dummy any
+// looksLikeJSONObject must not parse the chunk: whether it really parses is
+// answered by the decode that follows.
+func looksLikeJSONObject(data string) bool {
 	data = strings.Trim(data, " \n\r\t")
-	if !strings.HasPrefix(data, "{") || !strings.HasSuffix(data, "}") {
-		return false
-	}
-	return json.Unmarshal([]byte(data), &dummy) == nil
+	return strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}")
 }
 
 //nolint:gocognit,cyclop
@@ -791,12 +949,17 @@ func combineStreamingChatResponse(
 	var (
 		response          ChatCompletionResponse
 		splitters         []reasoning.ChunkContentSplitter
+		accums            []*streamedText
 		toolCallNameCache = make(map[string]string) // Cache tool call names by ID for streaming
 	)
 
+	var streamErr error
+
+DoStream:
 	for streamResponse := range responseChan {
 		if streamResponse.Error != nil {
-			return nil, streamResponse.Error
+			streamErr = streamResponse.Error
+			break DoStream
 		}
 
 		updateChatUsage(&response.Usage, streamResponse.Usage)
@@ -811,6 +974,7 @@ func combineStreamingChatResponse(
 				if len(response.Choices) <= idx {
 					response.Choices = append(response.Choices, &ChatCompletionChoice{})
 					splitters = append(splitters, reasoning.NewChunkContentSplitter())
+					accums = append(accums, &streamedText{})
 				}
 			}
 			// Get current updatable values
@@ -825,16 +989,19 @@ func combineStreamingChatResponse(
 			}
 
 			content, reasoningContent := getChunkContent(choice, splitter)
-			responseChoice.Message.Content += content
-			responseChoice.Message.ReasoningContent += reasoningContent
-			responseChoice.Message.Refusal += choice.Delta.Refusal
+			accum := accums[choice.Index]
+			accum.content.WriteString(content)
+			accum.reasoningContent.WriteString(reasoningContent)
+			accum.refusal.WriteString(choice.Delta.Refusal)
 
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
-				return nil, fmt.Errorf("streaming reasoning func returned an error: %w", err)
+				streamErr = fmt.Errorf("streaming reasoning func returned an error: %w", err)
+				break DoStream
 			}
 			if err := streaming.CallWithText(ctx, payload.StreamingFunc, content); err != nil {
-				return nil, fmt.Errorf("streaming text func returned an error: %w", err)
+				streamErr = fmt.Errorf("streaming text func returned an error: %w", err)
+				break DoStream
 			}
 
 			if choice.Delta.FunctionCall != nil {
@@ -843,7 +1010,8 @@ func combineStreamingChatResponse(
 
 				toolCall := streaming.NewToolCall("", functionCall.Name, functionCall.Arguments)
 				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
-					return nil, fmt.Errorf("streaming tool call func returned an error: %w", err)
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
 				}
 			}
 
@@ -852,15 +1020,33 @@ func combineStreamingChatResponse(
 
 				toolCall := streaming.NewToolCall(toolCall.ID, toolCall.Function.Name, toolCall.Function.Arguments)
 				if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
-					return nil, fmt.Errorf("streaming tool call func returned an error: %w", err)
+					streamErr = fmt.Errorf("streaming tool call func returned an error: %w", err)
+					break DoStream
 				}
 			}
 		}
 	}
 
+	for idx, accum := range accums {
+		accum.flushInto(&response.Choices[idx].Message)
+	}
+
 	removeEmptyToolCalls(&response)
 
-	return &response, nil
+	return &response, streamErr
+}
+
+// streamedText collects one choice's text across deltas.
+type streamedText struct {
+	content          strings.Builder
+	reasoningContent strings.Builder
+	refusal          strings.Builder
+}
+
+func (t *streamedText) flushInto(msg *ChatMessage) {
+	msg.Content = t.content.String()
+	msg.ReasoningContent = t.reasoningContent.String()
+	msg.Refusal = t.refusal.String()
 }
 
 func getChunkContent(choice StreamedChatResponseChunk, splitter reasoning.ChunkContentSplitter) (string, string) {
@@ -891,10 +1077,13 @@ func updateChatUsage(chatUsage *ChatUsage, streamUsage *Usage) {
 	chatUsage.TotalTokens = streamUsage.TotalTokens
 	chatUsage.PromptTokensDetails.AudioTokens = streamUsage.PromptTokensDetails.AudioTokens
 	chatUsage.PromptTokensDetails.CachedTokens = streamUsage.PromptTokensDetails.CachedTokens
+	chatUsage.PromptTokensDetails.CacheWriteTokens = streamUsage.PromptTokensDetails.CacheWriteTokens
 	chatUsage.CompletionTokensDetails.AudioTokens = streamUsage.CompletionTokensDetails.AudioTokens
 	chatUsage.CompletionTokensDetails.AcceptedPredictionTokens = streamUsage.CompletionTokensDetails.AcceptedPredictionTokens
 	chatUsage.CompletionTokensDetails.RejectedPredictionTokens = streamUsage.CompletionTokensDetails.RejectedPredictionTokens
 	chatUsage.CompletionTokensDetails.ReasoningTokens = streamUsage.CompletionTokensDetails.ReasoningTokens
+	chatUsage.CostDetails.UpstreamInferencePromptCost = streamUsage.CostDetails.UpstreamInferencePromptCost
+	chatUsage.CostDetails.UpstreamInferenceCompletionsCost = streamUsage.CostDetails.UpstreamInferenceCompletionsCost
 }
 
 func updateFunctionCall(message *ChatMessage, functionCall *FunctionCall) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -346,6 +347,79 @@ func TestSanitizeHTTPError(t *testing.T) {
 		assert.Error(t, sanitized)
 		assert.Equal(t, err, sanitized)
 	})
+
+	t.Run("url error wrapping application error passthrough", func(t *testing.T) {
+		inner := errors.New("cached HTTP response not found")
+		err := &url.Error{Op: "Post", URL: "https://api.openai.com/v1/chat/completions", Err: inner}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, inner, sanitized)
+	})
+
+	t.Run("url error wrapping network error is sanitized", func(t *testing.T) {
+		err := &url.Error{
+			Op:  "Post",
+			URL: "https://api.openai.com/v1/chat/completions",
+			Err: &mockNetworkError{message: "connection refused"},
+		}
+		sanitized := sanitizeHTTPError(err)
+		assert.Equal(t, "network error: failed to reach API server", sanitized.Error())
+	})
+}
+
+func TestSetHeadersOmitsEmptyToken(t *testing.T) {
+	t.Parallel()
+
+	newRequest := func(t *testing.T) *http.Request {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, "http://127.0.0.1:8000/v1/chat/completions", http.NoBody)
+		require.NoError(t, err)
+		return req
+	}
+
+	cases := []struct {
+		name        string
+		apiType     APIType
+		apiVersion  string
+		tokenHeader string
+		tokenValue  string
+	}{
+		{
+			name:        "a bearer door carries the token in Authorization",
+			apiType:     APITypeOpenAI,
+			tokenHeader: "Authorization",
+			tokenValue:  "Bearer secret",
+		},
+		{
+			name:        "an api-key door carries the token in api-key",
+			apiType:     APITypeAzure,
+			apiVersion:  "2023-05-15",
+			tokenHeader: "api-key",
+			tokenValue:  "secret",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			client, err := New("", "gpt-3.5-turbo", "http://127.0.0.1:8000/v1", "",
+				tc.apiType, tc.apiVersion, nil, "", nil, false, false, false)
+			require.NoError(t, err)
+
+			req := newRequest(t)
+			client.setHeaders(req)
+			assert.Empty(t, req.Header.Values("Authorization"))
+			assert.Empty(t, req.Header.Values("api-key"))
+			assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+			client.token = "secret"
+			req = newRequest(t)
+			client.setHeaders(req)
+			assert.Equal(t, tc.tokenValue, req.Header.Get(tc.tokenHeader))
+			assert.Empty(t, req.Header.Values(otherTokenHeader(tc.tokenHeader)),
+				"the token must reach one door only")
+		})
+	}
 }
 
 type mockHTTPClient struct {
@@ -354,4 +428,11 @@ type mockHTTPClient struct {
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	return m.doFunc(req)
+}
+
+func otherTokenHeader(used string) string {
+	if used == "Authorization" {
+		return "api-key"
+	}
+	return "Authorization"
 }

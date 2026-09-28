@@ -2,7 +2,6 @@ package imageutil
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,17 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// requireHttprrRecording replays the test's recording, or records it when
+// -httprecord matches its file. The URLs are public, so a recording run needs
+// no credentials; without one and without a recording the test skips.
 func requireHttprrRecording(t *testing.T) *httprr.RecordReplay {
 	t.Helper()
 
-	// Check if we have httprr recording
-	testName := httprr.CleanFileName(t.Name())
-	httprrFile := filepath.Join("testdata", testName+".httprr")
-	httprrGzFile := httprrFile + ".gz"
-	if _, err := os.Stat(httprrFile); os.IsNotExist(err) {
-		if _, err := os.Stat(httprrGzFile); os.IsNotExist(err) {
-			t.Skip("No httprr recording available for external HTTP calls")
-		}
+	recording, err := httprr.Recording(filepath.Join("testdata", httprr.CleanFileName(t.Name())+".httprr"))
+	require.NoError(t, err)
+	if !recording {
+		httprr.SkipIfNoCredentialsAndRecordingMissing(t)
 	}
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
@@ -42,7 +40,7 @@ func TestDownloadImageData_Integration(t *testing.T) {
 	}()
 
 	// Test downloading a PNG image
-	imageType, data, err := DownloadImageData("https://via.placeholder.com/150/FF0000/FFFFFF?text=Test")
+	imageType, data, err := DownloadImageData("https://placehold.co/150x150/FF0000/FFFFFF.png?text=Test")
 	require.NoError(t, err)
 	require.Equal(t, "png", imageType)
 	require.NotEmpty(t, data)
@@ -61,27 +59,17 @@ func TestDownloadImageData_JPEG(t *testing.T) {
 	}()
 
 	// Test downloading a JPEG image
-	imageType, data, err := DownloadImageData("https://via.placeholder.com/150.jpg")
+	imageType, data, err := DownloadImageData("https://placehold.co/150.jpg")
 	require.NoError(t, err)
 	require.Equal(t, "jpeg", imageType)
 	require.NotEmpty(t, data)
 }
 
 func TestDownloadImageData_InvalidURL_Integration(t *testing.T) {
-	// Setup HTTP record/replay
-	rr := requireHttprrRecording(t)
-	defer rr.Close()
-
-	// Replace httputil.DefaultClient with httprr client
-	oldClient := httputil.DefaultClient
-	httputil.DefaultClient = rr.Client()
-	defer func() {
-		httputil.DefaultClient = oldClient
-	}()
-
-	// Test with invalid URL
+	// A URL without a scheme is rejected by the transport before any
+	// connection is made, so this needs no recording.
 	_, _, err := DownloadImageData("not-a-valid-url")
-	require.Error(t, err)
+	require.ErrorContains(t, err, "unsupported protocol scheme")
 }
 
 func TestDownloadImageData_NotFound(t *testing.T) {
@@ -96,8 +84,8 @@ func TestDownloadImageData_NotFound(t *testing.T) {
 		httputil.DefaultClient = oldClient
 	}()
 
-	// Test with 404 response
-	imageType, data, err := DownloadImageData("https://httpbin.org/status/404")
+	// Test with a 404 response that carries an HTML error page
+	imageType, data, err := DownloadImageData("https://httpbin.org/image/missing")
 	require.NoError(t, err)               // The function doesn't check status codes
 	require.NotEqual(t, "png", imageType) // Likely to be "html" or similar
 	require.NotEmpty(t, data)

@@ -154,6 +154,7 @@ func createOpenAILLMAndEmbedder(t *testing.T, httpClient *http.Client, recording
 	t.Helper()
 
 	llmOpts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
 		openai.WithHTTPClient(httpClient),
 	}
 	// Only add fake token when NOT recording (i.e., during replay)
@@ -216,6 +217,21 @@ func setOpensearchClient(
 	return client
 }
 
+// refreshIndex makes the documents just added visible to search, so what a
+// test retrieves does not hang on the refresh interval firing in time under
+// load. A partial hit set changes the prompt the chain sends and misses the
+// recorded chat completion.
+func refreshIndex(t *testing.T, client *opensearchgo.Client, indexName string) {
+	t.Helper()
+	res, err := client.Indices.Refresh(
+		client.Indices.Refresh.WithContext(t.Context()),
+		client.Indices.Refresh.WithIndex(indexName),
+	)
+	require.NoError(t, err)
+	defer res.Body.Close()
+	require.False(t, res.IsError(), "refresh index %s: %s", indexName, res.String())
+}
+
 func TestOpensearchStoreRest(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(
 		t, "OPENSEARCH_ENDPOINT", "OPENSEARCH_USER", "OPENSEARCH_PASSWORD", "OPENAI_API_KEY",
@@ -232,8 +248,9 @@ func TestOpensearchStoreRest(t *testing.T) {
 	indexName := uuid.New().String()
 	e := createOpenAIEmbedder(t, rr.Client())
 
+	client := setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword)
 	storer, err := opensearch.New(
-		setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword),
+		client,
 		opensearch.WithEmbedder(e),
 	)
 	require.NoError(t, err)
@@ -246,7 +263,7 @@ func TestOpensearchStoreRest(t *testing.T) {
 		{PageContent: "potato"},
 	}, vectorstores.WithNameSpace(indexName))
 	require.NoError(t, err)
-	time.Sleep(time.Second)
+	refreshIndex(t, client, indexName)
 	docs, err := storer.SimilaritySearch(ctx, "japan", 1, vectorstores.WithNameSpace(indexName))
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
@@ -270,8 +287,9 @@ func TestOpensearchStoreRestWithScoreThreshold(t *testing.T) {
 
 	e := createOpenAIEmbedder(t, rr.Client())
 
+	client := setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword)
 	storer, err := opensearch.New(
-		setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword),
+		client,
 		opensearch.WithEmbedder(e),
 	)
 	require.NoError(t, err)
@@ -292,7 +310,7 @@ func TestOpensearchStoreRestWithScoreThreshold(t *testing.T) {
 		{PageContent: "New York"},
 	}, vectorstores.WithNameSpace(indexName))
 	require.NoError(t, err)
-	time.Sleep(time.Second)
+	refreshIndex(t, client, indexName)
 	// test with a score threshold of 0.72, expected 6 documents
 	docs, err := storer.SimilaritySearch(ctx,
 		"Which of these are cities in Japan", 10,
@@ -319,8 +337,9 @@ func TestOpensearchAsRetriever(t *testing.T) {
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr.Client(), rr.Recording())
 
+	client := setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword)
 	storer, err := opensearch.New(
-		setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword),
+		client,
 		opensearch.WithEmbedder(e),
 	)
 	require.NoError(t, err)
@@ -339,7 +358,7 @@ func TestOpensearchAsRetriever(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second)
+	refreshIndex(t, client, indexName)
 
 	result, err := chains.Run(
 		ctx,
@@ -370,8 +389,9 @@ func TestOpensearchAsRetrieverWithScoreThreshold(t *testing.T) {
 
 	llm, e := createOpenAILLMAndEmbedder(t, rr.Client(), rr.Recording())
 
+	client := setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword)
 	storer, err := opensearch.New(
-		setOpensearchClient(t, opensearchEndpoint, opensearchUser, opensearchPassword),
+		client,
 		opensearch.WithEmbedder(e),
 	)
 	require.NoError(t, err)
@@ -391,7 +411,7 @@ func TestOpensearchAsRetrieverWithScoreThreshold(t *testing.T) {
 		vectorstores.WithNameSpace(indexName),
 	)
 	require.NoError(t, err)
-	time.Sleep(time.Second)
+	refreshIndex(t, client, indexName)
 	result, err := chains.Run(
 		ctx,
 		chains.NewRetrievalQAFromLLM(

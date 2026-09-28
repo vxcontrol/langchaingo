@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,6 +26,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/googleai/vertex"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
+	"cloud.google.com/go/auth/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,36 +34,35 @@ import (
 func newGoogleAIClient(t *testing.T, opts ...googleai.Option) *googleai.GoogleAI {
 	t.Helper()
 
-	// Always check for recordings first - prefer recordings over environment variables
-	if !hasExistingRecording(t) {
-		t.Skip("No httprr recording available. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
+	// A test that brings its own HTTP client answers every request itself
+	if bringsOwnHTTPClient(opts) {
+		t.Parallel()
+		llm, err := googleai.New(t.Context(), append(opts, googleai.WithAPIKey("test-api-key"))...)
+		require.NoError(t, err)
+		return llm
 	}
 
-	// Temporarily unset Google API key environment variable to prevent bypass
-	oldKey := os.Getenv("GOOGLE_API_KEY")
-	os.Unsetenv("GOOGLE_API_KEY")
-	t.Cleanup(func() {
-		if oldKey != "" {
-			os.Setenv("GOOGLE_API_KEY", oldKey)
-		}
-	})
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
-	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	if !rr.Recording() {
+		t.Parallel()
+	}
 
-	// Scrub API key for security in recordings
-	rr.ScrubReq(func(req *http.Request) error {
-		q := req.URL.Query()
-		if q.Get("key") != "" {
-			q.Set("key", "test-api-key")
-			req.URL.RawQuery = q.Encode()
-		}
-		return nil
-	})
+	// Avoid issue with different view of request bodies for Google AI SDK
+	rr.ScrubReq(httprr.JsonCompactScrubBody)
 
-	// Configure client with httprr and test credentials
+	apiKey := "test-api-key"
+	if rr.Recording() {
+		apiKey = os.Getenv("GOOGLE_API_KEY")
+	}
+
+	// Configure client with httprr, pinned models and the key
 	opts = append(opts,
 		googleai.WithRest(),
-		googleai.WithAPIKey("test-api-key"),
+		googleai.WithDefaultModel(testModel),
+		googleai.WithDefaultEmbeddingModel(testEmbeddingModel),
+		googleai.WithAPIKey(apiKey),
 		googleai.WithHTTPClient(rr.Client()),
 	)
 
@@ -74,27 +75,43 @@ func newGoogleAIClient(t *testing.T, opts ...googleai.Option) *googleai.GoogleAI
 func newVertexClient(t *testing.T, opts ...googleai.Option) *vertex.Vertex {
 	t.Helper()
 
-	// Always check for recordings first - prefer recordings over environment variables
-	if !hasExistingRecording(t) {
-		t.Skip("No httprr recording available. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-	}
-
-	// Temporarily unset Google API key environment variable to prevent bypass
-	oldKey := os.Getenv("GOOGLE_API_KEY")
-	os.Unsetenv("GOOGLE_API_KEY")
-	t.Cleanup(func() {
-		if oldKey != "" {
-			os.Setenv("GOOGLE_API_KEY", oldKey)
-		}
-	})
-
-	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
-
-	// Configure client with httprr and test credentials
-	opts = append(opts,
-		googleai.WithHTTPClient(rr.Client()),
+	cloud := []googleai.Option{
 		googleai.WithCloudProject("test-project"),
 		googleai.WithCloudLocation("us-central1"),
+	}
+
+	// A test that brings its own HTTP client answers every request itself
+	if bringsOwnHTTPClient(opts) {
+		t.Parallel()
+		llm, err := vertex.New(t.Context(), append(opts, cloud...)...)
+		require.NoError(t, err)
+		return llm
+	}
+
+	// A recorded cassette replays without credentials, and a replay miss fails.
+	// This helper cannot record one: genai sends no credentials over a
+	// caller-supplied HTTP client, so recording needs an ADC-authenticated transport.
+	if !hasExistingRecording(t) {
+		if !hasCloudCredentials() {
+			t.Skip("no Vertex AI cassette and no GCP project credentials " +
+				"(GOOGLE_CLOUD_PROJECT and application default credentials); this helper " +
+				"could not record one either, since genai sends no credentials over a caller-supplied HTTP client")
+		}
+		t.Skip("no Vertex AI cassette, and this helper cannot record one: genai sends no credentials " +
+			"over a caller-supplied HTTP client, so recording needs an ADC-authenticated transport")
+	}
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	if !rr.Recording() {
+		t.Parallel()
+	}
+
+	// Configure client with httprr, pinned models and test credentials
+	opts = append(opts, cloud...)
+	opts = append(opts,
+		googleai.WithDefaultModel(testModel),
+		googleai.WithDefaultEmbeddingModel(testEmbeddingModel),
+		googleai.WithHTTPClient(rr.Client()),
 	)
 
 	llm, err := vertex.New(t.Context(), opts...)
@@ -103,12 +120,40 @@ func newVertexClient(t *testing.T, opts ...googleai.Option) *vertex.Vertex {
 	return llm
 }
 
+// Models the cassettes are recorded with.
+const (
+	testModel          = "gemini-3.8-flash"
+	testEmbeddingModel = "gemini-embedding-001"
+)
+
+// bringsOwnHTTPClient reports whether the options carry an HTTP client of the
+// test's own, which needs neither a cassette nor credentials.
+func bringsOwnHTTPClient(opts []googleai.Option) bool {
+	resolved := googleai.DefaultOptions()
+	for _, opt := range opts {
+		opt(&resolved)
+	}
+	return resolved.HTTPClient != nil
+}
+
 // hasExistingRecording checks if a httprr recording exists for this test
 func hasExistingRecording(t *testing.T) bool {
-	testName := strings.ReplaceAll(t.Name(), "/", "_")
-	testName = strings.ReplaceAll(testName, " ", "_")
-	recordingPath := filepath.Join("testdata", testName+".httprr")
-	_, err := os.Stat(recordingPath)
+	t.Helper()
+	path := filepath.Join("testdata", httprr.CleanFileName(t.Name())+".httprr")
+	_, err := os.Stat(path)
+	_, errGzip := os.Stat(path + ".gz")
+	return err == nil || errGzip == nil
+}
+
+// hasCloudCredentials reports whether GOOGLE_CLOUD_PROJECT names a project and
+// application default credentials can be found.
+func hasCloudCredentials() bool {
+	if os.Getenv("GOOGLE_CLOUD_PROJECT") == "" {
+		return false
+	}
+	_, err := credentials.DetectDefault(&credentials.DetectOptions{
+		Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
+	})
 	return err == nil
 }
 
@@ -160,8 +205,6 @@ func TestGoogleAIShared(t *testing.T) {
 	for idx := range testConfigs {
 		c := testConfigs[idx]
 		t.Run(fmt.Sprintf("%s-googleai", funcName(c.testFunc)), func(t *testing.T) {
-			t.Parallel()
-
 			c.testFunc(t, newGoogleAIClient(t, c.opts...))
 		})
 	}
@@ -174,8 +217,6 @@ func TestVertexShared(t *testing.T) {
 	for idx := range testConfigs {
 		c := testConfigs[idx]
 		t.Run(fmt.Sprintf("%s-vertex", funcName(c.testFunc)), func(t *testing.T) {
-			t.Parallel()
-
 			c.testFunc(t, newVertexClient(t, c.opts...))
 		})
 	}
@@ -250,7 +291,7 @@ func testMultiContentTextChatSequence(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel(testModel))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, resp.Choices)
@@ -272,7 +313,7 @@ func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 		},
 	}
 
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
+	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel(testModel))
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, resp.Choices)
@@ -283,10 +324,18 @@ func testMultiContentWithSystemMessage(t *testing.T, llm llms.Model) {
 func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 	t.Helper()
 
+	// The client downloads the linked image itself and sends it inline, so the
+	// link is served locally and a replay needs no network.
+	image, err := os.ReadFile(filepath.Join("testdata", "parrot-icon.png"))
+	require.NoError(t, err)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(image)
+	}))
+	t.Cleanup(srv.Close)
+
 	parts := []llms.ContentPart{
-		llms.ImageURLPart(
-			"https://github.com/vxcontrol/langchaingo/blob/main/docs/static/img/parrot-icon.png?raw=true",
-		),
+		llms.ImageURLPart(srv.URL + "/parrot-icon.png"),
 		llms.TextPart("describe this image in detail"),
 	}
 	content := []llms.MessageContent{
@@ -299,7 +348,7 @@ func testMultiContentImageLink(t *testing.T, llm llms.Model) {
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
-		llms.WithModel("gemini-2.0-flash"),
+		llms.WithModel(testModel),
 	)
 	require.NoError(t, err)
 
@@ -330,7 +379,7 @@ func testMultiContentImageBinary(t *testing.T, llm llms.Model) {
 	resp, err := llm.GenerateContent(
 		t.Context(),
 		content,
-		llms.WithModel("gemini-2.0-flash"),
+		llms.WithModel(testModel),
 	)
 	require.NoError(t, err)
 
@@ -490,7 +539,7 @@ func testTools(t *testing.T, llm llms.Model) {
 	assert.NotEmpty(t, resp.Choices)
 
 	c1 = resp.Choices[0]
-	checkMatch(t, c1.Content, "(64 and sunny|64 degrees)")
+	checkMatch(t, c1.Content, "(64(°F)? and sunny|64 degrees)")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "input_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "output_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "total_tokens")
@@ -576,7 +625,7 @@ func testToolsWithInterfaceRequired(t *testing.T, llm llms.Model) {
 	assert.NotEmpty(t, resp.Choices)
 
 	c1 = resp.Choices[0]
-	checkMatch(t, c1.Content, "(64 and sunny|64 degrees)")
+	checkMatch(t, c1.Content, "(64(°F)? and sunny|64 degrees)")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "input_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "output_tokens")
 	assert.Contains(t, resp.Choices[0].GenerationInfo, "total_tokens")
@@ -605,14 +654,15 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 
 		assert.NotEmpty(t, resp.Choices)
 		c1 := resp.Choices[0]
-		// TODO: Google genai models are returning "FinishReasonStop" instead of "MaxTokens".
-		assert.Regexp(t, "(?i)(MaxTokens|FinishReasonStop)", c1.StopReason)
+		// TODO: Google genai models may return "STOP" instead of "MAX_TOKENS".
+		assert.Regexp(t, "^(MAX_TOKENS|STOP)$", c1.StopReason)
 	}
 
 	// Now, try it again with a much larger MaxTokens setting and expect to
-	// finish successfully and generate a response.
+	// finish successfully and generate a response. The model's thoughts count
+	// against the setting too.
 	{
-		resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(2048))
+		resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(8192))
 		require.NoError(t, err)
 
 		assert.NotEmpty(t, resp.Choices)

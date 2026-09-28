@@ -1,573 +1,61 @@
-// This file is hand-maintained. It was historically code-generated from
-// googleai.go, but the two packages now target different SDKs (googleai uses
-// google.golang.org/genai while vertex uses cloud.google.com/go/vertexai/genai),
-// so the generator is obsolete and must not be run. See the README in this
-// directory.
-
-//nolint:all
+// Package vertex implements a langchaingo provider for Google Vertex AI LLMs,
+// including the Gemini models.
+// See https://cloud.google.com/vertex-ai for more details.
 package vertex
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"strings"
+	"os"
 
-	"github.com/vxcontrol/langchaingo/llms/googleai"
-	"github.com/vxcontrol/langchaingo/llms/streaming"
-
-	"cloud.google.com/go/vertexai/genai"
-	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/llms"
-	"google.golang.org/api/iterator"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
 )
 
-var (
-	ErrNoContentInResponse   = errors.New("no content in generation response")
-	ErrUnknownPartInResponse = errors.New("unknown part type in generation response")
-	ErrInvalidMimeType       = errors.New("invalid mime type on content")
-)
+// ErrMissingCloudTarget reports a client asked for Vertex without naming where.
+var ErrMissingCloudTarget = errors.New("vertex: a cloud project and a cloud location are both required")
 
-const (
-	CITATIONS            = "citations"
-	SAFETY               = "safety"
-	RoleSystem           = "system"
-	RoleModel            = "model"
-	RoleUser             = "user"
-	RoleTool             = "tool"
-	ResponseMIMETypeJson = "application/json"
-)
-
-// Call implements the [llms.Model] interface.
-func (g *Vertex) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
-	return llms.GenerateFromSinglePrompt(ctx, g, prompt, options...)
+// Vertex reaches Gemini through the Vertex AI backend of the Google GenAI SDK.
+type Vertex struct {
+	*googleai.GoogleAI
 }
 
-// GenerateContent implements the [llms.Model] interface.
-func (g *Vertex) GenerateContent(
-	ctx context.Context,
-	messages []llms.MessageContent,
-	options ...llms.CallOption,
-) (resp *llms.ContentResponse, err error) { //nolint:nonamedreturns
-	// Emit exactly one closing callback: HandleLLMError on any error (transport,
-	// config or a structured-output validation failure), otherwise
-	// HandleLLMGenerateContentEnd — consistent across every provider adapter.
-	if g.CallbacksHandler != nil {
-		g.CallbacksHandler.HandleLLMGenerateContentStart(ctx, messages)
-		defer func() {
-			if err != nil {
-				g.CallbacksHandler.HandleLLMError(ctx, err)
-			} else {
-				g.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
-			}
-		}()
+var _ llms.Model = &Vertex{}
+
+// New creates a client bound to the Vertex AI backend. The project and the
+// location come from the options, or from GOOGLE_CLOUD_PROJECT and
+// GOOGLE_CLOUD_LOCATION when the options leave them empty. Authentication comes
+// from googleai.WithCredentialsFile or googleai.WithCredentialsJSON, and from
+// application default credentials when neither is given.
+func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
+	resolved := googleai.DefaultOptions()
+	for _, opt := range opts {
+		opt(&resolved)
 	}
 
-	opts := llms.CallOptions{
-		Model:          &g.opts.DefaultModel,
-		CandidateCount: &g.opts.DefaultCandidateCount,
-		MaxTokens:      &g.opts.DefaultMaxTokens,
-		Temperature:    &g.opts.DefaultTemperature,
-		TopP:           &g.opts.DefaultTopP,
-		TopK:           &g.opts.DefaultTopK,
-	}
-	for _, opt := range options {
-		opt(&opts)
-	}
-
-	model := g.client.GenerativeModel(opts.GetModel())
-	if opts.CandidateCount != nil {
-		model.SetCandidateCount(int32(opts.GetCandidateCount()))
-	}
-	if opts.MaxTokens != nil {
-		model.SetMaxOutputTokens(int32(opts.GetMaxTokens()))
-	}
-	if opts.Temperature != nil {
-		model.SetTemperature(float32(opts.GetTemperature()))
-	}
-	if opts.TopP != nil {
-		model.SetTopP(float32(opts.GetTopP()))
-	}
-	if opts.TopK != nil {
-		model.SetTopK(int32(opts.GetTopK()))
-	}
-	model.StopSequences = opts.StopWords
-	model.SafetySettings = []*genai.SafetySetting{
-		{
-			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
-		},
-		{
-			Category:  genai.HarmCategoryHarassment,
-			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
-		},
-		{
-			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
-		},
-		{
-			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: convertVertexHarmBlockThreshold(g.opts.HarmThreshold),
-		},
-	}
-	if model.Tools, err = convertTools(opts.Tools); err != nil {
-		return nil, err
-	}
-
-	// set model.ResponseMIMEType / ResponseSchema from JSONMode, ResponseMIMEType
-	// or a per-call structured-output schema
-	if err := applyVertexResponseFormat(model, &opts); err != nil {
-		return nil, err
-	}
-
-	var response *llms.ContentResponse
-
-	if len(messages) == 1 {
-		theMessage := messages[0]
-		if theMessage.Role != llms.ChatMessageTypeHuman {
-			return nil, fmt.Errorf("got %v message role, want human", theMessage.Role)
+	if resolved.CloudProject == "" {
+		if project := os.Getenv("GOOGLE_CLOUD_PROJECT"); project != "" {
+			resolved.CloudProject = project
+			opts = append(opts, googleai.WithCloudProject(project))
 		}
-		response, err = generateFromSingleMessage(ctx, model, theMessage.Parts, &opts)
-	} else {
-		response, err = generateFromMessages(ctx, model, messages, &opts)
 	}
+	if resolved.CloudLocation == "" {
+		if location := os.Getenv("GOOGLE_CLOUD_LOCATION"); location != "" {
+			resolved.CloudLocation = location
+			opts = append(opts, googleai.WithCloudLocation(location))
+		}
+	}
+	if resolved.CloudProject == "" || resolved.CloudLocation == "" {
+		return nil, ErrMissingCloudTarget
+	}
+
+	client, err := googleai.New(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	// When structured output was requested, validate each normal-final candidate
-	// against the original schema; the response is returned with the typed error.
-	if err := validateVertexStructuredOutput(&opts, response); err != nil {
-		return response, err
-	}
-
-	return response, nil
+	return &Vertex{GoogleAI: client}, nil
 }
 
-// convertCandidates converts a sequence of genai.Candidate to a response.
-func convertCandidates(candidates []*genai.Candidate, usage *genai.UsageMetadata) (*llms.ContentResponse, error) {
-	var contentResponse llms.ContentResponse
-	var toolCalls []llms.ToolCall
-
-	for _, candidate := range candidates {
-		buf := strings.Builder{}
-
-		if candidate.Content != nil {
-			for _, part := range candidate.Content.Parts {
-				switch v := part.(type) {
-				case genai.Text:
-					_, err := buf.WriteString(string(v))
-					if err != nil {
-						return nil, err
-					}
-				case genai.FunctionCall:
-					b, err := json.Marshal(v.Args)
-					if err != nil {
-						return nil, err
-					}
-					toolCall := llms.ToolCall{
-						FunctionCall: &llms.FunctionCall{
-							Name:      v.Name,
-							Arguments: string(b),
-						},
-					}
-					toolCalls = append(toolCalls, toolCall)
-				default:
-					return nil, ErrUnknownPartInResponse
-				}
-			}
-		}
-
-		metadata := make(map[string]any)
-		metadata[CITATIONS] = candidate.CitationMetadata
-		metadata[SAFETY] = candidate.SafetyRatings
-
-		if usage != nil {
-			metadata["input_tokens"] = usage.PromptTokenCount
-			metadata["output_tokens"] = usage.CandidatesTokenCount
-			metadata["total_tokens"] = usage.TotalTokenCount
-		}
-
-		contentResponse.Choices = append(contentResponse.Choices,
-			&llms.ContentChoice{
-				Content:        buf.String(),
-				StopReason:     candidate.FinishReason.String(),
-				GenerationInfo: metadata,
-				ToolCalls:      toolCalls,
-			})
-	}
-	return &contentResponse, nil
-}
-
-// convertParts converts between a sequence of langchain parts and genai parts.
-func convertParts(parts []llms.ContentPart) ([]genai.Part, error) {
-	convertedParts := make([]genai.Part, 0, len(parts))
-	for _, part := range parts {
-		var out genai.Part
-
-		switch p := part.(type) {
-		case llms.TextContent:
-			out = genai.Text(p.Text)
-		case llms.BinaryContent:
-			out = genai.Blob{MIMEType: p.MIMEType, Data: p.Data}
-		case llms.ImageURLContent:
-			typ, data, err := imageutil.DownloadImageData(p.URL)
-			if err != nil {
-				return nil, err
-			}
-			out = genai.ImageData(typ, data)
-		case llms.ToolCall:
-			fc := p.FunctionCall
-			var argsMap map[string]any
-			if err := json.Unmarshal([]byte(fc.Arguments), &argsMap); err != nil {
-				return convertedParts, err
-			}
-			out = genai.FunctionCall{
-				Name: fc.Name,
-				Args: argsMap,
-			}
-		case llms.ToolCallResponse:
-			out = genai.FunctionResponse{
-				Name: p.Name,
-				Response: map[string]any{
-					"response": p.Content,
-				},
-			}
-		}
-
-		convertedParts = append(convertedParts, out)
-	}
-	return convertedParts, nil
-}
-
-// convertContent converts between a langchain MessageContent and genai content.
-func convertContent(content llms.MessageContent) (*genai.Content, error) {
-	parts, err := convertParts(content.Parts)
-	if err != nil {
-		return nil, err
-	}
-
-	c := &genai.Content{
-		Parts: parts,
-	}
-
-	switch content.Role {
-	case llms.ChatMessageTypeSystem:
-		c.Role = RoleSystem
-	case llms.ChatMessageTypeAI:
-		c.Role = RoleModel
-	case llms.ChatMessageTypeHuman:
-		c.Role = RoleUser
-	case llms.ChatMessageTypeGeneric:
-		c.Role = RoleUser
-	case llms.ChatMessageTypeTool:
-		c.Role = RoleUser
-	case llms.ChatMessageTypeFunction:
-		fallthrough
-	default:
-		return nil, fmt.Errorf("role %v not supported", content.Role)
-	}
-
-	return c, nil
-}
-
-// generateFromSingleMessage generates content from the parts of a single
-// message.
-func generateFromSingleMessage(
-	ctx context.Context,
-	model *genai.GenerativeModel,
-	parts []llms.ContentPart,
-	opts *llms.CallOptions,
-) (*llms.ContentResponse, error) {
-	convertedParts, err := convertParts(parts)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts.StreamingFunc == nil {
-		// When no streaming is requested, just call GenerateContent and return
-		// the complete response with a list of candidates.
-		resp, err := model.GenerateContent(ctx, convertedParts...)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(resp.Candidates) == 0 {
-			return nil, ErrNoContentInResponse
-		}
-		return convertCandidates(resp.Candidates, resp.UsageMetadata)
-	}
-	iter := model.GenerateContentStream(ctx, convertedParts...)
-	return convertAndStreamFromIterator(ctx, iter, opts)
-}
-
-func generateFromMessages(
-	ctx context.Context,
-	model *genai.GenerativeModel,
-	messages []llms.MessageContent,
-	opts *llms.CallOptions,
-) (*llms.ContentResponse, error) {
-	history := make([]*genai.Content, 0, len(messages))
-	for _, mc := range messages {
-		content, err := convertContent(mc)
-		if err != nil {
-			return nil, err
-		}
-		if mc.Role == RoleSystem {
-			model.SystemInstruction = content
-			continue
-		}
-		history = append(history, content)
-	}
-
-	// Given N total messages, genai's chat expects the first N-1 messages as
-	// history and the last message as the actual request.
-	n := len(history)
-	reqContent := history[n-1]
-	history = history[:n-1]
-
-	session := model.StartChat()
-	session.History = history
-
-	if opts.StreamingFunc == nil {
-		resp, err := session.SendMessage(ctx, reqContent.Parts...)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(resp.Candidates) == 0 {
-			return nil, ErrNoContentInResponse
-		}
-		return convertCandidates(resp.Candidates, resp.UsageMetadata)
-	}
-	iter := session.SendMessageStream(ctx, reqContent.Parts...)
-	return convertAndStreamFromIterator(ctx, iter, opts)
-}
-
-// convertAndStreamFromIterator takes an iterator of GenerateContentResponse
-// and produces a llms.ContentResponse reply from it, while streaming the
-// resulting text into the opts-provided streaming function.
-// Note that this is tricky in the face of multiple
-// candidates, so this code assumes only a single candidate for now.
-func convertAndStreamFromIterator(
-	ctx context.Context,
-	iter *genai.GenerateContentResponseIterator,
-	opts *llms.CallOptions,
-) (*llms.ContentResponse, error) {
-	defer streaming.CallWithDone(ctx, opts.StreamingFunc) //nolint:errcheck
-
-	candidate := &genai.Candidate{
-		Content: &genai.Content{},
-	}
-DoStream:
-	for {
-		resp, err := iter.Next()
-		if errors.Is(err, iterator.Done) {
-			break DoStream
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error in stream mode: %w", err)
-		}
-
-		if len(resp.Candidates) != 1 {
-			return nil, fmt.Errorf("expect single candidate in stream mode; got %v", len(resp.Candidates))
-		}
-		respCandidate := resp.Candidates[0]
-
-		if !mergeStreamCandidate(candidate, respCandidate) {
-			break DoStream
-		}
-
-		for _, part := range respCandidate.Content.Parts {
-			if text, ok := part.(genai.Text); ok {
-				if err := streaming.CallWithText(ctx, opts.StreamingFunc, string(text)); err != nil {
-					break DoStream
-				}
-			}
-		}
-	}
-	mresp := iter.MergedResponse()
-	return convertCandidates([]*genai.Candidate{candidate}, mresp.UsageMetadata)
-}
-
-// mergeStreamCandidate folds one streamed candidate into the accumulator. It
-// records the finish reason and metadata even when the chunk carries no content —
-// the finish reason often arrives on a trailing content-less chunk, and dropping
-// it would leave StopReason unset and silently skip structured-output validation.
-// It reports whether the chunk had content to append (false ends the stream).
-func mergeStreamCandidate(acc, chunk *genai.Candidate) bool {
-	acc.FinishReason = chunk.FinishReason
-	acc.SafetyRatings = chunk.SafetyRatings
-	acc.CitationMetadata = chunk.CitationMetadata
-	if chunk.Content == nil {
-		return false
-	}
-	acc.Content.Parts = append(acc.Content.Parts, chunk.Content.Parts...)
-	acc.Content.Role = chunk.Content.Role
-	return true
-}
-
-// convertTools converts from a list of langchaingo tools to a list of genai
-// tools.
-func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {
-	genaiFuncDecls := make([]*genai.FunctionDeclaration, 0, len(tools))
-	for i, tool := range tools {
-		if tool.Type != "function" {
-			return nil, fmt.Errorf("tool [%d]: unsupported type %q, want 'function'", i, tool.Type)
-		}
-
-		// We have a llms.FunctionDefinition in tool.Function, and we have to
-		// convert it to genai.FunctionDeclaration
-		genaiFuncDecl := &genai.FunctionDeclaration{
-			Name:        tool.Function.Name,
-			Description: tool.Function.Description,
-		}
-
-		// Expect the Parameters field to be a map[string]any, from which we will
-		// extract properties to populate the schema.
-		params, ok := tool.Function.Parameters.(map[string]any)
-		if !ok {
-			paramsData, err := json.Marshal(tool.Function.Parameters)
-			if err != nil {
-				return nil, fmt.Errorf("tool [%d]: failed to marshal parameters: %w", i, err)
-			}
-			if err := json.Unmarshal(paramsData, &params); err != nil {
-				return nil, fmt.Errorf("tool [%d]: failed to unmarshal parameters: %w", i, err)
-			}
-		}
-
-		schema := &genai.Schema{}
-		if ty, ok := params["type"]; ok {
-			tyString, ok := ty.(string)
-			if !ok {
-				return nil, fmt.Errorf("tool [%d]: expected string for type", i)
-			}
-			schema.Type = convertToolSchemaType(tyString)
-		}
-
-		paramProperties, ok := params["properties"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("tool [%d]: expected to find a map of properties", i)
-		}
-
-		schema.Properties = make(map[string]*genai.Schema)
-		for propName, propValue := range paramProperties {
-			valueMap, ok := propValue.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("tool [%d], property [%v]: expect to find a value map", i, propName)
-			}
-			schema.Properties[propName] = &genai.Schema{}
-
-			if ty, ok := valueMap["type"]; ok {
-				tyString, ok := ty.(string)
-				if !ok {
-					return nil, fmt.Errorf("tool [%d]: expected string for type", i)
-				}
-				schema.Properties[propName].Type = convertToolSchemaType(tyString)
-			}
-			if desc, ok := valueMap["description"]; ok {
-				descString, ok := desc.(string)
-				if !ok {
-					return nil, fmt.Errorf("tool [%d]: expected string for description", i)
-				}
-				schema.Properties[propName].Description = descString
-			}
-		}
-
-		if required, ok := params["required"]; ok {
-			if rs, ok := required.([]string); ok {
-				schema.Required = rs
-			} else if ri, ok := required.([]interface{}); ok {
-				rs := make([]string, 0, len(ri))
-				for _, r := range ri {
-					rString, ok := r.(string)
-					if !ok {
-						return nil, fmt.Errorf("tool [%d]: expected string for required", i)
-					}
-					rs = append(rs, rString)
-				}
-				schema.Required = rs
-			} else {
-				return nil, fmt.Errorf("tool [%d]: expected string for required", i)
-			}
-		}
-		genaiFuncDecl.Parameters = schema
-
-		// google genai only support one tool, multiple tools must be embedded into function declarations:
-		// https://github.com/GoogleCloudPlatform/generative-ai/issues/636
-		// https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/function-calling#chat-samples
-		genaiFuncDecls = append(genaiFuncDecls, genaiFuncDecl)
-	}
-
-	// Return nil if no tools are provided
-	if len(genaiFuncDecls) == 0 {
-		return nil, nil
-	}
-
-	genaiTools := []*genai.Tool{{FunctionDeclarations: genaiFuncDecls}}
-
-	return genaiTools, nil
-}
-
-// convertToolSchemaType converts a tool's schema type from its langchaingo
-// representation (string) to a genai enum.
-func convertToolSchemaType(ty string) genai.Type {
-	switch ty {
-	case "object":
-		return genai.TypeObject
-	case "string":
-		return genai.TypeString
-	case "number":
-		return genai.TypeNumber
-	case "integer":
-		return genai.TypeInteger
-	case "boolean":
-		return genai.TypeBoolean
-	case "array":
-		return genai.TypeArray
-	default:
-		return genai.TypeUnspecified
-	}
-}
-
-// showContent is a debugging helper for genai.Content.
-func showContent(w io.Writer, cs []*genai.Content) {
-	fmt.Fprintf(w, "Content (len=%v)\n", len(cs))
-	for i, c := range cs {
-		fmt.Fprintf(w, "[%d]: Role=%s\n", i, c.Role)
-		for j, p := range c.Parts {
-			fmt.Fprintf(w, "  Parts[%v]: ", j)
-			switch pp := p.(type) {
-			case genai.Text:
-				fmt.Fprintf(w, "Text %q\n", pp)
-			case genai.Blob:
-				fmt.Fprintf(w, "Blob MIME=%q, size=%d\n", pp.MIMEType, len(pp.Data))
-			case genai.FunctionCall:
-				fmt.Fprintf(w, "FunctionCall Name=%v, Args=%v\n", pp.Name, pp.Args)
-			case genai.FunctionResponse:
-				fmt.Fprintf(w, "FunctionResponse Name=%v Response=%v\n", pp.Name, pp.Response)
-			default:
-				fmt.Fprintf(w, "unknown type %T\n", pp)
-			}
-		}
-	}
-}
-
-func convertVertexHarmBlockThreshold(threshold googleai.HarmBlockThreshold) genai.HarmBlockThreshold {
-	switch threshold {
-	case googleai.HarmBlockUnspecified:
-		return genai.HarmBlockUnspecified
-	case googleai.HarmBlockLowAndAbove:
-		return genai.HarmBlockLowAndAbove
-	case googleai.HarmBlockMediumAndAbove:
-		return genai.HarmBlockMediumAndAbove
-	case googleai.HarmBlockOnlyHigh:
-		return genai.HarmBlockOnlyHigh
-	case googleai.HarmBlockNone:
-		return genai.HarmBlockNone
-	default:
-		return genai.HarmBlockOnlyHigh // Safe default
-	}
+func (v *Vertex) Close() error {
+	return nil
 }

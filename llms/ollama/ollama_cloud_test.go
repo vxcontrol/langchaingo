@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
+	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
 )
 
 // removeTimestampTransport removes 'ts' query parameter before passing to httprr.
@@ -35,11 +37,20 @@ func (t *removeTimestampTransport) RoundTrip(req *http.Request) (*http.Response,
 }
 
 // newCloudTestClient creates a test client configured for Ollama Cloud
-func newCloudTestClient(t *testing.T) *LLM {
+func newCloudTestClient(t *testing.T, extra ...Option) *LLM {
 	t.Helper()
 
 	// Check for required credentials and skip if not available
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OLLAMA_API_KEY")
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("no home directory to read the Ollama signing key from: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".ollama", "id_ed25519")); err != nil {
+		t.Skip("no ~/.ollama/id_ed25519: the client signs every ollama.com request before " +
+			"the httprr transport runs, so the recordings cannot be replayed without it")
+	}
 
 	// Set up httprr for recording/replaying HTTP interactions
 	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
@@ -80,12 +91,12 @@ func newCloudTestClient(t *testing.T) *LLM {
 		cloudModel = envModel
 	}
 
-	opts := []Option{
+	opts := append([]Option{
 		WithServerURL(serverURL),
 		WithAPIKey(apiKey),
 		WithHTTPClient(wrappedClient),
 		WithModel(cloudModel),
-	}
+	}, extra...)
 
 	c, err := New(opts...)
 	require.NoError(t, err)
@@ -275,6 +286,9 @@ func TestCloudJSONMode(t *testing.T) {
 	resp, err := llm.GenerateContent(ctx, content, llms.WithJSONMode())
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Choices)
+	require.Len(t, resp.Warnings, 1)
+	assert.Equal(t, llms.WarningDrop, resp.Warnings[0].Kind)
+	assert.Equal(t, "WithJSONMode", resp.Warnings[0].Option)
 
 	c1 := resp.Choices[0]
 	assert.NotEmpty(t, c1.Content)
@@ -286,46 +300,82 @@ func TestCloudJSONMode(t *testing.T) {
 	assert.Contains(t, responseText, "colors")
 }
 
-// TestCloudStructuredOutput exercises the structured-output mechanism against the
-// real Ollama Cloud backend on several models (httprr-recorded). The SDK sends the
-// schema in the request's `format` field and validates the response against it.
-//
-// Note on Ollama Cloud behavior: unlike a local Ollama server, the Cloud backend
-// does not apply the `format` schema as a hard grammar constraint for these models
-// — it is a soft hint. So the prompt also asks for a bare JSON object and the
-// schema requires only the field the model reliably returns; the SDK then verifies
-// the real response actually matches. Models such as gpt-oss ignore the hint and
-// return prose, which the SDK correctly surfaces as ErrStructuredOutputValidation.
-func TestCloudStructuredOutput(t *testing.T) {
+type refusingTransport struct{ t *testing.T }
+
+func (r refusingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.t.Errorf("no request may leave for %s", req.URL)
+	return nil, http.ErrHandlerTimeout
+}
+
+func TestCloudRefusesAStructuredOutputSchema(t *testing.T) {
+	t.Parallel()
+
 	schema := json.RawMessage(`{"type":"object","properties":{"capital":{"type":"string"}},"required":["capital"]}`)
+	for _, model := range []string{"glm-5.2", "kimi-k2.5", "gpt-oss:120b"} {
+		llm, err := New(WithServerURL(CloudURL), WithModel(model),
+			WithHTTPClient(&http.Client{Transport: refusingTransport{t: t}}))
+		require.NoError(t, err)
 
-	models := []struct{ name, model string }{
-		{"glm", "glm-5.2"},
-		{"kimi", "kimi-k2.5"},
+		_, err = llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "capital of France")},
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "capital", Schema: schema}))
+
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, model)
 	}
-	for _, tc := range models {
-		t.Run(tc.name, func(t *testing.T) {
-			llm := newCloudTestClient(t)
+}
 
-			content := []llms.MessageContent{{
-				Role: llms.ChatMessageTypeHuman,
-				Parts: []llms.ContentPart{
-					llms.TextContent{Text: "Reply with ONLY a JSON object (no prose, no markdown) giving the capital of France."},
-				},
-			}}
+func TestCloudStructuredOutputFallback(t *testing.T) {
+	schema := json.RawMessage(`{"type":"object","properties":{` +
+		`"city":{"type":"string"},` +
+		`"population_millions":{"type":"number"},` +
+		`"landmarks":{"type":"array","minItems":2,"maxItems":3,"items":{"type":"object","properties":{` +
+		`"name":{"type":"string"},"kind":{"type":"string","enum":["museum","monument","park","church","other"]}},` +
+		`"required":["name","kind"],"additionalProperties":false}}},` +
+		`"required":["city","population_millions","landmarks"],"additionalProperties":false}`)
 
-			resp, err := llm.GenerateContent(context.Background(), content,
-				llms.WithModel(tc.model),
-				llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "capital", Schema: schema}))
-			require.NoError(t, err)
-			require.NotEmpty(t, resp.Choices)
+	for _, stream := range []bool{false, true} {
+		name := "non-streaming"
+		if stream {
+			name = "streaming"
+		}
+		t.Run(name, func(t *testing.T) {
+			llm := newCloudTestClient(t, WithCloudStructuredOutputFallback())
 
-			var out struct {
-				Capital string `json:"capital"`
+			opts := []llms.CallOption{llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "city", Schema: schema})}
+			var streamed strings.Builder
+			if stream {
+				opts = append(opts, llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+					if chunk.Type == streaming.ChunkTypeText {
+						streamed.WriteString(chunk.Content)
+					}
+					return nil
+				}))
 			}
-			require.NoError(t, json.Unmarshal([]byte(resp.Choices[0].Content), &out),
-				"structured output must be valid JSON")
-			assert.Contains(t, strings.ToLower(out.Capital), "paris")
+
+			resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+				llms.TextParts(llms.ChatMessageTypeSystem, "You are a travel guide. Answer in Markdown with headings."),
+				llms.TextParts(llms.ChatMessageTypeHuman, "Describe Paris briefly."),
+			}, opts...)
+			require.NoError(t, err, "the answer must validate against the schema")
+			require.Len(t, resp.Choices, 1)
+
+			var answer struct {
+				City      string `json:"city"`
+				Landmarks []struct {
+					Name string `json:"name"`
+				} `json:"landmarks"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(resp.Choices[0].Content), &answer))
+			assert.Equal(t, "Paris", answer.City)
+			assert.NotEmpty(t, answer.Landmarks)
+			if stream {
+				assert.Equal(t, resp.Choices[0].Content, structuredoutput.UnwrapFencedJSON(strings.TrimSpace(streamed.String())))
+			}
+
+			require.Len(t, resp.Warnings, 1)
+			assert.Equal(t, llms.WarningSubstitute, resp.Warnings[0].Kind)
+			assert.Equal(t, "WithStructuredOutput", resp.Warnings[0].Option)
 		})
 	}
 }

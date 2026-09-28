@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -522,9 +525,9 @@ func TestGetTemperatureReasoningGuard(t *testing.T) {
 		want      float64
 	}{
 		{
-			name:  "reasoning model without reasoning option is pinned to 1.0",
+			name:  "a reasoning model gets the caller's temperature, not a rewritten one",
 			model: reasoningModel,
-			want:  1.0,
+			want:  0.2,
 		},
 		{
 			name:      "reasoning model with explicit disable honors user temperature",
@@ -840,14 +843,14 @@ func TestReasoningConfig_GetEffort(t *testing.T) { //nolint:funlen // table-driv
 			expected:  llms.ReasoningLow,
 		},
 		{
-			name:      "negative maxTokens uses default 8192",
-			config:    &llms.ReasoningConfig{Tokens: 8192/3 + 10}, // Just above medium threshold for 8192
+			name:      "negative maxTokens uses the package default",
+			config:    &llms.ReasoningConfig{Tokens: llms.DefaultMaxTokens/3 + 10}, // Just above the medium threshold
 			maxTokens: -1,
 			expected:  llms.ReasoningHigh,
 		},
 		{
-			name:      "zero maxTokens uses default 8192",
-			config:    &llms.ReasoningConfig{Tokens: 8192 / 5}, // Low for 8192
+			name:      "zero maxTokens uses the package default",
+			config:    &llms.ReasoningConfig{Tokens: llms.DefaultMaxTokens / 5}, // Low
 			maxTokens: 0,
 			expected:  llms.ReasoningLow,
 		},
@@ -954,22 +957,22 @@ func TestReasoningConfig_GetTokens(t *testing.T) { //nolint:funlen // table-driv
 			expected:  -1,
 		},
 		{
-			name:      "negative maxTokens uses default 8192 for low effort",
+			name:      "negative maxTokens uses the package default for low effort",
 			config:    &llms.ReasoningConfig{Effort: llms.ReasoningLow},
 			maxTokens: -10,
-			expected:  max(8192/4, 1024), // Based on default 8192
+			expected:  max(llms.DefaultMaxTokens/4, 1024),
 		},
 		{
-			name:      "zero maxTokens uses default 8192 for high effort",
+			name:      "zero maxTokens uses the package default for high effort",
 			config:    &llms.ReasoningConfig{Effort: llms.ReasoningHigh},
 			maxTokens: 0,
-			expected:  max(8192/2, 4096), // Based on default 8192
+			expected:  max(llms.DefaultMaxTokens/2, 4096),
 		},
 		{
 			name:      "negative maxTokens with explicit tokens",
 			config:    &llms.ReasoningConfig{Tokens: 7000},
 			maxTokens: -5,
-			expected:  min(7000, 8192*2/3), // Using default 8192 as maxTokens
+			expected:  min(7000, llms.DefaultMaxTokens*2/3),
 		},
 	}
 
@@ -1101,10 +1104,10 @@ func TestReasoningConfig_Integration(t *testing.T) {
 		{
 			name:            "default maxTokens handling",
 			config:          &llms.ReasoningConfig{Effort: llms.ReasoningMedium},
-			maxTokens:       0, // Should use default 8192
+			maxTokens:       0, // Should use the package default
 			expectedEnabled: true,
 			expectedEffort:  llms.ReasoningMedium,
-			expectedTokens:  max(8192/3, 2048), // Based on default 8192
+			expectedTokens:  max(llms.DefaultMaxTokens/3, 2048),
 		},
 	}
 
@@ -1178,5 +1181,45 @@ func TestWithReasoningDisabled(t *testing.T) {
 	}
 	if o.Reasoning.IsEnabled() {
 		t.Error("disabled reasoning must not be IsEnabled")
+	}
+}
+
+func TestGetTemperatureLeavesAnUnsetValueAtTheDefault(t *testing.T) {
+	t.Parallel()
+
+	model := func(v string) *string { return &v }
+	for _, name := range []string{"o3-mini", "gpt-4.1", "deepseek-r1"} {
+		opts := llms.CallOptions{Model: model(name)}
+		if got := opts.GetTemperature(); got != llms.DefaultTemperature {
+			t.Errorf("%s: unset temperature = %v, want the package default %v",
+				name, got, llms.DefaultTemperature)
+		}
+	}
+}
+
+func TestValidateStructuredOutputDoesNotReadTheFilesystem(t *testing.T) {
+	t.Parallel()
+
+	present := filepath.Join(t.TempDir(), "present.json")
+	if err := os.WriteFile(present, []byte(`{"type":"integer","minimum":42}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	opts := llms.CallOptions{JSONMode: true, StructuredOutput: &llms.StructuredOutputConfig{
+		Name: "s",
+		Schema: json.RawMessage(fmt.Sprintf(
+			`{"type":"object","additionalProperties":false,"properties":{"n":{"$ref":%q}}}`,
+			"file://"+present)),
+	}}
+
+	err := opts.ValidateStructuredOutput()
+	if err == nil {
+		t.Fatal("a caller-supplied schema must not be able to pull a file off the local disk")
+	}
+	if !errors.Is(err, llms.ErrStructuredOutputConfig) {
+		t.Errorf("error must wrap ErrStructuredOutputConfig, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "no URLLoader registered") {
+		t.Errorf("want the reference refused before any filesystem access, got %v", err)
 	}
 }

@@ -1,0 +1,27 @@
+httprr trace v1
+1082 3605
+POST https://api.minimax.io/v1/chat/completions HTTP/1.1
+Host: api.minimax.io
+User-Agent: langchaingo-httprr
+Content-Length: 880
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+{"model":"MiniMax-M2.7","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Name two landmarks of Paris.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"landmarks\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"landmarks\"],\"additionalProperties\":false}"}]}HTTP/2.0 200 OK
+Content-Length: 3016
+Access-Control-Allow-Origin: *
+Alb_receive_time: 1790286709.753
+Alb_request_id: c1d3be4f978908bd9793b9d64babf64222ddfb19
+Cache-Control: max-age=0, no-cache, no-store
+Content-Type: application/json; charset=utf-8
+Date: Thu, 24 Sep 2026 21:51:57 GMT
+Expires: Thu, 24 Sep 2026 21:51:57 GMT
+Minimax-Request-Id: 6325dbcead7759f67b53e0ba0efd9518
+Pragma: no-cache
+Trace-Id: 0704ce75a1d16b462b6ddbfec435628a
+Vary: Accept-Encoding
+X-From: ak
+X-Mm-Request-Id: 2078484896493347777_1790286717a3jxth
+X-Session-Id: e17187c5048bda17aa8387acb7d1492b
+
+{"id":"0704ce75a1d16b462b6ddbfec435628a","choices":[{"finish_reason":"stop","index":0,"message":{"content":"<think>\nThe user asks: \"Name two landmarks of Paris.\" They also ask: \"Reply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\"\n\nThus we need to produce a JSON object that conforms to the schema. Schema:\n\n{\n  \"type\": \"object\",\n  \"properties\": {\n    \"city\": {\"type\": \"string\"},\n    \"landmarks\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": {\"type\": \"string\"},\n          \"kind\": {\"type\": \"string\", \"enum\": [\"museum\",\"monument\",\"park\",\"church\",\"other\"]}\n        },\n        \"required\": [\"name\",\"kind\"],\n        \"additionalProperties\": false\n      }\n    }\n  },\n  \"required\": [\"city\",\"landmarks\"],\n  \"additionalProperties\": false\n}\n\nThus we need an object with city: \"Paris\" and landmarks array of two objects, each with name and kind (one of the enum values). Provide two landmarks of Paris: e.g., \"Eiffel Tower\" (monument), \"Louvre\" (museum). Or \"Notre-Dame\" (church), \"Jardin du Luxembourg\" (park). The user wants two landmarks. Provide them as name strings, correct kind. Ensure no extra keys. Ensure JSON is valid. Also ensure no extra whitespace? Probably fine. Provide exactly one JSON object.\n\nWe must ensure that no extra keys. No \"additionalProperties\": false means we can't have any extra properties beyond city and landmarks. Provide exactly:\n\n{\n  \"city\": \"Paris\",\n  \"landmarks\": [\n    {\n      \"name\": \"Eiffel Tower\",\n      \"kind\": \"monument\"\n    },\n    {\n      \"name\": \"Louvre\",\n      \"kind\": \"museum\"\n    }\n  ]\n}\n\nMake sure to include quotes properly. No extra fields. Output exactly this JSON, no markdown fences. Should be fine.\n\nPotential pitfalls: The JSON must be exactly one value; in this case it's an object. So the output must be exactly that JSON. Ensure no trailing newline? Probably okay. Ensure no extra whitespace outside? The user says no text before or after. So just output the JSON.\n\nThus final answer: JSON as above.\n</think>\n\n{\"city\":\"Paris\",\"landmarks\":[{\"name\":\"Eiffel Tower\",\"kind\":\"monument\"},{\"name\":\"Louvre\",\"kind\":\"museum\"}]}","role":"assistant","name":"MiniMax AI","audio_content":""}}],"created":1790286709,"model":"MiniMax-M2.7","object":"chat.completion","usage":{"total_tokens":702,"total_characters":0,"prompt_tokens":167,"completion_tokens":535,"completion_tokens_details":{"reasoning_tokens":505},"prompt_tokens_details":{"cached_tokens":0}},"input_sensitive":false,"output_sensitive":false,"input_sensitive_type":0,"output_sensitive_type":0,"output_sensitive_int":0,"base_resp":{"status_code":0,"status_msg":""}}

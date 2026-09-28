@@ -124,8 +124,8 @@ func createOpenAIClient(t *testing.T) (*embeddings.EmbedderImpl, *openai.LLM) {
 	e, err := embeddings.NewEmbedder(embeddingLLM)
 	require.NoError(t, err)
 
-	// Create LLM for chains (with default chat model)
-	llm, err := openai.New(opts...)
+	// Create LLM for chains (with the chat model the cassettes record)
+	llm, err := openai.New(append([]openai.Option{openai.WithModel("gpt-4.1-nano")}, opts...)...)
 	require.NoError(t, err)
 
 	return e, llm

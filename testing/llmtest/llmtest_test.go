@@ -1,10 +1,19 @@
 package llmtest
 
 import (
+	"context"
+	"errors"
 	"os"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestMockLLM tests the mock implementation.
@@ -23,7 +32,146 @@ func TestMockLLM(t *testing.T) {
 		},
 	}
 
-	TestLLM(t, mock)
+	TestLLM(t, mock, WithoutToolCalls())
+}
+
+type verdictRecorder struct {
+	testing.TB
+	failed atomic.Bool
+}
+
+func (r *verdictRecorder) Fail()                 { r.failed.Store(true) }
+func (r *verdictRecorder) Error(...any)          { r.Fail() }
+func (r *verdictRecorder) Errorf(string, ...any) { r.Fail() }
+func (r *verdictRecorder) FailNow()              { r.Fail(); runtime.Goexit() }
+func (r *verdictRecorder) Fatal(...any)          { r.FailNow() }
+func (r *verdictRecorder) Fatalf(string, ...any) { r.FailNow() }
+func (r *verdictRecorder) SkipNow()              { runtime.Goexit() }
+func (r *verdictRecorder) Skip(...any)           { r.SkipNow() }
+func (r *verdictRecorder) Skipf(string, ...any)  { r.SkipNow() }
+
+func failsToolCalls(t *testing.T, model llms.Model) bool {
+	t.Helper()
+
+	recorder := &verdictRecorder{TB: t}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		testToolCalls(recorder, model)
+	}()
+	<-done
+	return recorder.failed.Load()
+}
+
+func TestTheSuiteFailsADoorThatTakesToolsAndCallsNone(t *testing.T) {
+	t.Parallel()
+
+	prose := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "it is sunny in San Francisco"}},
+	}}
+
+	assert.True(t, failsToolCalls(t, prose),
+		"a door that answers in prose when the question needs the offered tool breaks the tool contract")
+}
+
+func TestTheSuitePassesADoorThatCallsTheTool(t *testing.T) {
+	t.Parallel()
+
+	caller := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{ToolCalls: []llms.ToolCall{{
+			ID: "call_1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{"location":"San Francisco, US"}`},
+		}}}},
+	}}
+
+	assert.False(t, failsToolCalls(t, caller))
+}
+
+func TestTheSuiteSparesADoorThatReportsTheToolsDropped(t *testing.T) {
+	dropping := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices:  []*llms.ContentChoice{{Content: "Hello"}},
+		Warnings: []llms.Warning{{Kind: llms.WarningDrop, Option: "WithTools", Asked: "1 tools"}},
+	}}
+
+	TestLLM(t, dropping)
+}
+
+func TestTheToolProbeHoldsADoorThatDoesNotReportTheToolsDropped(t *testing.T) {
+	t.Parallel()
+
+	for name, warnings := range map[string][]llms.Warning{
+		"no warning":             nil,
+		"another option dropped": {{Kind: llms.WarningDrop, Option: "WithSeed", Asked: "7"}},
+		"the tools clamped":      {{Kind: llms.WarningClamp, Option: "WithTools", Asked: "2 tools", Sent: "1 tools"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			door := &MockLLM{GenerateResponse: &llms.ContentResponse{
+				Choices: []*llms.ContentChoice{{Content: "Hello"}}, Warnings: warnings,
+			}}
+			assert.True(t, supportsTools(door))
+		})
+	}
+}
+
+// recordingDoor passes every check the suite makes and records the budget
+// each request carried.
+type recordingDoor struct {
+	mu      sync.Mutex
+	budgets []int
+}
+
+func (d *recordingDoor) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
+	return llms.GenerateFromSinglePrompt(ctx, d, prompt, options...)
+}
+
+func (d *recordingDoor) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+	var o llms.CallOptions
+	for _, opt := range options {
+		opt(&o)
+	}
+	d.mu.Lock()
+	d.budgets = append(d.budgets, *o.MaxTokens)
+	d.mu.Unlock()
+
+	if len(o.Tools) > 0 {
+		return &llms.ContentResponse{Choices: []*llms.ContentChoice{{ToolCalls: []llms.ToolCall{{
+			ID: "call_1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "get_weather", Arguments: `{"location":"San Francisco, US"}`},
+		}}}}}, nil
+	}
+	hello := &MockLLM{GenerateResponse: &llms.ContentResponse{Choices: []*llms.ContentChoice{{Content: "Hello"}}}}
+	return hello.GenerateContent(ctx, messages, options...)
+}
+
+func TestTheSuiteCallsTheDoorTheWayItDeclares(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		opts    []Option
+		budgets []int
+	}{
+		// The tool probe, Call, GenerateContent, Streaming, ToolCalls, both
+		// Caching calls and TokenCounting, each with the suite's own budget.
+		"nothing declared": {budgets: []int{1, 10, 10, 50, 100, 10, 10, 50}},
+		// Every checked request carries the declaration; the tool probe keeps
+		// its own budget, so a declaration cannot talk it out of ToolCalls.
+		"options declared": {
+			opts:    []Option{WithCallOptions(llms.WithMaxTokens(512))},
+			budgets: []int{1, 512, 512, 512, 512, 512, 512, 512},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			door := &recordingDoor{}
+			t.Cleanup(func() {
+				door.mu.Lock()
+				defer door.mu.Unlock()
+				assert.ElementsMatch(t, tc.budgets, door.budgets)
+			})
+			TestLLM(t, door, tc.opts...)
+		})
+	}
 }
 
 // TestValidateLLM tests the validation function.
@@ -74,4 +222,32 @@ func TestOpenAIIntegration(t *testing.T) {
 	}
 
 	// Import is handled in the actual test files for each provider
+}
+
+func TestTheMockHandsBackWhatTheConsumerReceivedBeforeGivingUp(t *testing.T) {
+	t.Parallel()
+
+	mock := &MockLLM{GenerateResponse: &llms.ContentResponse{
+		Choices: []*llms.ContentChoice{{Content: "sixty rooms are free"}},
+	}}
+
+	gaveUp := errors.New("the consumer gave up")
+	delivered := 0
+	resp, err := mock.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type != streaming.ChunkTypeText {
+				return nil
+			}
+			delivered++
+			if delivered == 2 {
+				return gaveUp
+			}
+			return nil
+		}))
+
+	require.ErrorIs(t, err, gaveUp)
+	require.NotNil(t, resp, "a real door hands back the text it collected; the mock must too")
+	require.NotEmpty(t, resp.Choices)
+	assert.Equal(t, "sixty rooms ", resp.Choices[0].Content)
 }

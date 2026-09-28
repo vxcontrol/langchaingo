@@ -42,6 +42,9 @@ type options struct {
 	// preserve reasoning content in multi-turn conversations with tool calls
 	preserveReasoningContent bool
 
+	// carry a structured-output schema in the prompt for vendors without json_schema
+	structuredOutputFallback bool
+
 	// required when APIType is APITypeAzure or APITypeAzureAD
 	apiVersion          string
 	embeddingModel      string
@@ -66,7 +69,9 @@ type ResponseFormatJSONSchemaProperty = openaiclient.ResponseFormatJSONSchemaPro
 var ResponseFormatJSON = &ResponseFormat{Type: "json_object"} //nolint:gochecknoglobals
 
 // WithToken passes the OpenAI API token to the client. If not set, the token
-// is read from the OPENAI_API_KEY environment variable.
+// is read from the OPENAI_API_KEY environment variable. A token is required
+// only for known public OpenAI-compatible providers; local backends such as
+// vLLM may be used without one.
 func WithToken(token string) Option {
 	return func(opts *options) {
 		opts.token = token
@@ -171,12 +176,46 @@ func WithModernReasoningFormat() Option {
 	}
 }
 
-// WithPreserveReasoningContent enables preservation of reasoning content
-// in multi-turn conversations with tool calls. This is required for some
-// LLM providers like Moonshot that expect reasoning_content field in
-// assistant messages with tool calls.
+// WithPreserveReasoningContent sends each assistant turn's reasoning back as
+// reasoning_content: on the turns that called a tool, and on every assistant
+// turn for DeepSeek, Kimi, GLM and Qwen models. A model Mistral serves takes it on
+// every turn as a thinking chunk at the head of content instead, and one that
+// does not reason there takes none. A MiniMax M-series model on MiniMax's API
+// takes it on every turn inside <think> tags at the head of content, unless the
+// content already opens with a <think> block. A DeepSeek ("deepseek-") assistant
+// turn that holds no reasoning goes back with an empty reasoning_content, which
+// DeepSeek's thinking mode requires after the last user message; keep the
+// reasoning DeepSeek returned in the history, since the empty field also stops
+// DeepSeek from restoring it by the turn's tool call ID.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
+	}
+}
+
+// WithStructuredOutputFallback lets a llms.WithStructuredOutput call reach a
+// model whose vendor takes no json_schema response format: DeepSeek
+// ("deepseek-" models) and Z.ai GLM ("glm-" models, not the ones Mistral serves),
+// which take json_object, and MiniMax M-series models on MiniMax's API, which
+// take no response_format at all. Instead of failing with
+// [llms.ErrStructuredOutputUnsupported], the call appends the JSON Schema to the
+// last user message (or adds a user message when there is none), sends
+// response_format json_object where the vendor has it, and reports an
+// [llms.WarningSubstitute]. The schema and its name are checked exactly as for
+// the native path, so one schema serves both.
+//
+// Nothing on the server holds the answer to the schema, so it is validated
+// locally: a single Markdown code fence around the whole answer and a thinking
+// block at its head are removed first (streamed text chunks still carry them),
+// and any other answer that is not exactly one JSON value matching the schema
+// comes back together with [llms.ErrStructuredOutputValidation], which a caller
+// should treat as retryable.
+// A tool-call turn and a truncated answer are not validated; on these vendors
+// max_tokens also covers the reasoning, so a tight budget can end on "length"
+// with an empty answer (see [llms.WithFailOnTruncation]). Every other model keeps
+// the native json_schema response format.
+func WithStructuredOutputFallback() Option {
+	return func(opts *options) {
+		opts.structuredOutputFallback = true
 	}
 }

@@ -6,8 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,13 +20,14 @@ import (
 
 	"github.com/vxcontrol/langchaingo/chains"
 	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms/googleai"
 	"github.com/vxcontrol/langchaingo/llms/openai"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
 	"github.com/vxcontrol/langchaingo/vectorstores/dolt"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -39,29 +40,25 @@ var (
 )
 
 type testDoltServer struct {
-	t              *testing.T
-	Cmd            *exec.Cmd
-	db             *sql.DB
-	Stdout         io.ReadCloser
-	Stderr         io.ReadCloser
-	Name           string
-	StderrString   string
-	StderrCaptured chan (bool)
-	WaitError      error
-	Waited         chan (bool)
-	CmdDir         string
-	Host           string
-	Port           string
-	Password       string
+	t            *testing.T
+	Cmd          *exec.Cmd
+	db           *sql.DB
+	Name         string
+	OutputString string
+	WaitError    error
+	Waited       chan (bool)
+	CmdDir       string
+	Host         string
+	Port         string
+	Password     string
 }
 
 func newTestDoltServer(t *testing.T) *testDoltServer {
 	t.Helper()
 	return &testDoltServer{
-		t:              t,
-		Waited:         make(chan bool),
-		StderrCaptured: make(chan bool),
-		Name:           "vectorstore_dolt_test",
+		t:      t,
+		Waited: make(chan bool),
+		Name:   "vectorstore_dolt_test",
 	}
 }
 
@@ -75,22 +72,48 @@ func mustGetDoltExec(t *testing.T) string {
 
 	doltExecOnce.Do(func() {
 		arg := os.Getenv("DOLT_BIN")
-		if arg != "" {
-			if filepath.IsAbs(arg) {
-				doltExec = arg
-				return
-			}
-			wd, _ := os.Getwd()
-			doltExec = filepath.Join(wd, arg)
-			return
+		if arg == "" {
+			arg = doltCommand
 		}
-		de, err := exec.LookPath(doltCommand)
+		// LookPath checks that DOLT_BIN names an executable, so a wrong one
+		// skips the tests too. A name without a separator is searched in PATH,
+		// a relative path is taken from the package directory and made
+		// absolute, since the dolt commands run in a temporary directory.
+		de, err := exec.LookPath(arg)
+		if err == nil {
+			de, err = filepath.Abs(de)
+		}
 		if err != nil {
-			t.Skip("Dolt binary not available")
+			return
 		}
 		doltExec = de
 	})
+	// Skip outside the Once: a skip inside it ends only the first caller, and
+	// every later test would run an empty command ("exec: no command").
+	if doltExec == "" {
+		t.Skip("Dolt binary not available")
+	}
 	return doltExec
+}
+
+// skipIfNoDolt skips a test that starts a server of its own when the dolt
+// binary is missing. Tests call it before httprr.OpenForTest, which empties
+// the cassette in record mode, so a skipped recording keeps the cassette.
+func skipIfNoDolt(t *testing.T) {
+	t.Helper()
+	if os.Getenv("DOLT_CONNECTION_STRING") == "" {
+		mustGetDoltExec(t)
+	}
+}
+
+// parallelIfOwnServer runs the test in parallel only when it replays and starts
+// a server of its own. Tests on the DOLT_CONNECTION_STRING server share its
+// tables, and their schema changes fail when they run at once.
+func parallelIfOwnServer(t *testing.T, rr *httprr.RecordReplay) {
+	t.Helper()
+	if !rr.Recording() && os.Getenv("DOLT_CONNECTION_STRING") == "" {
+		t.Parallel()
+	}
 }
 
 func (di *testDoltServer) ConnectionString() string {
@@ -99,12 +122,15 @@ func (di *testDoltServer) ConnectionString() string {
 
 //nolint:funlen
 func (di *testDoltServer) Start() error {
+	// Look the binary up first: a skip after MkdirTemp leaves the directory behind.
+	doltBin := mustGetDoltExec(di.t)
+
 	tmpDir, err := os.MkdirTemp("", "dolt-vectorstore-tests*")
 	require.NoError(di.t, err)
 
 	di.CmdDir = tmpDir
 
-	doltInit := exec.Command(mustGetDoltExec(di.t), "init") //nolint:gosec
+	doltInit := exec.Command(doltBin, "init") //nolint:gosec
 	doltInit.Env = os.Environ()
 	doltInit.Dir = tmpDir
 	doltInit.Stdout = os.Stdout
@@ -112,7 +138,7 @@ func (di *testDoltServer) Start() error {
 	err = doltInit.Run()
 	require.NoError(di.t, err)
 
-	createDB := exec.Command(mustGetDoltExec(di.t), "sql", "-q", fmt.Sprintf("CREATE DATABASE %s;", di.Name)) //nolint:gosec
+	createDB := exec.Command(doltBin, "sql", "-q", fmt.Sprintf("CREATE DATABASE %s;", di.Name)) //nolint:gosec
 	createDB.Env = os.Environ()
 	createDB.Dir = tmpDir
 	createDB.Stdout = os.Stdout
@@ -128,7 +154,7 @@ func (di *testDoltServer) Start() error {
 	di.Password = ""
 
 	di.Cmd = exec.Command( //nolint:gosec
-		mustGetDoltExec(di.t),
+		doltBin,
 		"sql-server",
 		"--host", di.Host,
 		"--port", di.Port,
@@ -137,60 +163,50 @@ func (di *testDoltServer) Start() error {
 	di.Cmd.Env = di.Cmd.Environ()
 	di.Cmd.Dir = di.CmdDir
 
-	di.Stdout, err = di.Cmd.StdoutPipe()
-	require.NoError(di.t, err)
-	di.Stderr, err = di.Cmd.StderrPipe()
-	require.NoError(di.t, err)
+	// exec copies the output into the buffer itself and Wait returns only after
+	// that copy is done, so the buffer is complete once Waited is closed. A
+	// pipe read by a goroutine of our own races with Wait closing the pipe.
+	// Dolt reports a port in use on stdout and logs to stderr.
+	var output bytes.Buffer
+	di.Cmd.Stdout = &output
+	di.Cmd.Stderr = &output
 
 	err = di.Cmd.Start()
 	require.NoError(di.t, err)
 	go func() {
 		di.WaitError = di.Cmd.Wait()
+		di.OutputString = output.String()
 		close(di.Waited)
 	}()
 
-	go func() {
-		var buffer bytes.Buffer
-		_, err := buffer.ReadFrom(di.Stderr)
-		if err != nil {
-			panic(err)
-		}
-		di.StderrString = buffer.String()
-		close(di.StderrCaptured)
-	}()
-
-	dbChan := make(chan *sql.DB)
-	go func() {
-		for i := 0; i < 50; i++ {
-			db, err := sql.Open("mysql", di.ConnectionString())
+	for i := 0; i < 50; i++ {
+		db, err := sql.Open("mysql", di.ConnectionString())
+		if err == nil {
+			err = db.Ping()
 			if err == nil {
-				err = db.Ping()
-				if err == nil {
-					dbChan <- db
-					return
-				}
+				di.db = db
+				return nil
 			}
-			select {
-			case <-di.Waited:
-				close(dbChan)
-				return
-			default:
-				time.Sleep(100 * time.Millisecond)
-			}
+			db.Close()
 		}
-		err = di.Shutdown()
-		if err != nil {
-			panic(err)
+		select {
+		case <-di.Waited:
+			os.RemoveAll(di.CmdDir)
+			return errors.Join(fmt.Errorf("dolt sql-server exited: %s", di.ErrorMessage()), di.WaitError)
+		case <-time.After(100 * time.Millisecond):
 		}
-		close(dbChan)
-	}()
-	di.db = <-dbChan
-
-	return nil
+	}
+	shutdownErr := di.Shutdown()
+	return errors.Join(fmt.Errorf("dolt sql-server is not accepting connections: %s", di.ErrorMessage()), shutdownErr)
 }
 
 func (di *testDoltServer) IsRunning() bool {
-	return di.Cmd.Process != nil && di.Cmd.ProcessState == nil && di.db != nil && di.db.Ping() == nil
+	select {
+	case <-di.Waited:
+		return false
+	default:
+	}
+	return di.db != nil && di.db.Ping() == nil
 }
 
 func (di *testDoltServer) Shutdown() error {
@@ -213,7 +229,6 @@ func (di *testDoltServer) Shutdown() error {
 		}
 	}
 	<-di.Waited
-	<-di.StderrCaptured
 	if killed && di.WaitError != nil {
 		return nil
 	}
@@ -221,7 +236,7 @@ func (di *testDoltServer) Shutdown() error {
 }
 
 func (di *testDoltServer) ErrorMessage() string {
-	return di.StderrString
+	return di.OutputString
 }
 
 func (di *testDoltServer) DB() (*sql.DB, error) {
@@ -248,17 +263,58 @@ func getFreePort() (string, error) {
 	return fmt.Sprintf("%d", addr.Port), nil
 }
 
-func preCheckEnvSetting(t *testing.T) string {
+func createOpenAILLM(t *testing.T, rr *httprr.RecordReplay) *openai.LLM {
 	t.Helper()
 
-	if openaiKey := os.Getenv("OPENAI_API_KEY"); openaiKey == "" {
-		t.Skip("OPENAI_API_KEY not set")
+	opts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
+		openai.WithEmbeddingModel("text-embedding-ada-002"),
+		openai.WithHTTPClient(rr.Client()),
 	}
+	if !rr.Recording() {
+		opts = append(opts, openai.WithToken("test-api-key"))
+	}
+
+	llm, err := openai.New(opts...)
+	require.NoError(t, err)
+
+	return llm
+}
+
+func createGoogleAIEmbedder(t *testing.T, rr *httprr.RecordReplay) *embeddings.EmbedderImpl {
+	t.Helper()
+
+	apiKey := os.Getenv("GOOGLE_API_KEY")
+	if !rr.Recording() {
+		apiKey = "test-api-key"
+	}
+
+	llm, err := googleai.New(
+		context.Background(),
+		googleai.WithDefaultEmbeddingModel("gemini-embedding-001"),
+		googleai.WithHTTPClient(rr.Client()),
+		googleai.WithAPIKey(apiKey),
+	)
+	require.NoError(t, err)
+	e, err := embeddings.NewEmbedder(llm)
+	require.NoError(t, err)
+
+	return e
+}
+
+func preCheckEnvSetting(t *testing.T) string {
+	t.Helper()
 
 	doltURL := os.Getenv("DOLT_CONNECTION_STRING")
 	if doltURL == "" {
 		di := newTestDoltServer(t)
 		err := di.Start()
+		// The free port can be taken before dolt binds it; start on a new one then.
+		for attempt := 1; attempt < 3 && err != nil && strings.Contains(err.Error(), "already in use"); attempt++ {
+			t.Logf("dolt sql-server port %s is taken, starting on a new one", di.Port)
+			di = newTestDoltServer(t)
+			err = di.Start()
+		}
 		if err != nil && strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skip("Docker not available")
 		}
@@ -291,14 +347,18 @@ func cleanupTestArtifacts(ctx context.Context, t *testing.T, s dolt.Store, doltU
 }
 
 func TestDoltStoreRest(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -332,14 +392,18 @@ func TestDoltStoreRest(t *testing.T) {
 }
 
 func TestDoltStoreRestWithScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -392,14 +456,18 @@ func TestDoltStoreRestWithScoreThreshold(t *testing.T) {
 }
 
 func TestDoltStoreSimilarityScore(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -438,14 +506,18 @@ func TestDoltStoreSimilarityScore(t *testing.T) {
 }
 
 func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -494,22 +566,53 @@ func TestSimilaritySearchWithInvalidScoreThreshold(t *testing.T) {
 	require.Error(t, err)
 }
 
-// note, we can also use same llm to show this test, but need imply
-// openai embedding [dimensions](https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions) args.
+// Mixing embedders of different sizes in one collection is expected to fail
+// on insert. Dolt's vector index, which spans the whole embedding table, is a
+// proximity map: a key also sits on an inner level when its hash starts with
+// 8 zero bits (1 key in 256; the key holds the random row uuid), and every key
+// is filed under the closest key of the level above, by a distance that
+// vectors of different lengths do not have. While the index is a single
+// non-empty leaf, every edit reaches the root level, so Dolt rebuilds the whole index on each
+// flush (ApplyMutationsWithSerializer calls rebuildNode), but
+// ProximityMapBuilder.Flush builds a single level without taking a distance,
+// and rows of both sizes coexist. What the first inner key changes is that the
+// rebuild then files every row under the closest inner key by distance, so the
+// 3072-dim Beijing row is compared with a 1536-dim inner key (or the 1536-dim
+// rows with Beijing's) and the insert fails; once the index has inner keys, a
+// new row is also compared with them on its way down. With the 11 documents
+// alone an inner key comes in about 4% of runs. Adding rows of the OpenAI size
+// until the index grows an inner level makes it certain: 8192 rows all stay on
+// the leaf level with probability (255/256)^8192, about 1e-14. Verified with
+// Dolt 1.81.1. The search compares only vectors of the query's size, so it
+// still works on the collection.
 func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	doltURL := preCheckEnvSetting(t)
-	genaiKey := os.Getenv("GOOGLE_API_KEY")
-	if genaiKey == "" {
-		t.Skip("GOOGLE_API_KEY not set")
-	}
-	databaseName := makeNewDatabaseName()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY", "GOOGLE_API_KEY")
+	skipIfNoDolt(t)
 
-	// use Google embedding (now default model is gemini-embedding-001, with dimensions:3072) to add some data to collection
-	googleLLM, err := googleai.New(ctx, googleai.WithAPIKey(genaiKey))
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	// Avoid issue with different view of request bodies for Google AI SDK
+	rr.ScrubReq(httprr.JsonCompactScrubBody)
+
+	parallelIfOwnServer(t, rr)
+
+	doltURL := preCheckEnvSetting(t)
+	ctx := context.Background()
+
+	// text-embedding-ada-002 embeds into 1536 dimensions.
+	e, err := embeddings.NewEmbedder(createOpenAILLM(t, rr))
 	require.NoError(t, err)
-	e, err := embeddings.NewEmbedder(googleLLM)
+
+	// Zero vectors of the OpenAI size, so the filler rows need no provider.
+	filler, err := embeddings.NewEmbedder(embeddings.EmbedderClientFunc(
+		func(_ context.Context, texts []string) ([][]float32, error) {
+			vectors := make([][]float32, len(texts))
+			for i := range vectors {
+				vectors[i] = make([]float32, 1536)
+			}
+			return vectors, nil
+		}))
 	require.NoError(t, err)
 
 	db, err := sql.Open("mysql", doltURL)
@@ -520,31 +623,7 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 		dolt.WithDB(db),
 		dolt.WithEmbedder(e),
 		dolt.WithPreDeleteDatabase(true),
-		dolt.WithDatabaseName(databaseName),
-	)
-	require.NoError(t, err)
-
-	defer cleanupTestArtifacts(ctx, t, store, doltURL)
-
-	_, err = store.AddDocuments(ctx, []schema.Document{
-		{PageContent: "Beijing"},
-	})
-	require.NoError(t, err)
-
-	// use openai embedding (now default model is text-embedding-ada-002, with dimensions:1536) to add some data to same collection (same table)
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
-	e, err = embeddings.NewEmbedder(llm)
-	require.NoError(t, err)
-
-	store, err = dolt.New(
-		ctx,
-		dolt.WithDB(db),
-		dolt.WithEmbedder(e),
-		dolt.WithPreDeleteDatabase(false),
-		dolt.WithDatabaseName(databaseName),
+		dolt.WithDatabaseName(makeNewDatabaseName()),
 	)
 	require.NoError(t, err)
 
@@ -564,6 +643,27 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	// gemini-embedding-001 embeds into 3072 dimensions.
+	_, err = store.AddDocuments(ctx, []schema.Document{
+		{PageContent: "Beijing"},
+	}, vectorstores.WithEmbedder(createGoogleAIEmbedder(t, rr)))
+
+	fillerDocs := make([]schema.Document, 64)
+	for i := range fillerDocs {
+		fillerDocs[i] = schema.Document{PageContent: fmt.Sprintf("filler %d", i)}
+	}
+	for added := 0; err == nil && added < 8192; added += len(fillerDocs) {
+		_, err = store.AddDocuments(ctx, fillerDocs, vectorstores.WithEmbedder(filler))
+	}
+
+	// Which insert fails depends on the index, and so does the order of the
+	// sizes in the message.
+	var mysqlErr *mysql.MySQLError
+	require.ErrorAs(t, err, &mysqlErr)
+	require.Regexp(t,
+		`^attempting to find distance between vectors of different lengths: (1536 vs 3072|3072 vs 1536)$`,
+		mysqlErr.Message)
+
 	docs, err := store.SimilaritySearch(
 		ctx,
 		"Which of these are cities in Japan",
@@ -574,14 +674,18 @@ func TestSimilaritySearchWithDifferentDimensions(t *testing.T) {
 }
 
 func TestDoltAsRetriever(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -622,14 +726,18 @@ func TestDoltAsRetriever(t *testing.T) {
 }
 
 func TestDoltAsRetrieverWithScoreThreshold(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -665,7 +773,7 @@ func TestDoltAsRetrieverWithScoreThreshold(t *testing.T) {
 			llm,
 			vectorstores.ToRetriever(store, 5, vectorstores.WithScoreThreshold(0.7)),
 		),
-		"What colors is each piece of furniture next to the desk?",
+		"What colors are all of the pieces of furniture next to the desk and the desk itself?",
 	)
 	require.NoError(t, err)
 
@@ -675,14 +783,18 @@ func TestDoltAsRetrieverWithScoreThreshold(t *testing.T) {
 }
 
 func TestDoltAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -756,14 +868,18 @@ func TestDoltAsRetrieverWithMetadataFilterNotSelected(t *testing.T) {
 }
 
 func TestDoltAsRetrieverWithMetadataFilters(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -827,14 +943,18 @@ func TestDoltAsRetrieverWithMetadataFilters(t *testing.T) {
 }
 
 func TestDeduplicater(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 
@@ -874,14 +994,18 @@ func TestDeduplicater(t *testing.T) {
 }
 
 func TestWithAllOptions(t *testing.T) {
-	t.Parallel()
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+	skipIfNoDolt(t)
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+
+	parallelIfOwnServer(t, rr)
+
 	doltURL := preCheckEnvSetting(t)
 	ctx := context.Background()
 
-	llm, err := openai.New(
-		openai.WithEmbeddingModel("text-embedding-ada-002"),
-	)
-	require.NoError(t, err)
+	llm := createOpenAILLM(t, rr)
 	e, err := embeddings.NewEmbedder(llm)
 	require.NoError(t, err)
 	require.NoError(t, err)

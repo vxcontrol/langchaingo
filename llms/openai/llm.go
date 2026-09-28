@@ -42,7 +42,7 @@ func newClient(opts ...Option) (*options, *openaiclient.Client, error) {
 		}
 	}
 
-	if len(options.token) == 0 {
+	if len(options.token) == 0 && RequiresAPIKey(options.baseURL, options.apiType) {
 		return options, nil, ErrMissingToken
 	}
 

@@ -2,7 +2,6 @@ package openaiclient
 
 import (
 	"encoding/json"
-	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -263,33 +262,14 @@ func TestChatRequest_ExtraBodyMarshal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This test simulates the merging logic that will be in createChat
-			tt.request.ExtraBody = tt.extraBody
-
-			// Step 1: Marshal without ExtraBody (standard fields)
-			tempExtraBody := tt.request.ExtraBody
-			tt.request.ExtraBody = nil
-
 			data, err := json.Marshal(tt.request)
+			require.NoError(t, err)
+			data, err = mergeExtraBody(data, tt.extraBody)
 			require.NoError(t, err)
 
 			var result map[string]any
-			err = json.Unmarshal(data, &result)
-			require.NoError(t, err)
+			require.NoError(t, json.Unmarshal(data, &result))
 
-			// Step 2: Merge ExtraBody if present
-			if len(tempExtraBody) > 0 {
-				maps.Copy(result, tempExtraBody)
-
-				// Re-marshal and unmarshal to ensure proper type conversion
-				// (This simulates what actually happens in the real code)
-				data, err = json.Marshal(result)
-				require.NoError(t, err)
-				err = json.Unmarshal(data, &result)
-				require.NoError(t, err)
-			}
-
-			// Verify the result
 			if tt.checkFunc != nil {
 				tt.checkFunc(t, result)
 			}

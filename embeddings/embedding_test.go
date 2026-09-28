@@ -1,9 +1,11 @@
 package embeddings
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBatchTexts(t *testing.T) {
@@ -59,4 +61,19 @@ func TestBatchTexts(t *testing.T) {
 	for _, tc := range cases {
 		assert.Equal(t, tc.expected, BatchTexts(tc.texts, tc.batchSize))
 	}
+}
+
+func TestEmbedQueryRefusesAnAnswerWithoutAVector(t *testing.T) {
+	t.Parallel()
+
+	client := EmbedderClientFunc(func(context.Context, []string) ([][]float32, error) {
+		return [][]float32{}, nil
+	})
+	e, err := NewEmbedder(client)
+	require.NoError(t, err)
+
+	got, err := e.EmbedQuery(context.Background(), "hello")
+
+	require.ErrorIs(t, err, ErrNoEmbedding)
+	assert.Nil(t, got)
 }

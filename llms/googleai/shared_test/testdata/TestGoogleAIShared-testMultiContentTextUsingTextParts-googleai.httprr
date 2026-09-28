@@ -1,0 +1,75 @@
+httprr trace v1
+831 3731
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 511
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"I'm a pomeranian"},{"text":"What kind of mammal am I?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_MEDIUM_AND_ABOVE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_MEDIUM_AND_ABOVE"}]}HTTP/2.0 200 OK
+Content-Length: 3318
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:36 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=3043
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "As a Pomeranian, you are a **domestic dog** (*Canis lupus familiaris*)! \n\nHere is how you fit into the mammal world:\n\n* **General Type:** You are a **placental mammal** (like humans, whales, and cats), meaning you give birth to relatively mature young.\n* **Order (Carnivora):** You are a **carnivoran**, adapted mainly for a meat-based (or omnivorous) diet, with sharp teeth and keen senses.\n* **Family (Canidae):** You are a **canid** (canine), making you closely related to wolves, coyotes, jackals, and foxes.\n* **Specific Breed Type:** Within dogs, you are a **Spitz-type toy dog**—descended from much larger Arctic sled-pulling dogs, but bred down to a compact, fluffy companion size.",
+            "thoughtSignature": "EvMICvAIAWkUfRNCPghLlGgABx1Rj3/qiYBHJO06XfbEd6g6nO/Csvm0S9CY/oug/vQMTJbmrhTYlkAas3V8NU7bjkeVJUL9EFfm7n6KSbe+/8OJ9bBHMgsYDTzSDMzt61oXU81ss3dQNqXXlEmCcxdL+MfOIlkut776TphtqUrmBDp4MDbMnbq+hUU4+LjSfCaX0zFwGYWSObMhkrVCTozXSowikjX83tjqO9/5RtiJ3FRi4e8/N9/Z0qwnQGjgnp8tT09h8S4W5gFLwyihxNwPLAWqxA0R51wyc3iKdGqIm8WoUG5h0M8e5cwk6QBdRW/YaP654CTi2MR6SB7moUOY6EsIRwKinNNvLT/UiH3heAzQ60TFPyikEwDZXfnw4FEVA9wAOFeEsU+HXBbIM6NEn/Qg3SHAXq+UARnzKHgbumv1+or3dUZyhsQU+Nt03taMhqiDQTyPor2beKCfy2zYWRRmJI2+2WX10iPsdDtlK3s+Q/wlyVJCAhy4mwyZUoP79szb4O05cP0BuOceiWBjTX2spBw+uNLSli5sgIR0LJWnHv13z63CWe6SxpkvMmwVmwpjTncWRFps27Geczhjx/89oA07jWgto1YIyfaToOIObGQh8cWyZ/vz2Hs8zSwQRq4KcsdWRRiLNPF5NacwK1+3bzZGomdFqcU+IzIMqaj4CnV6ARu0Xqh85yaKb2TNa2sWVta8Ll391ehVX/RoqIiqkaSgvusIt8iD2Y8IJd6k/yt5QII4nGKb0my38sF4RLkymEN8QGDJoCBo9zgyHkexF4W5HdcNMkcUbJIiw388+dGafji5SxxqCfpSkV/yh7H2lPHBu8xDwBofnMXqmQt288oo51h25I0I9jCBV2EQifDrYvFLyroz8zhVZGX/c3yu43WZjCEKljowRPeZwvNVbgnpmmroBg3qf0KPWNAt66miFf3NqVP2QtpmdjXL6OX/ScsNbPsc9TG2gnPm+PZHsX7jItDNtgsvmr3gzXnFERK44M2R2O21JAfWuug5cao1BJLNevFmV62pE5K6NfeMZ7/bUlg1pQtBvO9svmIHDIxKtVfLhTtvQ7xuToRRydYIAbZHSC/QftkdSReoZXu3iJ78v8pKKgxaF7dtVpfGw3H0tOFVIMZaKm3VNVNdDgIa4O0SBMSxVKbXxeHsng4DPJ6nv2PMdd9SMupl6vPHxJRmFKR876ZQ5GIdP+GXWwhSsmtVSNul8DxVtQo5xULS15i43/JyH8opMbsfL+TgJSDMzWoAIPpHITC5iOQo6tXc91UID8reBYIuAotpf13koZo7zE7yZBJh3jvz0VcdV8uCIx4jD3gVXwnz6X8mophLblZFQ8itK5bR3AFJ5jSoSfuO2YqvzFP8DnXrK8hvOR8hXndTQBcdU89wmBytfZiJC881B5ONWqZlUx+2isWuvj3opB+5+QhLkBOakd1Clsv7ld1Nq3nNnwZDqe6bmQwOTVmd+Q1XaHQFNJaqoXj5y4+QGs7LB1tlEEjj3lmUKOg="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "safetyRatings": [
+        {
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_HATE_SPEECH",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          "probability": "NEGLIGIBLE"
+        },
+        {
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "probability": "NEGLIGIBLE"
+        }
+      ]
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 14,
+    "candidatesTokenCount": 184,
+    "totalTokenCount": 500,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 14
+      }
+    ],
+    "thoughtsTokenCount": 302,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "IbSzav3aCeSE7M8P8sS34As"
+}

@@ -3,6 +3,7 @@ package redisvector_test
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -75,6 +76,22 @@ func getTestURIs(t *testing.T) string {
 	return uri
 }
 
+// dropIndexOnCleanup drops the index and its documents when the test ends, whatever its
+// outcome, so a failed run does not leave the index behind on a shared REDIS_URL.
+// The store is bound now: tests reassign their store variables, possibly to nil.
+func dropIndexOnCleanup(t *testing.T, store *redisvector.Store, index string) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx := context.Background() //nolint:usetesting
+		err := store.DropIndex(ctx, index, true)
+		// A test that failed before it created the index has nothing to drop.
+		if t.Failed() && errors.Is(err, redisvector.ErrNotExistedIndex) {
+			return
+		}
+		require.NoError(t, err)
+	})
+}
+
 //go:embed testdata/schema.json
 var jsonSchemaData string
 
@@ -132,7 +149,7 @@ func testInvalidRedisVectorConfigs(t *testing.T, ctx context.Context, redisURL s
 		redisvector.WithIndexName(index, false),
 		redisvector.WithEmbedder(e),
 	)
-	assert.Equal(t, "redis index name does not exist", err.Error())
+	assert.EqualError(t, err, "redis index name does not exist")
 }
 
 func testValidRedisVectorConfigs(t *testing.T, ctx context.Context, redisURL string, e *embeddings.EmbedderImpl, index string) {
@@ -165,13 +182,14 @@ func testValidRedisVectorConfigs(t *testing.T, ctx context.Context, redisURL str
 	assert.Equal(t, redisvector.ErrEmptySchemaContent, err)
 
 	// Test with schema files
-	_, err = redisvector.New(ctx,
+	store, err := redisvector.New(ctx,
 		redisvector.WithConnectionURL(redisURL),
 		redisvector.WithIndexName(index, true),
 		redisvector.WithEmbedder(e),
 		redisvector.WithIndexSchema(redisvector.YAMLSchemaFormat, "./testdata/schema.yml", nil),
 	)
 	require.NoError(t, err)
+	dropIndexOnCleanup(t, store, index)
 
 	_, err = redisvector.New(ctx,
 		redisvector.WithConnectionURL(redisURL),
@@ -221,7 +239,7 @@ func TestAddDocuments(t *testing.T) {
 		redisvector.WithIndexName(index, false),
 		redisvector.WithEmbedder(e),
 	)
-	assert.Equal(t, "redis index name does not exist", err.Error())
+	assert.EqualError(t, err, "redis index name does not exist")
 
 	vector, err := redisvector.New(ctx,
 		redisvector.WithConnectionURL(redisURL),
@@ -229,9 +247,10 @@ func TestAddDocuments(t *testing.T) {
 		redisvector.WithEmbedder(e),
 	)
 	require.NoError(t, err)
+	dropIndexOnCleanup(t, vector, index)
 
 	err = vector.DropIndex(ctx, index, false)
-	assert.Equal(t, "redis index name does not exist", err.Error())
+	assert.EqualError(t, err, "redis index name does not exist")
 
 	//nolint: dupl
 	data := []schema.Document{
@@ -285,13 +304,7 @@ func TestAddDocuments(t *testing.T) {
 		redisvector.WithIndexSchema(redisvector.YAMLSchemaFormat, "./testdata/schema.yml", nil),
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		ctx := context.Background() //nolint:usetesting
-		err = vector.DropIndex(ctx, index, true)
-		require.NoError(t, err)
-		err = vector.DropIndex(ctx, newIndex, true)
-		require.NoError(t, err)
-	})
+	dropIndexOnCleanup(t, vector, newIndex)
 }
 
 func TestSimilaritySearch(t *testing.T) {
@@ -316,6 +329,7 @@ func TestSimilaritySearch(t *testing.T) {
 		redisvector.WithEmbedder(e),
 	)
 	require.NoError(t, err)
+	dropIndexOnCleanup(t, store, index)
 
 	//nolint: dupl
 	data := []schema.Document{
@@ -384,22 +398,21 @@ func TestSimilaritySearch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, docs, 2)
 	assert.Len(t, docs[0].Metadata, 3)
-
-	t.Cleanup(func() {
-		ctx := context.Background() //nolint:usetesting
-		err = store.DropIndex(ctx, index, true)
-		require.NoError(t, err)
-	})
 }
 
 func TestRedisVectorAsRetriever(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
-	t.Parallel()
+
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	defer rr.Close()
+	if !rr.Recording() {
+		t.Parallel()
+	}
 
 	ctx := t.Context()
 
 	redisURL := getTestURIs(t)
-	llm, e := createOpenAILLMAndEmbedder(t)
+	llm, e := createOpenAILLMAndEmbedder(t, rr)
 	index := "test_redis_vector_as_retriever"
 
 	store, err := redisvector.New(ctx,
@@ -408,15 +421,17 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 		redisvector.WithEmbedder(e),
 	)
 	require.NoError(t, err)
+	dropIndexOnCleanup(t, store, index)
 
+	// Fixed ids keep the document keys, which reach the LLM prompt, stable for httprr replay.
 	_, err = store.AddDocuments(
 		ctx,
 		[]schema.Document{
-			{PageContent: "The color of the house is blue."},
-			{PageContent: "The color of the car is red."},
-			{PageContent: "The color of the desk is orange."},
-			{PageContent: "The color of the lamp beside the desk is black."},
-			{PageContent: "The color of the chair beside the desk is beige."},
+			{PageContent: "The color of the house is blue.", Metadata: map[string]any{"ids": "house"}},
+			{PageContent: "The color of the car is red.", Metadata: map[string]any{"ids": "car"}},
+			{PageContent: "The color of the desk is orange.", Metadata: map[string]any{"ids": "desk"}},
+			{PageContent: "The color of the lamp beside the desk is black.", Metadata: map[string]any{"ids": "lamp"}},
+			{PageContent: "The color of the chair beside the desk is beige.", Metadata: map[string]any{"ids": "chair"}},
 		},
 	)
 	require.NoError(t, err)
@@ -445,12 +460,6 @@ func TestRedisVectorAsRetriever(t *testing.T) {
 
 	// The LLM should provide some response (not error) - exact content may vary
 	require.NotEmpty(t, result, "expected non-empty result from LLM for furniture question")
-
-	t.Cleanup(func() {
-		ctx := context.Background() //nolint:usetesting
-		err = store.DropIndex(ctx, index, true)
-		require.NoError(t, err)
-	})
 }
 
 func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
@@ -466,7 +475,9 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 
 	redisURL := getTestURIs(t)
 	e := createOpenAIEmbedder(t, rr)
-	index := "test_redis_vector_as_retriever_with_metadata_filters"
+	// Not prefixed by the retriever test's index name: on a shared REDIS_URL that
+	// index would also match these keys and change the prompt it replays.
+	index := "test_redis_vector_metadata_filters"
 
 	store, err := redisvector.New(ctx,
 		redisvector.WithConnectionURL(redisURL),
@@ -474,6 +485,7 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		redisvector.WithEmbedder(e),
 	)
 	require.NoError(t, err)
+	dropIndexOnCleanup(t, store, index)
 
 	_, err = store.AddDocuments(
 		ctx,
@@ -511,11 +523,6 @@ func TestRedisVectorAsRetrieverWithMetadataFilters(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		ctx := context.Background() //nolint:usetesting
-		err = store.DropIndex(ctx, index, true)
-		require.NoError(t, err)
-	})
 
 	// Test that retrieval with filters works correctly (without LLM dependency)
 	docs, err := store.SimilaritySearch(ctx, "lamp", 5,
@@ -550,13 +557,24 @@ func createOpenAIEmbedder(t *testing.T, rr *httprr.RecordReplay) *embeddings.Emb
 }
 
 // createOpenAILLMAndEmbedder creates both LLM and embedder with httprr support for chain tests.
-func createOpenAILLMAndEmbedder(t *testing.T) (*openai.LLM, *embeddings.EmbedderImpl) {
+func createOpenAILLMAndEmbedder(t *testing.T, rr *httprr.RecordReplay) (*openai.LLM, *embeddings.EmbedderImpl) {
 	t.Helper()
 
-	llmOpts := []openai.Option{}
+	llmOpts := []openai.Option{
+		openai.WithModel("gpt-4.1-nano"),
+		openai.WithHTTPClient(rr.Client()),
+	}
 	embeddingOpts := []openai.Option{
 		openai.WithEmbeddingModel("text-embedding-ada-002"),
+		openai.WithHTTPClient(rr.Client()),
 	}
+
+	// Only add fake token when NOT recording (i.e., during replay)
+	if !rr.Recording() {
+		llmOpts = append(llmOpts, openai.WithToken("test-api-key"))
+		embeddingOpts = append(embeddingOpts, openai.WithToken("test-api-key"))
+	}
+	// When recording, openai.New() will read OPENAI_API_KEY from environment
 
 	llm, err := openai.New(llmOpts...)
 	require.NoError(t, err)

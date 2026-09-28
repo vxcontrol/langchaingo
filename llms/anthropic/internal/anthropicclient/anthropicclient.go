@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -25,7 +27,7 @@ var ErrEmptyResponse = errors.New("empty response")
 
 // Client is a client for the Anthropic API.
 type Client struct {
-	token   string
+	auth    authorizer
 	Model   string
 	baseURL string
 
@@ -75,11 +77,23 @@ func WithAnthropicBetaHeader(val string) Option {
 	}
 }
 
+// WithFederation authenticates with short-lived tokens exchanged from the
+// workload's identity provider, instead of a static API key.
+func WithFederation(cfg FederationConfig) Option {
+	return func(c *Client) error {
+		if err := cfg.validate(); err != nil {
+			return err
+		}
+		c.auth = &federatedAuth{cfg: cfg, client: c, now: time.Now}
+		return nil
+	}
+}
+
 // New returns a new Anthropic client.
 func New(token string, model string, baseURL string, opts ...Option) (*Client, error) {
 	c := &Client{
 		Model:      model,
-		token:      token,
+		auth:       staticKey(token),
 		baseURL:    strings.TrimSuffix(baseURL, "/"),
 		httpClient: httputil.DefaultClient,
 	}
@@ -125,7 +139,8 @@ type CompletionRequest struct {
 
 // Completion is a completion.
 type Completion struct {
-	Text string `json:"text"`
+	Text       string `json:"text"`
+	StopReason string `json:"stop_reason"`
 }
 
 // CreateCompletion creates a completion.
@@ -144,7 +159,8 @@ func (c *Client) CreateCompletion(ctx context.Context, r *CompletionRequest) (*C
 		return nil, err
 	}
 	return &Completion{
-		Text: resp.Completion,
+		Text:       resp.Completion,
+		StopReason: resp.StopReason,
 	}, nil
 }
 
@@ -155,6 +171,8 @@ type MessageRequest struct {
 	Temperature  *float64         `json:"temperature,omitempty"`
 	MaxTokens    *int             `json:"max_tokens,omitempty"`
 	TopP         *float64         `json:"top_p,omitempty"`
+	TopK         *int             `json:"top_k,omitempty"`
+	Speed        *string          `json:"speed,omitempty"`
 	Tools        []Tool           `json:"tools,omitempty"`
 	ToolChoice   any              `json:"tool_choice,omitempty"`
 	StopWords    []string         `json:"stop_sequences,omitempty"`
@@ -177,6 +195,8 @@ func (c *Client) CreateMessage(ctx context.Context, r *MessageRequest) (*Message
 		MaxTokens:     r.MaxTokens,
 		StopWords:     r.StopWords,
 		TopP:          r.TopP,
+		TopK:          r.TopK,
+		Speed:         r.Speed,
 		Tools:         r.Tools,
 		ToolChoice:    r.ToolChoice,
 		Stream:        r.Stream,
@@ -185,14 +205,16 @@ func (c *Client) CreateMessage(ctx context.Context, r *MessageRequest) (*Message
 		OutputConfig:  r.OutputConfig,
 	}, r.BetaHeaders)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 	return resp, nil
 }
 
-func (c *Client) setHeaders(req *http.Request, betaHeaders []string) {
+func (c *Client) setHeaders(ctx context.Context, req *http.Request, betaHeaders []string) error {
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", c.token) //nolint:canonicalheader
+	if err := c.auth.authorize(ctx, req); err != nil {
+		return err
+	}
 
 	// This is necessary as per https://docs.anthropic.com/en/api/versioning
 	// If this changes frequently enough we should expose it as an option..
@@ -218,6 +240,8 @@ func (c *Client) setHeaders(req *http.Request, betaHeaders []string) {
 	if len(validHeaders) > 0 {
 		req.Header.Set("anthropic-beta", strings.Join(validHeaders, ",")) // nolint:canonicalheader
 	}
+
+	return nil
 }
 
 func (c *Client) do(ctx context.Context, path string, payloadBytes []byte) (*http.Response, error) {
@@ -225,18 +249,26 @@ func (c *Client) do(ctx context.Context, path string, payloadBytes []byte) (*htt
 }
 
 func (c *Client) doWithHeaders(ctx context.Context, path string, payloadBytes []byte, betaHeaders []string) (*http.Response, error) {
+	return c.request(ctx, http.MethodPost, path, bytes.NewReader(payloadBytes), betaHeaders)
+}
+
+func (c *Client) request(
+	ctx context.Context, method, path string, body io.Reader, betaHeaders []string,
+) (*http.Response, error) {
 	if c.baseURL == "" {
 		c.baseURL = DefaultBaseURL
 	}
 
 	url := c.baseURL + path
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payloadBytes))
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	c.setHeaders(req, betaHeaders)
+	if err := c.setHeaders(ctx, req, betaHeaders); err != nil {
+		return nil, err
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

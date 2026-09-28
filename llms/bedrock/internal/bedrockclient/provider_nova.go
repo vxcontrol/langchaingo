@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -61,6 +64,11 @@ type novaSystemPrompt struct {
 	Text string `json:"text,omitempty"`
 }
 
+type novaReasoningConfigInput struct {
+	Type               string `json:"type,omitempty"`
+	MaxReasoningEffort string `json:"maxReasoningEffort,omitempty"`
+}
+
 // novaInferenceConfigInput is the input for the text generation configuration for Amazon Nova Models.
 type novaInferenceConfigInput struct {
 	// The maximum number of tokens to generate per result. Optional, default = 512
@@ -71,7 +79,8 @@ type novaInferenceConfigInput struct {
 	Temperature float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
-	StopSequences []string `json:"stopSequences,omitempty"`
+	StopSequences   []string                  `json:"stopSequences,omitempty"`
+	ReasoningConfig *novaReasoningConfigInput `json:"reasoningConfig,omitempty"`
 }
 
 // novaTextGenerationInput is the input for the text generation for Amazon Nova Models.
@@ -84,14 +93,23 @@ type novaTextGenerationInput struct {
 	System []*novaSystemPrompt `json:"system,omitempty"`
 }
 
+type novaOutputContent struct {
+	Text             string                      `json:"text"`
+	ReasoningContent *novaReasoningContentOutput `json:"reasoningContent"`
+}
+
+type novaReasoningContentOutput struct {
+	ReasoningText struct {
+		Text string `json:"text"`
+	} `json:"reasoningText"`
+}
+
 // novaTextGenerationOutput is the output for the text generation for Amazon Nova Models.
 type novaTextGenerationOutput struct {
 	Output struct {
 		Message struct {
-			Content []struct {
-				Text string `json:"text"`
-			} `json:"content"`
-			Role string `json:"role"`
+			Content []novaOutputContent `json:"content"`
+			Role    string              `json:"role"`
 		} `json:"message"`
 	} `json:"output"`
 	StopReason string `json:"stopReason"`
@@ -108,22 +126,24 @@ type novaTextGenerationOutput struct {
 type novaStreamingResponseChunk struct {
 	ContentBlockDelta struct {
 		Delta struct {
-			Text string `json:"text"`
+			Text             string `json:"text"`
+			ReasoningContent *struct {
+				Text string `json:"text"`
+			} `json:"reasoningContent"`
 		} `json:"delta"`
 	} `json:"contentBlockDelta"`
 	MessageStart struct {
-		Role  string `json:"role"`
-		Usage struct {
-			InputTokens int32 `json:"inputTokens"`
-		} `json:"usage"`
+		Role string `json:"role"`
 	} `json:"messageStart"`
-	MessageDelta struct {
+	MessageStop struct {
 		StopReason string `json:"stopReason"`
-		Usage      struct {
+	} `json:"messageStop"`
+	Metadata struct {
+		Usage struct {
+			InputTokens  int32 `json:"inputTokens"`
 			OutputTokens int32 `json:"outputTokens"`
 		} `json:"usage"`
-	} `json:"messageDelta"`
-	MessageStop struct{} `json:"messageStop"`
+	} `json:"metadata"`
 }
 
 // Finish reason for Nova models
@@ -147,18 +167,52 @@ const (
 	NovaMessageTypeImage = "image"
 )
 
-func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemPrompt string, options llms.CallOptions) ([]byte, error) {
+func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemPrompt, modelID string,
+	options llms.CallOptions, warn *llms.Warnings,
+) ([]byte, error) {
+	inferenceConfig := novaInferenceConfigInput{
+		MaxTokens:     options.GetMaxTokens(),
+		Temperature:   options.GetTemperature(),
+		TopP:          options.GetTopP(),
+		StopSequences: options.StopWords,
+	}
+	if options.Reasoning.ResolveMode() == llms.ReasoningOn && reasoning.IsNovaReasoningModel(modelID) {
+		effort := reasoning.NovaEffort(string(options.Reasoning.GetEffort(options.GetMaxTokens())))
+		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}
+		if reasoning.NovaClearsInferenceConfigAt(effort) {
+			inferenceConfig.MaxTokens = 0
+			inferenceConfig.Temperature = 0
+			inferenceConfig.TopP = 0
+		}
+		reportNovaReasoning(warn, modelID, options, effort)
+	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {
+		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+
 	input := novaTextGenerationInput{
-		Messages: inputContents,
-		InferenceConfig: novaInferenceConfigInput{
-			MaxTokens:     options.GetMaxTokens(),
-			Temperature:   options.GetTemperature(),
-			TopP:          options.GetTopP(),
-			StopSequences: options.StopWords,
-		},
-		System: []*novaSystemPrompt{{Text: systemPrompt}},
+		Messages:        inputContents,
+		InferenceConfig: inferenceConfig,
+	}
+	if systemPrompt != "" {
+		input.System = []*novaSystemPrompt{{Text: systemPrompt}}
 	}
 	return json.Marshal(input)
+}
+
+func splitNovaReasoning(blocks []novaOutputContent) ([]novaOutputContent, *reasoning.ContentReasoning) {
+	answers := make([]novaOutputContent, 0, len(blocks))
+	var thought string
+	for _, block := range blocks {
+		if block.ReasoningContent == nil {
+			answers = append(answers, block)
+			continue
+		}
+		thought += block.ReasoningContent.ReasoningText.Text
+	}
+	if thought == "" {
+		return answers, nil
+	}
+	return answers, &reasoning.ContentReasoning{Content: thought}
 }
 
 func parseNovaResponseBody(body []byte) (*novaTextGenerationOutput, error) {
@@ -172,13 +226,14 @@ func createNovaCompletion(ctx context.Context,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
+	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	inputContents, systemPrompt, err := processInputMessagesNova(messages)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := novaInputToJSON(inputContents, systemPrompt, options)
+	body, err := novaInputToJSON(inputContents, systemPrompt, modelID, options, warn)
 	if err != nil {
 		return nil, err
 	}
@@ -209,8 +264,8 @@ func createNovaCompletion(ctx context.Context,
 		return nil, err
 	}
 
-	content := output.Output.Message.Content
-	if len(content) == 0 {
+	content, contentReasoning := splitNovaReasoning(output.Output.Message.Content)
+	if len(content) == 0 && contentReasoning == nil {
 		return nil, errors.New("no results")
 	} else if stopReason := output.StopReason; stopReason != NovaCompletionReasonEndTurn &&
 		stopReason != NovaCompletionReasonStopSequence &&
@@ -218,18 +273,23 @@ func createNovaCompletion(ctx context.Context,
 		stopReason != NovaCompletionReasonContentFiltered {
 		return nil, errors.New("completed due to " + stopReason + ". Maybe try increasing max tokens")
 	}
+	if len(content) == 0 {
+		content = []novaOutputContent{{}}
+	}
 	Contentchoices := make([]*llms.ContentChoice, len(content))
 	for i, c := range content {
 		Contentchoices[i] = &llms.ContentChoice{
 			Content:    c.Text,
+			Reasoning:  contentReasoning,
 			StopReason: output.StopReason,
+			Truncated:  llms.IsTruncated(output.StopReason),
 			GenerationInfo: map[string]any{
 				"input_tokens":  output.Usage.InputTokens,
 				"output_tokens": output.Usage.OutputTokens,
 				// Standardized field names for cross-provider compatibility
-				"PromptTokens":     output.Usage.InputTokens,
-				"CompletionTokens": output.Usage.OutputTokens,
-				"TotalTokens":      output.Usage.InputTokens + output.Usage.OutputTokens,
+				"PromptTokens":     int(output.Usage.InputTokens),
+				"CompletionTokens": int(output.Usage.OutputTokens),
+				"TotalTokens":      int(output.Usage.InputTokens) + int(output.Usage.OutputTokens),
 			},
 		}
 	}
@@ -270,14 +330,21 @@ func processInputMessagesNova(messages []Message) ([]*novaTextGenerationInputMes
 				return nil, "", errors.New("multiple system prompts")
 			}
 			for _, message := range chunk {
-				c := getNovaInputContent(message)
+				c, err := getNovaInputContent(message)
+				if err != nil {
+					return nil, "", err
+				}
 				systemPrompt += c.Text
 			}
 			continue
 		}
 		content := make([]novaTextGenerationInputContent, 0, len(chunk))
 		for _, message := range chunk {
-			content = append(content, getNovaInputContent(message))
+			c, err := getNovaInputContent(message)
+			if err != nil {
+				return nil, "", err
+			}
+			content = append(content, c)
 		}
 		inputContents = append(inputContents, &novaTextGenerationInputMessage{
 			Role:    role,
@@ -307,22 +374,27 @@ func getNovaRole(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func getNovaInputContent(message Message) novaTextGenerationInputContent {
+func getNovaInputContent(message Message) (novaTextGenerationInputContent, error) {
 	var c novaTextGenerationInputContent
 	if message.Type == NovaMessageTypeText {
 		c = novaTextGenerationInputContent{
 			Text: message.Content,
 		}
 	} else if message.Type == NovaMessageTypeImage {
+		format := mimeTypeToFormat(message.MimeType)
+		if format == "" {
+			return novaTextGenerationInputContent{},
+				fmt.Errorf("%w: %s", ErrUnsupportedImageFormat, message.MimeType)
+		}
 		c = novaTextGenerationInputContent{}
 		c.Image = &novaImageInput{
-			Format: mimeTypeToFormat(message.MimeType),
+			Format: format,
 			Source: novaBinGenerationInputSource{
 				Bytes: []byte(message.Content),
 			},
 		}
 	}
-	return c
+	return c, nil
 }
 
 func mimeTypeToFormat(mimeType string) string {
@@ -353,50 +425,73 @@ func parseNovaStreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 	defer streaming.CallWithDone(ctx, options.StreamingFunc) //nolint:errcheck
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]any{}}}
+	var streamedContent strings.Builder
+	var streamedThought strings.Builder
+	var streamErr error
+
+DoStream:
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
-			return nil, err
+			streamErr = err
+			break DoStream
 		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp novaStreamingResponseChunk
 			err := json.NewDecoder(bytes.NewReader(v.Value.Bytes)).Decode(&resp)
 			if err != nil {
-				return nil, err
+				streamErr = err
+				break DoStream
+			}
+
+			if thought := resp.ContentBlockDelta.Delta.ReasoningContent; thought != nil && thought.Text != "" {
+				streamedThought.WriteString(thought.Text)
+				chunk := streaming.Chunk{
+					Type:      streaming.ChunkTypeReasoning,
+					Reasoning: &reasoning.ContentReasoning{Content: thought.Text},
+				}
+				if err = options.StreamingFunc(ctx, chunk); err != nil {
+					streamErr = err
+					break DoStream
+				}
 			}
 
 			// Check for content delta (text chunks)
 			if resp.ContentBlockDelta.Delta.Text != "" {
+				streamedContent.WriteString(resp.ContentBlockDelta.Delta.Text)
 				if err = streaming.CallWithText(ctx, options.StreamingFunc, resp.ContentBlockDelta.Delta.Text); err != nil {
-					return nil, err
+					streamErr = err
+					break DoStream
 				}
-				contentchoices[0].Content += resp.ContentBlockDelta.Delta.Text
 			}
 
-			// Check for message start (contains input tokens)
-			if resp.MessageStart.Usage.InputTokens > 0 {
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.MessageStart.Usage.InputTokens
-				contentchoices[0].GenerationInfo["PromptTokens"] = resp.MessageStart.Usage.InputTokens
+			if resp.MessageStop.StopReason != "" {
+				contentchoices[0].StopReason = resp.MessageStop.StopReason
+				contentchoices[0].Truncated = llms.IsTruncated(resp.MessageStop.StopReason)
 			}
-
-			// Check for message delta (contains stop reason and output tokens)
-			if resp.MessageDelta.StopReason != "" {
-				contentchoices[0].StopReason = resp.MessageDelta.StopReason
+			if resp.Metadata.Usage.InputTokens > 0 {
+				contentchoices[0].GenerationInfo["input_tokens"] = resp.Metadata.Usage.InputTokens
+				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.Metadata.Usage.InputTokens)
 			}
-			if resp.MessageDelta.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["output_tokens"] = resp.MessageDelta.Usage.OutputTokens
-				contentchoices[0].GenerationInfo["CompletionTokens"] = resp.MessageDelta.Usage.OutputTokens
+			if resp.Metadata.Usage.OutputTokens > 0 {
+				contentchoices[0].GenerationInfo["output_tokens"] = resp.Metadata.Usage.OutputTokens
+				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.Metadata.Usage.OutputTokens)
 			}
-			if resp.MessageStart.Usage.InputTokens > 0 || resp.MessageDelta.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["TotalTokens"] = resp.MessageStart.Usage.InputTokens + resp.MessageDelta.Usage.OutputTokens
+			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)
+			completion, _ := contentchoices[0].GenerationInfo["CompletionTokens"].(int)
+			if prompt > 0 || completion > 0 {
+				contentchoices[0].GenerationInfo["TotalTokens"] = prompt + completion
 			}
 		}
 	}
 	if err = stream.Err(); err != nil {
-		return nil, err
+		streamErr = err
 	}
 
-	return &llms.ContentResponse{
-		Choices: contentchoices,
-	}, nil
+	contentchoices[0].Content = streamedContent.String()
+	if streamedThought.Len() > 0 {
+		contentchoices[0].Reasoning = &reasoning.ContentReasoning{Content: streamedThought.String()}
+	}
+
+	return &llms.ContentResponse{Choices: contentchoices}, streamErr
 }

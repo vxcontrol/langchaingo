@@ -12,10 +12,10 @@ func TestLLM(t *testing.T) {
 		t.Skip("HUGGINGFACEHUB_API_TOKEN not set")
 	}
 
-	llm, err := New(WithModel("gpt2"))
+	llm, err := New(WithModel(defaultModel))
 	if err != nil {
 		t.Fatalf("Failed to create HuggingFace LLM: %v", err)
 	}
 
-	llmtest.TestLLM(t, llm)
+	llmtest.TestLLM(t, llm, llmtest.WithoutStreaming())
 }

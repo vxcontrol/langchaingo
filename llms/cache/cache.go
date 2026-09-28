@@ -65,11 +65,11 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 		if len(response.Choices) > 0 {
 			// only stream the first choice.
 			if err := streaming.CallWithText(ctx, opts.StreamingFunc, response.Choices[0].Content); err != nil {
-				return nil, err
+				return response, err
 			}
 		}
 		if err := streaming.CallWithDone(ctx, opts.StreamingFunc); err != nil {
-			return nil, err
+			return response, err
 		}
 
 		return response, nil
@@ -77,12 +77,23 @@ func (c *Cacher) GenerateContent(ctx context.Context, messages []llms.MessageCon
 
 	response, err := c.llm.GenerateContent(ctx, messages, options...)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
-	c.cache.Put(ctx, key, response)
+	// The key encodes only the options that carry JSON, so a hit can serve a call
+	// that set different ones.
+	c.cache.Put(ctx, key, withoutWarnings(response))
 
 	return response, nil
+}
+
+func withoutWarnings(response *llms.ContentResponse) *llms.ContentResponse {
+	if response == nil || len(response.Warnings) == 0 {
+		return response
+	}
+	stored := *response
+	stored.Warnings = nil
+	return &stored
 }
 
 // hashKeyForCache is a helper function that generates a unique key for a given

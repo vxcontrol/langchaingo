@@ -51,7 +51,7 @@ func (v *VoyageAI) EmbedDocuments(ctx context.Context, texts []string) ([][]floa
 		v.BatchSize,
 	)
 
-	embeddings := make([][]float32, 0, len(texts))
+	embs := make([][]float32, 0, len(texts))
 	for _, batch := range batchedTexts {
 		req := embedDocumentsRequest{
 			Model:     v.Model,
@@ -74,11 +74,16 @@ func (v *VoyageAI) EmbedDocuments(ctx context.Context, texts []string) ([][]floa
 			return nil, err
 		}
 
+		batchEmbs := make([][]float32, 0, len(batch))
 		for _, data := range embeddingResp.Data {
-			embeddings = append(embeddings, data.Embedding)
+			batchEmbs = append(batchEmbs, data.Embedding)
 		}
+		if err := embeddings.CheckEmbeddings(batchEmbs, len(batch)); err != nil {
+			return nil, err
+		}
+		embs = append(embs, batchEmbs...)
 	}
-	return embeddings, nil
+	return embs, nil
 }
 
 type embedQueryRequest struct {
@@ -108,6 +113,10 @@ func (v *VoyageAI) EmbedQuery(ctx context.Context, text string) ([]float32, erro
 	if err := json.NewDecoder(resp.Body).Decode(&embeddingResp); err != nil {
 		return nil, err
 	}
+	if len(embeddingResp.Data) == 0 {
+		return nil, embeddings.ErrNoEmbedding
+	}
+
 	return embeddingResp.Data[0].Embedding, nil
 }
 

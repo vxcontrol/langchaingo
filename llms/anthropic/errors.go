@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 // errorMapping represents a mapping from error patterns to error codes.
@@ -78,3 +79,9 @@ func MapError(err error) error {
 	mapper := llms.NewErrorMapper("anthropic")
 	return mapper.Map(err)
 }
+
+// ErrAssistantPrefillUnsupported reports that the model rejects a conversation
+// ending with an assistant turn.
+type ErrAssistantPrefillUnsupported = reasoning.ErrAssistantPrefillUnsupported
+
+type ErrForcedToolUseWithThinking = reasoning.ErrForcedToolUseWithThinking

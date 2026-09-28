@@ -1,0 +1,57 @@
+httprr trace v1
+868 2156
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 548
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"Name some countries"}],"role":"user"},{"parts":[{"text":"Spain and Lesotho"}],"role":"model"},{"parts":[{"text":"Which if these is larger?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 1743
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:11:46 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=1503
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "**Spain** is much larger. \n\n* **Spain:** ~505,990 km² (195,360 sq mi)\n* **Lesotho:** ~30,355 km² (11,720 sq mi)\n\nSpain is roughly 16 to 17 times the size of Lesotho.",
+            "thoughtSignature": "EswFCskFAWkUfRNDtDXXyEfmfsf2JZtFLYI8gQqBu1BIjietQrLw90upiK/KUxVxUANeNgcrQfKFTZM+Ov5mvySKuKPjFyeXBeb48xh5ZWYMo5QB0KdxokYrBe/5MgKMjj9wWoT2ru8looVXAdFl/dHwDdIYV68cQemSG54fmtAmDSSZNl0Wia/SVExAkhFc30NXdnGKbyeHF9hTW44uqSIu27NdcVsfEZnFv3NY6iwUgZjQNEpaeWxBEEoP1Nsk9lnhrYHKHLK+bF7igN8NCBPT8/7K/0RFGOrQKOuKixAHae+EUylGu5hOiq4YZktdw+OZKQIvTE0wIfpPOSmZQCkAZAzwq2vqVP9AJ8GAyoFi6aeoJ7/n0q3KoliNSg7mR+lqmS5p3BjvlD1wUvEqSitSvy55gMskdridTi3QRI3ax/gD51IR3+4WwuuSsQ22oXg4XE3RAH9PbCqQPc7VxvzF+yNccQzkUmp/6aSpeUACFjnuNMW1JmikrhX0D0h+crFGhCVlM2yuD2XitOdfKt/kGXU9e5xMYkcVsSnDNKltn5g/k6fozu3vmPm8Igl6lKxyITM8q8FaKatTxtY59tAJYwkQ30PdYctxwluP2AIJcFkRdK6wYgoLeTxG7O2j+fPUgx3BN2SgsGEWDl+GWmju6fp1Sc4JZwvlEQjwmxVgY25dY/zbah3fkBuDYSYQzpyW6A3tPdjfkag+TSnGFXCVQv+hIPSbNL3cUNZHmQ2x29KGD/NInOr5m/0u+qKZyTLB/exSNI3yOIxj9CVOpeGswDwdMIfdtmLlpEt5F2W+djenq3bb8wChvxR0mCFYY27WORQP9CMWUj0Y4ulJB+SBMIjCFnI4yPFCION5l1XoPigXLF1uPDh78Y2AIwfusDh7TUFGxfFoY+MRKx3pW7nqFIkD2i+fI1lk0ToWcDq7kQviXZ2iwehE2+XaoZI="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 15,
+    "candidatesTokenCount": 76,
+    "totalTokenCount": 276,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 15
+      }
+    ],
+    "thoughtsTokenCount": 185,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "8LOzavy-LZr6vdIPn7WfsQo"
+}

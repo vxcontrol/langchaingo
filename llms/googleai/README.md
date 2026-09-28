@@ -7,16 +7,17 @@ This directory contains langchaingo provider for Google's models.
 * In the `palm` directory: provider for the legacy PaLM models.
 
 Both the `googleai` and `vertex` providers give access to Gemini-family
-multi-modal LLMs. The code between these providers was historically very similar,
-and most of the `vertex` package used to be code-generated from the `googleai`
-package.
+multi-modal LLMs, and both now run on one SDK, `google.golang.org/genai`, which
+reaches either backend from the same client.
 
-That generator is now **obsolete and must not be run**: the two packages target
-different SDKs — `googleai` uses `google.golang.org/genai` while `vertex` uses
-`cloud.google.com/go/vertexai/genai` — so their sources have legitimately
-diverged. The `vertex` package is now **hand-maintained**. The former generator at
-`llms/googleai/internal/cmd/generate-vertex.go` exits with an error explaining
-this; migrating `vertex` onto the unified SDK is tracked as separate future work.
+The `vertex` package is therefore a thin wrapper: it fixes the backend to Vertex
+AI, takes the cloud project and location from options or from
+`GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION`, and refuses to start without
+them. Every capability — generation, streaming, tools, thinking, structured
+output, embeddings — comes from the `googleai` door, so the two cannot drift
+apart. The package used to carry its own copy of that adapter on the deprecated
+`cloud.google.com/go/vertexai/genai` SDK, along with a code generator; both are
+gone.
 
 ----
 

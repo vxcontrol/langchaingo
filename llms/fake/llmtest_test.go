@@ -35,5 +35,5 @@ func TestLLM(t *testing.T) {
 	llm := NewFakeLLM(responses)
 
 	// Test basic functionality only
-	llmtest.TestLLM(t, llm)
+	llmtest.TestLLM(t, llm, llmtest.WithoutToolCalls())
 }

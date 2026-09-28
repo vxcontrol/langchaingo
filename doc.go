@@ -161,11 +161,13 @@
 //
 // Streaming responses:
 //
-//	stream, err := llm.GenerateContentStream(ctx, messages)
-//	for stream.Next() {
-//		chunk := stream.Value()
-//		fmt.Print(chunk.Choices[0].Content)
-//	}
+//	_, err := llm.GenerateContent(ctx, messages,
+//		llms.WithStreamingFunc(func(ctx context.Context, chunk streaming.Chunk) error {
+//			if chunk.Type == streaming.ChunkTypeText {
+//				fmt.Print(chunk.Content)
+//			}
+//			return nil
+//		}))
 //
 // Function calling:
 //

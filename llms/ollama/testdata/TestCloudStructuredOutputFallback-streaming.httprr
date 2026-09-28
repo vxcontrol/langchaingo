@@ -1,0 +1,69 @@
+httprr trace v1
+1211 7476
+POST https://ollama.com/api/chat HTTP/1.1
+Host: ollama.com
+User-Agent: langchaingo-httprr
+Content-Length: 1033
+Accept: application/x-ndjson
+Content-Type: application/json
+
+{"model":"gpt-oss:120b","messages":[{"role":"system","content":"You are a travel guide. Answer in Markdown with headings."},{"role":"user","content":"Describe Paris briefly.\n\nReply with exactly one JSON value that validates against the JSON Schema below. This overrides any earlier instruction about format or style: no Markdown, no code fences, no headings, and no text before or after the JSON. The whole reply is parsed by a JSON parser.\nJSON Schema:\n{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"},\"population_millions\":{\"type\":\"number\"},\"landmarks\":{\"type\":\"array\",\"minItems\":2,\"maxItems\":3,\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"kind\":{\"type\":\"string\",\"enum\":[\"museum\",\"monument\",\"park\",\"church\",\"other\"]}},\"required\":[\"name\",\"kind\"],\"additionalProperties\":false}}},\"required\":[\"city\",\"population_millions\",\"landmarks\"],\"additionalProperties\":false}"}],"stream":true,"format":"","options":{"num_predict":16384}}HTTP/2.0 200 OK
+Content-Length: 6971
+Alt-Svc: h3=":443"; ma=2592000
+Content-Type: application/json
+Date: Thu, 24 Sep 2026 13:47:08 GMT
+Server: Google Frontend
+Traceparent: 00-ef720aeccc1992e6042e906179d04f3f-3f48a4296d044156-00
+Via: 1.1 google
+X-Build-Commit: 614f90b4fc81e84f478f88d324848f8028bf3d1f
+X-Build-Time: 2026-09-23T16:54:33-07:00
+X-Cloud-Trace-Context: ef720aeccc1992e6042e906179d04f3f/4560075120542237014
+X-Frame-Options: DENY
+X-Request-Id: c044b894-3704-4af5-85d1-bd8945cae521
+
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.506579366Z","message":{"role":"assistant","content":"","thinking":"We need to reply"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.519337967Z","message":{"role":"assistant","content":"","thinking":" with exactly one JSON value"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.539361123Z","message":{"role":"assistant","content":"","thinking":" matching"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.554523506Z","message":{"role":"assistant","content":"","thinking":" schema"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.565909646Z","message":{"role":"assistant","content":"","thinking":". Provide"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.578305666Z","message":{"role":"assistant","content":"","thinking":" city"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.591404437Z","message":{"role":"assistant","content":"","thinking":": \"Paris\", population_m"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.604534478Z","message":{"role":"assistant","content":"","thinking":"illions:"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.618434879Z","message":{"role":"assistant","content":"","thinking":" maybe 2"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.634341453Z","message":{"role":"assistant","content":"","thinking":".2"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.658838624Z","message":{"role":"assistant","content":"","thinking":" (actual"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.674058066Z","message":{"role":"assistant","content":"","thinking":" ~"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.694005623Z","message":{"role":"assistant","content":"","thinking":"2.2)."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.704178471Z","message":{"role":"assistant","content":"","thinking":" landmarks"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.718410633Z","message":{"role":"assistant","content":"","thinking":": array of "},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.735312797Z","message":{"role":"assistant","content":"","thinking":"2-3 items with"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.7501541Z","message":{"role":"assistant","content":"","thinking":" name and"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.766641154Z","message":{"role":"assistant","content":"","thinking":" kind.\n\n"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.782004727Z","message":{"role":"assistant","content":"","thinking":"Pick"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.79814671Z","message":{"role":"assistant","content":"","thinking":" e"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.812729372Z","message":{"role":"assistant","content":"","thinking":".g., Eiffel Tower ("},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.832209889Z","message":{"role":"assistant","content":"","thinking":"monument), Louvre"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.841758797Z","message":{"role":"assistant","content":"","thinking":" Museum (museum"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.858544361Z","message":{"role":"assistant","content":"","thinking":")."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.872357722Z","message":{"role":"assistant","content":"","thinking":" That's two"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.890452657Z","message":{"role":"assistant","content":"","thinking":" items.\n\n"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.903415058Z","message":{"role":"assistant","content":"","thinking":"JSON"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.91805891Z","message":{"role":"assistant","content":"","thinking":" object"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.933359753Z","message":{"role":"assistant","content":"","thinking":" no"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.947185085Z","message":{"role":"assistant","content":"","thinking":" extra."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.963089768Z","message":{"role":"assistant","content":"","thinking":" Provide"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:08.978298551Z","message":{"role":"assistant","content":"","thinking":" exact"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.00130028Z","message":{"role":"assistant","content":"","thinking":"."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.009153057Z","message":{"role":"assistant","content":"","thinking":" No markdown"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.02554334Z","message":{"role":"assistant","content":"","thinking":"."},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.051253102Z","message":{"role":"assistant","content":"{\""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.063976343Z","message":{"role":"assistant","content":"city\":\"Paris\",\"population_m"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.080402697Z","message":{"role":"assistant","content":"illions\":"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.088899273Z","message":{"role":"assistant","content":"2.2,\"landmarks"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.101238144Z","message":{"role":"assistant","content":"\":[{\"name"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.114134345Z","message":{"role":"assistant","content":"\":\"Eiffel Tower\",\"kind"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.130134408Z","message":{"role":"assistant","content":"\":\"monument\"},{\"name"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.139601186Z","message":{"role":"assistant","content":"\":\"Louvre Museum\",\""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.151174996Z","message":{"role":"assistant","content":"kind\":\"museum\"}]}"},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.165509688Z","message":{"role":"assistant","content":""},"done":false}
+{"model":"gpt-oss:120b","created_at":"2026-09-24T13:47:09.255492393Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","total_duration":1045714286,"prompt_eval_count":255,"prompt_eval_cached_count":224,"eval_count":129}

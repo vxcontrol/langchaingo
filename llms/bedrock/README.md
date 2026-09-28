@@ -46,8 +46,10 @@ graph TB
 **Legacy API** (InvokeModel/InvokeModelWithResponseStream):
 - Direct access to model-specific features
 - Anthropic cache_control format support
-- Broader model compatibility
-- **Use when**: Model not supported by Converse API
+- Narrower model compatibility: seven provider families are implemented — ai21, amazon,
+  nova, anthropic, cohere, meta and deepseek. Any other model id answers
+  "unsupported provider" on this path
+- **Use when**: a provider-specific field has no Converse equivalent
 
 **Converse API** (Converse/ConverseStream):
 - Unified interface across all models
@@ -75,7 +77,7 @@ flowchart LR
 
 **Challenge**: Anthropic's prompt caching requires manual cache control wrappers on client side.
 
-**Solution**: Automatic cache point insertion for Claude 4.x models.
+**Solution**: Automatic cache point insertion for Claude 4.x and 5.x models.
 
 ```mermaid
 sequenceDiagram
@@ -98,7 +100,9 @@ sequenceDiagram
 ```
 
 **Implementation**:
-- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`, `claude-haiku-4`)
+- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`,
+  `claude-haiku-4`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-5`, `claude-fable-5`,
+  `claude-mythos-5`)
 - `applyAutomaticCaching()`: Adds `CacheControl{Type: "ephemeral", TTL: "5m"}` to last cacheable message (assistant or tool response)
 - **Why last message?** Caches conversation history before new user input
 - **TTL Options**: 5 minutes (default) or 1 hour (configurable via `EphemeralCacheOneHour()`)
@@ -186,14 +190,31 @@ if err != nil {
 
 ### Models Supporting Reasoning
 
-**Converse API**:
-- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
-- DeepSeek R1
-- OpenAI GPT OSS (120B, 20B)
-- Moonshot Kimi K2-Thinking
+A reasoning request only reaches the wire for families that have a thinking
+configuration on this platform. The rest carry nothing.
 
-**Legacy API** (InvokeModel):
-- Claude: Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5
+**Converse API** — a thinking configuration is sent for:
+- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking`
+  in `additionalModelRequestFields`, adaptive or budget (see below)
+- Amazon Nova 2 Lite — `reasoningConfig` in `additionalModelRequestFields`.
+  Nova 2 Pro, Micro and Sonic do not get it
+- xAI Grok 4.x — `reasoning.effort` in `additionalModelRequestFields`
+- OpenAI GPT OSS 120B and 20B — `reasoning_effort` in `additionalModelRequestFields`
+
+**Legacy API** (InvokeModel) — a thinking configuration is sent for:
+- Claude: Fable 5, Opus 5/4.8/4.7/4.6/4.5, Sonnet 5/4.6/4.5, Haiku 4.5 — `thinking` in the
+  Anthropic body
+- Amazon Nova 2 Lite — `reasoningConfig` inside `inferenceConfig`
+
+**Reasoning models that take no configuration here**: Moonshot Kimi K2-Thinking,
+MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral
+Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them
+changes nothing on the wire.
+
+**Z-AI GLM 4.7/4.7 Flash/5** are not reasoning models here: their AWS model cards
+document neither reasoning nor a field that controls it, `ReasoningSupportFor`
+reports them as not reasoning, and a `WithReasoning` call on them changes nothing
+on the wire.
 
 **How the wire shape is resolved**
 
@@ -202,23 +223,37 @@ thinking from the model via the shared `llms/reasoning` capability tables (the s
 source of truth used by the first-party Anthropic provider):
 
 - **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` +
-  `output_config.effort`; budget thinking and sampling params are rejected. Opus 5,
+  `output_config.effort`; budget thinking and sampling params are rejected. Bedrock
+  serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher
+  effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5,
   Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8,
-  which defaults off); on Bedrock a default-on model cannot be explicitly disabled
-  (always-on there), while Opus 4.7/4.8 default off, so omitting thinking already
-  yields off.
+  which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to
+  Opus 5 and Sonnet 5 and no effort beside it; Fable 5 cannot be disabled. Opus 4.7/4.8
+  default off, so omitting thinking already yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
 - **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` +
-  `budget_tokens`; Opus 4.5 also honors `output_config.effort`.
+  `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on
+  this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
+  this door does not send it.
 
-Non-Claude reasoning models (DeepSeek R1, GPT OSS, Kimi K2-Thinking) use budget
-thinking through the Converse API. `WithReasoningDisabled()` returns a typed
-`ErrReasoningOffUnsupported` for always-on Bedrock models.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
+its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
+beside it. Grok carries an effort and nothing else. GPT OSS carries only
+`reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and
+`max` fall to `high`. `WithReasoningDisabled()` returns a typed
+`ErrReasoningOffUnsupported` for a model whose thinking cannot be turned off, such as
+Fable, Mythos, GPT OSS or DeepSeek R1.
 
 ## Structured Output
 
 The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
-Anthropic models: the final response is guaranteed to be a single JSON value
+the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
+4.5; any other Claude model returns a typed `ErrStructuredOutputUnsupported` before
+the request. On the Converse API the other families get it only where their AWS model
+card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3,
+Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose
+card is silent return the same typed error. The final response is guaranteed to be a
+single JSON value
 matching the supplied JSON Schema (Draft 2020-12), validated locally against the
 original schema.
 
@@ -240,41 +275,50 @@ resp, err := llm.GenerateContent(ctx, messages,
 
 **Requirements and behavior**:
 - Every object node must set `additionalProperties: false` — Bedrock rejects a schema that omits it. The SDK enforces this locally with a typed `ErrStructuredOutputConfig` before the request is sent.
-- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — any model AWS advertises as supporting Structured Outputs works.
+- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — a model whose AWS model card lists Structured Outputs gets it; any other returns the typed unsupported error.
 - Only the final normal turn (`end_turn`/`stop_sequence`) is validated; a `tool_use`/`max_tokens`/guardrail/filtered turn is not treated as final JSON.
 - The response `StopReason` is surfaced on `ContentChoice.StopReason` (Converse now transfers it from the response/`MessageStopEvent`).
 
 **Why these models?**
 
-Extended thinking/reasoning capabilities are model-specific features. DeepSeek R1, OpenAI OSS, and Moonshot models provide reasoning through the Converse API, while Anthropic models support both APIs.
+Extended thinking/reasoning capabilities are model-specific features. OpenAI OSS, Moonshot and MiniMax models provide reasoning through the Converse API, while Anthropic models support both APIs.
 
 ### Message Structure with Reasoning
 
 ```mermaid
 flowchart TB
     A[AI Message with Reasoning] --> B{Legacy or Converse?}
-    B -->|Legacy API| C[Add thinking blocks<br/>BEFORE text content]
-    B -->|Converse API| D[Add ReasoningContent blocks<br/>with signature]
+    B -->|Legacy API| C[thinking and redacted_thinking blocks]
+    B -->|Converse API| D[reasoningContent blocks]
     C --> E[anthropicTextGenerationInputContent array]
     D --> F[types.ContentBlock array]
 ```
 
 **Why order matters?**
 
-Anthropic API spec requires thinking blocks before text blocks in assistant messages.
+A response can carry several reasoning blocks, each signed on its own, with encrypted
+blocks among them, and the vendor wants the blocks of the last assistant turn back
+unchanged and in its order. Both paths put every block back where the vendor put it:
+the blocks that came before any tool call open the turn, and a block that followed a
+tool call follows that call again.
 
 ### Signature Preservation
 
-**Challenge**: Reasoning signatures must round-trip through conversations.
-
-**Solution**: Store in `reasoning.ContentReasoning.Signature` field, re-insert on next turn.
+Every block keeps its own signature. `reasoning.ContentReasoning` carries the blocks in
+`Blocks`, in the vendor's order; a reasoning made of a single unencrypted block that came
+before any tool call keeps the classic `Content` and `Signature` fields instead.
+`Sequence()` reads both shapes. `Content` joins
+the readable text of every block for display and is not what travels back when `Blocks`
+is set, so hand the reasoning back as it came:
 
 ```go
-// Receive
-choice.Reasoning.Signature = []byte(...)
+// Receive: every block with its signature and place
+for _, block := range choice.Reasoning.Sequence() {
+    _ = block.Signature
+}
 
 // Send back
-llms.TextPartWithReasoning(content, reasoning)
+llms.TextPartWithReasoning(choice.Content, choice.Reasoning)
 ```
 
 ## Message Processing Pipeline
@@ -492,9 +536,10 @@ Tool arguments arrive in chunks:
 ### When to Use Legacy vs Converse API
 
 **Use Legacy API**:
-- Model doesn't support Converse API
 - Need Anthropic-specific cache_control format
 - Debugging provider-specific issues
+- Note that this path implements seven provider families only; Converse serves every
+  model in `models_list.go`
 
 **Use Converse API**:
 - Default for new implementations
@@ -505,14 +550,19 @@ Tool arguments arrive in chunks:
 ### Adding Caching Support
 
 **Criteria**:
-1. Model must support Anthropic prompt caching (currently only Claude 4.x)
+1. Model must support Anthropic prompt caching (Claude 4.x and 5.x)
 2. Add pattern to `supportsCaching()` in `bedrockllm.go`:
 ```go
 cachingPatterns := []string{
     "claude-opus-4",
     "claude-sonnet-4",
     "claude-haiku-4",
-    "claude-new-4",  // Add new model pattern
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-haiku-5",
+    "claude-fable-5",
+    "claude-mythos-5",
+    "claude-new-5",  // Add new model pattern
 }
 ```
 3. Ensure model supports minimum 1024 tokens threshold for cache activation
@@ -749,31 +799,36 @@ _(Schema-constrained structured output itself is already implemented — see the
 
 ## Supported Model Matrix
 
-Structured Output and Caching apply to Anthropic (Claude) models. See `models_list.go`
-for the exact model IDs.
+Caching applies to Anthropic (Claude) models. See `models_list.go` for the exact
+model IDs.
 
 | Provider | Tool Calling | Reasoning | Streaming | Multimodal | Caching | Structured Output |
 |----------|-------------|-----------|-----------|------------|---------|-------------------|
-| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ✅ |
-| Claude Opus 5/4.8/4.7/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Claude Sonnet 5/4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Fable 5 | ✅ | ✅ (always-on) | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 5/4.8/4.7 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Opus 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Nova 2/Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | Converse native* |
-| Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | Converse native* |
+| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | ❌ |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| DeepSeek R1 | ❌ | ✅ | ✅ | ❌ | ❌ | Converse native* |
+| DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | ❌ |
 | OpenAI GPT (OSS) | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
 | Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
 | Moonshot Kimi | ✅**** | ✅ | ✅ | Some | ❌ | Converse native* |
-| MiniMax M2/M2.1/M2.5 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| GLM-4.7/4.7-Flash/5 | ❌***** | ✅ (GLM-5) | ✅ | ❌ | ❌ | Converse native* |
-| NVIDIA Nemotron 3 Super | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
+| MiniMax M2/M2.1/M2.5 | ✅ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
+| GLM-4.7/4.7-Flash/5 | ❌***** | ❌ | ✅ | ❌ | ❌ | Converse native* |
+| NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
 
-*Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; support depends on what AWS advertises for the model at the time. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
+*Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; only for the models whose AWS model card lists Structured Outputs. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
 **Qwen3: Most models support tools, except Qwen3-VL (unstable in streaming)  
 ***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  
-*****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)
+*****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)  
+******Nemotron 3 Super reasons on its own, but this door sends it no thinking instruction: it belongs to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on it is a no-op here.
 
 See `models_list.go` for the complete model list and detailed capabilities.

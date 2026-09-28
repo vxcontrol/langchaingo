@@ -1,0 +1,57 @@
+httprr trace v1
+775 1865
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 455
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"Name five countries in Africa"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384,"temperature":1},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 1452
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:12:09 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=1249
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "Here are five countries in Africa:\n\n1. Nigeria\n2. Kenya\n3. Egypt\n4. South Africa\n5. Ghana",
+            "thoughtSignature": "EqwECqkEAWkUfROQDyZ0hgRKzp/A307o/CI27aIHz3I2CxuCfAhrOJSp1dVlLuOCdyWDEoprO9RexY8yW6/HWXaArEha63w6WDsY/2jg6tTRSNIpFAPnwfc2fg9+DXHUct/5IHZVsTZ1DaUdMMg8EMww0QVUM4pgO8/p2vR3dd1Xye0s4QhL6hxWjMrbmtFcOPB4UGGCU2YTMpn8m8WFZB9gyKVWY5DP9G5u8sDzzWWIAuBqVqR1SD25i9pl7VjMO8lxUNb2nxuWVh0jUB3qikaYI9RhI+q+0mHairp4QGkPrQwmVOtjJnOW0olHUuR75GEuFLAxuCWBFAtxSe9PQNZcucBMi47n7wp2RCvEXLOGhmD7HO3FXgfMnrUqKkPJHwtpYZ/ovUHh04Lo6hUpSPMrbaDydFsIbipDK8HUkt5WO3g9BSdRu481s28hR313IDN9Axc5cFweAO7UcTJ1tRBkYooTY3c8yuXzccXH9PrPicBADbVef1q7FIX01HKZMQM1kPdgt9DTAn544JzU5Biut9/UJw7PquwGJ9PhZYrgK4b0BjVWeN7kXTq+YEGS52iAh9DsrI3zygJ/5fnYwpbFVfPHnOseQCdEa1P/71hMI9wODQ4bzZn7+PZOjCwlYXY3BcGp+0TMTUG5TV8bu1Q289a6KdROXvpsxz6+ihFQ1ZlGCXKBU7qEmuDmyZy+s+2E3YtECBEJ/jTY5E9Otgb94cWC3SXHBDirdx7Y2w=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6,
+    "candidatesTokenCount": 28,
+    "totalTokenCount": 151,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 6
+      }
+    ],
+    "thoughtsTokenCount": 117,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "CLSzarn1CpfynsEPg8aW8A0"
+}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 
-	"cloud.google.com/go/vertexai/genai"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 )
@@ -28,6 +27,19 @@ type Options struct {
 	HTTPClient            *http.Client
 
 	ClientOptions []option.ClientOption
+
+	BaseURL string
+
+	credentialsFile string
+	credentialsJSON []byte
+
+	unhonoredOnREST []string
+
+	// Set by the WithDefault* sampling options, so a configured zero still reaches
+	// the wire.
+	temperatureFromCaller bool
+	topKFromCaller        bool
+	topPFromCaller        bool
 }
 
 func DefaultOptions() Options {
@@ -37,10 +49,7 @@ func DefaultOptions() Options {
 		DefaultModel:          "gemini-2.5-flash",
 		DefaultEmbeddingModel: "gemini-embedding-001",
 		DefaultCandidateCount: 1,
-		DefaultMaxTokens:      2048,
-		DefaultTemperature:    0.5,
-		DefaultTopK:           3,
-		DefaultTopP:           0.95,
+		DefaultMaxTokens:      llms.DefaultMaxTokens,
 		HarmThreshold:         HarmBlockNone,
 	}
 }
@@ -73,6 +82,7 @@ func WithCredentialsJSON(credentialsJSON []byte) Option {
 		if len(credentialsJSON) == 0 {
 			return
 		}
+		opts.credentialsJSON = credentialsJSON
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsJSON(credentialsJSON))
 	}
 }
@@ -85,15 +95,15 @@ func WithCredentialsFile(credentialsFile string) Option {
 		if credentialsFile == "" {
 			return
 		}
+		opts.credentialsFile = credentialsFile
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsFile(credentialsFile))
 	}
 }
 
-// WithRest configures the client to use the REST API.
+// WithRest is accepted for compatibility and does nothing: the Google GenAI SDK
+// speaks REST on every backend, so there is no transport left to switch.
 func WithRest() Option {
-	return func(opts *Options) {
-		opts.ClientOptions = append(opts.ClientOptions, genai.WithREST())
-	}
+	return func(*Options) {}
 }
 
 // WithGRPCClient append a ClientOption that uses the provided gRPC client to
@@ -101,6 +111,7 @@ func WithRest() Option {
 // This is useful for gemini clients.
 func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 	return func(opts *Options) {
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCClient")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(grpcClient))
 	}
 }
@@ -110,6 +121,7 @@ func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 // This is useful for gemini clients.
 func WithEndpoint(endpoint string) Option {
 	return func(opts *Options) {
+		opts.BaseURL = endpoint
 		opts.ClientOptions = append(opts.ClientOptions, option.WithEndpoint(endpoint))
 	}
 }
@@ -129,6 +141,7 @@ func WithHTTPClient(httpClient *http.Client) Option {
 // This is useful for testing embeddings in vertex clients.
 func WithGRPCConn(conn *grpc.ClientConn) Option {
 	return func(opts *Options) {
+		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCConn")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(conn))
 	}
 }
@@ -179,10 +192,12 @@ func WithDefaultMaxTokens(maxTokens int) Option {
 	}
 }
 
-// WithDefaultTemperature sets the maximum token count for the model.
+// WithDefaultTemperature sets the sampling temperature used when a call does not
+// set one of its own.
 func WithDefaultTemperature(defaultTemperature float64) Option {
 	return func(opts *Options) {
 		opts.DefaultTemperature = defaultTemperature
+		opts.temperatureFromCaller = true
 	}
 }
 
@@ -190,6 +205,7 @@ func WithDefaultTemperature(defaultTemperature float64) Option {
 func WithDefaultTopK(defaultTopK int) Option {
 	return func(opts *Options) {
 		opts.DefaultTopK = defaultTopK
+		opts.topKFromCaller = true
 	}
 }
 
@@ -197,6 +213,7 @@ func WithDefaultTopK(defaultTopK int) Option {
 func WithDefaultTopP(defaultTopP float64) Option {
 	return func(opts *Options) {
 		opts.DefaultTopP = defaultTopP
+		opts.topPFromCaller = true
 	}
 }
 
@@ -234,6 +251,12 @@ const (
 	// HarmBlockNone means all content will be allowed.
 	HarmBlockNone HarmBlockThreshold = "BLOCK_NONE"
 )
+
+// defaultTemperature reports the temperature to send when a call sets none; false
+// leaves the model's own default in force.
+func (o Options) defaultTemperature() (float64, bool) {
+	return o.DefaultTemperature, o.temperatureFromCaller || o.DefaultTemperature != 0
+}
 
 // helper to inspect incoming client options for auth options.
 func hasAuthOptions(opts []option.ClientOption) bool {

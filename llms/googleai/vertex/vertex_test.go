@@ -1,521 +1,190 @@
-package vertex
+package vertex_test
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"strings"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/vxcontrol/langchaingo/httputil"
-	"github.com/vxcontrol/langchaingo/internal/httprr"
-	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/googleai"
-	"github.com/vxcontrol/langchaingo/llms/streaming"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/googleai"
+	"github.com/vxcontrol/langchaingo/llms/googleai/vertex"
 )
 
-func newHTTPRRClient(t *testing.T, opts ...googleai.Option) *Vertex {
+type toLocalServer struct {
+	host string
+	seen *string
+}
+
+func (t *toLocalServer) RoundTrip(req *http.Request) (*http.Response, error) {
+	*t.seen = req.URL.String()
+	req.URL.Scheme = "http"
+	req.URL.Host = t.host
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func vertexAgainstALocalServer(t *testing.T, body string, opts ...googleai.Option) (*vertex.Vertex, *string) {
 	t.Helper()
 
-	// Always check for recordings first - prefer recordings over environment variables
-	if !hasExistingRecording(t) {
-		t.Skip("No httprr recording available. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
-	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, body)
+	}))
+	t.Cleanup(srv.Close)
 
-	// Temporarily unset Google API key environment variable to prevent bypass
-	oldKey := os.Getenv("GOOGLE_API_KEY")
-	os.Unsetenv("GOOGLE_API_KEY")
-	t.Cleanup(func() {
-		if oldKey != "" {
-			os.Setenv("GOOGLE_API_KEY", oldKey)
-		}
-	})
-
-	// Use httputil.DefaultTransport - httprr handles wrapping
-	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
-
-	// Configure client with httprr and test values
-	opts = append(opts,
-		googleai.WithHTTPClient(rr.Client()),
-		googleai.WithCloudProject("test-project"),
-		googleai.WithCloudLocation("us-central1"),
-	)
-
-	llm, err := New(t.Context(), opts...)
-	require.NoError(t, err)
-	return llm
-}
-
-// hasExistingRecording checks if a httprr recording exists for this test
-func hasExistingRecording(t *testing.T) bool {
-	testName := strings.ReplaceAll(t.Name(), "/", "_")
-	testName = strings.ReplaceAll(testName, " ", "_")
-	recordingPath := filepath.Join("testdata", testName+".httprr")
-	_, err := os.Stat(recordingPath)
-	return err == nil
-}
-
-func TestVertexGenerateContent(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("What is the capital of France?"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(t.Context(), content)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-	assert.Contains(t, resp.Choices[0].Content, "Paris")
-}
-
-func TestVertexGenerateContentWithMultipleMessages(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("My name is Bob"),
-			},
-		},
-		{
-			Role: llms.ChatMessageTypeAI,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Nice to meet you, Bob!"),
-			},
-		},
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("What's my name?"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-	assert.Contains(t, resp.Choices[0].Content, "Bob")
-}
-
-func TestVertexGenerateContentWithSystemMessage(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeSystem,
-			Parts: []llms.ContentPart{
-				llms.TextPart("You are a helpful assistant that always responds in haiku format."),
-			},
-		},
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Tell me about the moon"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(t.Context(), content, llms.WithModel("gemini-1.5-flash"))
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-}
-
-func TestVertexCall(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	output, err := llm.Call(t.Context(), "What is 3 + 3?")
-	require.NoError(t, err)
-	assert.NotEmpty(t, output)
-	assert.Contains(t, output, "6")
-}
-
-func TestVertexCreateEmbedding(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	texts := []string{"hello vertex", "goodbye vertex", "hello vertex"}
-
-	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
-	require.NoError(t, err)
-	assert.Len(t, embeddings, 3)
-	assert.NotEmpty(t, embeddings[0])
-	assert.NotEmpty(t, embeddings[1])
-	assert.NotEmpty(t, embeddings[2])
-	// First and third should be identical since they're the same text
-	assert.Equal(t, embeddings[0], embeddings[2])
-}
-
-func TestVertexWithOptions(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t,
-		googleai.WithDefaultModel("gemini-1.5-flash"),
-		googleai.WithDefaultMaxTokens(150),
-		googleai.WithDefaultTemperature(0.2),
-	)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("List the primary colors"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(t.Context(), content)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-}
-
-func TestVertexWithStreaming(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Tell me a short story about a robot"),
-			},
-		},
-	}
-
-	var (
-		streamedContent strings.Builder
-		streamDone      bool
-	)
-	resp, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
-			switch chunk.Type {
-			case streaming.ChunkTypeText:
-				streamedContent.WriteString(chunk.Content)
-			case streaming.ChunkTypeDone:
-				streamDone = true
-			default:
-				// Ignore other chunk types
-			}
-			return nil
+	seen := new(string)
+	llm, err := vertex.New(context.Background(), append([]googleai.Option{
+		googleai.WithCloudProject("hotel-desk"),
+		googleai.WithCloudLocation("europe-west4"),
+		googleai.WithDefaultModel("gemini-2.5-flash"),
+		googleai.WithHTTPClient(&http.Client{
+			Transport: &toLocalServer{host: srv.Listener.Addr().String(), seen: seen},
 		}),
-	)
-
+	}, opts...)...)
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.True(t, streamDone)
-	assert.NotEmpty(t, resp.Choices)
-	assert.NotEmpty(t, streamedContent.String())
-	assert.Contains(t, streamedContent.String(), "robot")
+	return llm, seen
 }
 
-func TestVertexWithTools(t *testing.T) {
-	t.Parallel()
+func TestVertexRefusesToGuessWhereItIs(t *testing.T) {
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "")
 
-	llm := newHTTPRRClient(t)
-
-	tools := []llms.Tool{
-		{
-			Type: "function",
-			Function: &llms.FunctionDefinition{
-				Name:        "getTemperature",
-				Description: "Get the temperature for a location",
-				Parameters: map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"location": map[string]any{
-							"type":        "string",
-							"description": "The location to get temperature for",
-						},
-						"unit": map[string]any{
-							"type":        "string",
-							"description": "Temperature unit (celsius or fahrenheit)",
-							"enum":        []string{"celsius", "fahrenheit"},
-						},
-					},
-					"required": []string{"location"},
-				},
-			},
-		},
-	}
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("What's the temperature in Tokyo?"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithTools(tools),
-	)
-
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-
-	// Check if tool call was made
-	if len(resp.Choices[0].ToolCalls) > 0 {
-		toolCall := resp.Choices[0].ToolCalls[0]
-		assert.Equal(t, "getTemperature", toolCall.FunctionCall.Name)
-		assert.Contains(t, toolCall.FunctionCall.Arguments, "Tokyo")
-	}
+	_, err := vertex.New(context.Background())
+	require.ErrorIs(t, err, vertex.ErrMissingCloudTarget,
+		"a door that reaches one cloud must be told which project and location, not fall back to another backend")
 }
 
-func TestVertexWithJSONMode(t *testing.T) {
-	t.Parallel()
+func TestVertexTakesItsCloudTargetFromTheEnvironment(t *testing.T) {
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "night-porter")
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 
-	llm := newHTTPRRClient(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":1,"totalTokenCount":2}}`)
+	}))
+	t.Cleanup(srv.Close)
 
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("List three animals as a JSON array"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithJSONMode(),
-	)
-
+	seen := new(string)
+	llm, err := vertex.New(context.Background(),
+		googleai.WithDefaultModel("gemini-2.5-flash"),
+		googleai.WithHTTPClient(&http.Client{
+			Transport: &toLocalServer{host: srv.Listener.Addr().String(), seen: seen},
+		}))
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-	// Response should be valid JSON
-	assert.Contains(t, resp.Choices[0].Content, "[")
-	assert.Contains(t, resp.Choices[0].Content, "]")
+
+	_, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+	require.NoError(t, err)
+
+	assert.Contains(t, *seen, "/projects/night-porter/locations/us-central1/",
+		"the environment names the cloud target when the caller does not")
 }
 
-func TestVertexMultiModalContent(t *testing.T) {
+func TestVertexAddressesTheVertexBackend(t *testing.T) {
 	t.Parallel()
 
-	llm := newHTTPRRClient(t)
+	llm, seen := vertexAgainstALocalServer(t,
+		`{"candidates":[{"content":{"role":"model","parts":[{"text":"sixty rooms are free"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":5,"totalTokenCount":8}}`)
 
-	// Create a small test image data
-	imageData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A} // PNG header
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.BinaryPart("image/png", imageData),
-				llms.TextPart("Describe this image"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithModel("gemini-pro-vision"),
-	)
-
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")})
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
+
+	assert.Contains(t, *seen, "-aiplatform.googleapis.com/",
+		"the door must reach Vertex, not the Gemini API")
+	assert.Contains(t, *seen, "/projects/hotel-desk/locations/europe-west4/")
+	require.Len(t, resp.Choices, 1)
+	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	assert.Equal(t, 3, resp.Choices[0].GenerationInfo["PromptTokens"])
 }
 
-func TestVertexBatchEmbedding(t *testing.T) {
+func TestVertexEmbedsThroughTheSameBackend(t *testing.T) {
 	t.Parallel()
 
-	llm := newHTTPRRClient(t)
+	llm, seen := vertexAgainstALocalServer(t,
+		`{"predictions":[{"embeddings":{"values":[0.1,0.2]}}],`+
+			`"embeddings":[{"values":[0.1,0.2]}]}`)
 
-	// Test with more than 100 texts to trigger batching
-	texts := make([]string, 105)
-	for i := range texts {
-		texts[i] = "vertex text " + string(rune('a'+i%26))
-	}
-
-	embeddings, err := llm.CreateEmbedding(t.Context(), texts)
-
+	embeddings, err := llm.CreateEmbedding(context.Background(), []string{"a room"})
 	require.NoError(t, err)
-	assert.Len(t, embeddings, 105)
-	for i, emb := range embeddings {
-		assert.NotEmpty(t, emb, "embedding at index %d should not be empty", i)
-	}
+	require.Len(t, embeddings, 1)
+	assert.Equal(t, []float32{0.1, 0.2}, embeddings[0])
+	assert.Contains(t, *seen, "-aiplatform.googleapis.com/",
+		"embeddings go to the same backend as generation, with no second client")
 }
 
-func TestVertexWithHarmThreshold(t *testing.T) {
-	t.Parallel()
+func vertexRequestBody(t *testing.T, call ...llms.CallOption) map[string]any {
+	t.Helper()
 
-	llm := newHTTPRRClient(t,
-		googleai.WithHarmThreshold(googleai.HarmBlockLowAndAbove),
-	)
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":1,"totalTokenCount":2}}`)
+	}))
+	t.Cleanup(srv.Close)
 
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Tell me about content moderation"),
-			},
-		},
-	}
-
-	resp, err := llm.GenerateContent(t.Context(), content)
+	seen := new(string)
+	llm, err := vertex.New(context.Background(),
+		googleai.WithCloudProject("hotel-desk"), googleai.WithCloudLocation("europe-west4"),
+		googleai.WithDefaultModel("gemini-2.5-flash"),
+		googleai.WithHTTPClient(&http.Client{
+			Transport: &toLocalServer{host: srv.Listener.Addr().String(), seen: seen},
+		}))
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
+
+	_, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, call...)
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(got), &body))
+	return body
 }
 
-func TestVertexToolCallResponse(t *testing.T) {
+func TestVertexCarriesTheThinkingBudgetTheCallerAskedFor(t *testing.T) {
 	t.Parallel()
 
-	llm := newHTTPRRClient(t)
+	body := vertexRequestBody(t, llms.WithReasoning(llms.ReasoningNone, 2048))
 
-	tools := []llms.Tool{
-		{
-			Type: "function",
-			Function: &llms.FunctionDefinition{
-				Name:        "multiply",
-				Description: "Multiply two numbers",
-				Parameters: map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"a": map[string]any{
-							"type":        "number",
-							"description": "First number",
-						},
-						"b": map[string]any{
-							"type":        "number",
-							"description": "Second number",
-						},
-					},
-					"required": []string{"a", "b"},
-				},
-			},
-		},
-	}
-
-	// Initial request
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("What is 12 times 8?"),
-			},
-		},
-	}
-
-	resp1, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithTools(tools),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, resp1)
-
-	// If tool was called, send back response
-	if len(resp1.Choices[0].ToolCalls) > 0 {
-		// Add assistant's tool call to history
-		content = append(content, llms.MessageContent{
-			Role:  llms.ChatMessageTypeAI,
-			Parts: []llms.ContentPart{resp1.Choices[0].ToolCalls[0]},
-		})
-
-		// Add tool response
-		content = append(content, llms.MessageContent{
-			Role: llms.ChatMessageTypeTool,
-			Parts: []llms.ContentPart{
-				llms.ToolCallResponse{
-					Name:    resp1.Choices[0].ToolCalls[0].FunctionCall.Name,
-					Content: "96",
-				},
-			},
-		})
-
-		// Get final response
-		resp2, err := llm.GenerateContent(
-			t.Context(),
-			content,
-			llms.WithTools(tools),
-		)
-		require.NoError(t, err)
-		require.NotNil(t, resp2)
-		assert.Contains(t, resp2.Choices[0].Content, "96")
-	}
+	config, ok := body["generationConfig"].(map[string]any)
+	require.True(t, ok)
+	thinking, ok := config["thinkingConfig"].(map[string]any)
+	require.True(t, ok, "the door used to accept a thinking request and send nothing")
+	assert.Equal(t, float64(2048), thinking["thinkingBudget"])
 }
 
-func TestVertexWithResponseMIMEType(t *testing.T) {
+func TestVertexCarriesTheToolChoiceTheCallerAskedFor(t *testing.T) {
 	t.Parallel()
 
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Return a JSON object with name and age fields"),
+	tools := []llms.Tool{{
+		Type: "function",
+		Function: &llms.FunctionDefinition{
+			Name:        "rooms_free",
+			Description: "how many rooms are free",
+			Parameters: map[string]any{
+				"type":       "object",
+				"properties": map[string]any{"floor": map[string]any{"type": "integer"}},
 			},
 		},
-	}
+	}}
 
-	resp, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithResponseMIMEType("application/json"),
-	)
+	body := vertexRequestBody(t, llms.WithTools(tools), llms.WithToolChoice("required"))
 
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.NotEmpty(t, resp.Choices)
-	// Response should be valid JSON
-	assert.Contains(t, resp.Choices[0].Content, "{")
-	assert.Contains(t, resp.Choices[0].Content, "}")
-}
-
-func TestVertexErrorOnConflictingOptions(t *testing.T) {
-	t.Parallel()
-
-	llm := newHTTPRRClient(t)
-
-	content := []llms.MessageContent{
-		{
-			Role: llms.ChatMessageTypeHuman,
-			Parts: []llms.ContentPart{
-				llms.TextPart("Hello"),
-			},
-		},
-	}
-
-	// Should error when both JSONMode and ResponseMIMEType are set
-	_, err := llm.GenerateContent(
-		t.Context(),
-		content,
-		llms.WithJSONMode(),
-		llms.WithResponseMIMEType("application/json"),
-	)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "conflicting options")
+	config, ok := body["toolConfig"].(map[string]any)
+	require.True(t, ok, "the door used to convert the tools and drop the choice")
+	calling, ok := config["functionCallingConfig"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "ANY", calling["mode"])
 }

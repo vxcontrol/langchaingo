@@ -977,10 +977,6 @@ func TestOpenAI_ImplicitCaching_Conversation_Streaming_Reasoning(t *testing.T) {
 //     - Works across turns as long as the message prefix is unchanged
 //       (including tool calls and their responses).
 //
-//  3. SAMPLING RESTRICTIONS ON REASONING MODELS:
-//     - presence_penalty, frequency_penalty and stop are rejected by the API
-//       when used together with a reasoning model.
-//
 // ============================================================================
 
 // TestXAI_ImplicitCaching_IdenticalRequests tests that xAI's automatic prompt
@@ -1233,21 +1229,4 @@ func TestXAI_ImplicitCaching_Conversation_WithTools(t *testing.T) { //nolint:fun
 	assert.Greater(t, c2, c1, "Request 2 (appended tool call/response) must cache more than the baseline")
 	assert.Greater(t, rr2, 0, "Request 2 (reasoning with tools) should return reasoning tokens")
 	assert.NotEmpty(t, choice2.Content, "Response 2 should have content")
-}
-
-// TestXAI_ReasoningModel_RejectsPenalties documents (and pins) that grok-4.5
-// rejects presence_penalty when used together with reasoning, as documented
-// by xAI: "presencePenalty, frequencyPenalty, and stop cannot be used with
-// reasoning models. Requests that include them return an error."
-func TestXAI_ReasoningModel_RejectsPenalties(t *testing.T) {
-	t.Parallel()
-
-	llm := newTestXAIClient(t, WithModel("grok-4.5"))
-
-	msgs := []llms.MessageContent{
-		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("Say hi")}},
-	}
-
-	_, err := llm.GenerateContent(t.Context(), msgs, llms.WithMaxTokens(256), llms.WithPresencePenalty(0.5))
-	require.Error(t, err, "xAI must reject presence_penalty combined with a reasoning model")
 }

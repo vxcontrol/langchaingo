@@ -1,6 +1,9 @@
 package palm
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,16 +14,23 @@ import (
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 
+	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 func newPalmTestLLM(t *testing.T) *LLM {
 	t.Helper()
 
-	// Always check for recordings first - prefer recordings over environment variables
+	// No recording exists or can be made for any test here: this client talks
+	// gRPC to Vertex AI (palmclient dials a gRPC connection pool and drops any
+	// HTTP client), and httprr records HTTP only. The text tests would fail live
+	// as well, since Google has retired text-bison, the PaLM text model they
+	// call; the embedding tests call text-embedding-005, which is not retired.
 	if !hasExistingRecording(t) {
-		t.Skip("No httprr recording available. Hint: Re-run tests with -httprecord=. to record new HTTP interactions")
+		t.Skip("this client talks gRPC to Vertex AI, which httprr cannot record, so no recording exists " +
+			"or can be made (the text tests also call text-bison, a retired PaLM model)")
 	}
 
 	// Temporarily unset Google API key environment variable to prevent bypass
@@ -135,16 +145,54 @@ func TestPaLMWithOptions(t *testing.T) {
 	assert.NotEmpty(t, resp.Choices)
 }
 
+// TestPaLMRequestTarget pins where a request goes: the regional host of the
+// location, and a model path under the project and the location. The request
+// stops in an interceptor, so nothing leaves the process.
+func TestPaLMRequestTarget(t *testing.T) {
+	t.Parallel()
+
+	errStopped := errors.New("stopped before sending")
+	var target, resource string
+	intercept := func(_ context.Context, _ string, req, _ any, cc *grpc.ClientConn,
+		_ grpc.UnaryInvoker, _ ...grpc.CallOption,
+	) error {
+		target = cc.Target()
+		if predict, ok := req.(*aiplatformpb.PredictRequest); ok {
+			resource = predict.GetEndpoint()
+		}
+		return errStopped
+	}
+	noDial := func(context.Context, string) (net.Conn, error) {
+		return nil, errStopped
+	}
+
+	llm, err := New(
+		WithProjectID("my-project"),
+		WithLocation("europe-west4"),
+		WithAPIKey("test-api-key"),
+		WithGRPCDialOption(grpc.WithContextDialer(noDial)),
+		WithGRPCDialOption(grpc.WithChainUnaryInterceptor(intercept)),
+	)
+	require.NoError(t, err)
+
+	_, err = llm.CreateEmbedding(t.Context(), []string{"hello world"})
+	require.ErrorIs(t, err, errStopped)
+	assert.Equal(t, "europe-west4-aiplatform.googleapis.com:443", target)
+	assert.Equal(t, "projects/my-project/locations/europe-west4/publishers/google/models/text-embedding-005", resource)
+}
+
 func TestPaLMErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	// Test missing project ID
-	_, err := New(WithLocation("us-central1"))
+	// Empty values override GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION, so
+	// the result does not depend on the environment.
+	_, err := New(WithLocation("us-central1"), WithProjectID(""))
 	assert.Error(t, err)
 	assert.Equal(t, ErrMissingProjectID, err)
 
 	// Test missing location
-	_, err = New(WithProjectID("test-project"))
+	_, err = New(WithProjectID("test-project"), WithLocation(""))
 	assert.Error(t, err)
 	assert.Equal(t, ErrMissingLocation, err)
 }

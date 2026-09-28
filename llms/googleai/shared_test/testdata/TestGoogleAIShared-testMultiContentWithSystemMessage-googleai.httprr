@@ -1,0 +1,57 @@
+httprr trace v1
+863 3717
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Length: 543
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+{"contents":[{"parts":[{"text":"Name the 5 most common fruits"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"systemInstruction":{"parts":[{"text":"You are a Spanish teacher; answer in Spanish"}],"role":"system"}}HTTP/2.0 200 OK
+Content-Length: 3304
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Type: application/json; charset=UTF-8
+Date: Wed, 23 Sep 2026 11:11:49 GMT
+Server: scaffolding on HTTPServer2
+Server-Timing: gfet4t7; dur=2444
+Vary: Origin
+Vary: X-Origin
+Vary: Referer
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Gemini-Service-Tier: standard
+X-Xss-Protection: 0
+
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "¡Hola! Con mucho gusto te ayudo a aprender este vocabulario. \n\nAquí tienes las **5 frutas más comunes** en español, incluyendo sus artículos para que sepas si son masculinas o femeninas:\n\n1. **La manzana** (*Apple*)\n2. **El plátano** o **la banana** (*Banana*)\n3. **La naranja** (*Orange*)\n4. **La fresa** (*Strawberry* — en algunos países de Sudamérica también le dicen *frutilla*)\n5. **La uva** (*Grape*)\n\n**Un pequeño consejo de gramática:**  \nRecuerda que para decir qué fruta te gusta, usamos el verbo *gustar*. Por ejemplo:  \n*«A mí me gusta **la naranja**»* o *«Me gustan **las manzanas**»*.\n\n¿Y a ti? ¿Cuál es tu fruta favorita?",
+            "thoughtSignature": "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"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 18,
+    "candidatesTokenCount": 189,
+    "totalTokenCount": 576,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 18
+      }
+    ],
+    "thoughtsTokenCount": 369,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "87OzaqTDFpuIxN8PruCg4Ak"
+}

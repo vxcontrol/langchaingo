@@ -55,7 +55,7 @@ func WithExtendedOutput() llms.CallOption {
 //
 //	llm.GenerateContent(ctx, messages,
 //	    llms.WithTools(tools),
-//	    llms.WithThinkingMode(llms.ThinkingModeMedium),
+//	    llms.WithReasoning(llms.ReasoningMedium, 0),
 //	    anthropic.WithInterleavedThinking(),
 //	)
 func WithInterleavedThinking() llms.CallOption {
@@ -65,9 +65,9 @@ func WithInterleavedThinking() llms.CallOption {
 		}
 		// Add to existing headers if present
 		if existing, ok := opts.Metadata["anthropic:beta_headers"].([]string); ok {
-			opts.Metadata["anthropic:beta_headers"] = append(existing, "interleaved-thinking-2025-05-14")
+			opts.Metadata["anthropic:beta_headers"] = append(existing, anthropicInterleavedThinkingBeta)
 		} else {
-			opts.Metadata["anthropic:beta_headers"] = []string{"interleaved-thinking-2025-05-14"}
+			opts.Metadata["anthropic:beta_headers"] = []string{anthropicInterleavedThinkingBeta}
 		}
 	}
 }
