@@ -38,15 +38,24 @@ func TestStreamWithoutCandidatesIsNotASilentSuccess(t *testing.T) {
 	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
 	sink := func(context.Context, streaming.Chunk) error { return nil }
 
-	resp, err := llm.GenerateContent(context.Background(), msgs,
-		llms.WithMaxTokens(24), llms.WithStreamingFunc(sink))
+	for name, opts := range map[string][]llms.CallOption{
+		"default limit": {llms.WithStreamingFunc(sink)},
+		"large limit":   {llms.WithMaxTokens(65536), llms.WithStreamingFunc(sink)},
+		"tiny limit":    {llms.WithMaxTokens(24), llms.WithStreamingFunc(sink)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	require.Error(t, err, "an empty answer with no stop reason must not look like a success")
-	var apiErr *llms.Error
-	require.ErrorAs(t, err, &apiErr)
-	assert.Equal(t, llms.ErrCodeTokenLimit, apiErr.Code)
-	require.NotNil(t, resp)
-	assert.Empty(t, resp.Choices[0].Content)
+			resp, err := llm.GenerateContent(context.Background(), msgs, opts...)
+
+			require.ErrorIs(t, err, ErrNoContentInResponse,
+				"an empty stream must fail the way an empty non-streaming answer does")
+			assert.False(t, llms.IsTokenLimitError(err),
+				"the vendor gave no stop reason, so the budget is not a known cause")
+			require.NotNil(t, resp)
+			assert.Empty(t, resp.Choices[0].Content)
+		})
+	}
 }
 
 type failedStream struct{}

@@ -40,6 +40,8 @@ var (
 	ErrContentIndexOutOfRange     = fmt.Errorf("content index out of range")
 	ErrFailedCastToTextContent    = fmt.Errorf("failed to cast content to TextContent")
 	ErrInvalidFieldType           = fmt.Errorf("invalid field type")
+
+	errStreamEnded = errors.New("stream ended by an error event")
 )
 
 const (
@@ -196,6 +198,20 @@ type ToolUseContent struct {
 	Signature    string                 `json:"signature,omitempty"`
 
 	rawStreamInput string
+	streamOpen     bool
+}
+
+// DropUnfinishedToolUses removes the tool_use blocks whose stream ended before
+// their content_block_stop, so a partial answer carries no half-sent call.
+func (m *MessageResponsePayload) DropUnfinishedToolUses() {
+	kept := m.Content[:0]
+	for _, content := range m.Content {
+		if tuc, ok := content.(*ToolUseContent); ok && tuc.streamOpen {
+			continue
+		}
+		kept = append(kept, content)
+	}
+	m.Content = kept
 }
 
 func (tuc *ToolUseContent) AppendStreamChunk(chunk string) {
@@ -442,6 +458,9 @@ func parseStreamingMessageResponse(
 				return
 			}
 			response, err = processStreamEvent(ctx, event, payload, response, eventChan)
+			if errors.Is(err, errStreamEnded) {
+				return
+			}
 			if err != nil {
 				partial := response
 				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)}
@@ -525,7 +544,7 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "content_block_delta":
 		return handleContentBlockDeltaEvent(ctx, event, response, payload)
 	case "content_block_stop":
-		return handleContentBlockStopEvent(response)
+		return handleContentBlockStopEvent(event, response)
 	case "message_delta":
 		return handleMessageDeltaEvent(event, response)
 	case "message_stop":
@@ -535,6 +554,7 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "error":
 		partial := response
 		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)}
+		return response, errStreamEnded
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)
 	}
@@ -563,6 +583,8 @@ func handleMessageStartEvent(event map[string]interface{}, response MessageRespo
 	response.Role = getString(message, "role")
 	response.Type = getString(message, "type")
 	response.Usage.InputTokens = int(inputTokens)
+	response.Usage.ServiceTier = getString(usage, "service_tier")
+	response.Usage.Speed = getString(usage, "speed")
 
 	// Capture cache token information if present
 	if cacheCreationTokens, err := getFloat64(usage, "cache_creation_input_tokens"); err == nil {
@@ -599,10 +621,11 @@ func handleContentBlockStartEvent(event map[string]interface{}, response Message
 			})
 		case EventTypeToolUse:
 			response.Content = append(response.Content, &ToolUseContent{
-				Type:  eventType,
-				ID:    getString(cb, "id"),
-				Name:  getString(cb, "name"),
-				Input: getMap(cb, "input"),
+				Type:       eventType,
+				ID:         getString(cb, "id"),
+				Name:       getString(cb, "name"),
+				Input:      getMap(cb, "input"),
+				streamOpen: true,
 			})
 		case EventTypeThinking:
 			response.Content = append(response.Content, &ThinkingContent{
@@ -769,7 +792,7 @@ func handleSignatureDelta(_ context.Context, delta map[string]interface{},
 	return response, nil // no need to inform about this delta event
 }
 
-func handleContentBlockStopEvent(response MessageResponsePayload) (MessageResponsePayload, error) {
+func handleContentBlockStopEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
 	for _, content := range response.Content {
 		if content == nil {
 			continue
@@ -782,6 +805,11 @@ func handleContentBlockStopEvent(response MessageResponsePayload) (MessageRespon
 		err := tuc.DecodeStream()
 		if err != nil {
 			return response, fmt.Errorf("error decoding stream tool data: %w", err)
+		}
+	}
+	if index, ok := event["index"].(float64); ok && int(index) < len(response.Content) {
+		if tuc, ok := response.Content[int(index)].(*ToolUseContent); ok {
+			tuc.streamOpen = false
 		}
 	}
 

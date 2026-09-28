@@ -521,7 +521,7 @@ StreamEnd:
 	if streamErr != nil {
 		return resp, streamErr
 	}
-	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0], opts); err != nil {
+	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0]); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -1213,13 +1213,10 @@ func blockedPromptError(feedback *genai.GenerateContentResponsePromptFeedback) e
 	}
 }
 
-// checkEmptyStream reports a stream that ended without an answer: a blocked
-// prompt, or an output limit too small to start an answer.
 func checkEmptyStream(
 	lastCandidate *genai.Candidate,
 	blockReason *genai.GenerateContentResponsePromptFeedback,
 	choice *llms.ContentChoice,
-	opts *llms.CallOptions,
 ) error {
 	if lastCandidate != nil {
 		return nil
@@ -1230,14 +1227,7 @@ func checkEmptyStream(
 	if err := blockedPromptError(blockReason); err != nil {
 		return err
 	}
-	if opts == nil || opts.MaxTokens == nil || *opts.MaxTokens <= 0 {
-		return nil
-	}
-	return &llms.Error{
-		Code:     llms.ErrCodeTokenLimit,
-		Message:  "the model returned no candidates: max_tokens is too small to start an answer",
-		Provider: providerGoogleAI,
-	}
+	return ErrNoContentInResponse
 }
 
 // thinkingLevelForEffort maps a reasoning effort to a Gemini thinking_level.
