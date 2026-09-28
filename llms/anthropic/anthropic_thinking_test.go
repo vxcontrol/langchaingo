@@ -787,28 +787,30 @@ func TestAnthropic_ReasoningDisabled(t *testing.T) {
 		assert.False(t, hasThinking, "off on a default-off model omits thinking")
 	})
 
-	t.Run("always-on model errors before sending", func(t *testing.T) {
-		t.Parallel()
-		called := false
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			called = true
-			w.WriteHeader(http.StatusOK)
-		}))
-		t.Cleanup(srv.Close)
+	for _, model := range []string{"claude-fable-5", "claude-opus-5-5"} {
+		t.Run("always-on model errors before sending: "+model, func(t *testing.T) {
+			t.Parallel()
+			called := false
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				called = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			t.Cleanup(srv.Close)
 
-		llm, err := anthropic.New(
-			anthropic.WithToken("test-key"),
-			anthropic.WithBaseURL(srv.URL),
-			anthropic.WithModel("claude-fable-5"),
-		)
-		require.NoError(t, err)
+			llm, err := anthropic.New(
+				anthropic.WithToken("test-key"),
+				anthropic.WithBaseURL(srv.URL),
+				anthropic.WithModel(model),
+			)
+			require.NoError(t, err)
 
-		messages := []llms.MessageContent{{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}}}
-		_, err = llm.GenerateContent(t.Context(), messages, llms.WithReasoningDisabled(), llms.WithMaxTokens(64))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cannot be disabled")
-		assert.False(t, called, "must not reach the API when off is unsupported")
-	})
+			messages := []llms.MessageContent{{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}}}
+			_, err = llm.GenerateContent(t.Context(), messages, llms.WithReasoningDisabled(), llms.WithMaxTokens(64))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot be disabled")
+			assert.False(t, called, "must not reach the API when off is unsupported")
+		})
+	}
 }
 
 func TestAnthropic_AdaptiveThinkingRequest(t *testing.T) {
