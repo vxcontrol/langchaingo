@@ -562,6 +562,8 @@ func handleMessageStartEvent(event map[string]interface{}, response MessageRespo
 	response.Role = getString(message, "role")
 	response.Type = getString(message, "type")
 	response.Usage.InputTokens = int(inputTokens)
+	response.Usage.ServiceTier = getString(usage, "service_tier")
+	response.Usage.Speed = getString(usage, "speed")
 
 	// Capture cache token information if present
 	if cacheCreationTokens, err := getFloat64(usage, "cache_creation_input_tokens"); err == nil {
