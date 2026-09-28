@@ -77,6 +77,17 @@ func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {
 	return ToolChoiceUnset, ""
 }
 
+// DisablesParallelToolUse reports whether a raw map choice asks for at most one
+// tool call per turn, Anthropic's disable_parallel_tool_use.
+func DisablesParallelToolUse(choice any) bool {
+	c, ok := choice.(map[string]any)
+	if !ok {
+		return false
+	}
+	disabled, _ := c["disable_parallel_tool_use"].(bool)
+	return disabled
+}
+
 // ForcesToolUse reports whether a tool choice demands a tool call rather than
 // leaving the decision to the model.
 func ForcesToolUse(choice any) bool {

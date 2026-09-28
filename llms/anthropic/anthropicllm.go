@@ -1064,13 +1064,14 @@ func anthropicToolChoiceWith(tools []anthropicclient.Tool, choice any) any {
 }
 
 func anthropicToolChoice(choice any) any {
+	oneCall := llms.DisablesParallelToolUse(choice)
 	switch kind, name := llms.ClassifyToolChoice(choice); kind {
 	case llms.ToolChoiceNamed:
-		return anthropicclient.ToolChoice{Type: "tool", Name: name}
+		return anthropicclient.ToolChoice{Type: "tool", Name: name, DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceAny:
-		return anthropicclient.ToolChoice{Type: "any"}
+		return anthropicclient.ToolChoice{Type: "any", DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceAuto:
-		return anthropicclient.ToolChoice{Type: "auto"}
+		return anthropicclient.ToolChoice{Type: "auto", DisableParallelToolUse: oneCall}
 	case llms.ToolChoiceNone:
 		return anthropicclient.ToolChoice{Type: "none"}
 	default:

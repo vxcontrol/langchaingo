@@ -392,18 +392,23 @@ func anthropicToolChoiceOnWire(choice any, hasTools bool) any {
 	if !hasTools {
 		return nil
 	}
+	var wire map[string]any
 	switch kind, name := llms.ClassifyToolChoice(choice); kind {
 	case llms.ToolChoiceNamed:
-		return map[string]any{"type": "tool", "name": name}
+		wire = map[string]any{"type": "tool", "name": name}
 	case llms.ToolChoiceAny:
-		return map[string]any{"type": "any"}
+		wire = map[string]any{"type": "any"}
 	case llms.ToolChoiceAuto:
-		return map[string]any{"type": "auto"}
+		wire = map[string]any{"type": "auto"}
 	case llms.ToolChoiceNone:
 		return map[string]any{"type": "none"}
 	default:
 		return nil
 	}
+	if llms.DisablesParallelToolUse(choice) {
+		wire["disable_parallel_tool_use"] = true
+	}
+	return wire
 }
 
 func mergeAnthropicUsage(into anthropicUsage, updates ...anthropicUsage) anthropicUsage {

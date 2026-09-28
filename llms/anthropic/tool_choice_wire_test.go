@@ -55,6 +55,16 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 			"required",
 			map[string]any{"type": "any"},
 		},
+		{
+			"named, one call per turn",
+			map[string]any{"type": "tool", "name": "get_weather", "disable_parallel_tool_use": true},
+			map[string]any{"type": "tool", "name": "get_weather", "disable_parallel_tool_use": true},
+		},
+		{
+			"any tool, one call per turn",
+			map[string]any{"type": "any", "disable_parallel_tool_use": true},
+			map[string]any{"type": "any", "disable_parallel_tool_use": true},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -74,6 +84,11 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 		want   map[string]any
 	}{
 		{"auto as a raw map", map[string]any{"type": "auto"}, map[string]any{"type": "auto"}},
+		{
+			"auto, one call per turn",
+			map[string]any{"type": "auto", "disable_parallel_tool_use": true},
+			map[string]any{"type": "auto", "disable_parallel_tool_use": true},
+		},
 		{"auto as a bare string", "auto", map[string]any{"type": "auto"}},
 		{"auto as a struct", llms.ToolChoice{Type: "auto"}, map[string]any{"type": "auto"}},
 		{"none as a bare string", "none", map[string]any{"type": "none"}},

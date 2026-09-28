@@ -84,3 +84,10 @@ func TestLegacyClaudeSendsNoToolChoiceWithoutTools(t *testing.T) {
 		assert.NotNil(t, anthropicToolChoiceOnWire(choice, true), "%v with tools", choice)
 	}
 }
+
+func TestLegacyClaudeKeepsOneCallPerTurn(t *testing.T) {
+	t.Parallel()
+
+	got := anthropicToolChoiceOnWire(map[string]any{"type": "auto", "disable_parallel_tool_use": true}, true)
+	assert.Equal(t, map[string]any{"type": "auto", "disable_parallel_tool_use": true}, got)
+}

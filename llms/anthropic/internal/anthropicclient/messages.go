@@ -114,8 +114,9 @@ type Tool struct {
 }
 
 type ToolChoice struct {
-	Type string `json:"type"`
-	Name string `json:"name,omitempty"`
+	Type                   string `json:"type"`
+	Name                   string `json:"name,omitempty"`
+	DisableParallelToolUse bool   `json:"disable_parallel_tool_use,omitempty"`
 }
 
 // CacheControl represents Anthropic's prompt caching configuration.
