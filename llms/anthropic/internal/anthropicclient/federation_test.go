@@ -290,3 +290,66 @@ func TestStaticKeyStillSendsAPIKeyHeader(t *testing.T) {
 	require.Equal(t, []string{"sk-ant-static"}, apiKey)
 	require.Equal(t, []string{""}, auths)
 }
+
+func TestFederationKeepsServingAShortTokenWhileARefreshFails(t *testing.T) {
+	t.Parallel()
+
+	stub := newFederationStub(t)
+	stub.lifetime = 60
+	c, auth := stub.client(t, FederationConfig{
+		RuleID:           "fdrl_rule",
+		OrganizationID:   "org",
+		ServiceAccountID: "svac_account",
+		Assertion:        fixedAssertion("jwt"),
+	})
+	start := time.Now()
+	now := start
+	auth.now = func() time.Time { return now }
+
+	call := func() error {
+		resp, err := c.request(context.Background(), http.MethodGet, "/models", http.NoBody, nil)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		return err
+	}
+
+	require.NoError(t, call())
+	stub.mu.Lock()
+	stub.exchangeStatus = http.StatusUnauthorized
+	stub.mu.Unlock()
+
+	now = start.Add(20 * time.Second)
+	require.NoError(t, call(), "a refresh ahead of the mandatory window may fail while the token still serves")
+
+	now = start.Add(31 * time.Second)
+	require.Error(t, call(), "inside the last 30 seconds a failed refresh is an error")
+
+	_, _, auths, _ := stub.counts()
+	require.Equal(t, []string{"Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt"}, auths)
+}
+
+func TestFederationRefreshesTwoMinutesAheadOfExpiry(t *testing.T) {
+	t.Parallel()
+
+	stub := newFederationStub(t)
+	c, auth := stub.client(t, FederationConfig{
+		RuleID:           "fdrl_rule",
+		OrganizationID:   "org",
+		ServiceAccountID: "svac_account",
+		Assertion:        fixedAssertion("jwt"),
+	})
+	start := time.Now()
+	now := start
+	auth.now = func() time.Time { return now }
+
+	for _, at := range []time.Duration{0, 3600*time.Second - 121*time.Second, 3600*time.Second - 119*time.Second} {
+		now = start.Add(at)
+		resp, err := c.request(context.Background(), http.MethodGet, "/models", http.NoBody, nil)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+	}
+
+	exchanges, _, _, _ := stub.counts()
+	require.Equal(t, 2, exchanges, "the token is reused until 120 seconds before expiry, then refreshed")
+}

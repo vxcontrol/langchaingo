@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	jwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
-	tokenExchangePath  = "/oauth/token"
-	tokenRefreshSkew   = 60 * time.Second
+	jwtBearerGrantType    = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	tokenExchangePath     = "/oauth/token"
+	tokenAdvisoryRefresh  = 120 * time.Second
+	tokenMandatoryRefresh = 30 * time.Second
 )
 
 // ErrFederationIncomplete is returned when a federation config omits a field the
@@ -98,26 +99,33 @@ func (f *federatedAuth) accessToken(ctx context.Context) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.token != "" && f.now().Add(tokenRefreshSkew).Before(f.expiresAt) {
+	now := f.now()
+	if f.token != "" && now.Add(tokenAdvisoryRefresh).Before(f.expiresAt) {
 		return f.token, nil
 	}
 
-	assertion, err := f.cfg.Assertion(ctx)
+	token, lifetime, err := f.refresh(ctx)
 	if err != nil {
-		return "", err
-	}
-	if assertion == "" {
-		return "", fmt.Errorf("%w: assertion source returned an empty token", ErrFederationIncomplete)
-	}
-
-	token, lifetime, err := f.exchange(ctx, assertion)
-	if err != nil {
+		if f.token != "" && now.Add(tokenMandatoryRefresh).Before(f.expiresAt) {
+			return f.token, nil
+		}
 		return "", err
 	}
 
 	f.token = token
 	f.expiresAt = f.now().Add(lifetime)
 	return token, nil
+}
+
+func (f *federatedAuth) refresh(ctx context.Context) (string, time.Duration, error) {
+	assertion, err := f.cfg.Assertion(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	if assertion == "" {
+		return "", 0, fmt.Errorf("%w: assertion source returned an empty token", ErrFederationIncomplete)
+	}
+	return f.exchange(ctx, assertion)
 }
 
 type tokenExchangePayload struct {
