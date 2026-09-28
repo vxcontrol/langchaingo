@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -98,6 +99,21 @@ func isSimpleType(t reflect.Type) bool {
 	}
 }
 
+func modelNamedByID(modelID string) (string, bool) {
+	if !strings.HasPrefix(modelID, "arn:") {
+		return modelID, true
+	}
+	parts := strings.SplitN(modelID, ":", 6)
+	if len(parts) < 6 {
+		return "", false
+	}
+	kind, model, _ := strings.Cut(parts[5], "/")
+	if kind == "foundation-model" || kind == "inference-profile" {
+		return model, true
+	}
+	return "", false
+}
+
 // applyConverseStructuredOutput sets the native Converse OutputConfig.TextFormat
 // from a per-call schema.
 func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockruntime.ConverseInput) error {
@@ -105,14 +121,15 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	if so == nil {
 		return nil
 	}
-	if isAnthropicModelID(input.ModelID) && !reasoning.ClaudeSupportsStructuredOutputOnBedrock(input.ModelID) {
+	model, named := modelNamedByID(input.ModelID)
+	if named && isAnthropicModelID(model) && !reasoning.ClaudeSupportsStructuredOutputOnBedrock(model) {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerBedrock,
 			Model:    input.ModelID,
 			Reason:   bedrockClaudeStructuredOutputReason,
 		}
 	}
-	if !isAnthropicModelID(input.ModelID) && !reasoning.BedrockSupportsStructuredOutput(input.ModelID) {
+	if named && !isAnthropicModelID(model) && !reasoning.BedrockSupportsStructuredOutput(model) {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerBedrock,
 			Model:    input.ModelID,

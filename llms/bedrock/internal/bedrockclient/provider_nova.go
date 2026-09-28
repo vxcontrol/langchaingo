@@ -176,7 +176,12 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		TopP:          options.GetTopP(),
 		StopSequences: options.StopWords,
 	}
-	if options.Reasoning.ResolveMode() == llms.ReasoningOn && reasoning.IsNovaReasoningModel(modelID) {
+	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
+		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled"}
+		if options.MaxTokens == nil {
+			inferenceConfig.MaxTokens = 0
+		}
+	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn && reasoning.IsNovaReasoningModel(modelID) {
 		effort := reasoning.NovaEffort(string(options.Reasoning.GetEffort(options.GetMaxTokens())))
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}
 		if reasoning.NovaClearsInferenceConfigAt(effort) {
@@ -284,8 +289,8 @@ func createNovaCompletion(ctx context.Context,
 			StopReason: output.StopReason,
 			Truncated:  llms.IsTruncated(output.StopReason),
 			GenerationInfo: map[string]any{
-				"input_tokens":  output.Usage.InputTokens,
-				"output_tokens": output.Usage.OutputTokens,
+				"input_tokens":  int(output.Usage.InputTokens),
+				"output_tokens": int(output.Usage.OutputTokens),
 				// Standardized field names for cross-provider compatibility
 				"PromptTokens":     int(output.Usage.InputTokens),
 				"CompletionTokens": int(output.Usage.OutputTokens),
@@ -470,11 +475,11 @@ DoStream:
 				contentchoices[0].Truncated = llms.IsTruncated(resp.MessageStop.StopReason)
 			}
 			if resp.Metadata.Usage.InputTokens > 0 {
-				contentchoices[0].GenerationInfo["input_tokens"] = resp.Metadata.Usage.InputTokens
+				contentchoices[0].GenerationInfo["input_tokens"] = int(resp.Metadata.Usage.InputTokens)
 				contentchoices[0].GenerationInfo["PromptTokens"] = int(resp.Metadata.Usage.InputTokens)
 			}
 			if resp.Metadata.Usage.OutputTokens > 0 {
-				contentchoices[0].GenerationInfo["output_tokens"] = resp.Metadata.Usage.OutputTokens
+				contentchoices[0].GenerationInfo["output_tokens"] = int(resp.Metadata.Usage.OutputTokens)
 				contentchoices[0].GenerationInfo["CompletionTokens"] = int(resp.Metadata.Usage.OutputTokens)
 			}
 			prompt, _ := contentchoices[0].GenerationInfo["PromptTokens"].(int)

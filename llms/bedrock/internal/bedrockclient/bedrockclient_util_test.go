@@ -405,3 +405,40 @@ func TestLegacyAnthropic_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T
 		require.NotNil(t, input.OutputConfig, model)
 	}
 }
+
+func TestConverse_StructuredOutput_ReadsTheModelBehindAnARN(t *testing.T) {
+	send := func(model string) (*bedrockruntime.ConverseInput, error) {
+		mockClient := &MockBedrockRuntimeClient{}
+		var captured *bedrockruntime.ConverseInput
+		mockClient.On("Converse", mock.Anything, mock.MatchedBy(func(in *bedrockruntime.ConverseInput) bool {
+			captured = in
+			return true
+		}), mock.Anything).Return(textOutput(`{"answer":"ok"}`, types.StopReasonEndTurn), nil)
+		_, err := NewConverseClient(mockClient).CreateCompletionConverse(t.Context(), &ConverseInput{
+			ModelID:          model,
+			Messages:         []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			StructuredOutput: soConfig(),
+		})
+		return captured, err
+	}
+
+	for _, model := range []string{
+		"arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/a1b2c3d4e5f6",
+		"arn:aws:bedrock:us-east-1:123456789012:provisioned-model/a1b2c3d4e5f6",
+		"arn:aws:bedrock:us-east-1::foundation-model/zai.glm-5",
+		"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+	} {
+		captured, err := send(model)
+		require.NoError(t, err, "%s: Bedrock decides for a model the id does not name, or names as listed", model)
+		require.NotNil(t, captured.OutputConfig, model)
+	}
+
+	for _, model := range []string{
+		"arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0",
+		"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.amazon.nova-pro-v1:0",
+	} {
+		_, err := send(model)
+		var unsup *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &unsup, "%s: a named model the cards do not list is still refused", model)
+	}
+}
