@@ -410,7 +410,8 @@ func (o *LLM) setReasoning(
 	}
 
 	mode := opts.Reasoning.ResolveMode()
-	if opts.Reasoning.DelegatesDepth() && !o.claudeThinksOnlyAtAnAskedDepth(model) {
+	pickedForTheCaller := opts.Reasoning.DelegatesDepth() && o.claudeThinksOnlyAtAnAskedDepth(model)
+	if opts.Reasoning.DelegatesDepth() && !pickedForTheCaller {
 		mode = llms.ReasoningDefault
 	}
 	switch mode { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
@@ -442,6 +443,7 @@ func (o *LLM) setReasoning(
 	budget, effortBudget := budgetsFor(model, opts, reasoningEffort, reasoningTokens)
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
 	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
+	reportDelegatedDepth(warn, model, pickedForTheCaller, wire)
 	return wire, nil
 }
 

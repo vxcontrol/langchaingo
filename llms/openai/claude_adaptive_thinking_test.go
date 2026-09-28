@@ -259,6 +259,11 @@ func TestDelegatedAdaptiveThinksAtHighWhereNoAdaptiveObjectGoesOut(t *testing.T)
 				t.Errorf("the model cannot pick its own depth here, so thinking goes out at high\n got: %s\nwant: %s",
 					delegated, high)
 			}
+
+			resp, _ := sendForWarningsWith(t, tc.model, tc.client, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+			if w := warningFor(t, resp, "WithAdaptiveReasoning"); w.Kind != llms.WarningSubstitute || w.Sent != "high" {
+				t.Errorf("the caller must learn the depth was picked for it, got %+v", w)
+			}
 		})
 	}
 }
