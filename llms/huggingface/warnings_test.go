@@ -153,5 +153,5 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 
 	w, ok := hfWarningsByOption(resp.Warnings)["WithExtraBody"]
 	require.True(t, ok)
-	require.NotContains(t, w.Reason, "SDK", "this door marshals its own payload")
+	require.Equal(t, "the door does not forward extra body fields", w.Reason, "this door marshals its own payload")
 }

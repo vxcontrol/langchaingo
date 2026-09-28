@@ -1504,3 +1504,34 @@ func TestACallsBetaHeadersJoinTheClientsOwn(t *testing.T) {
 		[]string{"context-1m-2025-08-07", "fast-mode-2026-02-01", "custom-2026-01-01"}, strings.Split(got, ","),
 		"both options add a beta, so a call's betas must not erase the client's")
 }
+
+func TestTheBetaHeaderCarriesEachBetaOnce(t *testing.T) {
+	t.Parallel()
+
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		got = r.Header.Get("Anthropic-Beta")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"msg_test","type":"message","role":"assistant","model":"claude-opus-5",` +
+			`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	for name, tc := range map[string]struct {
+		client []anthropic.Option
+		want   string
+	}{
+		"no client beta":        {nil, "fast-mode-2026-02-01"},
+		"the same beta on both": {[]anthropic.Option{anthropic.WithAnthropicBetaHeader("fast-mode-2026-02-01")}, "fast-mode-2026-02-01"},
+	} {
+		llm, err := anthropic.New(append([]anthropic.Option{anthropic.WithToken("test-key"), anthropic.WithBaseURL(srv.URL),
+			anthropic.WithModel("claude-opus-5")}, tc.client...)...)
+		require.NoError(t, err)
+
+		_, err = llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithInferenceSpeed("fast"))
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, got, name)
+	}
+}

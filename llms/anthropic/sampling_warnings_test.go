@@ -252,7 +252,7 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 	resp := generateForWarnings(t, llms.WithExtraBody(map[string]any{"metadata": map[string]any{"user_id": "u"}}))
 	for _, w := range resp.Warnings {
 		if w.Option == "WithExtraBody" {
-			require.NotContains(t, w.Reason, "SDK", "this door marshals its own payload")
+			require.Equal(t, "the door does not forward extra body fields", w.Reason, "this door marshals its own payload")
 			return
 		}
 	}

@@ -319,14 +319,16 @@ func TestFederationKeepsServingAShortTokenWhileARefreshFails(t *testing.T) {
 	stub.exchangeStatus = http.StatusUnauthorized
 	stub.mu.Unlock()
 
-	now = start.Add(20 * time.Second)
-	require.NoError(t, call(), "a refresh ahead of the mandatory window may fail while the token still serves")
+	for _, at := range []time.Duration{20 * time.Second, 29 * time.Second} {
+		now = start.Add(at)
+		require.NoError(t, call(), "at %s a failed refresh still serves the live token", at)
+	}
 
-	now = start.Add(31 * time.Second)
+	now = start.Add(30*time.Second + 500*time.Millisecond)
 	require.Error(t, call(), "inside the last 30 seconds a failed refresh is an error")
 
 	_, _, auths, _ := stub.counts()
-	require.Equal(t, []string{"Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt"}, auths)
+	require.Equal(t, []string{"Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt"}, auths)
 }
 
 func TestFederationRefreshesTwoMinutesAheadOfExpiry(t *testing.T) {
@@ -343,13 +345,20 @@ func TestFederationRefreshesTwoMinutesAheadOfExpiry(t *testing.T) {
 	now := start
 	auth.now = func() time.Time { return now }
 
-	for _, at := range []time.Duration{0, 3600*time.Second - 121*time.Second, 3600*time.Second - 119*time.Second} {
-		now = start.Add(at)
+	for _, step := range []struct {
+		at        time.Duration
+		exchanges int
+	}{
+		{0, 1},
+		{3600*time.Second - 121*time.Second, 1},
+		{3600*time.Second - 119500*time.Millisecond, 2},
+	} {
+		now = start.Add(step.at)
 		resp, err := c.request(context.Background(), http.MethodGet, "/models", http.NoBody, nil)
 		require.NoError(t, err)
 		require.NoError(t, resp.Body.Close())
-	}
 
-	exchanges, _, _, _ := stub.counts()
-	require.Equal(t, 2, exchanges, "the token is reused until 120 seconds before expiry, then refreshed")
+		exchanges, _, _, _ := stub.counts()
+		require.Equal(t, step.exchanges, exchanges, "at %s: reused until 120 seconds before expiry, then refreshed", step.at)
+	}
 }
