@@ -1,7 +1,6 @@
 package googleai
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -87,7 +86,6 @@ func TestAnAPIKeyAuthenticatesTheGeminiAPIWhenCredentialsAreAlsoNamed(t *testing
 		llm, err := New(t.Context(), WithAPIKey("the-callers-key"), opt,
 			WithEndpoint(server.URL), WithDefaultModel("gemini-2.5-flash"))
 		require.NoError(t, err, name)
-		assert.NotContains(t, fmt.Sprint(err), "the-callers-key", name)
 
 		_, err = llm.GenerateContent(t.Context(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})

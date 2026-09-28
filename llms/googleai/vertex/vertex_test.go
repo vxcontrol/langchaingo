@@ -72,11 +72,14 @@ func TestVertexFallsBackToTheRegionTheBaseResolved(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	for _, tc := range []struct{ region, mlRegion, want string }{
-		{"", "", "us-central1"},
-		{"europe-west4", "", "europe-west4"},
-		{"", "asia-east1", "asia-east1"},
+	for _, tc := range []struct{ location, region, mlRegion, want string }{
+		{"", "", "", "us-central1"},
+		{"", "europe-west4", "", "europe-west4"},
+		{"", "", "asia-east1", "asia-east1"},
+		{"me-central1", "europe-west4", "asia-east1", "me-central1"},
+		{"", "europe-west4", "asia-east1", "europe-west4"},
 	} {
+		t.Setenv("GOOGLE_CLOUD_LOCATION", tc.location)
 		t.Setenv("GOOGLE_CLOUD_REGION", tc.region)
 		t.Setenv("CLOUD_ML_REGION", tc.mlRegion)
 
@@ -112,7 +115,7 @@ func TestVertexKeepsTheIdentifiersItsCallersCompiledAgainst(t *testing.T) {
 
 func TestVertexTakesItsCloudTargetFromTheEnvironment(t *testing.T) {
 	t.Setenv("GOOGLE_CLOUD_PROJECT", "night-porter")
-	t.Setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "asia-northeast1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -134,7 +137,7 @@ func TestVertexTakesItsCloudTargetFromTheEnvironment(t *testing.T) {
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
 	require.NoError(t, err)
 
-	assert.Contains(t, *seen, "/projects/night-porter/locations/us-central1/",
+	assert.Contains(t, *seen, "/projects/night-porter/locations/asia-northeast1/",
 		"the environment names the cloud target when the caller does not")
 }
 
