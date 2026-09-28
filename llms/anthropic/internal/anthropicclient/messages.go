@@ -195,6 +195,20 @@ type ToolUseContent struct {
 	Signature    string                 `json:"signature,omitempty"`
 
 	rawStreamInput string
+	streamOpen     bool
+}
+
+// DropUnfinishedToolUses removes the tool_use blocks whose stream ended before
+// their content_block_stop, so a partial answer carries no half-sent call.
+func (m *MessageResponsePayload) DropUnfinishedToolUses() {
+	kept := m.Content[:0]
+	for _, content := range m.Content {
+		if tuc, ok := content.(*ToolUseContent); ok && tuc.streamOpen {
+			continue
+		}
+		kept = append(kept, content)
+	}
+	m.Content = kept
 }
 
 func (tuc *ToolUseContent) AppendStreamChunk(chunk string) {
@@ -524,7 +538,7 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "content_block_delta":
 		return handleContentBlockDeltaEvent(ctx, event, response, payload)
 	case "content_block_stop":
-		return handleContentBlockStopEvent(response)
+		return handleContentBlockStopEvent(event, response)
 	case "message_delta":
 		return handleMessageDeltaEvent(event, response)
 	case "message_stop":
@@ -600,10 +614,11 @@ func handleContentBlockStartEvent(event map[string]interface{}, response Message
 			})
 		case EventTypeToolUse:
 			response.Content = append(response.Content, &ToolUseContent{
-				Type:  eventType,
-				ID:    getString(cb, "id"),
-				Name:  getString(cb, "name"),
-				Input: getMap(cb, "input"),
+				Type:       eventType,
+				ID:         getString(cb, "id"),
+				Name:       getString(cb, "name"),
+				Input:      getMap(cb, "input"),
+				streamOpen: true,
 			})
 		case EventTypeThinking:
 			response.Content = append(response.Content, &ThinkingContent{
@@ -770,7 +785,12 @@ func handleSignatureDelta(_ context.Context, delta map[string]interface{},
 	return response, nil // no need to inform about this delta event
 }
 
-func handleContentBlockStopEvent(response MessageResponsePayload) (MessageResponsePayload, error) {
+func handleContentBlockStopEvent(event map[string]interface{}, response MessageResponsePayload) (MessageResponsePayload, error) { //nolint:lll
+	if index, ok := event["index"].(float64); ok && int(index) < len(response.Content) {
+		if tuc, ok := response.Content[int(index)].(*ToolUseContent); ok {
+			tuc.streamOpen = false
+		}
+	}
 	for _, content := range response.Content {
 		if content == nil {
 			continue

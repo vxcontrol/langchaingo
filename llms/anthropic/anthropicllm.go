@@ -332,6 +332,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		if result == nil {
 			return nil, wrapped
 		}
+		result.DropUnfinishedToolUses()
 		partial, buildErr := processAnthropicResponse(result, warn)
 		if buildErr != nil {
 			return nil, wrapped

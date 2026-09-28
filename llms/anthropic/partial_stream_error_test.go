@@ -80,3 +80,26 @@ func TestTextAlreadyDeliveredSurvivesAnOversizedLine(t *testing.T) {
 	require.NotEmpty(t, resp.Choices)
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
 }
+
+func TestAToolCallCutOffMidStreamIsNotHandedBackAsIfItHadNoArguments(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamThenFail(t, `event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_1","name":"delete_files","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"path\": \"/tmp/bui"}}
+
+event: error
+data: {"type":"error","error":{"type":"overloaded_error","message":"overloaded"}}
+`)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.Choices)
+	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	assert.Empty(t, resp.Choices[0].ToolCalls, "the model never finished these arguments")
+}
