@@ -61,6 +61,9 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 		}
 	}
 
+	if len(clientOptions.ClientOptions) > clientOptions.ownClientOptions {
+		clientOptions.unhonoredOnREST = append(clientOptions.unhonoredOnREST, "ClientOptions")
+	}
 	if len(clientOptions.unhonoredOnREST) > 0 {
 		return gi, &ErrOptionNotHonored{Options: clientOptions.unhonoredOnREST}
 	}

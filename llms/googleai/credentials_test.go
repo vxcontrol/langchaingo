@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"google.golang.org/api/option"
+
 	"github.com/vxcontrol/langchaingo/llms"
 
 	"github.com/stretchr/testify/assert"
@@ -91,5 +93,23 @@ func TestAnAPIKeyAuthenticatesTheGeminiAPIWhenCredentialsAreAlsoNamed(t *testing
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
 		require.NoError(t, err, name)
 		assert.Equal(t, "the-callers-key", gotKey, name)
+	}
+}
+
+func TestRawClientOptionsTheSDKCannotCarryAreRefused(t *testing.T) {
+	t.Parallel()
+
+	withTokenSource := func(o *Options) {
+		o.ClientOptions = append(o.ClientOptions, option.WithTokenSource(nil))
+	}
+	for name, backend := range map[string][]Option{
+		"vertex":     {WithCloudProject("p"), WithCloudLocation("europe-west4")},
+		"gemini api": {WithAPIKey("k")},
+	} {
+		_, err := New(t.Context(), append(backend, withTokenSource)...)
+
+		var notHonored *ErrOptionNotHonored
+		require.ErrorAs(t, err, &notHonored, name)
+		assert.Contains(t, notHonored.Options, "ClientOptions", name)
 	}
 }
