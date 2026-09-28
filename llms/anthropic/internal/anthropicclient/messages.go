@@ -40,6 +40,8 @@ var (
 	ErrContentIndexOutOfRange     = fmt.Errorf("content index out of range")
 	ErrFailedCastToTextContent    = fmt.Errorf("failed to cast content to TextContent")
 	ErrInvalidFieldType           = fmt.Errorf("invalid field type")
+
+	errStreamEnded = errors.New("stream ended by an error event")
 )
 
 const (
@@ -424,6 +426,16 @@ func parseStreamingMessageResponse(
 	scanner := bufio.NewScanner(r.Body)
 	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
 	eventChan := make(chan MessageEvent)
+	done := make(chan struct{})
+	defer close(done)
+	send := func(ev MessageEvent) bool {
+		select {
+		case eventChan <- ev:
+			return true
+		case <-done:
+			return false
+		}
+	}
 
 	go func() {
 		defer close(eventChan)
@@ -438,11 +450,11 @@ func parseStreamingMessageResponse(
 			if !strings.HasPrefix(line, "data:") {
 				// it's happening when the server answer is not a streaming response
 				// we need to parse the response as a normal response and return it
-				if err := parseMessageResponse(ctx, line, payload, eventChan); err != nil {
-					eventChan <- MessageEvent{
+				if err := parseMessageResponse(ctx, line, payload, send); err != nil {
+					send(MessageEvent{
 						Response: nil,
 						Err:      fmt.Errorf("failed to parse stream message response: %w", err),
-					}
+					})
 					return
 				}
 				continue
@@ -451,19 +463,22 @@ func parseStreamingMessageResponse(
 			event, err := parseStreamEvent(data)
 			if err != nil {
 				partial := response
-				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)}
+				send(MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)})
 				return
 			}
-			response, err = processStreamEvent(ctx, event, payload, response, eventChan)
+			response, err = processStreamEvent(ctx, event, payload, response, send)
+			if errors.Is(err, errStreamEnded) {
+				return
+			}
 			if err != nil {
 				partial := response
-				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)}
+				send(MessageEvent{Response: &partial, Err: fmt.Errorf("failed to process stream event: %w", err)})
 				return
 			}
 		}
 		if err := scanner.Err(); err != nil {
 			partial := response
-			eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)}
+			send(MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)})
 		}
 	}()
 
@@ -481,7 +496,7 @@ func parseStreamingMessageResponse(
 }
 
 func parseMessageResponse(ctx context.Context, line string,
-	payload *messagePayload, eventChan chan<- MessageEvent,
+	payload *messagePayload, send func(MessageEvent) bool,
 ) error {
 	var response MessageResponsePayload
 	if err := json.Unmarshal([]byte(line), &response); err != nil {
@@ -513,7 +528,7 @@ func parseMessageResponse(ctx context.Context, line string,
 		}
 	}
 
-	eventChan <- MessageEvent{Response: &response, Err: nil}
+	send(MessageEvent{Response: &response, Err: nil})
 	return nil
 }
 
@@ -523,7 +538,7 @@ func parseStreamEvent(data string) (map[string]interface{}, error) {
 }
 
 func processStreamEvent(ctx context.Context, event map[string]interface{}, payload *messagePayload,
-	response MessageResponsePayload, eventChan chan<- MessageEvent,
+	response MessageResponsePayload, send func(MessageEvent) bool,
 ) (MessageResponsePayload, error) {
 	eventType, ok := event["type"].(string)
 	if !ok {
@@ -542,12 +557,13 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 	case "message_delta":
 		return handleMessageDeltaEvent(event, response)
 	case "message_stop":
-		eventChan <- MessageEvent{Response: &response, Err: nil}
+		send(MessageEvent{Response: &response, Err: nil})
 	case "ping":
 		// Nothing to do here
 	case "error":
 		partial := response
-		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)}
+		send(MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)})
+		return response, errStreamEnded
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)
 	}
