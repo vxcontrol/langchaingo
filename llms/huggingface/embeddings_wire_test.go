@@ -76,12 +76,22 @@ func TestABaseThatNamesTheProviderIsNotGivenItTwice(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	for _, base := range []string{srv.URL + "/hf-inference", srv.URL + "/hf-inference/"} {
-		llm, err := New(WithToken("t"), WithURL(base))
+	for _, tc := range []struct{ base, provider, want string }{
+		{srv.URL + "/hf-inference", "", "/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/hf-inference/", "", "/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/scaleway", "scaleway", "/scaleway/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/my-hf-inference", "", "/my-hf-inference/hf-inference/models/m/pipeline/feature-extraction"},
+		{srv.URL + "/hf-inference/v1", "", "/hf-inference/v1/hf-inference/models/m/pipeline/feature-extraction"},
+	} {
+		opts := []Option{WithToken("t"), WithURL(tc.base)}
+		if tc.provider != "" {
+			opts = append(opts, WithInferenceProvider(tc.provider))
+		}
+		llm, err := New(opts...)
 		require.NoError(t, err)
 
-		_, err = llm.CreateEmbedding(context.Background(), []string{"hi"}, "BAAI/bge-small-en-v1.5", "feature-extraction")
-		require.NoError(t, err, base)
-		assert.Equal(t, "/hf-inference/models/BAAI/bge-small-en-v1.5/pipeline/feature-extraction", path, base)
+		_, err = llm.CreateEmbedding(context.Background(), []string{"hi"}, "m", "feature-extraction")
+		require.NoError(t, err, tc.base)
+		assert.Equal(t, tc.want, path, tc.base)
 	}
 }
