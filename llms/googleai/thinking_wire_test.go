@@ -159,6 +159,14 @@ func TestAnExplicitBudgetOnAGemini3ImageModelBecomesALevel(t *testing.T) {
 		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
 	assert.Equal(t, map[string]any{"includeThoughts": true, "thinkingLevel": "HIGH"}, flash)
 
+	flashResp := generateForWarnings(t, "gemini-3.1-flash-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	sub, ok := googleWarningsByOption(flashResp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the budget sent as a level must be reported, got %v", flashResp.Warnings)
+	assert.Equal(t, llms.WarningSubstitute, sub.Kind)
+	assert.Equal(t, "4096 tokens", sub.Asked)
+	assert.Equal(t, "HIGH", sub.Sent)
+
 	pro := thinkingConfigFor(t, "gemini-3-pro-image-preview",
 		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
 	assert.Equal(t, map[string]any{"includeThoughts": true}, pro)
