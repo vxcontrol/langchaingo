@@ -62,5 +62,5 @@ func TestDataAfterTheArgumentsObjectIsRefused(t *testing.T) {
 	t.Parallel()
 
 	_, err := toolcall.DecodeFields(`{"city":"Paris"}{"city":"London"}`)
-	require.Error(t, err, "a second object is another call's arguments, not something to drop")
+	require.ErrorIs(t, err, toolcall.ErrNotAnObject, "a second object is another call's arguments, not something to drop")
 }

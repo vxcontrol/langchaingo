@@ -1507,6 +1507,14 @@ func TestConverseRefusesANamedToolChoiceOnFamiliesAWSDoesNotListForIt(t *testing
 		got, err := build(model, "required")
 		require.NoError(t, err, "%s: AWS names no family limit for any", model)
 		assert.IsType(t, &types.ToolChoiceMemberAny{}, got.ToolConfig.ToolChoice, model)
+
+		got, err = NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+			ModelID:    model,
+			Messages:   []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+			ToolChoice: named,
+		})
+		require.NoError(t, err, "%s: with no tools the choice never reaches the wire", model)
+		assert.Nil(t, got.ToolConfig, model)
 	}
 
 	for _, model := range []string{

@@ -134,7 +134,8 @@ func TestAReplayedCallWithNullArgumentsReachesTheWire(t *testing.T) {
 	}
 	_, err = llm.GenerateContent(t.Context(), history)
 	require.NoError(t, err, "a call the model made without arguments must replay")
-	assert.Contains(t, body, `"name":"clock"`)
+	assert.Contains(t, body, `"functionCall":{"id":"c1","name":"clock"}`,
+		"null arguments replay as a call with no args")
 }
 
 func TestNoToolConfigGoesOutWithoutTools(t *testing.T) {

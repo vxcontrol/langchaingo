@@ -101,4 +101,10 @@ func TestAForcedChoiceIsRefusedOnAClaudeModelThatRejectsIt(t *testing.T) {
 	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{ToolChoice: "required"}, nil); err != nil {
 		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
 	}
+	functions := []FunctionDefinition{{Name: "echo"}}
+	err := CheckClaudeTurnLimits("claude-opus-5-5", CallOptions{Functions: functions, ToolChoice: "required"}, nil)
+	var refused *reasoning.ErrForcedToolChoiceUnsupported
+	if !errors.As(err, &refused) {
+		t.Errorf("the openai door sends legacy functions as tools, got %v", err)
+	}
 }
