@@ -215,6 +215,18 @@ func TestVertexCarriesTheThinkingBudgetTheCallerAskedFor(t *testing.T) {
 	assert.Equal(t, float64(2048), thinking["thinkingBudget"])
 }
 
+func TestVertexTurnsThinkingOffOnAModelThatThinksByDefault(t *testing.T) {
+	t.Parallel()
+
+	body := vertexRequestBody(t, llms.WithReasoningDisabled())
+
+	config, ok := body["generationConfig"].(map[string]any)
+	require.True(t, ok)
+	thinking, ok := config["thinkingConfig"].(map[string]any)
+	require.True(t, ok, "gemini-2.5-flash thinks by default, so off needs a zero budget on the wire")
+	assert.Equal(t, float64(0), thinking["thinkingBudget"])
+}
+
 func TestVertexCarriesTheToolChoiceTheCallerAskedFor(t *testing.T) {
 	t.Parallel()
 
