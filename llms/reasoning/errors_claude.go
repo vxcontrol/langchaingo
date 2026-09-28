@@ -22,6 +22,18 @@ func (e *ErrForcedToolUseWithThinking) Error() string {
 		e.Model)
 }
 
+// ErrForcedToolChoiceUnsupported reports a forced tool choice the model's API
+// rejects, refused before the request is sent.
+type ErrForcedToolChoiceUnsupported struct {
+	Model  string
+	Choice string
+}
+
+func (e *ErrForcedToolChoiceUnsupported) Error() string {
+	return fmt.Sprintf("model %q does not accept the forced tool choice %q; use tool_choice auto or none",
+		e.Model, e.Choice)
+}
+
 // ErrEffortHasNoBudget reports that reasoning was asked for with an effort that
 // does not map to a token budget, on a model whose only thinking wire is one.
 type ErrEffortHasNoBudget struct {
