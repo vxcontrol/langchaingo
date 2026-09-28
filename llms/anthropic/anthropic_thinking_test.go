@@ -1477,3 +1477,30 @@ func TestTheServedSpeedReachesTheCaller(t *testing.T) {
 	assert.Equal(t, "standard", resp.Choices[0].GenerationInfo["InferenceSpeed"],
 		"a model that quietly serves the standard speed must be visible to the caller")
 }
+
+func TestACallsBetaHeadersJoinTheClientsOwn(t *testing.T) {
+	t.Parallel()
+
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		got = r.Header.Get("Anthropic-Beta")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"msg_test","type":"message","role":"assistant","model":"claude-opus-5",` +
+			`"content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("test-key"), anthropic.WithBaseURL(srv.URL),
+		anthropic.WithModel("claude-opus-5"), anthropic.WithAnthropicBetaHeader("context-1m-2025-08-07"))
+	require.NoError(t, err)
+
+	_, err = llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithInferenceSpeed("fast"), anthropic.WithBetaHeader("custom-2026-01-01"))
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t,
+		[]string{"context-1m-2025-08-07", "fast-mode-2026-02-01", "custom-2026-01-01"}, strings.Split(got, ","),
+		"both options add a beta, so a call's betas must not erase the client's")
+}
