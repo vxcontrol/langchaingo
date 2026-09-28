@@ -51,18 +51,71 @@ func vertexAgainstALocalServer(t *testing.T, body string, opts ...googleai.Optio
 	return llm, seen
 }
 
-func TestVertexRefusesToGuessWhereItIs(t *testing.T) {
+func TestVertexRefusesToGuessTheProject(t *testing.T) {
 	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
 	t.Setenv("GOOGLE_CLOUD_LOCATION", "")
 
 	_, err := vertex.New(context.Background())
 	require.ErrorIs(t, err, vertex.ErrMissingCloudTarget,
-		"a door that reaches one cloud must be told which project and location, not fall back to another backend")
+		"a door that reaches one cloud must be told which project, not fall back to another backend")
+}
+
+func TestVertexFallsBackToTheRegionTheBaseResolved(t *testing.T) {
+	t.Setenv("GOOGLE_CLOUD_PROJECT", "")
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},`+
+			`"finishReason":"STOP"}],"usageMetadata":{}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, tc := range []struct{ location, region, mlRegion, want string }{
+		{"", "", "", "us-central1"},
+		{"", "europe-west4", "", "europe-west4"},
+		{"", "", "asia-east1", "asia-east1"},
+		{"me-central1", "europe-west4", "asia-east1", "me-central1"},
+		{"", "europe-west4", "asia-east1", "europe-west4"},
+	} {
+		t.Setenv("GOOGLE_CLOUD_LOCATION", tc.location)
+		t.Setenv("GOOGLE_CLOUD_REGION", tc.region)
+		t.Setenv("CLOUD_ML_REGION", tc.mlRegion)
+
+		seen := new(string)
+		llm, err := vertex.New(context.Background(),
+			googleai.WithCloudProject("night-porter"),
+			googleai.WithDefaultModel("gemini-2.5-flash"),
+			googleai.WithHTTPClient(&http.Client{
+				Transport: &toLocalServer{host: srv.Listener.Addr().String(), seen: seen},
+			}))
+		require.NoError(t, err, tc.want)
+
+		_, err = llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+		require.NoError(t, err, tc.want)
+		assert.Contains(t, *seen, "/projects/night-porter/locations/"+tc.want+"/", tc)
+	}
+}
+
+func TestVertexKeepsTheIdentifiersItsCallersCompiledAgainst(t *testing.T) {
+	t.Parallel()
+
+	require.ErrorIs(t, googleai.ErrNoContentInResponse, vertex.ErrNoContentInResponse)
+	require.ErrorIs(t, googleai.ErrUnknownPartInResponse, vertex.ErrUnknownPartInResponse)
+	require.ErrorIs(t, googleai.ErrInvalidMimeType, vertex.ErrInvalidMimeType)
+	assert.Equal(t,
+		[]string{"citations", "safety", "system", "model", "user", "tool", "application/json"},
+		[]string{
+			vertex.CITATIONS, vertex.SAFETY, vertex.RoleSystem, vertex.RoleModel,
+			vertex.RoleUser, vertex.RoleTool, vertex.ResponseMIMETypeJson,
+		})
 }
 
 func TestVertexTakesItsCloudTargetFromTheEnvironment(t *testing.T) {
 	t.Setenv("GOOGLE_CLOUD_PROJECT", "night-porter")
-	t.Setenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+	t.Setenv("GOOGLE_CLOUD_LOCATION", "asia-northeast1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
@@ -84,7 +137,7 @@ func TestVertexTakesItsCloudTargetFromTheEnvironment(t *testing.T) {
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
 	require.NoError(t, err)
 
-	assert.Contains(t, *seen, "/projects/night-porter/locations/us-central1/",
+	assert.Contains(t, *seen, "/projects/night-porter/locations/asia-northeast1/",
 		"the environment names the cloud target when the caller does not")
 }
 
@@ -163,6 +216,18 @@ func TestVertexCarriesTheThinkingBudgetTheCallerAskedFor(t *testing.T) {
 	thinking, ok := config["thinkingConfig"].(map[string]any)
 	require.True(t, ok, "the door used to accept a thinking request and send nothing")
 	assert.Equal(t, float64(2048), thinking["thinkingBudget"])
+}
+
+func TestVertexTurnsThinkingOffOnAModelThatThinksByDefault(t *testing.T) {
+	t.Parallel()
+
+	body := vertexRequestBody(t, llms.WithReasoningDisabled())
+
+	config, ok := body["generationConfig"].(map[string]any)
+	require.True(t, ok)
+	thinking, ok := config["thinkingConfig"].(map[string]any)
+	require.True(t, ok, "gemini-2.5-flash thinks by default, so off needs a zero budget on the wire")
+	assert.Equal(t, float64(0), thinking["thinkingBudget"])
 }
 
 func TestVertexCarriesTheToolChoiceTheCallerAskedFor(t *testing.T) {

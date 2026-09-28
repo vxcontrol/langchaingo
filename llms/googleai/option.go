@@ -35,6 +35,10 @@ type Options struct {
 
 	unhonoredOnREST []string
 
+	// ownClientOptions counts what the With* options appended; New refuses any
+	// ClientOptions beyond it, because the GenAI SDK cannot carry them.
+	ownClientOptions int
+
 	// Set by the WithDefault* sampling options, so a configured zero still reaches
 	// the wire.
 	temperatureFromCaller bool
@@ -71,6 +75,7 @@ func WithAPIKey(apiKey string) Option {
 	return func(opts *Options) {
 		opts.APIKey = apiKey
 		opts.ClientOptions = append(opts.ClientOptions, option.WithAPIKey(apiKey))
+		opts.ownClientOptions++
 	}
 }
 
@@ -84,6 +89,7 @@ func WithCredentialsJSON(credentialsJSON []byte) Option {
 		}
 		opts.credentialsJSON = credentialsJSON
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsJSON(credentialsJSON))
+		opts.ownClientOptions++
 	}
 }
 
@@ -97,6 +103,7 @@ func WithCredentialsFile(credentialsFile string) Option {
 		}
 		opts.credentialsFile = credentialsFile
 		opts.ClientOptions = append(opts.ClientOptions, option.WithCredentialsFile(credentialsFile))
+		opts.ownClientOptions++
 	}
 }
 
@@ -113,6 +120,7 @@ func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 	return func(opts *Options) {
 		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCClient")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(grpcClient))
+		opts.ownClientOptions++
 	}
 }
 
@@ -123,16 +131,19 @@ func WithEndpoint(endpoint string) Option {
 	return func(opts *Options) {
 		opts.BaseURL = endpoint
 		opts.ClientOptions = append(opts.ClientOptions, option.WithEndpoint(endpoint))
+		opts.ownClientOptions++
 	}
 }
 
-// WithHTTPClient append a ClientOption that uses the provided HTTP client to
-// make requests.
-// This is useful for vertex clients.
+// WithHTTPClient makes the client send every request through httpClient. As
+// with option.WithHTTPClient, it takes precedence over the credential options
+// and application default credentials: on the Vertex backend the client must
+// authenticate its own requests.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(opts *Options) {
 		opts.HTTPClient = httpClient
 		opts.ClientOptions = append(opts.ClientOptions, option.WithHTTPClient(httpClient))
+		opts.ownClientOptions++
 	}
 }
 
@@ -143,6 +154,7 @@ func WithGRPCConn(conn *grpc.ClientConn) Option {
 	return func(opts *Options) {
 		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCConn")
 		opts.ClientOptions = append(opts.ClientOptions, option.WithGRPCConn(conn))
+		opts.ownClientOptions++
 	}
 }
 

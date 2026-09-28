@@ -12,8 +12,26 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/googleai"
 )
 
-// ErrMissingCloudTarget reports a client asked for Vertex without naming where.
-var ErrMissingCloudTarget = errors.New("vertex: a cloud project and a cloud location are both required")
+// ErrMissingCloudTarget reports a client asked for Vertex without naming a project.
+var ErrMissingCloudTarget = errors.New("vertex: a cloud project is required")
+
+var (
+	ErrNoContentInResponse   = googleai.ErrNoContentInResponse
+	ErrUnknownPartInResponse = googleai.ErrUnknownPartInResponse
+	ErrInvalidMimeType       = googleai.ErrInvalidMimeType
+)
+
+const (
+	CITATIONS            = googleai.CITATIONS
+	SAFETY               = googleai.SAFETY
+	RoleSystem           = googleai.RoleSystem
+	RoleModel            = googleai.RoleModel
+	RoleUser             = googleai.RoleUser
+	RoleTool             = googleai.RoleTool
+	ResponseMIMETypeJson = googleai.ResponseMIMETypeJson
+)
+
+const defaultLocation = "us-central1"
 
 // Vertex reaches Gemini through the Vertex AI backend of the Google GenAI SDK.
 type Vertex struct {
@@ -22,11 +40,12 @@ type Vertex struct {
 
 var _ llms.Model = &Vertex{}
 
-// New creates a client bound to the Vertex AI backend. The project and the
-// location come from the options, or from GOOGLE_CLOUD_PROJECT and
-// GOOGLE_CLOUD_LOCATION when the options leave them empty. Authentication comes
-// from googleai.WithCredentialsFile or googleai.WithCredentialsJSON, and from
-// application default credentials when neither is given.
+// New creates a client bound to the Vertex AI backend. The project comes from
+// the options or GOOGLE_CLOUD_PROJECT; the location from the options,
+// GOOGLE_CLOUD_LOCATION, GOOGLE_CLOUD_REGION or CLOUD_ML_REGION, else
+// us-central1. Authentication comes from googleai.WithCredentialsFile or
+// googleai.WithCredentialsJSON, and from application default credentials when
+// neither is given.
 func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
 	resolved := googleai.DefaultOptions()
 	for _, opt := range opts {
@@ -39,14 +58,11 @@ func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
 			opts = append(opts, googleai.WithCloudProject(project))
 		}
 	}
-	if resolved.CloudLocation == "" {
-		if location := os.Getenv("GOOGLE_CLOUD_LOCATION"); location != "" {
-			resolved.CloudLocation = location
-			opts = append(opts, googleai.WithCloudLocation(location))
-		}
-	}
-	if resolved.CloudProject == "" || resolved.CloudLocation == "" {
+	if resolved.CloudProject == "" {
 		return nil, ErrMissingCloudTarget
+	}
+	if resolved.CloudLocation == "" {
+		opts = append(opts, googleai.WithCloudLocation(locationFromEnvironment()))
 	}
 
 	client, err := googleai.New(ctx, opts...)
@@ -54,6 +70,15 @@ func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
 		return nil, err
 	}
 	return &Vertex{GoogleAI: client}, nil
+}
+
+func locationFromEnvironment() string {
+	for _, name := range []string{"GOOGLE_CLOUD_LOCATION", "GOOGLE_CLOUD_REGION", "CLOUD_ML_REGION"} {
+		if location := os.Getenv(name); location != "" {
+			return location
+		}
+	}
+	return defaultLocation
 }
 
 func (v *Vertex) Close() error {
