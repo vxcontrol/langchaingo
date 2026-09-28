@@ -61,3 +61,19 @@ func TestForcedToolNameReadsEveryNotation(t *testing.T) {
 		}
 	}
 }
+
+func TestANamedChoiceKeepsItsToolWhateverTheFunctionShape(t *testing.T) {
+	t.Parallel()
+
+	for name, function := range map[string]any{
+		"map[string]string":  map[string]string{"name": "b"},
+		"FunctionReference":  FunctionReference{Name: "b"},
+		"*FunctionReference": &FunctionReference{Name: "b"},
+		"map[string]any":     map[string]any{"name": "b"},
+	} {
+		kind, tool := ClassifyToolChoice(map[string]any{"type": "function", "function": function})
+		if kind != ToolChoiceNamed || tool != "b" {
+			t.Errorf("%s: got (%v, %q), want the named tool b", name, kind, tool)
+		}
+	}
+}

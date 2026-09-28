@@ -62,8 +62,15 @@ func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {
 	case map[string]any:
 		t, _ := c["type"].(string)
 		name, _ := c["name"].(string)
-		if fn, ok := c["function"].(map[string]any); ok {
+		switch fn := c["function"].(type) {
+		case map[string]any:
 			name, _ = fn["name"].(string)
+		case map[string]string:
+			name = fn["name"]
+		case FunctionReference:
+			name = fn.Name
+		case *FunctionReference:
+			name = functionName(fn)
 		}
 		return kindOf(t, name)
 	}
