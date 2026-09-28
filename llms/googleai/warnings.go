@@ -66,8 +66,13 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 		return
 	}
 
-	if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 && !cfg.HasExplicitTokens() {
-		if asked := string(cfg.GetEffort(opts.GetMaxTokens())); cfg.Effort != "" {
+	noBudget := reasoning.GeminiTakesNoThinkingBudget(model) && cfg.HasExplicitTokens()
+	if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 && (noBudget || !cfg.HasExplicitTokens()) {
+		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
+		if noBudget {
+			asked = strconv.Itoa(cfg.Tokens) + " tokens"
+		}
+		if cfg.Effort != "" || noBudget {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: asked,
 				Reason: "the vendor documents no thinking level for this model, which thinks at its own depth",
@@ -78,7 +83,10 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 
 	if tc != nil && tc.ThinkingLevel != "" {
 		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
-		if cfg.Effort != "" && !strings.EqualFold(asked, string(tc.ThinkingLevel)) {
+		if noBudget {
+			asked = strconv.Itoa(cfg.Tokens) + " tokens"
+		}
+		if (cfg.Effort != "" || noBudget) && !strings.EqualFold(asked, string(tc.ThinkingLevel)) {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
 				Asked: asked, Sent: string(tc.ThinkingLevel),

@@ -152,6 +152,25 @@ func TestAGemini3ModelGetsOnlyTheLevelsItsVendorDocuments(t *testing.T) {
 	}
 }
 
+func TestAnExplicitBudgetOnAGemini3ImageModelBecomesALevel(t *testing.T) {
+	t.Parallel()
+
+	flash := thinkingConfigFor(t, "gemini-3.1-flash-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true, "thinkingLevel": "HIGH"}, flash)
+
+	pro := thinkingConfigFor(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	assert.Equal(t, map[string]any{"includeThoughts": true}, pro)
+
+	resp := generateForWarnings(t, "gemini-3-pro-image-preview",
+		llms.WithReasoning(llms.ReasoningNone, 4096), llms.WithMaxTokens(8192))
+	w, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "the dropped budget must be reported, got %v", resp.Warnings)
+	assert.Equal(t, llms.WarningDrop, w.Kind)
+	assert.Equal(t, "4096 tokens", w.Asked)
+}
+
 func TestGemini3ProImageThinksWithoutALevelItsVendorNeverNames(t *testing.T) {
 	t.Parallel()
 

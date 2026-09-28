@@ -1152,7 +1152,7 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		// An effort with no explicit token budget maps to the qualitative
 		// thinking_level on Gemini 3.x (its native control, where thinking_budget is
 		// deprecated); an explicit budget or a 2.5 model still uses thinking_budget.
-		if cfg.Tokens <= 0 && reasoning.GeminiUsesThinkingLevel(model) {
+		if (cfg.Tokens <= 0 || reasoning.GeminiTakesNoThinkingBudget(model)) && reasoning.GeminiUsesThinkingLevel(model) {
 			if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 {
 				return &genai.ThinkingConfig{IncludeThoughts: true}, nil
 			}

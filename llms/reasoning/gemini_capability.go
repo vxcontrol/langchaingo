@@ -83,6 +83,13 @@ func GeminiThinkingLevels(model string) []string {
 	return nil
 }
 
+// GeminiTakesNoThinkingBudget reports whether Google documents only thinking
+// levels for the model, so an explicit budget has to travel as a level.
+func GeminiTakesNoThinkingBudget(model string) bool {
+	m := baseModelName(model)
+	return strings.Contains(m, "-image") && hasFamily(m, "gemini-3")
+}
+
 // GeminiAcceptsMinimalLevel reports whether the model takes thinking_level
 // MINIMAL. A name this package has not measured reports false and falls back
 // to LOW, so extending this set means measuring first, not guessing.
