@@ -245,3 +245,16 @@ func TestAnInferenceSpeedTheDoorSendsIsNotReportedLost(t *testing.T) {
 		require.NotEqual(t, "WithInferenceSpeed", w.Option, "the speed reached the wire: %+v", w)
 	}
 }
+
+func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithExtraBody(map[string]any{"metadata": map[string]any{"user_id": "u"}}))
+	for _, w := range resp.Warnings {
+		if w.Option == "WithExtraBody" {
+			require.NotContains(t, w.Reason, "SDK", "this door marshals its own payload")
+			return
+		}
+	}
+	t.Fatalf("the dropped extra body went unreported: %v", resp.Warnings)
+}

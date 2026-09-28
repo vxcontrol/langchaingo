@@ -145,3 +145,13 @@ func TestABudgetWithoutAnEffortIsReportedAsTheEffortItBecame(t *testing.T) {
 	require.Equal(t, "800 tokens", w.Asked)
 	require.Equal(t, "low", w.Sent)
 }
+
+func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, oneMessage(), llms.WithExtraBody(map[string]any{"enable_thinking": false}))
+
+	w, ok := hfWarningsByOption(resp.Warnings)["WithExtraBody"]
+	require.True(t, ok)
+	require.NotContains(t, w.Reason, "SDK", "this door marshals its own payload")
+}

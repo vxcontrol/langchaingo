@@ -149,7 +149,7 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 	}
 }
 
-const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+const extraBodyUnread = "the door does not forward extra body fields"
 
 func reportAnthropicCompletionsMessages(warn *llms.Warnings, model string, messages []llms.MessageContent) {
 	total := 0

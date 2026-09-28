@@ -79,4 +79,4 @@ func reportHuggingFaceMessages(warn *llms.Warnings, model string, messages []llm
 	}
 }
 
-const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+const extraBodyUnread = "the door does not forward extra body fields"
