@@ -958,11 +958,7 @@ func findBestReplayFile(t *testing.T, baseFilename string) string {
 //	func TestMyAPI(t *testing.T) {
 //	    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY", "API_URL")
 //
-//	    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-//	    if err != nil {
-//	        t.Fatal(err)
-//	    }
-//	    defer rr.Close()
+//	    rr := httprr.OpenForTest(t, http.DefaultTransport)
 //	    // use rr.Client() for HTTP requests...
 //	}
 func SkipIfNoCredentialsAndRecordingMissing(t *testing.T, envVars ...string) {
