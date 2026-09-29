@@ -791,8 +791,15 @@ type converseToolCallBuilder struct {
 	arguments strings.Builder
 }
 
+func (b *converseToolCallBuilder) input() string {
+	if b.arguments.Len() == 0 {
+		return "{}"
+	}
+	return b.arguments.String()
+}
+
 func (b *converseToolCallBuilder) streamingCall() streaming.ToolCall {
-	return streaming.ToolCall{ID: b.id, Name: b.name, Arguments: b.arguments.String()}
+	return streaming.ToolCall{ID: b.id, Name: b.name, Arguments: b.input()}
 }
 
 func (b *converseToolCallBuilder) toolCall() llms.ToolCall {
@@ -801,7 +808,7 @@ func (b *converseToolCallBuilder) toolCall() llms.ToolCall {
 		Type: "function",
 		FunctionCall: &llms.FunctionCall{
 			Name:      b.name,
-			Arguments: b.arguments.String(),
+			Arguments: b.input(),
 		},
 	}
 }

@@ -598,6 +598,9 @@ DoStream:
 				}
 			case "content_block_stop":
 				if currentToolCall != nil {
+					if currentToolCall.Arguments == "" {
+						currentToolCall.Arguments = "{}"
+					}
 					// Add completed tool call to final response
 					toolCalls = append(toolCalls, llms.ToolCall{
 						ID:   currentToolCall.ID,
