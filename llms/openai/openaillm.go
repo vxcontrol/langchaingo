@@ -471,6 +471,12 @@ func (o *LLM) setDeferredReasoning(
 	if delegated && reasoning.ThinkingOptIn(model) {
 		reportDelegatedDepth(warn, model, delegated, "")
 	}
+	if delegated && !reasoning.IsReasoningModel(model) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithAdaptiveReasoning", Model: model,
+			Asked: "adaptive", Reason: "the door sends no reasoning field on this model",
+		})
+	}
 	return ""
 }
 
