@@ -338,3 +338,21 @@ func TestAskingForTheNoneLevelWithToolsIsNotARefusal(t *testing.T) {
 		t.Errorf("a caller who named the none level asked for what the vendor serves\nbody: %s", body)
 	}
 }
+
+func TestTheEffortNoneStillTurnsReasoningOffOnTheWire(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-5.1", llms.WithReasoning(llms.ReasoningEffort("none"), 0))
+	if !strings.Contains(body, `"reasoning_effort":"none"`) {
+		t.Errorf("want reasoning_effort none on the wire, got %s", body)
+	}
+}
+
+func TestTopLogProbsAsksForTheLogProbsTheyNeed(t *testing.T) {
+	t.Parallel()
+
+	body := bodyForCall(t, "gpt-4o", llms.WithTopLogProbs(1))
+	if !strings.Contains(body, `"logprobs":true`) || !strings.Contains(body, `"top_logprobs":1`) {
+		t.Errorf("OpenAI takes top_logprobs only beside logprobs true, got %s", body)
+	}
+}

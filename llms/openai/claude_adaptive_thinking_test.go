@@ -234,3 +234,36 @@ func TestDelegatedAdaptiveLeavesTheWireEmptyWhereClaudeThinksAlready(t *testing.
 		})
 	}
 }
+
+func TestDelegatedAdaptiveThinksAtHighWhereNoAdaptiveObjectGoesOut(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		model  string
+		client []Option
+	}{
+		"a generation that predates adaptive": {model: "claude-haiku-4-5"},
+		"a budget-only Sonnet":                {model: "anthropic/claude-sonnet-4-5"},
+		"the reasoning object format":         {model: "anthropic/claude-opus-4-8", client: []Option{WithModernReasoningFormat()}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			delegated := captureWireWithClient(t, tc.model, tc.client, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+			high := captureWireWithClient(t, tc.model, tc.client, llms.WithAdaptiveReasoning(llms.ReasoningHigh))
+
+			if !strings.Contains(high, `"high"`) {
+				t.Fatalf("an explicit high must reach this wire, got body: %s", high)
+			}
+			if delegated != high {
+				t.Errorf("the model cannot pick its own depth here, so thinking goes out at high\n got: %s\nwant: %s",
+					delegated, high)
+			}
+
+			resp, _ := sendForWarningsWith(t, tc.model, tc.client, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+			if w := warningFor(t, resp, "WithAdaptiveReasoning"); w.Kind != llms.WarningSubstitute || w.Sent != "high" {
+				t.Errorf("the caller must learn the depth was picked for it, got %+v", w)
+			}
+		})
+	}
+}

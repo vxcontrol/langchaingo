@@ -295,7 +295,7 @@ func (o *LLM) createChatRequest(
 		PresencePenalty:      opts.PresencePenalty,
 		RepetitionPenalty:    opts.RepetitionPenalty,
 		Verbosity:            opts.Verbosity,
-		LogProbs:             opts.LogProbs != nil && *opts.LogProbs,
+		LogProbs:             opts.LogProbs != nil && *opts.LogProbs || derefInt(opts.TopLogProbs) > 0,
 		TopLogProbs:          derefInt(opts.TopLogProbs),
 		ToolChoice:           openaiToolChoice(opts.ToolChoice),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
@@ -410,8 +410,8 @@ func (o *LLM) setReasoning(
 	}
 
 	mode := opts.Reasoning.ResolveMode()
-	delegated := opts.Reasoning.DelegatesDepth()
-	if delegated {
+	pickedForTheCaller := opts.Reasoning.DelegatesDepth() && o.claudeThinksOnlyAtAnAskedDepth(model)
+	if opts.Reasoning.DelegatesDepth() && !pickedForTheCaller {
 		mode = llms.ReasoningDefault
 	}
 	switch mode { //nolint:exhaustive // ReasoningOn is handled by the code after the switch
@@ -443,6 +443,7 @@ func (o *LLM) setReasoning(
 	budget, effortBudget := budgetsFor(model, opts, reasoningEffort, reasoningTokens)
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
 	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
+	reportDelegatedDepth(warn, model, pickedForTheCaller, wire)
 	return wire, nil
 }
 
@@ -531,6 +532,12 @@ func (o *LLM) sendsClaudeAdaptive(model string) bool {
 		reasoning.ClaudeSupportsThinking(model) &&
 		reasoning.ResolveClaudeAdaptive(model, true) &&
 		!reasoning.ClaudeThinkingDefaultsOn(model)
+}
+
+func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
+	return reasoning.ClaudeSupportsThinking(model) &&
+		!reasoning.ClaudeThinkingDefaultsOn(model) &&
+		!o.sendsClaudeAdaptive(model)
 }
 
 const anthropicAPIHost = "api.anthropic.com"

@@ -22,7 +22,15 @@ func reportHuggingFaceOptions(
 	}
 	reportHuggingFaceShapedOptions(opts, drop)
 	if cfg := opts.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
-		drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
+		if effort := reasoningEffort(opts); cfg.Effort == llms.ReasoningNone && effort != "" {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
+				Asked: strconv.Itoa(cfg.Tokens) + " tokens", Sent: effort,
+				Reason: "the door sends an effort, so the budget travels as the nearest one",
+			})
+		} else {
+			drop("WithReasoning", strconv.Itoa(cfg.Tokens)+" tokens")
+		}
 	}
 	reportHuggingFaceMessages(warn, model, messages)
 }
@@ -71,4 +79,4 @@ func reportHuggingFaceMessages(warn *llms.Warnings, model string, messages []llm
 	}
 }
 
-const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+const extraBodyUnread = "the door does not forward extra body fields"

@@ -3,6 +3,7 @@ package llms
 import (
 	"fmt"
 
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
@@ -116,15 +117,6 @@ func (r *ReasoningConfig) IsDisabled() bool {
 	return r.ResolveMode() == ReasoningOff
 }
 
-// GetEffort returns enum value of the effort based on kept values inside.
-// A non-positive maxTokens is replaced with DefaultMaxTokens.
-// If neither are set, it will return ReasoningNone.
-// If effort is set, it will return the set effort.
-// If tokens are set, it will return the effort that is the closest to the set tokens.
-//   - (0, maxTokens/4) -> ReasoningLow
-//   - [maxTokens/4, maxTokens/3) -> ReasoningMedium
-//   - [maxTokens/3, inf) -> ReasoningHigh
-//
 // HasExplicitTokens reports whether the caller set a token budget of its own,
 // rather than leaving the budget to be derived from an effort.
 func (r *ReasoningConfig) HasExplicitTokens() bool {
@@ -138,6 +130,14 @@ func (r *ReasoningConfig) DelegatesDepth() bool {
 		r.Adaptive && r.Effort == ReasoningNone && !r.HasExplicitTokens()
 }
 
+// GetEffort returns enum value of the effort based on kept values inside.
+// A non-positive maxTokens is replaced with DefaultMaxTokens.
+// If neither are set, it will return ReasoningNone.
+// If effort is set, it will return the set effort.
+// If tokens are set, it will return the effort that is the closest to the set tokens.
+//   - (0, maxTokens/4) -> ReasoningLow
+//   - [maxTokens/4, maxTokens/3) -> ReasoningMedium
+//   - [maxTokens/3, inf) -> ReasoningHigh
 func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	if r == nil {
 		return ReasoningNone
@@ -175,10 +175,19 @@ func (r *ReasoningConfig) GetEffort(maxTokens int) ReasoningEffort {
 	return ReasoningNone
 }
 
-// ValidateReasoning reports an effort no door accepts.
+// ValidateReasoning reports an effort no door accepts. The OpenAI effort
+// "none" is read as reasoning off, or as no effort beside a token budget.
 func (o *CallOptions) ValidateReasoning() error {
 	if o == nil || o.Reasoning == nil {
 		return nil
+	}
+	if o.Reasoning.Effort == ReasoningEffort(reasoning.OpenAIDisableEffort) {
+		r := *o.Reasoning
+		r.Effort = ReasoningNone
+		if r.Mode == ReasoningDefault && !r.HasExplicitTokens() {
+			r.Mode, r.Adaptive = ReasoningOff, false
+		}
+		o.Reasoning = &r
 	}
 	switch o.Reasoning.Effort {
 	case ReasoningNone, ReasoningMinimal, ReasoningLow,
@@ -291,7 +300,7 @@ type CallOptions struct {
 	// Verbosity asks the model for a shorter or longer answer.
 	Verbosity *string `json:"verbosity,omitempty"`
 	// InferenceSpeed picks the inference configuration. Not to be confused with
-	// Speed above, which is the voice rate of speech synthesis.
+	// Speed, which is the voice rate of speech synthesis.
 	InferenceSpeed *string `json:"inference_speed,omitempty"`
 	// LogProbs asks for the log probability of each returned token.
 	LogProbs *bool `json:"logprobs,omitempty"`

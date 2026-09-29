@@ -220,20 +220,10 @@ func (c *Client) setHeaders(ctx context.Context, req *http.Request, betaHeaders 
 	// If this changes frequently enough we should expose it as an option..
 	req.Header.Set("anthropic-version", "2023-06-01") // nolint:canonicalheader
 
-	// Set beta headers from request, falling back to client default
-	// Multiple beta features are combined in a single header with comma separation
 	var validHeaders []string
-	if len(betaHeaders) > 0 {
-		for _, header := range betaHeaders {
-			if header != "" && !slices.Contains(validHeaders, header) {
-				validHeaders = append(validHeaders, header)
-			}
-		}
-	} else if len(c.anthropicBetaHeaders) > 0 {
-		for _, header := range c.anthropicBetaHeaders {
-			if header != "" && !slices.Contains(validHeaders, header) {
-				validHeaders = append(validHeaders, header)
-			}
+	for _, header := range slices.Concat(c.anthropicBetaHeaders, betaHeaders) {
+		if header != "" && !slices.Contains(validHeaders, header) {
+			validHeaders = append(validHeaders, header)
 		}
 	}
 

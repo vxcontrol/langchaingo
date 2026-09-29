@@ -602,3 +602,16 @@ func TestKimiModelsOutsideTheFixedListKeepTheirSampling(t *testing.T) {
 		}
 	}
 }
+
+func TestAnInferenceSpeedThisDoorCannotSendIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp, sent := sendForWarningsWith(t, "gpt-4.1", nil, llms.WithInferenceSpeed("fast"))
+
+	if _, ok := sent["speed"]; ok {
+		t.Fatalf("the door has no speed field, got body: %v", sent)
+	}
+	if w := warningFor(t, resp, "WithInferenceSpeed"); w.Kind != llms.WarningDrop || w.Asked != "fast" {
+		t.Errorf("the lost speed must be reported, got %+v", w)
+	}
+}

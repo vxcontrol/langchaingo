@@ -290,3 +290,75 @@ func TestStaticKeyStillSendsAPIKeyHeader(t *testing.T) {
 	require.Equal(t, []string{"sk-ant-static"}, apiKey)
 	require.Equal(t, []string{""}, auths)
 }
+
+func TestFederationKeepsServingAShortTokenWhileARefreshFails(t *testing.T) {
+	t.Parallel()
+
+	stub := newFederationStub(t)
+	stub.lifetime = 60
+	c, auth := stub.client(t, FederationConfig{
+		RuleID:           "fdrl_rule",
+		OrganizationID:   "org",
+		ServiceAccountID: "svac_account",
+		Assertion:        fixedAssertion("jwt"),
+	})
+	start := time.Now()
+	now := start
+	auth.now = func() time.Time { return now }
+
+	call := func() error {
+		resp, err := c.request(context.Background(), http.MethodGet, "/models", http.NoBody, nil)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		return err
+	}
+
+	require.NoError(t, call())
+	stub.mu.Lock()
+	stub.exchangeStatus = http.StatusUnauthorized
+	stub.mu.Unlock()
+
+	for _, at := range []time.Duration{20 * time.Second, 29 * time.Second} {
+		now = start.Add(at)
+		require.NoError(t, call(), "at %s a failed refresh still serves the live token", at)
+	}
+
+	now = start.Add(30*time.Second + 500*time.Millisecond)
+	require.Error(t, call(), "inside the last 30 seconds a failed refresh is an error")
+
+	_, _, auths, _ := stub.counts()
+	require.Equal(t, []string{"Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt", "Bearer sk-ant-oat01-jwt"}, auths)
+}
+
+func TestFederationRefreshesTwoMinutesAheadOfExpiry(t *testing.T) {
+	t.Parallel()
+
+	stub := newFederationStub(t)
+	c, auth := stub.client(t, FederationConfig{
+		RuleID:           "fdrl_rule",
+		OrganizationID:   "org",
+		ServiceAccountID: "svac_account",
+		Assertion:        fixedAssertion("jwt"),
+	})
+	start := time.Now()
+	now := start
+	auth.now = func() time.Time { return now }
+
+	for _, step := range []struct {
+		at        time.Duration
+		exchanges int
+	}{
+		{0, 1},
+		{3600*time.Second - 121*time.Second, 1},
+		{3600*time.Second - 119500*time.Millisecond, 2},
+	} {
+		now = start.Add(step.at)
+		resp, err := c.request(context.Background(), http.MethodGet, "/models", http.NoBody, nil)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+
+		exchanges, _, _, _ := stub.counts()
+		require.Equal(t, step.exchanges, exchanges, "at %s: reused until 120 seconds before expiry, then refreshed", step.at)
+	}
+}

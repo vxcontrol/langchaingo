@@ -206,3 +206,36 @@ func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
 		}
 	}
 }
+
+func TestABudgetWithoutAnEffortIsReportedAsTheLevelItBecame(t *testing.T) {
+	t.Parallel()
+
+	for model, level := range map[string]string{"glm-5": "low", "gpt-oss:20b": "low"} {
+		resp := generateForWarningsOn(t, model, llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+
+		w, ok := ollamaWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.True(t, ok, model)
+		require.Equal(t, llms.WarningSubstitute, w.Kind, "%s: a level went out, so nothing was dropped", model)
+		require.Equal(t, "800", w.Asked, model)
+		require.Equal(t, level, w.Sent, model)
+	}
+}
+
+func TestABudgetWithoutAnEffortReachesTheWireAsItsLevel(t *testing.T) {
+	t.Parallel()
+
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = w.Write([]byte(`{"model":"glm-5","message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"stop"}` + "\n"))
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := New(WithServerURL(srv.URL), WithModel("glm-5"))
+	require.NoError(t, err)
+	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+	require.NoError(t, err)
+	require.Equal(t, "low", body["think"], "800 of 4096 tokens is the low level")
+}

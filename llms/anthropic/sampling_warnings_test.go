@@ -236,3 +236,25 @@ func TestExtraBodyThisDoorCannotMergeIsReported(t *testing.T) {
 	require.Equal(t, llms.WarningDrop, w.Kind)
 	require.Equal(t, "chat_template_kwargs, enable_thinking", w.Asked)
 }
+
+func TestAnInferenceSpeedTheDoorSendsIsNotReportedLost(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForModel(t, "claude-opus-5", llms.WithInferenceSpeed("fast"))
+	for _, w := range resp.Warnings {
+		require.NotEqual(t, "WithInferenceSpeed", w.Option, "the speed reached the wire: %+v", w)
+	}
+}
+
+func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
+	t.Parallel()
+
+	resp := generateForWarnings(t, llms.WithExtraBody(map[string]any{"metadata": map[string]any{"user_id": "u"}}))
+	for _, w := range resp.Warnings {
+		if w.Option == "WithExtraBody" {
+			require.Equal(t, "the door does not forward extra body fields", w.Reason, "this door marshals its own payload")
+			return
+		}
+	}
+	t.Fatalf("the dropped extra body went unreported: %v", resp.Warnings)
+}

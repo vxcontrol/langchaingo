@@ -340,3 +340,38 @@ func TestExtraBodyObjectOfAnotherTypeReplacesTheDoors(t *testing.T) { //nolint:f
 		})
 	}
 }
+
+func TestAnExtraBodySchemaReplacesTheDoorsSchemaWhole(t *testing.T) {
+	t.Parallel()
+
+	door := WithResponseFormat(&ResponseFormat{Type: "json_schema", JSONSchema: &ResponseFormatJSONSchema{
+		Name: "a",
+		Schema: &ResponseFormatJSONSchemaProperty{
+			Type:       "object",
+			Properties: map[string]*ResponseFormatJSONSchemaProperty{"city": {Type: "string"}},
+			Required:   []string{"city"},
+		},
+	}})
+	own := map[string]any{"type": "json_schema", "json_schema": map[string]any{
+		"name": "b", "strict": true,
+		"schema": map[string]any{
+			"type":                 "object",
+			"properties":           map[string]any{"score": map[string]any{"type": "number"}},
+			"required":             []string{"score"},
+			"additionalProperties": false,
+		},
+	}}
+
+	wire := extraBodyWire(t, "gpt-4o", []Option{door}, `{"score":1}`,
+		llms.WithExtraBody(map[string]any{"response_format": own}))
+
+	var got, want any
+	if err := json.Unmarshal(wire["response_format"], &got); err != nil {
+		t.Fatalf("response_format: %v", err)
+	}
+	raw, _ := json.Marshal(own)
+	_ = json.Unmarshal(raw, &want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("a schema is one document, not a merge of two:\nwant %s\ngot  %s", raw, wire["response_format"])
+	}
+}

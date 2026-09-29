@@ -16,7 +16,7 @@ func everyCatalogueOption() []llms.CallOption {
 		llms.WithTopLogProbs(5), llms.WithMinLength(10), llms.WithMaxLength(20),
 		llms.WithSeed(7), llms.WithVerbosity("low"),
 		llms.WithResponseMIMEType("application/json"),
-		llms.WithLogProbs(true), llms.WithJSONMode(),
+		llms.WithLogProbs(true), llms.WithJSONMode(), llms.WithInferenceSpeed("fast"),
 	}
 }
 
@@ -24,7 +24,7 @@ var catalogueOptionNames = []string{
 	"WithMinP", "WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
 	"WithTopK", "WithN", "WithCandidateCount", "WithTopLogProbs",
 	"WithMinLength", "WithMaxLength", "WithSeed", "WithVerbosity",
-	"WithResponseMIMEType", "WithLogProbs", "WithJSONMode",
+	"WithResponseMIMEType", "WithLogProbs", "WithJSONMode", "WithInferenceSpeed",
 }
 
 func TestTheUnreadCatalogueReportsEveryOptionADoorDoesNotCarry(t *testing.T) {

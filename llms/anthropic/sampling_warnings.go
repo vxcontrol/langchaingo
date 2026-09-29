@@ -13,7 +13,7 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 	const unread = "the door builds no field for it"
 
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
-	warn.AddUnreadOptions(model, opts, unread, "WithTopK")
+	warn.AddUnreadOptions(model, opts, unread, "WithTopK", "WithInferenceSpeed")
 }
 
 func reportAnthropicEffort(
@@ -149,7 +149,7 @@ func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPay
 	}
 }
 
-const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+const extraBodyUnread = "the door does not forward extra body fields"
 
 func reportAnthropicCompletionsMessages(warn *llms.Warnings, model string, messages []llms.MessageContent) {
 	total := 0
