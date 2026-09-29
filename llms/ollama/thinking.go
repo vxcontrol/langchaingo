@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/ollama/ollama/api"
 	"github.com/ollama/ollama/types/model"
@@ -37,7 +38,7 @@ func (o *LLM) thinkingOf(ctx context.Context, name string) (modelThinking, error
 
 func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOptions) (modelThinking, error) {
 	mode := opts.Reasoning.ResolveMode()
-	if mode != llms.ReasoningOn && mode != llms.ReasoningOff {
+	if mode != llms.ReasoningOn && mode != llms.ReasoningOff || opts.Reasoning.DelegatesDepth() {
 		return modelThinking{}, nil
 	}
 	if mode == llms.ReasoningOff && reasoning.ResolveOff(name, reasoning.ProviderOllama) == reasoning.OffUnsupported {
@@ -61,9 +62,13 @@ func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *l
 	case mode != llms.ReasoningOn, opts.Reasoning.DelegatesDepth():
 		return nil
 	case info.reported && !info.thinks:
+		asked := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+		if budgetOnly(opts.Reasoning) {
+			asked = strconv.Itoa(opts.Reasoning.Tokens)
+		}
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: name,
-			Asked:  string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
+			Asked:  asked,
 			Reason: "the server lists no thinking capability for this model and refuses think for it",
 		})
 		return nil
@@ -74,7 +79,7 @@ func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *l
 
 	asked := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	sent := describedThink(info.descriptor, asked)
-	if sent != asked {
+	if sent != asked && !budgetOnly(opts.Reasoning) {
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: name,
 			Asked: asked, Sent: fmt.Sprint(sent),
@@ -85,6 +90,10 @@ func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *l
 	return &api.ThinkValue{Value: sent}
 }
 
+func budgetOnly(cfg *llms.ReasoningConfig) bool {
+	return cfg.Effort == llms.ReasoningNone && cfg.HasExplicitTokens()
+}
+
 var effortRank = map[string]int{"minimal": 0, "low": 1, "medium": 2, "high": 3, "xhigh": 4, "max": 5}
 
 func describedThink(descriptor *model.Thinking, asked string) any {
@@ -92,7 +101,7 @@ func describedThink(descriptor *model.Thinking, asked string) any {
 		return asked
 	}
 	want, ranked := effortRank[asked]
-	best, bestGap := "", 0
+	best, bestGap, top := "", 0, 0
 	for _, value := range descriptor.Values {
 		level, ok := value.(string)
 		rank, known := effortRank[level]
@@ -103,8 +112,11 @@ func describedThink(descriptor *model.Thinking, asked string) any {
 		if best == "" || gap < bestGap || (gap == bestGap && rank < effortRank[best]) {
 			best, bestGap = level, gap
 		}
+		top = max(top, rank)
 	}
 	switch {
+	case best != "" && want > top && descriptor.Supports(true):
+		return true
 	case best != "":
 		return best
 	case descriptor.Supports(true):

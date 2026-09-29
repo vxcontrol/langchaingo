@@ -101,6 +101,8 @@ func TestTheThinkValueFollowsTheValuesTheServerLists(t *testing.T) {
 		{"an effort above the list becomes its top level", `["low","medium","high"],"default":"medium"`, llms.ReasoningXHigh, "high"},
 		{"a model that lists only switches gets true", `[false,true],"default":true`, llms.ReasoningHigh, true},
 		{"a model that lists only true gets true", `[true],"default":true`, llms.ReasoningLow, true},
+		{"an effort above every listed level takes true when true is listed", `[false,true,"medium"],"default":true`, llms.ReasoningHigh, true},
+		{"an effort below the listed levels takes the nearest level beside true", `[false,true,"medium"],"default":true`, llms.ReasoningLow, "medium"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -196,11 +198,41 @@ func TestTheServerIsAskedOncePerModelAndOnlyWhenThinkingIsSet(t *testing.T) {
 
 	_, err := ask(t, llm)
 	require.NoError(t, err)
-	assert.Zero(t, s.shows.Load(), "a call that sets no thinking costs no extra request")
+	_, err = ask(t, llm, llms.WithAdaptiveReasoning(""))
+	require.NoError(t, err)
+	assert.Zero(t, s.shows.Load(), "a call that sets no thinking or leaves the depth to the model costs no extra request")
 
 	for range 3 {
 		_, err = ask(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
 		require.NoError(t, err)
 	}
 	assert.Equal(t, int32(1), s.shows.Load())
+}
+
+func TestABudgetWithoutAnEffortIsReportedOnceOnADescribedModel(t *testing.T) {
+	t.Parallel()
+
+	s, llm := newShowServer(t, `{"capabilities":["thinking"],"thinking":{"values":[false,"medium","high"],"default":"high"}}`)
+	resp, err := ask(t, llm, llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+	require.NoError(t, err)
+
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	warnings := reasoningWarnings(resp)
+	require.Len(t, warnings, 1, "%v", warnings)
+	assert.Equal(t, "800", warnings[0].Asked)
+	assert.Equal(t, jsonText(think), warnings[0].Sent)
+}
+
+func TestABudgetOnAModelThatDoesNotThinkIsReportedAsTheBudget(t *testing.T) {
+	t.Parallel()
+
+	_, llm := newShowServer(t, `{"capabilities":["completion"]}`)
+	resp, err := ask(t, llm, llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800))
+	require.NoError(t, err)
+
+	warnings := reasoningWarnings(resp)
+	require.Len(t, warnings, 1, "%v", warnings)
+	assert.Equal(t, "800", warnings[0].Asked)
+	assert.Equal(t, llms.WarningDrop, warnings[0].Kind)
 }
