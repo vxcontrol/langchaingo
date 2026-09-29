@@ -27,7 +27,6 @@ func TestAForeignVendorOnTheOpenAIDoorKeepsItsSampling(t *testing.T) {
 
 	for _, model := range []string{"deepseek-v3.1", "qwen3-max"} {
 		support := llms.ReasoningSupportFor(model, reasoning.ProviderOpenAI)
-		assert.Equal(t, reasoning.RejectsSamplingWhileThinking(model), support.RejectsSampling,
-			"%s: the hint and the wire disagree about sampling", model)
+		assert.False(t, support.RejectsSampling, "%s keeps temperature and top_p on this door", model)
 	}
 }
