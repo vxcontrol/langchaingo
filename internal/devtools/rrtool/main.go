@@ -191,14 +191,12 @@ func showUsage() {
 	fmt.Print(`Usage: rrtool <command> [options]
 
 Commands:
-  clean          Remove duplicate files when both compressed/uncompressed exist
+  check          List httprr recordings that are not compressed
   list-packages  List Go packages that use httprr
   help           Show this help message
 
 Options:
   -dir string    Directory to process (default ".")
-  -r             Process directories recursively (pack/unpack)
-  -dry-run       Show what would be done without doing it (clean only)
   -format string Output format for list-packages: 'paths' or 'command' (default "paths")
 `)
 }

@@ -7,14 +7,10 @@ The `httprr` package provides deterministic HTTP record and replay functionality
 ```go
 func TestMyAPI(t *testing.T) {
     // Skip test gracefully if no credentials and no recording exists
-    httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY")
     
     // Create recorder/replayer
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer rr.Close()
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     
     // Use rr.Client() for all HTTP calls
     client := rr.Client()
@@ -56,25 +52,25 @@ When multiple identical requests are recorded (e.g., for cache testing), httprr 
 
 ### Core Functions
 
-#### `OpenForTest(t *testing.T, rt http.RoundTripper) (*RecordReplay, error)`
+#### `OpenForTest(t *testing.T, rt http.RoundTripper) *RecordReplay`
 
-The primary API for most test cases. Creates a recorder/replayer for the given test.
+The primary API for most test cases. Creates a recorder/replayer for the given test, fails the test if it cannot, and closes it in `t.Cleanup`.
 
 - **Recording mode**: Creates `testdata/TestName.httprr` 
 - **Replay mode**: Loads existing recording
 - **File naming**: Derived automatically from `t.Name()`
 - **Directory**: Always uses `testdata/` subdirectory
 
-#### `SkipIfNoCredentialsOrRecording(t *testing.T, envVars ...string)`
+#### `SkipIfNoCredentialsAndRecordingMissing(t *testing.T, envVars ...string)`
 
 Gracefully skips tests when they cannot run (no API keys) and have no recorded data.
 
 ```go
 // Skip if OPENAI_API_KEY not set AND no recording exists
-httprr.SkipIfNoCredentialsOrRecording(t, "OPENAI_API_KEY")
+httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 // Skip if neither API_KEY nor BACKUP_KEY is set AND no recording exists  
-httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY", "BACKUP_KEY")
+httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY", "BACKUP_KEY")
 ```
 
 #### `Open(file string, rt http.RoundTripper) (*RecordReplay, error)`
@@ -111,13 +107,9 @@ Closes the recorder/replayer. Use with `defer` for automatic cleanup.
 
 ```go
 func TestOpenAIChat(t *testing.T) {
-    httprr.SkipIfNoCredentialsOrRecording(t, "OPENAI_API_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
     
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer rr.Close()
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     
     // Scrub sensitive data
     rr.ScrubReq(func(req *http.Request) error {
@@ -140,13 +132,9 @@ func TestOpenAIChat(t *testing.T) {
 ```go
 func createTestClient(t *testing.T) *MyAPIClient {
     t.Helper()
-    httprr.SkipIfNoCredentialsOrRecording(t, "MY_API_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MY_API_KEY")
     
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-    if err != nil {
-        t.Fatal(err)
-    }
-    t.Cleanup(func() { rr.Close() })
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     
     return NewMyAPIClient(WithHTTPClient(rr.Client()))
 }
@@ -166,13 +154,9 @@ func TestFeatureB(t *testing.T) {
 
 ```go
 func TestMultiAPIIntegration(t *testing.T) {
-    httprr.SkipIfNoCredentialsOrRecording(t, "OPENAI_API_KEY", "SERPAPI_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY", "SERPAPI_KEY")
     
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer rr.Close()
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     
     // Both clients will use the same recording
     openaiClient := openai.New(openai.WithHTTPClient(rr.Client()))
@@ -188,13 +172,9 @@ When testing scenarios that require multiple identical requests with different r
 
 ```go
 func TestImplicitCaching(t *testing.T) {
-    httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY")
     
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer rr.Close()
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     
     client := NewAPIClient(WithHTTPClient(rr.Client()))
     
@@ -273,15 +253,17 @@ testdata/
 
 ### Compression Management
 
-```bash
-# Compress all recordings (for repository storage)
-go run ./internal/devtools/rrtool pack -r
+Replay reads `name.httprr.gz` when `name.httprr` is absent. `rrtool` has no pack command; compress with gzip:
 
-# Check compression status
+```bash
+# Compress a recording (keeps the original until you delete it)
+gzip -k path/to/testdata/TestName.httprr
+
+# List recordings that are not compressed
 go run ./internal/devtools/rrtool check
 
-# Decompress for debugging
-go run ./internal/devtools/rrtool unpack -r
+# List the packages that use httprr
+go run ./internal/devtools/rrtool list-packages
 ```
 
 ### Recording with Rate Limit Protection
@@ -302,10 +284,10 @@ go test -httprecord=. -httprecord-delay=500 -run TestMyAPI ./mypackage
 
 ```go
 // ✅ Good: Test skips gracefully when it can't run
-httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY")
+httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY")
 
 // ❌ Bad: Test fails when API key missing
-rr, err := httprr.OpenForTest(t, http.DefaultTransport)
+rr := httprr.OpenForTest(t, http.DefaultTransport)
 ```
 
 ### 2. Scrub Sensitive Data
@@ -327,29 +309,28 @@ rr.ScrubReq(func(req *http.Request) error {
 // ✅ Good: Reusable test setup
 func createTestLLM(t *testing.T) *openai.LLM {
     t.Helper()
-    httprr.SkipIfNoCredentialsOrRecording(t, "OPENAI_API_KEY")
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
     // ... setup code
 }
 
 // ❌ Bad: Duplicate setup in every test
 func TestA(t *testing.T) {
-    httprr.SkipIfNoCredentialsOrRecording(t, "OPENAI_API_KEY")
-    rr, err := httprr.OpenForTest(t, http.DefaultTransport)
+    httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
+    rr := httprr.OpenForTest(t, http.DefaultTransport)
     // ... repeated setup
 }
 ```
 
 ### 4. Handle Cleanup Properly
 
+`OpenForTest` closes the recorder in `t.Cleanup`. A recorder from `Open` is yours to close:
+
 ```go
-// ✅ Good: Automatic cleanup
+rr, err := httprr.Open("custom/path/recording.httprr", http.DefaultTransport)
+if err != nil {
+    t.Fatal(err)
+}
 defer rr.Close()
-
-// or
-t.Cleanup(func() { rr.Close() })
-
-// ❌ Bad: Manual cleanup (can be forgotten)
-// (No defer or cleanup)
 ```
 
 ## Troubleshooting
@@ -376,9 +357,9 @@ go test ./pkg -httprecord=. -run TestName
 
 **Solutions**:
 ```bash
-# Check and fix compression
+# Find uncompressed recordings, then compress them again
 go run ./internal/devtools/rrtool check
-go run ./internal/devtools/rrtool pack -r
+gzip -k testdata/TestName.httprr
 
 # Or remove the corrupted file and re-record
 rm testdata/TestName.httprr.gz
@@ -426,21 +407,15 @@ rr := httprr.OpenForTestWithSkip(t, http.DefaultTransport, "API_KEY")
 defer rr.Close()
 
 // ✅ New API
-httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY")
+httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY")
 
-rr, err := httprr.OpenForTest(t, http.DefaultTransport)
-if err != nil {
-    t.Fatal(err)
-}
-defer rr.Close()
+rr := httprr.OpenForTest(t, http.DefaultTransport)
 ```
 
 ### Benefits of New API
 
-1. **Consistent Error Handling**: All `httprr` operations return errors
-2. **Clear Separation**: Skip logic separate from file operations  
-3. **Single Responsibility**: Each function has one clear purpose
-4. **Better Documentation**: Self-documenting function names
+1. **Clear Separation**: Skip logic separate from file operations
+2. **Single Responsibility**: Each function has one clear purpose
 
 ## Advanced Usage
 
@@ -475,12 +450,12 @@ func TestWithConditionalRecording(t *testing.T) {
     // Only record if we have credentials
     if os.Getenv("API_KEY") != "" {
         // Will record new interactions
-        rr, err := httprr.OpenForTest(t, http.DefaultTransport)
+        rr := httprr.OpenForTest(t, http.DefaultTransport)
         // ...
     } else {
         // Will only replay existing recordings
-        httprr.SkipIfNoCredentialsOrRecording(t, "API_KEY")
-        rr, err := httprr.OpenForTest(t, http.DefaultTransport)
+        httprr.SkipIfNoCredentialsAndRecordingMissing(t, "API_KEY")
+        rr := httprr.OpenForTest(t, http.DefaultTransport)
         // ...
     }
 }
@@ -518,7 +493,7 @@ rr.ScrubResp(func(buf *bytes.Buffer) error {
 
 When adding new tests that use external APIs:
 
-1. **Always use `SkipIfNoCredentialsOrRecording`** for graceful degradation
+1. **Always use `SkipIfNoCredentialsAndRecordingMissing`** for graceful degradation
 2. **Include appropriate scrubbing** to avoid committing secrets
 3. **Record with real credentials** initially, then scrub the results
 4. **Compress recordings** before committing to save repository space

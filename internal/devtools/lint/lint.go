@@ -644,7 +644,7 @@ func checkHttprrCompression(fix bool) error {
 	errorLines = append(errorLines, "To fix this issue, run:")
 	errorLines = append(errorLines, "  go run ./internal/devtools/lint -prepush -fix")
 	errorLines = append(errorLines, "Or manually compress files:")
-	errorLines = append(errorLines, "  go run ./internal/devtools/rrtool pack -r")
+	errorLines = append(errorLines, "  gzip -k <file>.httprr")
 
 	return fmt.Errorf("%s", strings.Join(errorLines, "\n"))
 }
