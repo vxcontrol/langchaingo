@@ -69,6 +69,14 @@ func reportThinkingUnsupported(warn *llms.Warnings, modelID string, cfg *llms.Re
 	})
 }
 
+func reportDelegatedEffort(warn *llms.Warnings, modelID, sent string) {
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithAdaptiveReasoning", Model: modelID,
+		Asked: "adaptive", Sent: sent,
+		Reason: "nova reasons only at a named effort, and none was named",
+	})
+}
+
 func reportLegacyAnthropic(
 	warn *llms.Warnings, modelID string, options llms.CallOptions, input *anthropicTextGenerationInput,
 ) {

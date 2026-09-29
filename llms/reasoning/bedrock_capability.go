@@ -23,6 +23,8 @@ func NovaEffort(effort string) string {
 	}
 }
 
+const NovaDelegatedEffort = "medium"
+
 func NovaEfforts() []string {
 	return []string{"low", "medium", "high"}
 }

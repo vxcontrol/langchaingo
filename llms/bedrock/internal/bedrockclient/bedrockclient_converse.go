@@ -230,7 +230,9 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		setNova := func() {
 			if input.ReasoningConfig.DelegatesDepth() {
 				familyFields = converseNovaFields{
-					ReasoningConfig: &converseNovaReasoningConfig{Type: "enabled"},
+					ReasoningConfig: &converseNovaReasoningConfig{
+						Type: "enabled", MaxReasoningEffort: reasoning.NovaDelegatedEffort,
+					},
 				}
 				return
 			}

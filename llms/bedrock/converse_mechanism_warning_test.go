@@ -45,7 +45,6 @@ func TestDelegatedDepthOnConverseIsNotReportedAsAPickedMechanism(t *testing.T) {
 		name  string
 		model string
 	}{
-		{"nova", "amazon.nova-2-lite-v1:0"},
 		{"grok", "xai.grok-4-v1:0"},
 		{"gpt-oss", "openai.gpt-oss-120b-1:0"},
 	} {

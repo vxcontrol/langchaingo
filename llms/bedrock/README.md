@@ -238,7 +238,8 @@ source of truth used by the first-party Anthropic provider):
 
 Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
 its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
-beside it. Grok carries an effort and nothing else. GPT OSS carries only
+beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no
+effort goes out as `medium` and is reported in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only
 `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and
 `max` fall to `high`. `WithReasoningDisabled()` returns a typed
 `ErrReasoningOffUnsupported` for a model whose thinking cannot be turned off, such as

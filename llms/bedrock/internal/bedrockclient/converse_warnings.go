@@ -82,10 +82,23 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	reportMechanismSwap(warn, model, input.ReasoningConfig, converseMechanismOnTheWire(built))
+	if effort := converseNovaDelegatedEffort(input, built); effort != "" {
+		reportDelegatedEffort(warn, model, effort)
+	} else {
+		reportMechanismSwap(warn, model, input.ReasoningConfig, converseMechanismOnTheWire(built))
+	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.HasExplicitTokens() {
 		reportThinkingBudget(warn, model, cfg.Tokens, converseThinkingBudget(built))
 	}
+}
+
+func converseNovaDelegatedEffort(input *ConverseInput, built *bedrockruntime.ConverseInput) string {
+	if !input.ReasoningConfig.DelegatesDepth() {
+		return ""
+	}
+	config, _ := converseAdditionalFields(built)["reasoningConfig"].(map[string]any)
+	effort, _ := config["maxReasoningEffort"].(string)
+	return effort
 }
 
 func converseAdditionalFields(built *bedrockruntime.ConverseInput) map[string]any {

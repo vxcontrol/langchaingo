@@ -21,7 +21,7 @@ func converseFieldsFor(t *testing.T, model string, cfg *llms.ReasoningConfig) *C
 	}
 }
 
-func TestNovaTakesTheDelegationInsteadOfTheTopEffort(t *testing.T) {
+func TestNovaTakesTheDelegationAtAnEffortThatKeepsTheLimits(t *testing.T) {
 	t.Parallel()
 
 	client := NewConverseClient(nil)
@@ -33,9 +33,7 @@ func TestNovaTakesTheDelegationInsteadOfTheTopEffort(t *testing.T) {
 	raw, err := built.AdditionalModelRequestFields.MarshalSmithyDocument()
 	require.NoError(t, err)
 
-	assert.Contains(t, string(raw), `"type":"enabled"`)
-	assert.NotContains(t, string(raw), "maxReasoningEffort",
-		"the caller left the depth to the vendor")
+	assert.Contains(t, string(raw), `"reasoningConfig":{"type":"enabled","maxReasoningEffort":"medium"}`)
 	require.NotNil(t, built.InferenceConfig.MaxTokens,
 		"the top effort clears the sampling limits; a delegation must not")
 }
@@ -50,7 +48,7 @@ func TestTheLegacyNovaDoorTakesTheDelegationToo(t *testing.T) {
 	}, &llms.Warnings{})
 	require.NoError(t, err)
 
-	assert.Contains(t, string(body), `"reasoningConfig":{"type":"enabled"}`, "the caller left the depth to the vendor")
+	assert.Contains(t, string(body), `"reasoningConfig":{"type":"enabled","maxReasoningEffort":"medium"}`)
 	assert.Contains(t, string(body), `"maxTokens":500`)
 	assert.Contains(t, string(body), `"temperature":0.3`)
 	assert.Contains(t, string(body), `"topP":0.9`)
