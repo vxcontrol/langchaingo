@@ -357,14 +357,16 @@ CREATE TABLE %[2]s (id varchar PRIMARY KEY, collection_id uuid REFERENCES %[1]s 
 	for i, v := range vector {
 		literal[i] = strconv.FormatFloat(float64(v), 'f', -1, 32)
 	}
-	_, err = conn.Exec(ctx, "INSERT INTO "+embeddings+" (id, collection_id, embedding, document, cmetadata) "+
-		"VALUES ('doc-1', $1, $2::vector, 'written by python', '{}')", collectionID, "["+strings.Join(literal, ",")+"]")
-	require.NoError(t, err)
+	for id, document := range []string{"written by python", "also written by python"} {
+		_, err = conn.Exec(ctx, "INSERT INTO "+embeddings+" (id, collection_id, embedding, document, cmetadata) "+
+			"VALUES ($1, $2, $3::vector, $4, '{}')", strconv.Itoa(id), collectionID, "["+strings.Join(literal, ",")+"]", document)
+		require.NoError(t, err)
+	}
 
-	docs, err := store.SimilaritySearch(ctx, "written by python", 5)
+	docs, err := store.SimilaritySearch(ctx, "written by python", 1)
 	require.NoError(t, err, "the Python schema keys rows by id, not uuid")
 	require.Len(t, docs, 1)
-	require.Equal(t, "written by python", docs[0].PageContent)
+	require.Equal(t, "also written by python", docs[0].PageContent, "equal distances are ordered by document")
 }
 
 func newIsolatedIndexedStore(t *testing.T, url string, indexes ...MetadataIndex) (Store, *pgx.Conn) {
@@ -425,7 +427,8 @@ func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
 	ctx := t.Context()
 	store, conn := newIsolatedIndexedStore(t, url,
 		MetadataIndex{Keys: []string{"doc_type"}},
-		MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}})
+		MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}},
+		MetadataIndex{Keys: []string{"owner"}, Name: "OwnerIdx_" + strings.ReplaceAll(uuid.New().String(), "-", "")})
 
 	tx, err := conn.Begin(ctx)
 	require.NoError(t, err)
