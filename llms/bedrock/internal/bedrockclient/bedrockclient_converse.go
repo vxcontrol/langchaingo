@@ -1107,13 +1107,13 @@ func (c *ConverseClient) supportsReasoning(modelID string) bool {
 	return reasoning.IsReasoningModel(modelID)
 }
 
-// isAnthropicModelID reports whether the Bedrock model ID belongs to the Claude
-// family (with or without a region prefix such as "us.").
 func converseTakesNamedToolChoice(modelID string) bool {
 	id := strings.ToLower(modelID)
 	return strings.HasPrefix(id, "arn:") || isAnthropicModelID(id) || GetProvider(id) == "nova"
 }
 
+// isAnthropicModelID reports whether the Bedrock model ID belongs to the Claude
+// family (with or without a region prefix such as "us.").
 func isAnthropicModelID(modelID string) bool {
 	return strings.Contains(modelID, "anthropic.claude")
 }

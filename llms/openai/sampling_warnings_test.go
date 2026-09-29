@@ -635,3 +635,27 @@ func TestAnInferenceSpeedThisDoorCannotSendIsReported(t *testing.T) {
 		t.Errorf("the lost speed must be reported, got %+v", w)
 	}
 }
+
+func TestOnlyTheLogProbsTheCallerAskedForAreReportedLost(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		opts []llms.CallOption
+		want []string
+	}{
+		"top logprobs alone":        {[]llms.CallOption{llms.WithTopLogProbs(3)}, []string{"WithTopLogProbs"}},
+		"logprobs and top logprobs": {[]llms.CallOption{llms.WithLogProbs(true), llms.WithTopLogProbs(3)}, []string{"WithLogProbs", "WithTopLogProbs"}},
+	} {
+		resp := sendForWarnings(t, "o3", append(tc.opts, llms.WithReasoning(llms.ReasoningHigh, 0))...)
+		var got []string
+		for _, w := range resp.Warnings {
+			if w.Option == "WithLogProbs" || w.Option == "WithTopLogProbs" {
+				got = append(got, w.Option)
+			}
+		}
+		slices.Sort(got)
+		if !slices.Equal(tc.want, got) {
+			t.Errorf("%s: want %v reported lost, got %v", name, tc.want, got)
+		}
+	}
+}

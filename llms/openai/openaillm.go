@@ -636,7 +636,7 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
-	before := takeSamplingSnapshot(req)
+	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, opts, wireEffort)
 	o.enforceSamplingPolicy(req, opts, wireEffort)
 	before.report(req, model, reason, warn)
