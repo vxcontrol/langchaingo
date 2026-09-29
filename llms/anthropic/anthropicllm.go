@@ -876,6 +876,9 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 				err = fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)
 				return anthropicclient.ChatMessage{}, err
 			}
+			if inputStruct == nil {
+				inputStruct = map[string]interface{}{}
+			}
 
 			toolUse := &anthropicclient.ToolUseContent{
 				Type:  "tool_use",
