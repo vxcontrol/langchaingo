@@ -2,7 +2,10 @@ package ollama
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,6 +19,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 	"github.com/vxcontrol/langchaingo/llms/structuredoutput"
+	"golang.org/x/crypto/ssh"
 )
 
 // removeTimestampTransport removes 'ts' query parameter before passing to httprr.
@@ -36,6 +40,32 @@ func (t *removeTimestampTransport) RoundTrip(req *http.Request) (*http.Response,
 	return t.base.RoundTrip(clonedReq)
 }
 
+// ensureSigningKey gives a replay a throwaway key when the developer has none:
+// the signature rides only in the Authorization header, which the recordings
+// scrub, so any key replays them.
+func ensureSigningKey(t *testing.T, recording bool) {
+	t.Helper()
+
+	if home, err := os.UserHomeDir(); err == nil {
+		if _, err := os.Stat(filepath.Join(home, ".ollama", "id_ed25519")); err == nil {
+			return
+		}
+	}
+	if recording {
+		t.Skip("no ~/.ollama/id_ed25519: recording against ollama.com needs the account's signing key")
+	}
+
+	_, key, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	block, err := ssh.MarshalPrivateKey(key, "")
+	require.NoError(t, err)
+	home := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".ollama"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(home, ".ollama", "id_ed25519"), pem.EncodeToMemory(block), 0o600))
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+}
+
 // newCloudTestClient creates a test client configured for Ollama Cloud
 func newCloudTestClient(t *testing.T, extra ...Option) *LLM {
 	t.Helper()
@@ -43,17 +73,9 @@ func newCloudTestClient(t *testing.T, extra ...Option) *LLM {
 	// Check for required credentials and skip if not available
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OLLAMA_API_KEY")
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skipf("no home directory to read the Ollama signing key from: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(home, ".ollama", "id_ed25519")); err != nil {
-		t.Skip("no ~/.ollama/id_ed25519: the client signs every ollama.com request before " +
-			"the httprr transport runs, so the recordings cannot be replayed without it")
-	}
-
 	// Set up httprr for recording/replaying HTTP interactions
 	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
+	ensureSigningKey(t, rr.Recording())
 
 	// Scrub dynamic headers
 	rr.ScrubReq(func(req *http.Request) error {
