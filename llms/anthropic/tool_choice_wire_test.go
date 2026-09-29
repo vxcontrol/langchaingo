@@ -15,10 +15,8 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
-func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
-	t.Parallel()
-
-	tool := llms.Tool{
+func weatherTool() llms.Tool {
+	return llms.Tool{
 		Type: "function",
 		Function: &llms.FunctionDefinition{
 			Name:        "get_weather",
@@ -26,6 +24,10 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 			Parameters:  map[string]any{"type": "object", "properties": map[string]any{}},
 		},
 	}
+}
+
+func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
+	t.Parallel()
 
 	for _, tc := range []struct {
 		name   string
@@ -72,13 +74,17 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 			t.Parallel()
 
 			payload, _ := captureMessagesRequest(t,
-				llms.WithTools([]llms.Tool{tool}),
+				llms.WithTools([]llms.Tool{weatherTool()}),
 				llms.WithToolChoice(tc.choice),
 				llms.WithMaxTokens(64))
 
 			assert.Equal(t, tc.want, payload["tool_choice"])
 		})
 	}
+}
+
+func TestAChoiceTheModelOwnsReachesTheWireAsAnObject(t *testing.T) {
+	t.Parallel()
 
 	for _, tc := range []struct {
 		name   string
@@ -96,27 +102,27 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 		{"none as a bare string", "none", map[string]any{"type": "none"}},
 		{"none as a struct", llms.ToolChoice{Type: "none"}, map[string]any{"type": "none"}},
 	} {
-		t.Run("a choice the model owns reaches the wire as an object: "+tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			payload, _ := captureMessagesRequest(t,
-				llms.WithTools([]llms.Tool{tool}),
+				llms.WithTools([]llms.Tool{weatherTool()}),
 				llms.WithToolChoice(tc.choice),
 				llms.WithMaxTokens(64))
 
 			assert.Equal(t, tc.want, payload["tool_choice"])
 		})
 	}
+}
 
-	t.Run("no choice sends no field", func(t *testing.T) {
-		t.Parallel()
+func TestNoToolChoiceSendsNoField(t *testing.T) {
+	t.Parallel()
 
-		payload, _ := captureMessagesRequest(t,
-			llms.WithTools([]llms.Tool{tool}), llms.WithMaxTokens(64))
+	payload, _ := captureMessagesRequest(t,
+		llms.WithTools([]llms.Tool{weatherTool()}), llms.WithMaxTokens(64))
 
-		_, present := payload["tool_choice"]
-		assert.False(t, present)
-	})
+	_, present := payload["tool_choice"]
+	assert.False(t, present)
 }
 
 func TestAFinishedTurnWithNoBlockIsAnAnswer(t *testing.T) {

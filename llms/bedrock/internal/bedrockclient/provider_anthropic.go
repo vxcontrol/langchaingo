@@ -60,14 +60,20 @@ type anthropicTextGenerationInputContent struct {
 
 func (c anthropicTextGenerationInputContent) MarshalJSON() ([]byte, error) {
 	type alias anthropicTextGenerationInputContent
-	if c.Type != "thinking" || c.Thinking != "" {
-		return json.Marshal(alias(c))
+	switch {
+	case c.Type == "thinking" && c.Thinking == "":
+		return json.Marshal(struct {
+			Type      string `json:"type"`
+			Thinking  string `json:"thinking"`
+			Signature string `json:"signature,omitempty"`
+		}{Type: c.Type, Signature: c.Signature})
+	case c.Type == AnthropicMessageTypeToolUse && len(c.Input) == 0:
+		return json.Marshal(struct {
+			alias
+			Input map[string]any `json:"input"`
+		}{alias: alias(c), Input: map[string]any{}})
 	}
-	return json.Marshal(struct {
-		Type      string `json:"type"`
-		Thinking  string `json:"thinking"`
-		Signature string `json:"signature,omitempty"`
-	}{Type: c.Type, Signature: c.Signature})
+	return json.Marshal(alias(c))
 }
 
 type anthropicCacheControl struct {
@@ -592,6 +598,9 @@ DoStream:
 				}
 			case "content_block_stop":
 				if currentToolCall != nil {
+					if currentToolCall.Arguments == "" {
+						currentToolCall.Arguments = "{}"
+					}
 					// Add completed tool call to final response
 					toolCalls = append(toolCalls, llms.ToolCall{
 						ID:   currentToolCall.ID,

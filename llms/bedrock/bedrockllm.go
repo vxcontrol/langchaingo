@@ -257,7 +257,7 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				if part.FunctionCall == nil {
 					return nil, errors.New("tool call missing function call data")
 				}
-				var arguments map[string]any
+				arguments := map[string]any{}
 				if part.FunctionCall.Arguments != "" {
 					decoded, err := decodeToolArguments(part.FunctionCall.Arguments)
 					if err != nil {

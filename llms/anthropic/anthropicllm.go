@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"slices"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -875,6 +877,13 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 			if err := dec.Decode(&inputStruct); err != nil {
 				err = fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)
 				return anthropicclient.ChatMessage{}, err
+			}
+			if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w: data follows the object: %s",
+					toolcall.ErrNotAnObject, p.FunctionCall.Arguments)
+			}
+			if inputStruct == nil {
+				inputStruct = map[string]interface{}{}
 			}
 
 			toolUse := &anthropicclient.ToolUseContent{
