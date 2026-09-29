@@ -236,3 +236,61 @@ func TestABudgetOnAModelThatDoesNotThinkIsReportedAsTheBudget(t *testing.T) {
 	assert.Equal(t, "800", warnings[0].Asked)
 	assert.Equal(t, llms.WarningDrop, warnings[0].Kind)
 }
+
+func TestAModelWhoseOnlyValueIsFalseGetsNoThink(t *testing.T) {
+	t.Parallel()
+
+	s, llm := newShowServer(t, `{"thinking":{"values":[false],"default":false}}`)
+	resp, err := ask(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
+	require.NoError(t, err)
+
+	_, sent := s.sentThink(t)
+	assert.False(t, sent, "the docs read values [false] as a model that does not think")
+	require.Len(t, reasoningWarnings(resp), 1)
+	assert.Equal(t, llms.WarningDrop, reasoningWarnings(resp)[0].Kind)
+}
+
+func TestADescriptorCountsWithoutACapabilityList(t *testing.T) {
+	t.Parallel()
+
+	s, llm := newShowServer(t, `{"thinking":{"values":["low","high","max"],"default":"max"}}`)
+	_, err := ask(t, llm, llms.WithReasoning(llms.ReasoningMedium, 0))
+	require.NoError(t, err)
+
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, "low", think)
+}
+
+func TestTurningOffAModelWithoutTheThinkingCapabilitySendsFalse(t *testing.T) {
+	t.Parallel()
+
+	s, llm := newShowServer(t, `{"capabilities":["completion","tools"]}`)
+	_, err := ask(t, llm, llms.WithReasoningDisabled())
+	require.NoError(t, err)
+
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think, "the server refuses only a truthy think on such a model")
+}
+
+func TestAShowThatFailsStopsTheCallBeforeTheChat(t *testing.T) {
+	t.Parallel()
+
+	var chats atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/chat" {
+			chats.Add(1)
+		}
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"error":"model 'm' not found"}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := New(WithServerURL(srv.URL), WithModel("m"))
+	require.NoError(t, err)
+
+	_, err = ask(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
+	require.ErrorContains(t, err, `ollama: show model "m"`)
+	assert.Zero(t, chats.Load())
+}

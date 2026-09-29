@@ -61,7 +61,7 @@ func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *l
 		return &api.ThinkValue{Value: false}
 	case mode != llms.ReasoningOn, opts.Reasoning.DelegatesDepth():
 		return nil
-	case info.reported && !info.thinks:
+	case info.reported && !info.thinks, thinksNever(info.descriptor):
 		asked := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 		if budgetOnly(opts.Reasoning) {
 			asked = strconv.Itoa(opts.Reasoning.Tokens)
@@ -88,6 +88,10 @@ func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *l
 	}
 	reportOllamaBudget(warn, name, opts, fmt.Sprint(sent))
 	return &api.ThinkValue{Value: sent}
+}
+
+func thinksNever(descriptor *model.Thinking) bool {
+	return descriptor.Valid() && len(descriptor.Values) == 1 && descriptor.Supports(false)
 }
 
 func budgetOnly(cfg *llms.ReasoningConfig) bool {
