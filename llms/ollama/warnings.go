@@ -3,8 +3,6 @@ package ollama
 import (
 	"strconv"
 
-	"github.com/ollama/ollama/api"
-
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
@@ -42,7 +40,6 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 			Asked: asked, Reason: unread,
 		})
 	}
-	reportOllamaThinking(warn, model, opts)
 }
 
 func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptions) {
@@ -64,7 +61,7 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 			})
 		}
 	default:
-		if level := (&api.ThinkValue{Value: effort}); !level.IsValid() {
+		if !knownLevel(effort) {
 			sent = "true"
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
@@ -73,6 +70,11 @@ func reportOllamaThinking(warn *llms.Warnings, model string, opts llms.CallOptio
 			})
 		}
 	}
+	reportOllamaBudget(warn, model, opts, sent)
+}
+
+func reportOllamaBudget(warn *llms.Warnings, model string, opts llms.CallOptions, sent string) {
+	cfg := opts.Reasoning
 	if !cfg.HasExplicitTokens() {
 		return
 	}

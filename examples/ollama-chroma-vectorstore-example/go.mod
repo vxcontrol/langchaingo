@@ -15,7 +15,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
-	github.com/ollama/ollama v0.32.5 // indirect
+	github.com/ollama/ollama v0.35.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.8 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
