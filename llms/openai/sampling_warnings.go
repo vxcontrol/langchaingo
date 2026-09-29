@@ -24,7 +24,7 @@ type samplingSnapshot struct {
 	topLogProbs      int
 }
 
-func takeSamplingSnapshot(req *openaiclient.ChatRequest) samplingSnapshot {
+func takeSamplingSnapshot(req *openaiclient.ChatRequest, opts llms.CallOptions) samplingSnapshot {
 	return samplingSnapshot{
 		temperature:      req.Temperature,
 		topP:             req.TopP,
@@ -32,7 +32,7 @@ func takeSamplingSnapshot(req *openaiclient.ChatRequest) samplingSnapshot {
 		minP:             req.MinP,
 		frequencyPenalty: req.FrequencyPenalty,
 		presencePenalty:  req.PresencePenalty,
-		logProbs:         req.LogProbs,
+		logProbs:         req.LogProbs && opts.LogProbs != nil && *opts.LogProbs,
 		topLogProbs:      req.TopLogProbs,
 	}
 }
