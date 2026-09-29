@@ -12,12 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// metadataKeyPattern gates every metadata key that reaches the statement text.
-// A key that travels as a bind parameter makes `cmetadata ->> $n` a different
-// expression from the `cmetadata ->> 'key'` an index was built over, so the
-// index becomes unreachable as soon as the planner chooses a generic plan.
-// Inlining the key is what keeps the index in play, and nothing this pattern
-// admits needs quoting.
+// metadataKeyPattern gates the keys a MetadataIndex declares: they become part
+// of the index name as well as its expression.
 var metadataKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,62}$`)
 
 // maxIdentifierLen is PostgreSQL's NAMEDATALEN-1: a longer name is silently

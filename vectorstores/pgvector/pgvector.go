@@ -36,7 +36,7 @@ var (
 	ErrEmbedderWrongNumberVectors = errors.New("number of vectors from embedder does not match number of documents")
 	ErrInvalidScoreThreshold      = errors.New("score threshold must be between 0 and 1")
 	ErrInvalidFilters             = errors.New("invalid filters")
-	ErrInvalidFilterKey           = errors.New("filter key must be a bare identifier")
+	ErrInvalidFilterKey           = errors.New("filter key cannot be written as an SQL literal")
 	ErrInvalidMetadataIndex       = errors.New("invalid metadata index")
 	ErrUnsupportedOptions         = errors.New("unsupported options")
 )
