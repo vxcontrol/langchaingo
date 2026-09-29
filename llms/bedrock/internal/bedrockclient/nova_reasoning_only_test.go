@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/reasoning"
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -27,10 +26,18 @@ func TestAnAnswerMadeOnlyOfReasoningIsStillAnAnswer(t *testing.T) {
 func TestAnEmptyAnswerIsStillAnError(t *testing.T) {
 	t.Parallel()
 
-	content, thought := splitNovaReasoning(nil)
-	assert.Empty(t, content)
-	assert.Nil(t, thought)
-	var _ *reasoning.ContentReasoning = thought
+	client := bedrockruntime.New(bedrockruntime.Options{
+		Region:           "us-east-1",
+		Credentials:      credentials.NewStaticCredentialsProvider("k", "s", ""),
+		RetryMaxAttempts: 1,
+		HTTPClient: &cannedTransport{body: `{"output":{"message":{"content":[],"role":"assistant"}},` +
+			`"stopReason":"end_turn","usage":{"inputTokens":1,"outputTokens":0}}`},
+	})
+
+	_, err := createNovaCompletion(t.Context(), client, "amazon.nova-2-lite-v1:0",
+		[]Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
+		llms.CallOptions{}, &llms.Warnings{})
+	require.EqualError(t, err, "no results", "neither text nor a thought is no answer at all")
 }
 
 func TestANovaTurnOfPureReasoningIsNotAnError(t *testing.T) {

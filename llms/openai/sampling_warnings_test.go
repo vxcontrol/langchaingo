@@ -555,9 +555,29 @@ func TestDelegatedDepthOnAModelThatWillNotReasonIsReported(t *testing.T) {
 func TestDelegatedDepthOnAModelThatReasonsAnywayIsSilent(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "gpt-4o", llms.WithAdaptiveReasoning(llms.ReasoningNone))
+	resp := sendForWarnings(t, "o3-mini", llms.WithAdaptiveReasoning(llms.ReasoningNone))
 	if len(resp.Warnings) != 0 {
 		t.Errorf("nothing was lost, got %v", resp.Warnings)
+	}
+}
+
+func TestDelegatedDepthOnAModelThatDoesNotReasonIsReported(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gpt-4o", "gpt-4.1", "gpt-5.1-chat-latest"} {
+		resp := sendForWarnings(t, model, llms.WithAdaptiveReasoning(llms.ReasoningNone))
+		var reported []llms.Warning
+		for _, w := range resp.Warnings {
+			if w.Option == "WithAdaptiveReasoning" {
+				reported = append(reported, w)
+			}
+		}
+		if len(reported) != 1 {
+			t.Fatalf("%s: one lost request is one warning, got %v", model, reported)
+		}
+		if w := reported[0]; w.Kind != llms.WarningDrop || w.Asked != "adaptive" || w.Sent != "" {
+			t.Errorf("%s: the lost request must be reported as WithReasoning's is, got %+v", model, w)
+		}
 	}
 }
 

@@ -7,11 +7,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+
+	"github.com/vxcontrol/langchaingo/internal/testutil/testctr"
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
 )
@@ -54,6 +61,13 @@ func (e fixedEmbedder) vector(text string) []float32 {
 	return vec
 }
 
+var sharedPostgres struct {
+	once      sync.Once
+	url       string
+	err       error
+	container *tcpostgres.PostgresContainer
+}
+
 // These cases live inside the package because they assert about the statement
 // the store builds, so they cannot borrow the external suite's helpers.
 func narrowingURL(t *testing.T) string {
@@ -62,11 +76,25 @@ func narrowingURL(t *testing.T) string {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
-	url := os.Getenv("PGVECTOR_CONNECTION_STRING")
-	if url == "" {
-		t.Skip("PGVECTOR_CONNECTION_STRING is not set")
+	if url := os.Getenv("PGVECTOR_CONNECTION_STRING"); url != "" {
+		return url
 	}
-	return url
+	testctr.SkipIfDockerNotAvailable(t)
+
+	sharedPostgres.once.Do(func() {
+		ctx := context.Background()
+		sharedPostgres.container, sharedPostgres.err = tcpostgres.Run(ctx, "docker.io/pgvector/pgvector:pg16",
+			tcpostgres.WithDatabase("db_test"), tcpostgres.WithUsername("user"), tcpostgres.WithPassword("passw0rd!"),
+			testcontainers.WithWaitStrategy(wait.ForAll(
+				wait.ForLog("database system is ready to accept connections").WithOccurrence(2).
+					WithStartupTimeout(60*time.Second),
+				wait.ForListeningPort("5432/tcp").WithStartupTimeout(60*time.Second))))
+		if sharedPostgres.err == nil {
+			sharedPostgres.url, sharedPostgres.err = sharedPostgres.container.ConnectionString(ctx, "sslmode=disable")
+		}
+	})
+	require.NoError(t, sharedPostgres.err)
+	return sharedPostgres.url
 }
 
 func narrowingCollection() string {

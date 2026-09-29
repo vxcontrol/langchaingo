@@ -2,11 +2,13 @@ package httprr
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -48,25 +50,54 @@ func repositoryRoot(t *testing.T) string {
 	}
 }
 
+func readRecording(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasSuffix(path, ".gz") {
+		return data, err //nolint:wrapcheck // the walk reports its own error unchanged
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the walk reports its own error unchanged
+	}
+	defer zr.Close()
+	return io.ReadAll(zr)
+}
+
+var accountHeader = regexp.MustCompile(`(?im)^(openai-project|openai-organization): *([^\r\n]*)`)
+
 func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 	root := repositoryRoot(t)
-	scanned := 0
+	scanned := map[string]int{}
 
 	require.NoError(t, filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || filepath.Ext(path) != ".httprr" {
+		if err != nil || entry.IsDir() {
 			return err //nolint:wrapcheck // the walk reports its own error unchanged
 		}
-		data, err := os.ReadFile(path)
+		kind := ""
+		switch {
+		case strings.HasSuffix(path, ".httprr"):
+			kind = ".httprr"
+		case strings.HasSuffix(path, ".httprr.gz"):
+			kind = ".httprr.gz"
+		default:
+			return nil
+		}
+		data, err := readRecording(path)
 		if err != nil {
-			return err //nolint:wrapcheck // the walk reports its own error unchanged
+			return err
 		}
-		scanned++
+		scanned[kind]++
 		name, _ := filepath.Rel(root, path)
 		assert.NotContains(t, strings.ToLower(string(data)), "x-litellm-",
 			"%s carries the gateway's headers: they hold the key's spend and the deployment id", name)
+		for _, m := range accountHeader.FindAllStringSubmatch(string(data), -1) {
+			assert.Contains(t, []string{"proj_lcgo-tst", "lcgo-tst"}, strings.TrimSpace(m[2]),
+				"%s carries a real %s", name, m[1])
+		}
 		return nil
 	}))
-	assert.Positive(t, scanned, "the sweep found no recordings at all, so it proves nothing")
+	assert.Positive(t, scanned[".httprr"], "the sweep found no recordings at all, so it proves nothing")
+	assert.Positive(t, scanned[".httprr.gz"], "the replayer also reads compressed recordings")
 }
 
 func TestTheRecorderStripsGatewayHeadersFromAResponse(t *testing.T) {

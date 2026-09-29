@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -190,11 +191,20 @@ func TestBothDeepSeekReasonerNamesRefuseTheOffTheSameWay(t *testing.T) {
 func TestABudgetLargerThanTheAnswerLimitRaisesTheLimit(t *testing.T) {
 	body := sendModernReasoningBody(t, "anthropic/claude-opus-4-5", llms.ReasoningNone, 100, 512)
 
-	if !strings.Contains(body, `"max_tokens":1024`) && !strings.Contains(body, `"max_completion_tokens":1024`) {
-		t.Fatalf("the floor raised the budget to 1024, so the answer limit must follow: %s", body)
+	var wire struct {
+		MaxCompletionTokens int `json:"max_completion_tokens"`
+		Reasoning           struct {
+			MaxTokens int `json:"max_tokens"`
+		} `json:"reasoning"`
 	}
-	if strings.Contains(body, `"max_completion_tokens":512`) || strings.Contains(body, `"max_tokens":512`) {
-		t.Fatalf("a 512-token answer limit leaves no room once a 1024-token budget is spent: %s", body)
+	if err := json.Unmarshal([]byte(body), &wire); err != nil {
+		t.Fatalf("body: %v", err)
+	}
+	if wire.Reasoning.MaxTokens != 1024 {
+		t.Fatalf("the floor raises the budget to 1024: %s", body)
+	}
+	if wire.MaxCompletionTokens <= wire.Reasoning.MaxTokens {
+		t.Fatalf("the answer limit must leave room once the 1024-token budget is spent: %s", body)
 	}
 }
 
