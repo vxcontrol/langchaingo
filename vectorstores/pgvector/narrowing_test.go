@@ -61,8 +61,6 @@ func (e fixedEmbedder) vector(text string) []float32 {
 	return vec
 }
 
-// These cases live inside the package because they assert about the statement
-// the store builds, so they cannot borrow the external suite's helpers.
 var sharedPostgres struct {
 	once      sync.Once
 	url       string
@@ -70,6 +68,8 @@ var sharedPostgres struct {
 	container *tcpostgres.PostgresContainer
 }
 
+// These cases live inside the package because they assert about the statement
+// the store builds, so they cannot borrow the external suite's helpers.
 func narrowingURL(t *testing.T) string {
 	t.Helper()
 
