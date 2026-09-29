@@ -39,7 +39,7 @@ When multiple identical requests are recorded (e.g., for cache testing), httprr 
 ### Command-Line Flags
 
 - `-httprecord=<regexp>`: Re-record traces for files matching the regexp pattern (use "." to match all)
-- `-httprecord-delay=<ms>`: Add delay in milliseconds between HTTP requests during recording (helps avoid rate limits)
+- `-httprecord-delay=<duration>`: Add a delay such as `500ms` or `1s` between HTTP requests during recording (helps avoid rate limits)
 
 ### File Management
 
@@ -272,10 +272,10 @@ When recording tests that make many API calls, use the delay flag to avoid hitti
 
 ```bash
 # Record with 1 second delay between requests
-go test -httprecord=. -httprecord-delay=1000 ./...
+go test -httprecord=. -httprecord-delay=1s ./...
 
 # Record specific test with 500ms delay
-go test -httprecord=. -httprecord-delay=500 -run TestMyAPI ./mypackage
+go test -httprecord=. -httprecord-delay=500ms -run TestMyAPI ./mypackage
 ```
 
 ## Best Practices
