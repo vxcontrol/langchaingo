@@ -84,8 +84,11 @@ func applyOptions(opts ...Option) *Jina {
 	}
 
 	// _models holds vector dimensions, not batch sizes.
-	if size, ok := _models[o.Model]; ok && !o.batchSizeFromCaller {
+	if size, ok := _models[o.Model]; ok && (!o.batchSizeFromCaller || o.BatchSize < 1) {
 		o.BatchSize = size
+	}
+	if o.BatchSize < 1 {
+		o.BatchSize = _models[_defaultModel]
 	}
 
 	return o

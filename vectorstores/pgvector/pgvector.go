@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -35,7 +36,7 @@ var (
 	ErrEmbedderWrongNumberVectors = errors.New("number of vectors from embedder does not match number of documents")
 	ErrInvalidScoreThreshold      = errors.New("score threshold must be between 0 and 1")
 	ErrInvalidFilters             = errors.New("invalid filters")
-	ErrInvalidFilterKey           = errors.New("filter key must be a bare identifier")
+	ErrInvalidFilterKey           = errors.New("filter key cannot be written as an SQL literal")
 	ErrInvalidMetadataIndex       = errors.New("invalid metadata index")
 	ErrUnsupportedOptions         = errors.New("unsupported options")
 )
@@ -340,7 +341,6 @@ func (s Store) SimilaritySearch(
 	// fails outright with "different vector dimensions" without it.
 	sql := fmt.Sprintf(`WITH filtered_embedding_dims AS MATERIALIZED (
 	SELECT
-		%[1]s.uuid,
 		%[1]s.document,
 		%[1]s.cmetadata,
 		%[1]s.embedding <=> $2 AS distance
@@ -358,7 +358,7 @@ FROM filtered_embedding_dims AS data
 WHERE %[4]s
 ORDER BY
 	data.distance,
-	data.uuid
+	data.document
 LIMIT $3`, s.embeddingTableName, s.collectionTableName, innerQuery, outerQuery)
 	rows, err := s.conn.Query(ctx, sql, args...)
 	if err != nil {
@@ -480,25 +480,23 @@ func (s Store) getScoreThreshold(opts vectorstores.Options) (float32, error) {
 // argOffset; the returned args must be appended to the query in the same order.
 // Keys are sorted so that one filter always renders as one statement text.
 //
-// The key is inlined and only the value is bound, because `cmetadata ->> $n` is
-// not the expression a metadata index was built over. A key that fails the gate
-// is an error rather than a dropped predicate: a caller's filter may be the only
-// thing keeping one tenant's documents out of another's results.
+// The key is inlined as a literal and only the value is bound, because
+// `cmetadata ->> $n` is not the expression a metadata index was built over. A key
+// no literal can carry is an error rather than a dropped predicate: a caller's
+// filter may be the only thing keeping one tenant's documents out of another's
+// results.
 func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]string, []any, error) {
-	keys := make([]string, 0, len(filter))
-	for k := range filter {
-		if !metadataKeyPattern.MatchString(k) {
-			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
-		}
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(filter))
 
 	predicates := make([]string, 0, len(keys))
 	args := make([]any, 0, len(keys))
 	for _, k := range keys {
-		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> '%s') = $%d",
-			prefix, k, argOffset+len(args)+1))
+		literal, err := quoteLiteral(k)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
+		}
+		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = $%d",
+			prefix, literal, argOffset+len(args)+1))
 		args = append(args, fmt.Sprintf("%v", filter[k]))
 	}
 	return predicates, args, nil

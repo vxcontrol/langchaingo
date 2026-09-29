@@ -166,8 +166,29 @@ func TestSimilaritySearchRefusesAFilterKeyItCannotInline(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.SimilaritySearch(ctx, "anything", 10,
-		vectorstores.WithFilters(map[string]any{"flow id": "1"}))
+		vectorstores.WithFilters(map[string]any{"flow\\id": "1"}))
 	require.ErrorIs(t, err, ErrInvalidFilterKey)
+}
+
+func TestSimilaritySearchFiltersOnAKeyThatIsNotAnIdentifier(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	collection := narrowingCollection()
+	ctx := t.Context()
+
+	store := newNarrowingStore(t, url, collection, 64)
+	_, err := store.AddDocuments(ctx, []schema.Document{
+		{PageContent: "mine", Metadata: map[string]any{"doc-id": "1"}},
+		{PageContent: "theirs", Metadata: map[string]any{"doc-id": "2"}},
+	})
+	require.NoError(t, err)
+
+	docs, err := store.SimilaritySearch(ctx, "anything", 10,
+		vectorstores.WithFilters(map[string]any{"doc-id": "1"}))
+	require.NoError(t, err)
+	require.Len(t, docs, 1)
+	require.Equal(t, "mine", docs[0].PageContent)
 }
 
 func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
@@ -301,4 +322,128 @@ func explainSimilaritySearch(
 	}
 	require.NoError(t, rows.Err())
 	return plan.String()
+}
+
+func TestSimilaritySearchReadsATableWrittenByPythonLangchainPostgres(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
+	collections, embeddings := "py_collection_"+suffix, "py_embedding_"+suffix
+
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
+		_ = conn.Close(context.Background())
+	})
+	_, err = conn.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector")
+	require.NoError(t, err)
+	_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE TABLE %[1]s (uuid uuid PRIMARY KEY, name varchar NOT NULL UNIQUE, cmetadata json);
+CREATE TABLE %[2]s (id varchar PRIMARY KEY, collection_id uuid REFERENCES %[1]s (uuid) ON DELETE CASCADE,
+	embedding vector, document varchar, cmetadata jsonb)`, collections, embeddings))
+	require.NoError(t, err)
+
+	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("py"), WithCollectionTableName(collections), WithEmbeddingTableName(embeddings))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+
+	var collectionID string
+	require.NoError(t, conn.QueryRow(ctx, "SELECT uuid::text FROM "+collections+" WHERE name = 'py'").Scan(&collectionID))
+	vector := fixedEmbedder{dims: 64}.vector("written by python")
+	literal := make([]string, len(vector))
+	for i, v := range vector {
+		literal[i] = strconv.FormatFloat(float64(v), 'f', -1, 32)
+	}
+	for id, document := range []string{"written by python", "also written by python"} {
+		_, err = conn.Exec(ctx, "INSERT INTO "+embeddings+" (id, collection_id, embedding, document, cmetadata) "+
+			"VALUES ($1, $2, $3::vector, $4, '{}')", strconv.Itoa(id), collectionID, "["+strings.Join(literal, ",")+"]", document)
+		require.NoError(t, err)
+	}
+
+	docs, err := store.SimilaritySearch(ctx, "written by python", 1)
+	require.NoError(t, err, "the Python schema keys rows by id, not uuid")
+	require.Len(t, docs, 1)
+	require.Equal(t, "also written by python", docs[0].PageContent, "equal distances are ordered by document")
+}
+
+func newIsolatedIndexedStore(t *testing.T, url string, indexes ...MetadataIndex) (Store, *pgx.Conn) {
+	t.Helper()
+
+	ctx := t.Context()
+	suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
+	embeddings, collections := "idx_embedding_"+suffix, "idx_collection_"+suffix
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
+		_ = conn.Close(context.Background())
+	})
+
+	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("c"), WithEmbeddingTableName(embeddings), WithCollectionTableName(collections),
+		WithMetadataIndexes(indexes...))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	return store, conn
+}
+
+func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	index := MetadataIndex{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}}
+	store, conn := newIsolatedIndexedStore(t, url, index)
+
+	predicates, args, err := filterPredicates("", map[string]any{"doc_type": "answer"}, 0)
+	require.NoError(t, err)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	_, err = tx.Exec(ctx, "SET LOCAL enable_seqscan = off")
+	require.NoError(t, err)
+	rows, err := tx.Query(ctx, "EXPLAIN SELECT 1 FROM "+store.embeddingTableName+" WHERE "+predicates[0], args...)
+	require.NoError(t, err)
+	var plan []string
+	for rows.Next() {
+		var line string
+		require.NoError(t, rows.Scan(&line))
+		plan = append(plan, line)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingTableName),
+		"an equality filter on another value must be able to use the exclude index")
+}
+
+func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	store, conn := newIsolatedIndexedStore(t, url,
+		MetadataIndex{Keys: []string{"doc_type"}},
+		MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}},
+		MetadataIndex{Keys: []string{"owner"}, Name: "OwnerIdx_" + strings.ReplaceAll(uuid.New().String(), "-", "")})
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	require.NoError(t, store.createMetadataIndexesIfNotExist(ctx, tx))
+
+	rows, err := tx.Query(ctx, "SELECT mode FROM pg_locks WHERE locktype = 'relation' "+
+		"AND relation = $1::regclass AND pid = pg_backend_pid()", store.embeddingTableName)
+	require.NoError(t, err)
+	var modes []string
+	for rows.Next() {
+		var mode string
+		require.NoError(t, rows.Scan(&mode))
+		modes = append(modes, mode)
+	}
+	require.NoError(t, rows.Err())
+	require.Empty(t, modes, "indexes that exist need neither a build lock nor fresh statistics, so writers wait for nothing")
 }

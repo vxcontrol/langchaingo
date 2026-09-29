@@ -35,34 +35,45 @@ func TestFilterPredicatesKeepCallerValuesOutOfTheStatement(t *testing.T) {
 	}
 }
 
-// The key reaches the statement as text, so the gate is the whole defence.
-func TestFilterPredicatesRejectAKeyThatIsNotAnIdentifier(t *testing.T) {
+func TestFilterPredicatesQuoteAnyKeyAsALiteral(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range []string{
-		"kind') = 'x' OR '1'='1",
-		"",
-		"1abc",
-		"a-b",
-		"a.b",
-		"a b",
-		"a;b",
-		`a"b`,
-		"a`b",
-		"ключ",
-		strings.Repeat("a", 64),
+	for key, want := range map[string]string{
+		"doc-id":                 `(data.cmetadata ->> 'doc-id') = $1`,
+		"a.b":                    `(data.cmetadata ->> 'a.b') = $1`,
+		"a b":                    `(data.cmetadata ->> 'a b') = $1`,
+		"ключ":                   `(data.cmetadata ->> 'ключ') = $1`,
+		"kind') = 'x' OR '1'='1": `(data.cmetadata ->> 'kind'') = ''x'' OR ''1''=''1') = $1`,
+		strings.Repeat("a", 64):  `(data.cmetadata ->> '` + strings.Repeat("a", 64) + `') = $1`,
 	} {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
 
 			predicates, args, err := filterPredicates("data.", map[string]any{key: "y"}, 0)
-			if !errors.Is(err, ErrInvalidFilterKey) {
-				t.Fatalf("want ErrInvalidFilterKey, got %v", err)
+			if err != nil {
+				t.Fatalf("the base filtered on this key, got %v", err)
 			}
-			if predicates != nil || args != nil {
-				t.Errorf("a rejected filter must render nothing, got %v and %v", predicates, args)
+			if len(predicates) != 1 || predicates[0] != want {
+				t.Errorf("want %q, got %v", want, predicates)
+			}
+			if len(args) != 1 || args[0] != "y" {
+				t.Errorf("the value must travel as an argument, got %v", args)
 			}
 		})
+	}
+}
+
+func TestFilterPredicatesRejectAKeyNoLiteralCanCarry(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{`a\b`, "a\x00b"} {
+		predicates, args, err := filterPredicates("data.", map[string]any{key: "y"}, 0)
+		if !errors.Is(err, ErrInvalidFilterKey) {
+			t.Fatalf("%q: want ErrInvalidFilterKey, got %v", key, err)
+		}
+		if predicates != nil || args != nil {
+			t.Errorf("a rejected filter must render nothing, got %v and %v", predicates, args)
+		}
 	}
 }
 

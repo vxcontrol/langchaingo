@@ -40,7 +40,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 			},
 			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_doc_type_partial_bf975523 " +
 				"ON langchain_pg_embedding ((cmetadata ->> 'doc_type')) " +
-				"WHERE (cmetadata ->> 'doc_type') IS DISTINCT FROM 'memory'",
+				"WHERE (cmetadata ->> 'doc_type') <> 'memory'",
 		},
 		{
 			name: "a quote in an excluded value is doubled",
@@ -50,7 +50,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 			},
 			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_owner_partial_fb6d36ce " +
 				"ON langchain_pg_embedding ((cmetadata ->> 'owner')) " +
-				"WHERE (cmetadata ->> 'owner') IS DISTINCT FROM 'O''Brien'",
+				"WHERE (cmetadata ->> 'owner') <> 'O''Brien'",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
