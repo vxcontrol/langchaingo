@@ -6,11 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic"
 )
@@ -61,4 +63,33 @@ func TestAReplayedCallWithoutArgumentsSendsAnEmptyInputObject(t *testing.T) {
 				"the Messages API takes input as a required object, so a call without arguments carries {}")
 		})
 	}
+}
+
+func TestAReplayedCallWithDataAfterItsArgumentsIsRefusedBeforeTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := anthropic.New(anthropic.WithToken("test-key"),
+		anthropic.WithBaseURL(srv.URL), anthropic.WithModel("claude-sonnet-4-5"))
+	require.NoError(t, err)
+
+	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "book both rooms"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{
+			ID: "toolu_1", Type: "function",
+			FunctionCall: &llms.FunctionCall{Name: "book", Arguments: `{"room":1}{"room":2}`},
+		}}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "toolu_1", Name: "book", Content: "done"},
+		}},
+	}, llms.WithMaxTokens(64))
+
+	require.ErrorIs(t, err, toolcall.ErrNotAnObject)
+	assert.Zero(t, requests.Load(), "the second object would be dropped, so nothing may reach the vendor")
 }
