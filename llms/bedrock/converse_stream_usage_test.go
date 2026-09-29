@@ -19,7 +19,7 @@ import (
 func TestConverseStreamReportsTheSameCountersAsTheWholeAnswer(t *testing.T) {
 	t.Parallel()
 
-	const usage = `{"usage":{"inputTokens":13,"outputTokens":304,"totalTokens":3919,` +
+	const usage = `{"usage":{"inputTokens":13,"outputTokens":304,"totalTokens":4219,` +
 		`"cacheReadInputTokens":3602,"cacheWriteInputTokens":300}}`
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +46,7 @@ func TestConverseStreamReportsTheSameCountersAsTheWholeAnswer(t *testing.T) {
 
 	info := resp.Choices[0].GenerationInfo
 	assert.Equal(t, 304, info["CompletionTokens"])
-	assert.Equal(t, 3919, info["TotalTokens"])
+	assert.Equal(t, 4219, info["TotalTokens"], "Bedrock totals input, both cache counters and output")
 	assert.Equal(t, 3602, info["CacheReadInputTokens"])
 	assert.Equal(t, 3602, info["PromptCachedTokens"])
 	assert.Equal(t, 300, info["CacheCreationInputTokens"])
