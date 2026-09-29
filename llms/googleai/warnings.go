@@ -26,6 +26,13 @@ func reportGoogleAIOptions(warn *llms.Warnings, model string, opts llms.CallOpti
 	reportGoogleAIThinking(warn, model, opts, tc)
 }
 
+func askedDepth(cfg *llms.ReasoningConfig, maxTokens int, asTokens bool) string {
+	if asTokens {
+		return strconv.Itoa(cfg.Tokens) + " tokens"
+	}
+	return string(cfg.GetEffort(maxTokens))
+}
+
 func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOptions, tc *genai.ThinkingConfig) {
 	cfg := opts.Reasoning
 	if cfg == nil {
@@ -39,10 +46,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 		return
 	}
 	if !reasoning.GeminiSupportsThinking(model) {
-		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
-		if cfg.HasExplicitTokens() {
-			asked = strconv.Itoa(cfg.Tokens) + " tokens"
-		}
+		asked := askedDepth(cfg, opts.GetMaxTokens(), cfg.HasExplicitTokens())
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
 			Asked: asked, Reason: "this model does not think, so the door sends no thinking config",
@@ -52,10 +56,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 
 	if reasoning.GeminiTogglesThinkingByLevel(model) {
 		sent := string(genai.ThinkingLevelHigh)
-		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
-		if cfg.HasExplicitTokens() {
-			asked = strconv.Itoa(cfg.Tokens) + " tokens"
-		}
+		asked := askedDepth(cfg, opts.GetMaxTokens(), cfg.HasExplicitTokens())
 		if !strings.EqualFold(asked, sent) {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
@@ -68,10 +69,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 
 	noBudget := reasoning.GeminiTakesNoThinkingBudget(model) && cfg.HasExplicitTokens()
 	if levels := reasoning.GeminiThinkingLevels(model); levels != nil && len(levels) == 0 && (noBudget || !cfg.HasExplicitTokens()) {
-		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
-		if noBudget {
-			asked = strconv.Itoa(cfg.Tokens) + " tokens"
-		}
+		asked := askedDepth(cfg, opts.GetMaxTokens(), noBudget)
 		if cfg.Effort != "" || noBudget {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: asked,
@@ -82,10 +80,7 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 	}
 
 	if tc != nil && tc.ThinkingLevel != "" {
-		asked := string(cfg.GetEffort(opts.GetMaxTokens()))
-		if noBudget {
-			asked = strconv.Itoa(cfg.Tokens) + " tokens"
-		}
+		asked := askedDepth(cfg, opts.GetMaxTokens(), noBudget)
 		if (cfg.Effort != "" || noBudget) && !strings.EqualFold(asked, string(tc.ThinkingLevel)) {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: model,
