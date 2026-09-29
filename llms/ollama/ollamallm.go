@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
@@ -63,6 +64,7 @@ type LLM struct {
 	CallbacksHandler callbacks.Handler
 	client           *api.Client
 	options          options
+	thinking         sync.Map
 }
 
 var _ llms.Model = (*LLM)(nil)
@@ -165,6 +167,11 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	warn := &llms.Warnings{}
 	reportOllamaOptions(warn, model, opts)
+	thinking, err := o.thinkingFor(ctx, model, opts)
+	if err != nil {
+		return nil, err
+	}
+	req.Think = chooseThink(model, opts, thinking, warn)
 	if o.servesCloud(model) {
 		reportOllamaCloudFormat(warn, model, opts, o.options.format, emulated)
 	}
@@ -335,24 +342,23 @@ func (o *LLM) convertToolCall(toolCall llms.ToolCall) (api.ToolCall, error) {
 	return tc, nil
 }
 
-func resolveThink(model string, opts llms.CallOptions) *api.ThinkValue {
-	switch opts.Reasoning.ResolveMode() { //nolint:exhaustive // ReasoningDefault leaves the field unset
-	case llms.ReasoningOff:
-		return &api.ThinkValue{Value: false}
-	case llms.ReasoningOn:
-		if opts.Reasoning.DelegatesDepth() {
-			return nil
-		}
-		effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
-		if takesOnlyGPTOSSLevels(model) {
-			return &api.ThinkValue{Value: gptOSSLevel(effort)}
-		}
-		if level := (&api.ThinkValue{Value: string(effort)}); level.IsValid() {
-			return level
-		}
-		return &api.ThinkValue{Value: true}
+func thinkByName(model string, opts llms.CallOptions) *api.ThinkValue {
+	effort := opts.Reasoning.GetEffort(opts.GetMaxTokens())
+	if takesOnlyGPTOSSLevels(model) {
+		return &api.ThinkValue{Value: gptOSSLevel(effort)}
 	}
-	return nil
+	if knownLevel(string(effort)) {
+		return &api.ThinkValue{Value: string(effort)}
+	}
+	return &api.ThinkValue{Value: true}
+}
+
+func knownLevel(effort string) bool {
+	switch effort {
+	case "low", "medium", "high", "max":
+		return true
+	}
+	return false
 }
 
 func takesOnlyGPTOSSLevels(model string) bool {
@@ -387,11 +393,6 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		return nil, fmt.Errorf("error creating ollama options: %w", err)
 	}
 
-	if opts.Reasoning.IsDisabled() &&
-		reasoning.ResolveOff(model, reasoning.ProviderOllama) == reasoning.OffUnsupported {
-		return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
-	}
-
 	stream := opts.StreamingFunc != nil
 
 	req := &api.ChatRequest{
@@ -401,7 +402,6 @@ func (o *LLM) createChatRequest(model string, messages []api.Message, opts llms.
 		Options:  ollamaOptions,
 		Stream:   &stream,
 		Tools:    make(api.Tools, len(opts.Tools)),
-		Think:    resolveThink(model, opts),
 	}
 
 	keepAlive := o.options.keepAlive
