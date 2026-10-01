@@ -15,6 +15,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -382,12 +383,14 @@ func (g *GoogleAI) generateStreamingContent(
 	var lastCandidate *genai.Candidate
 	var blockReason *genai.GenerateContentResponsePromptFeedback
 	var streamErr error
+	var received bool
 
 	for chunk, err := range iter {
 		if err != nil {
-			streamErr = fmt.Errorf("error generating content: %w", err)
+			streamErr = geminiStreamError(ctx, received, err)
 			goto StreamEnd
 		}
+		received = true
 		if chunk == nil {
 			streamErr = errors.New("unexpected case: chunk is nil")
 			goto StreamEnd
@@ -537,10 +540,19 @@ func geminiStreamEndError(
 	if blocked != nil || (last != nil && last.FinishReason != "" && last.FinishReason != genai.FinishReasonUnspecified) {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("%w: %w", llms.ErrIncompleteStream, err)
+	return streamend.Incomplete(ctx, nil)
+}
+
+func geminiStreamError(ctx context.Context, received bool, err error) error {
+	wrapped := fmt.Errorf("error generating content: %w", err)
+	if !received {
+		return wrapped
 	}
-	return llms.ErrIncompleteStream
+	var apiErr genai.APIError
+	if errors.As(err, &apiErr) {
+		return fmt.Errorf("%w: %w", llms.ErrStreamFailed, wrapped)
+	}
+	return streamend.Incomplete(ctx, wrapped)
 }
 
 func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse, error) {

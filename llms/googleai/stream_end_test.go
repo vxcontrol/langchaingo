@@ -2,6 +2,7 @@ package googleai
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -79,4 +80,50 @@ func TestAGeminiStreamWithAFinishReasonIsComplete(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "partial answer", resp.Choices[0].Content)
+}
+
+var errUserStop = errors.New("user pressed stop")
+
+func TestAnErrorGeminiSendsInsideTheStreamIsAStreamFailure(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamFrom(t, t.Context(), func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, partialGeminiChunk+
+			`{"error":{"code":503,"message":"The model is overloaded.","status":"UNAVAILABLE"}}`+"\n\n")
+	}, func() {})
+
+	require.ErrorIs(t, err, llms.ErrStreamFailed)
+	assert.Contains(t, err.Error(), "The model is overloaded.")
+	require.NotNil(t, resp)
+	assert.Equal(t, "partial", resp.Choices[0].Content)
+}
+
+func TestAGeminiStreamCutInsideAnEventIsIncomplete(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamFrom(t, t.Context(), func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, partialGeminiChunk+`data: {"candidates":[{"content":{"role":"model","parts":[{"text":" and mo`)
+	}, func() {})
+
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+	require.NotNil(t, resp)
+	assert.Equal(t, "partial", resp.Choices[0].Content)
+}
+
+func TestAGeminiStreamCutWithACauseCarriesBothTheCauseAndTheContextError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancelCause(t.Context())
+	_, err := streamFrom(t, ctx, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, partialGeminiChunk)
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}, func() { cancel(errUserStop) })
+
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, errUserStop)
 }
