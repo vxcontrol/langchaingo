@@ -545,9 +545,10 @@ func geminiStreamEndError(
 
 func geminiStreamError(ctx context.Context, received bool, err error) error {
 	wrapped := fmt.Errorf("error generating content: %w", err)
-	if !received {
+	var cutEvent *json.SyntaxError
+	if !received && !errors.As(err, &cutEvent) {
 		if ctxErr := ctx.Err(); ctxErr != nil && !errors.Is(err, ctxErr) {
-			return streamend.Incomplete(ctx, wrapped)
+			return fmt.Errorf("%w: %w", wrapped, ctxErr)
 		}
 		return wrapped
 	}

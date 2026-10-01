@@ -158,3 +158,33 @@ func TestADeadlineBeforeTheGeminiStreamStartsIsNotACutStream(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.NotErrorIs(t, err, llms.ErrIncompleteStream)
 }
+
+func TestACancellationWithACauseBeforeTheGeminiStreamStartsIsNotACutStream(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancelCause(t.Context())
+	time.AfterFunc(100*time.Millisecond, func() { cancel(errUserStop) })
+	_, err := streamFrom(t, ctx, func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		<-r.Context().Done()
+	}, func() {})
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, errUserStop)
+	require.NotErrorIs(t, err, llms.ErrIncompleteStream)
+}
+
+func TestAGeminiStreamDroppedInsideItsFirstEventIsIncomplete(t *testing.T) {
+	t.Parallel()
+
+	_, err := streamFrom(t, t.Context(), func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"candidates":[{"content":{"role":"model","parts":[{"text":"sixty`)
+		w.(http.Flusher).Flush()
+		if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+			_ = conn.Close()
+		}
+	}, func() {})
+
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+}
