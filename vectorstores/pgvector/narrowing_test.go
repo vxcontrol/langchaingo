@@ -101,19 +101,11 @@ func narrowingCollection() string {
 	return "narrowing-" + uuid.New().String()
 }
 
-func newNarrowingStore(t *testing.T, url, collection string, dims int, indexes ...MetadataIndex) Store {
+func newNarrowingStore(t *testing.T, url, collection string, dims int) Store {
 	t.Helper()
 
-	opts := []Option{
-		WithConnectionURL(url),
-		WithEmbedder(fixedEmbedder{dims: dims}),
-		WithCollectionName(collection),
-	}
-	if len(indexes) > 0 {
-		opts = append(opts, WithMetadataIndexes(indexes...))
-	}
-
-	store, err := New(t.Context(), opts...)
+	store, err := New(t.Context(), WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: dims}),
+		WithCollectionName(collection))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
 	return store
@@ -230,11 +222,7 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}},
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "session"}},
 	}
-	store := newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
-
-	conn, err := pgx.Connect(ctx, url)
-	require.NoError(t, err)
-	defer conn.Close(ctx)
+	store, conn := newIsolatedIndexedStore(t, url, declared...)
 
 	for _, index := range declared {
 		name := index.indexName(store.embeddingTableName)
@@ -251,8 +239,11 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 		}
 	}
 
-	// A second store against the same table must be a no-op rather than an error.
-	newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
+	again, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("c"), WithEmbeddingTableName(store.embeddingTableName),
+		WithCollectionTableName(store.collectionTableName), WithMetadataIndexes(declared...))
+	require.NoError(t, err, "a second store against the same table must be a no-op rather than an error")
+	require.NoError(t, again.Close())
 }
 
 // The whole point of the rewrite: the scan reads one flow, not the table.
