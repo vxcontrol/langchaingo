@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -126,4 +127,20 @@ func TestAGeminiStreamCutWithACauseCarriesBothTheCauseAndTheContextError(t *test
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorIs(t, err, errUserStop)
+}
+
+func TestAGeminiStreamCutInsideItsFirstEventKeepsTheDeadline(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	_, err := streamFrom(t, ctx, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"candidates":[{"content":{"role":"model","parts":[{"text":"sixty`)
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}, func() {})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 }

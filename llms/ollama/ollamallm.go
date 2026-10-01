@@ -580,7 +580,7 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		return callbackErr
 	})
 	if err != nil && callbackErr == nil {
-		err = streamError(ctx, received, err)
+		err = streamError(ctx, received, finished, err)
 	}
 	// A stream the server closed without its final frame, as Ollama up to 0.34.0
 	// does when it stops a model repeating itself, still delivered an answer:
@@ -596,18 +596,20 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	return resp, err
 }
 
-func streamError(ctx context.Context, received bool, err error) error {
-	if ctx.Err() != nil {
-		return streamend.Incomplete(ctx, err)
-	}
+func streamError(ctx context.Context, received, finished bool, err error) error {
 	if !received {
 		return err
 	}
 	var netErr net.Error
-	if errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &netErr) || isUndecodedLine(err) {
-		return streamend.Incomplete(ctx, err)
+	readFailed := ctx.Err() != nil || errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &netErr) ||
+		isUndecodedLine(err)
+	if !readFailed {
+		return fmt.Errorf("%w: %w", llms.ErrStreamFailed, err)
 	}
-	return fmt.Errorf("%w: %w", llms.ErrStreamFailed, err)
+	if finished {
+		return nil
+	}
+	return streamend.Incomplete(ctx, err)
 }
 
 func isUndecodedLine(err error) bool {

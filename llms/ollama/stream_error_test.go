@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,4 +80,34 @@ func TestAnOllamaStreamCutWithACauseCarriesBothTheCauseAndTheContextError(t *tes
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorIs(t, err, errUserStop)
+}
+
+func TestADroppedConnectionAfterTheFinalFrameLeavesTheOllamaAnswerComplete(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamFrom(t, t.Context(), func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, cutFrame("sixty rooms are free")+"\n"+
+			`{"model":"llama3","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop"}`+"\n")
+		w.(http.Flusher).Flush()
+		if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
+			_ = conn.Close()
+		}
+	}, func() {})
+
+	require.NoError(t, err)
+	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+}
+
+func TestADeadlineBeforeTheFirstFrameIsNotReportedAsACutStream(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	_, err := streamFrom(t, ctx, func(w http.ResponseWriter, r *http.Request) {
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}, func() {})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NotErrorIs(t, err, llms.ErrIncompleteStream)
 }
