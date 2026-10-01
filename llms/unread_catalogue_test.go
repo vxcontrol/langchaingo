@@ -9,7 +9,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-var optionsEveryDoorHandles = map[string]bool{
+var optionsOutsideTheCatalogue = map[string]bool{
 	"Model": true, "MaxTokens": true, "Temperature": true, "StopWords": true, "StreamingFunc": true,
 	"TopP": true, "Reasoning": true, "FailOnTruncation": true, "StructuredOutput": true,
 	"Tools": true, "ToolChoice": true, "Functions": true, "FunctionCallBehavior": true,
@@ -32,7 +32,7 @@ func setAsked(t *testing.T, field reflect.Value, name string) {
 	case bool:
 		field.SetBool(true)
 	default:
-		t.Fatalf("CallOptions.%s is neither in the unread catalogue nor among the options every door handles", name)
+		t.Fatalf("CallOptions.%s is neither reported by the unread catalogue nor listed outside it", name)
 	}
 }
 
@@ -41,7 +41,7 @@ func catalogueOptions(t *testing.T) []reflect.StructField {
 
 	var fields []reflect.StructField
 	for _, field := range reflect.VisibleFields(reflect.TypeFor[llms.CallOptions]()) {
-		if !optionsEveryDoorHandles[field.Name] {
+		if field.IsExported() && !optionsOutsideTheCatalogue[field.Name] {
 			fields = append(fields, field)
 		}
 	}
@@ -49,7 +49,7 @@ func catalogueOptions(t *testing.T) []reflect.StructField {
 	return fields
 }
 
-func TestEveryCallOptionIsReportedByTheUnreadCatalogueOrHandledByEveryDoor(t *testing.T) {
+func TestEveryCallOptionIsReportedByTheUnreadCatalogueOrListedOutsideIt(t *testing.T) {
 	t.Parallel()
 
 	for _, field := range catalogueOptions(t) {
