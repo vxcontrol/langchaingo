@@ -1003,6 +1003,20 @@ func hasExistingRecording(t *testing.T) bool {
 	return uncompressedErr == nil || compressedErr == nil
 }
 
+// SkipIfRecordingMissing skips a test that has no recording unless the test is
+// being recorded.
+func SkipIfRecordingMissing(t *testing.T) {
+	t.Helper()
+	if hasExistingRecording(t) {
+		return
+	}
+	recording, err := Recording(filepath.Join("testdata", CleanFileName(t.Name())+".httprr"))
+	if err == nil && recording {
+		return
+	}
+	t.Skip("no httprr recording available. Hint: Re-run tests with -httprecord=. and the vendor's key to record it")
+}
+
 func normalizeGoogleAPIClientHeader(header string) string {
 	versionPattern := regexp.MustCompile(`(/v?(?:go)?)(\d+\.\d+(?:\.\d+)?)`)
 

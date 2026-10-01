@@ -138,3 +138,19 @@ func TestTheRecorderStripsGatewayHeadersFromAResponse(t *testing.T) {
 	assert.NotContains(t, strings.ToLower(string(recorded)), "llm_provider-",
 		"the gateway forwards the vendor's headers under its own prefix")
 }
+
+func TestATestWithoutARecordingRunsOnlyWhenRecorded(t *testing.T) {
+	ran := false
+	t.Run("replaying", func(t *testing.T) {
+		SkipIfRecordingMissing(t)
+		ran = true
+	})
+	require.False(t, ran, "a test with no recording has nothing to replay")
+
+	defer setRecordForTesting(".*")()
+	t.Run("recording", func(t *testing.T) {
+		SkipIfRecordingMissing(t)
+		ran = true
+	})
+	require.True(t, ran, "recording is how the missing recording gets made")
+}

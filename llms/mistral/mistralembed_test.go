@@ -93,6 +93,7 @@ func TestErrEmptyEmbeddings(t *testing.T) {
 
 func TestMistralEmbed(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MISTRAL_API_KEY")
+	httprr.SkipIfRecordingMissing(t)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
