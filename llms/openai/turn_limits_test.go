@@ -45,15 +45,27 @@ func endingOnAssistant() []llms.MessageContent {
 	}
 }
 
+var turnLimitTools = llms.WithTools([]llms.Tool{{
+	Type:     "function",
+	Function: &llms.FunctionDefinition{Name: "calc", Parameters: map[string]any{"type": "object"}},
+}})
+
+func TestABudgetWithAForcedChoiceAndNoToolsIsNotRefusedOnTheOpenAITransport(t *testing.T) {
+	t.Parallel()
+
+	err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"),
+		llms.WithReasoning(llms.ReasoningLow, 0), llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+	if err != nil {
+		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
+	}
+}
+
 func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 	t.Parallel()
 
 	forced := llms.WithToolChoice(llms.ToolChoice{Type: "any"})
 	thinking := llms.WithReasoning(llms.ReasoningLow, 0)
-	tools := llms.WithTools([]llms.Tool{{
-		Type:     "function",
-		Function: &llms.FunctionDefinition{Name: "calc", Parameters: map[string]any{"type": "object"}},
-	}})
+	tools := turnLimitTools
 
 	t.Run("budget thinking with a forced tool is refused", func(t *testing.T) {
 		t.Parallel()
@@ -61,13 +73,6 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 		var target *reasoning.ErrForcedToolUseWithThinking
 		if !errors.As(err, &target) {
 			t.Errorf("want ErrForcedToolUseWithThinking, got %v", err)
-		}
-	})
-
-	t.Run("budget thinking with a forced choice and no tools is not refused", func(t *testing.T) {
-		t.Parallel()
-		if err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"), thinking, forced); err != nil {
-			t.Errorf("with no tools the choice never reaches the wire, got %v", err)
 		}
 	})
 
