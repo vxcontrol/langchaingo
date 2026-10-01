@@ -58,6 +58,10 @@ type CloseNoErr interface {
 	Close()
 }
 
+type ownedConn struct{ *pgx.Conn }
+
+func (c ownedConn) Close() error { return c.Conn.Close(context.Background()) }
+
 // Store is a wrapper around the pgvector client.
 type Store struct {
 	embedder            embeddings.Embedder
@@ -90,10 +94,11 @@ func New(ctx context.Context, opts ...Option) (Store, error) {
 	}
 	opened := store.conn == nil
 	if opened {
-		store.conn, err = pgx.Connect(ctx, store.connURL)
+		conn, err := pgx.Connect(ctx, store.connURL)
 		if err != nil {
 			return Store{}, err
 		}
+		store.conn = ownedConn{conn}
 	}
 	if err = store.conn.Ping(ctx); err == nil {
 		err = store.init(ctx)
@@ -109,9 +114,6 @@ func New(ctx context.Context, opts ...Option) (Store, error) {
 
 // Close closes the connection.
 func (s Store) Close() error {
-	if closer, ok := s.conn.(interface{ Close(context.Context) error }); ok {
-		return closer.Close(context.Background())
-	}
 	if closer, ok := s.conn.(io.Closer); ok {
 		return closer.Close()
 	}
