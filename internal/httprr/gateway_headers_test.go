@@ -64,10 +64,18 @@ func readRecording(path string) ([]byte, error) {
 	return io.ReadAll(zr)
 }
 
-var (
-	accountHeader     = regexp.MustCompile(`(?im)^(openai-project|openai-organization): *([^\r\n]*)`)
-	accountOnlyHeader = regexp.MustCompile(`(?im)^(anthropic-organization-id|anthropic-workspace-id|msh-project-id|llm_provider-[^:]*):`)
-)
+var accountHeader = regexp.MustCompile(`(?im)^(openai-project|openai-organization): *([^\r\n]*)`)
+
+func droppedHeaderLines() []string {
+	lines := make([]string, 0, len(identifyingHeaders)+len(gatewayHeaderPrefixes))
+	for _, name := range identifyingHeaders {
+		lines = append(lines, "\n"+strings.ToLower(name)+":")
+	}
+	for _, prefix := range gatewayHeaderPrefixes {
+		lines = append(lines, "\n"+prefix)
+	}
+	return lines
+}
 
 func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 	root := repositoryRoot(t)
@@ -92,9 +100,11 @@ func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 		}
 		scanned[kind]++
 		name, _ := filepath.Rel(root, path)
-		assert.NotContains(t, strings.ToLower(string(data)), "x-litellm-",
-			"%s carries the gateway's headers: they hold the key's spend and the deployment id", name)
-		assert.NotRegexp(t, accountOnlyHeader, string(data), "%s carries the vendor account's identifier", name)
+		lowered := strings.ToLower(string(data))
+		for _, line := range droppedHeaderLines() {
+			assert.False(t, strings.Contains(lowered, line), "%s carries %q, which the recorder drops", name,
+				strings.TrimSpace(line))
+		}
 		for _, m := range accountHeader.FindAllStringSubmatch(string(data), -1) {
 			assert.Contains(t, []string{"proj_lcgo-tst", "lcgo-tst"}, strings.TrimSpace(m[2]),
 				"%s carries a real %s", name, m[1])

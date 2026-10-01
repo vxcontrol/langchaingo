@@ -1167,7 +1167,11 @@ func getDefaultRequestScrubbers() []func(*http.Request) error {
 
 var (
 	gatewayHeaderPrefixes = []string{"x-litellm-", "llm_provider-"}
-	accountHeaders        = []string{"Anthropic-Organization-Id", "Anthropic-Workspace-Id", "Msh-Project-Id"}
+	identifyingHeaders    = []string{
+		"Anthropic-Organization-Id", "Anthropic-Workspace-Id",
+		"Msh-Project-Id", "Msh-Org-Id", "Msh-Uid", "Msh-Gid",
+		"X-Mm-Request-Id", "X-Client-Ip",
+	}
 )
 
 // getDefaultResponseScrubbers returns the default response scrubbing functions to remove
@@ -1193,7 +1197,7 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 					resp.Header.Del(name)
 				}
 			}
-			for _, name := range accountHeaders {
+			for _, name := range identifyingHeaders {
 				resp.Header.Del(name)
 			}
 

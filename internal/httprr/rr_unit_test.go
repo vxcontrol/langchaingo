@@ -294,10 +294,15 @@ func TestDefaultResponseScrubbers(t *testing.T) {
 	resp.Header.Set("Set-Cookie", "session=secret")
 	resp.Header.Set("Openai-Organization", "org-123")
 	resp.Header.Set("Openai-Project", "proj_real-secret")
-	resp.Header.Set("Anthropic-Organization-Id", "1904456a-0000-0000-0000-000000000000")
-	resp.Header.Set("Anthropic-Workspace-Id", "wrkspc_real-secret")
-	resp.Header.Set("Msh-Project-Id", "proj-real-secret")
-	resp.Header.Set("Llm_provider-Anthropic-Organization-Id", "1904456a-0000-0000-0000-000000000000")
+	dropped := []string{
+		"Anthropic-Organization-Id", "Anthropic-Workspace-Id",
+		"Msh-Project-Id", "Msh-Org-Id", "Msh-Uid", "Msh-Gid",
+		"X-Mm-Request-Id", "X-Client-Ip",
+		"Llm_provider-Anthropic-Organization-Id",
+	}
+	for _, name := range dropped {
+		resp.Header.Set(name, "real-secret")
+	}
 
 	// Serialize response
 	var buf bytes.Buffer
@@ -317,8 +322,7 @@ func TestDefaultResponseScrubbers(t *testing.T) {
 	assert.Empty(t, scrubbedResp.Header.Get("Set-Cookie"))
 	assert.Equal(t, "lcgo-tst", scrubbedResp.Header.Get("Openai-Organization"))
 	assert.Equal(t, "proj_lcgo-tst", scrubbedResp.Header.Get("Openai-Project"))
-	for _, name := range []string{"Anthropic-Organization-Id", "Anthropic-Workspace-Id", "Msh-Project-Id",
-		"Llm_provider-Anthropic-Organization-Id"} {
+	for _, name := range dropped {
 		assert.Empty(t, scrubbedResp.Header.Get(name), name)
 	}
 }

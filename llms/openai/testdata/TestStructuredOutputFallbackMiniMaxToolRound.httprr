@@ -1,5 +1,5 @@
 httprr trace v1
-1104 1623
+1104 1568
 POST https://api.minimax.io/v1/chat/completions HTTP/1.1
 Host: api.minimax.io
 User-Agent: langchaingo-httprr
@@ -21,11 +21,10 @@ Pragma: no-cache
 Trace-Id: 0704ce836f74ef19b93afb38896ab79a
 Vary: Accept-Encoding
 X-From: ak
-X-Mm-Request-Id: 2078484896493347777_1790286725czyonf
 X-Session-Id: 670ac27f785ca13ca1c8e037e963e762
 
 {"id":"0704ce836f74ef19b93afb38896ab79a","choices":[{"finish_reason":"tool_calls","index":0,"message":{"content":"<think>\nThe user wants me to get the weather in Paris and return it as JSON in a specific format. I need to:\n1. First call the get_weather tool for Paris\n2. Then return the result as JSON with the exact schema provided\n\nLet me call the weather tool first.\n</think>\n\n","role":"assistant","name":"MiniMax AI","tool_calls":[{"id":"call_function_ny00syozhhsb_1","type":"function","function":{"name":"get_weather","arguments":"{\"city\": \"Paris\"}"},"index":0}],"audio_content":""}}],"created":1790286723,"model":"MiniMax-M2.7","object":"chat.completion","usage":{"total_tokens":400,"total_characters":0,"prompt_tokens":314,"completion_tokens":86,"completion_tokens_details":{"reasoning_tokens":61},"prompt_tokens_details":{"cached_tokens":0}},"input_sensitive":false,"output_sensitive":false,"input_sensitive_type":0,"output_sensitive_type":0,"output_sensitive_int":0,"base_resp":{"status_code":0,"status_msg":""}}
-1714 1534
+1714 1479
 POST https://api.minimax.io/v1/chat/completions HTTP/1.1
 Host: api.minimax.io
 User-Agent: langchaingo-httprr
@@ -46,7 +45,6 @@ Minimax-Request-Id: 51f10fbdb01f12b5838f23bd74fd60d7
 Pragma: no-cache
 Trace-Id: 0704ce87bfafdb112d9bbc9c661b6f97
 X-From: ak
-X-Mm-Request-Id: 2078484896493347777_1790286728hvj1e2
 X-Session-Id: 670ac27f785ca13ca1c8e037e963e762
 
 {"id":"0704ce87bfafdb112d9bbc9c661b6f97","choices":[{"finish_reason":"stop","index":0,"message":{"content":"<think>\nI got the weather data for Paris. Now I need to format it according to the JSON schema:\n- city: \"Paris\" (string)\n- temperature_c: 18 (integer)\n- summary: \"light rain\" (string)\n\nI need to return exactly this JSON, no markdown, no code fences, no text before or after.\n</think>\n\n{\"city\":\"Paris\",\"temperature_c\":18,\"summary\":\"light rain\"}","role":"assistant","name":"MiniMax AI","audio_content":""}}],"created":1790286727,"model":"MiniMax-M2.7","object":"chat.completion","usage":{"total_tokens":515,"total_characters":0,"prompt_tokens":427,"completion_tokens":88,"completion_tokens_details":{"reasoning_tokens":72},"prompt_tokens_details":{"cached_tokens":0}},"input_sensitive":false,"output_sensitive":false,"input_sensitive_type":0,"output_sensitive_type":0,"output_sensitive_int":0,"base_resp":{"status_code":0,"status_msg":""}}
