@@ -53,13 +53,6 @@ type CompletionResponse struct {
 	} `json:"usage,omitempty"`
 }
 
-type errorMessage struct {
-	Error struct {
-		Message string `json:"message"`
-		Type    string `json:"type"`
-	} `json:"error"`
-}
-
 const maxErrorBodyBytes = 64 << 10
 
 func statusError(statusCode int, body io.Reader) error {
@@ -74,8 +67,10 @@ func statusError(statusCode int, body io.Reader) error {
 		return errors.New(msg) //nolint:err113 // the provider gave no readable body
 	}
 
-	var errResp errorMessage
-	if err := json.Unmarshal(raw, &errResp); err == nil && errResp.Error.Message != "" {
+	var errResp struct {
+		Error *providerError `json:"error"`
+	}
+	if err := json.Unmarshal(raw, &errResp); err == nil && errResp.Error != nil && errResp.Error.Message != "" {
 		return fmt.Errorf("%s: %s", msg, errResp.Error.Message) //nolint:err113 // provider-supplied text
 	}
 

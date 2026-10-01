@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -566,10 +568,11 @@ func (r FinishReason) MarshalJSON() ([]byte, error) {
 
 // ChatCompletionChoice is a choice in a chat response.
 type ChatCompletionChoice struct {
-	Index        int          `json:"index"`
-	Message      ChatMessage  `json:"message"`
-	FinishReason FinishReason `json:"finish_reason"`
-	LogProbs     *LogProbs    `json:"logprobs,omitempty"`
+	Index        int            `json:"index"`
+	Message      ChatMessage    `json:"message"`
+	FinishReason FinishReason   `json:"finish_reason"`
+	LogProbs     *LogProbs      `json:"logprobs,omitempty"`
+	Error        *providerError `json:"error,omitempty"`
 }
 
 // ChatUsage is the usage of a chat completion request.
@@ -603,6 +606,23 @@ type ChatCompletionResponse struct {
 	Object            string                  `json:"object,omitempty"`
 	Usage             ChatUsage               `json:"usage,omitempty"`
 	SystemFingerprint string                  `json:"system_fingerprint"`
+	Error             *providerError          `json:"error,omitempty"`
+}
+
+func (r *ChatCompletionResponse) providerError() error {
+	if r.Error != nil {
+		return r.Error.asError()
+	}
+	for _, choice := range r.Choices {
+		if choice.FinishReason != FinishReasonError {
+			continue
+		}
+		if choice.Error != nil {
+			return choice.Error.asError()
+		}
+		return fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.FinishReason)
+	}
+	return nil
 }
 
 type Usage struct {
@@ -687,19 +707,33 @@ type StreamedChatResponsePayload struct {
 	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
 	// When present, it contains a null value except for the last chunk which contains the token usage statistics
 	// for the entire request.
-	Usage      *Usage            `json:"usage,omitempty"`
-	ErrorEvent *streamErrorEvent `json:"error,omitempty"`
-	Error      error             `json:"-"` // use for error handling only
+	Usage      *Usage         `json:"usage,omitempty"`
+	ErrorEvent *providerError `json:"error,omitempty"`
+	Error      error          `json:"-"` // use for error handling only
 	final      bool
+	readErr    error
 }
 
-type streamErrorEvent struct {
+type providerError struct {
 	Message string `json:"message"`
 	Type    string `json:"type"`
 	Code    any    `json:"code"`
 }
 
-func (e *streamErrorEvent) asError() error {
+func (e *providerError) UnmarshalJSON(data []byte) error {
+	var message string
+	if err := json.Unmarshal(data, &message); err == nil {
+		e.Message = message
+		return nil
+	}
+	type object providerError
+	return json.Unmarshal(data, (*object)(e))
+}
+
+func (e *providerError) asError() error {
+	if e.Type == "" && e.Code == nil {
+		return fmt.Errorf("%w: %s", llms.ErrStreamFailed, e.Message)
+	}
 	return fmt.Errorf("%w: %s (type %q, code %v)", llms.ErrStreamFailed, e.Message, e.Type, e.Code)
 }
 
@@ -796,7 +830,11 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 		return parseStreamingChatResponse(ctx, r, payload)
 	}
 
-	return parseChatResponse(r.Body)
+	response, err := parseChatResponse(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	return response, response.providerError()
 }
 
 func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
@@ -946,10 +984,8 @@ func parseStreamingChatResponse(
 		if err := scanner.Err(); err != nil {
 			select {
 			case <-producerCtx.Done():
-				return
-			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("%w: error reading streaming response: %w", llms.ErrIncompleteStream, err)}:
+			case responseChan <- StreamedChatResponsePayload{readErr: fmt.Errorf("error reading streaming response: %w", err)}:
 			}
-			return
 		}
 	}()
 
@@ -981,6 +1017,7 @@ func combineStreamingChatResponse(
 
 	var (
 		streamErr error
+		readErr   error
 		completed bool
 	)
 
@@ -988,6 +1025,10 @@ DoStream:
 	for streamResponse := range responseChan {
 		if streamResponse.final {
 			completed = true
+			continue
+		}
+		if streamResponse.readErr != nil {
+			readErr = streamResponse.readErr
 			continue
 		}
 		if streamResponse.Error != nil {
@@ -1067,18 +1108,18 @@ DoStream:
 	removeEmptyToolCalls(&response)
 
 	if streamErr == nil {
-		streamErr = streamEndError(ctx, completed, &response)
+		streamErr = streamEndError(ctx, completed, readErr, &response)
 	}
 
 	return &response, streamErr
 }
 
-func streamEndError(ctx context.Context, completed bool, response *ChatCompletionResponse) error {
+func streamEndError(ctx context.Context, completed bool, readErr error, response *ChatCompletionResponse) error {
+	if err := response.providerError(); err != nil {
+		return err
+	}
 	finished := len(response.Choices) > 0
 	for _, choice := range response.Choices {
-		if choice.FinishReason == FinishReasonError {
-			return fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.FinishReason)
-		}
 		if choice.FinishReason == "" || choice.FinishReason == FinishReasonNull {
 			finished = false
 		}
@@ -1086,10 +1127,7 @@ func streamEndError(ctx context.Context, completed bool, response *ChatCompletio
 	if completed || finished {
 		return nil
 	}
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("%w: %w", llms.ErrIncompleteStream, err)
-	}
-	return llms.ErrIncompleteStream
+	return streamend.Incomplete(ctx, readErr)
 }
 
 // streamedText collects one choice's text across deltas.
@@ -1214,6 +1252,17 @@ func updateToolCall(message *ChatMessage, delta *StreamedToolCall, nameCache map
 }
 
 // some providers starts streaming tool calls since the first index number istead of zero
+func dropUnfinishedToolCalls(response *ChatCompletionResponse) {
+	for _, choice := range response.Choices {
+		choice.Message.ToolCalls = slices.DeleteFunc(choice.Message.ToolCalls, func(toolCall ToolCall) bool {
+			return !json.Valid([]byte(toolCall.Function.Arguments))
+		})
+		if call := choice.Message.FunctionCall; call != nil && !json.Valid([]byte(call.Arguments)) {
+			choice.Message.FunctionCall = nil
+		}
+	}
+}
+
 func removeEmptyToolCalls(response *ChatCompletionResponse) {
 	for _, choice := range response.Choices {
 		if len(choice.Message.ToolCalls) == 0 {

@@ -179,6 +179,7 @@ func (c *Client) CreateChat(ctx context.Context, r *ChatRequest) (*ChatCompletio
 		if resp == nil || len(resp.Choices) == 0 {
 			return nil, err
 		}
+		dropUnfinishedToolCalls(resp)
 		return resp, err
 	}
 	if len(resp.Choices) == 0 {

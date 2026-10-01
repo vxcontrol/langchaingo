@@ -2,6 +2,7 @@ package openaiclient
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -82,8 +83,9 @@ func TestAnErrorEventCarriesTheProvidersMessage(t *testing.T) {
 }
 
 type blockingBody struct {
-	ctx    context.Context
-	chunks []string
+	ctx        context.Context
+	chunks     []string
+	readsCause bool
 }
 
 func (b *blockingBody) Read(p []byte) (int, error) {
@@ -96,6 +98,9 @@ func (b *blockingBody) Read(p []byte) (int, error) {
 		return n, nil
 	}
 	<-b.ctx.Done()
+	if b.readsCause {
+		return 0, context.Cause(b.ctx)
+	}
 	return 0, b.ctx.Err()
 }
 
@@ -128,6 +133,102 @@ func TestAStreamCutByTheContextIsAnErrorEveryTime(t *testing.T) {
 				require.Len(t, resp.Choices, 1)
 				require.Equal(t, "partial", resp.Choices[0].Message.Content)
 			}
+		})
+	}
+}
+
+const finishedChunk = `data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"partial"},` +
+	`"finish_reason":"stop"}]}` + "\n\n"
+
+var errUserStop = errors.New("user pressed stop")
+
+type failingBody struct {
+	chunks []string
+	err    error
+}
+
+func (b *failingBody) Read(p []byte) (int, error) {
+	if len(b.chunks) > 0 {
+		n := copy(p, b.chunks[0])
+		b.chunks[0] = b.chunks[0][n:]
+		if b.chunks[0] == "" {
+			b.chunks = b.chunks[1:]
+		}
+		return n, nil
+	}
+	return 0, b.err
+}
+
+func TestAReadErrorAfterTheFinishReasonLeavesTheAnswerComplete(t *testing.T) {
+	t.Parallel()
+
+	resp, err := parseStream(t.Context(), t,
+		&failingBody{chunks: []string{finishedChunk}, err: errors.New("connection reset by peer")})
+
+	require.NoError(t, err)
+	assert.Equal(t, "partial", resp.Choices[0].Message.Content)
+}
+
+func TestAContextCutAfterTheFinishReasonLeavesTheAnswerCompleteEveryTime(t *testing.T) {
+	t.Parallel()
+
+	for range 100 {
+		ctx := cutctx.New(t.Context(), context.DeadlineExceeded)
+		r := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(&blockingBody{ctx: ctx, chunks: []string{finishedChunk}}),
+		}
+		req := &ChatRequest{StreamingFunc: func(context.Context, streaming.Chunk) error {
+			ctx.Cut()
+			return nil
+		}}
+
+		resp, err := parseStreamingChatResponse(ctx, r, req)
+
+		require.NoError(t, err)
+		require.Equal(t, "partial", resp.Choices[0].Message.Content)
+	}
+}
+
+func TestAStreamCutWithACauseCarriesBothTheCauseAndTheContextErrorEveryTime(t *testing.T) {
+	t.Parallel()
+
+	for range 100 {
+		ctx, cancel := context.WithCancelCause(t.Context())
+		r := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(&blockingBody{ctx: ctx, chunks: []string{partialChunk}, readsCause: true}),
+		}
+		req := &ChatRequest{StreamingFunc: func(context.Context, streaming.Chunk) error {
+			cancel(errUserStop)
+			return nil
+		}}
+
+		_, err := parseStreamingChatResponse(ctx, r, req)
+
+		require.ErrorIs(t, err, llms.ErrIncompleteStream)
+		require.ErrorIs(t, err, context.Canceled)
+		require.ErrorIs(t, err, errUserStop)
+	}
+}
+
+func TestAnErrorTheProviderSendsAsAStringIsAStreamFailure(t *testing.T) {
+	t.Parallel()
+
+	for name, tail := range map[string]string{
+		"with done marker": `data: {"error":"Request failed during generation: CUDA out of memory",` +
+			`"error_type":"generation"}` + "\n\ndata: [DONE]\n\n",
+		"without done marker": `data: {"error":"Request failed during generation: CUDA out of memory"}` + "\n\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			resp, err := parseStream(t.Context(), t, strings.NewReader(partialChunk+tail))
+
+			require.ErrorIs(t, err, llms.ErrStreamFailed)
+			assert.Contains(t, err.Error(), "CUDA out of memory")
+			require.NotNil(t, resp)
+			assert.Equal(t, "partial", resp.Choices[0].Message.Content)
 		})
 	}
 }
