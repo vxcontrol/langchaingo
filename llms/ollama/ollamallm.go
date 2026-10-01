@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -596,20 +596,23 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 	return resp, err
 }
 
+var serverMessage = reflect.TypeOf(errors.New(""))
+
 func streamError(ctx context.Context, received, finished bool, err error) error {
-	if !received {
+	if !received && !isUndecodedLine(err) {
 		return err
 	}
-	var netErr net.Error
-	readFailed := ctx.Err() != nil || errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &netErr) ||
-		isUndecodedLine(err)
-	if !readFailed {
+	if ctx.Err() == nil && isServerMessage(err) {
 		return fmt.Errorf("%w: %w", llms.ErrStreamFailed, err)
 	}
 	if finished {
 		return nil
 	}
 	return streamend.Incomplete(ctx, err)
+}
+
+func isServerMessage(err error) bool {
+	return reflect.TypeOf(err) == serverMessage && !errors.Is(err, io.ErrUnexpectedEOF) && !isUndecodedLine(err)
 }
 
 func isUndecodedLine(err error) bool {
