@@ -223,7 +223,9 @@ func generateNonStreamingContent(m *Model, callOptions *llms.CallOptions, messag
 }
 
 func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.CallOptions, messages []sdk.ChatMessage, chatOpts sdk.ChatRequestParams) (*llms.ContentResponse, error) {
-	chatResChan, err := m.client.ChatStream(callOptions.GetModel(), messages, &chatOpts)
+	chatResChan, err := startStream(ctx, func() (<-chan sdk.ChatCompletionStreamResponse, error) {
+		return m.client.ChatStream(callOptions.GetModel(), messages, &chatOpts)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -239,13 +241,16 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 	var streamedContent strings.Builder
 	defer func() { langchainContentResponse.Choices[0].Content = streamedContent.String() }()
 
+	choice := langchainContentResponse.Choices[0]
+	var readErr error
+Stream:
 	for {
 		var chatResChunk sdk.ChatCompletionStreamResponse
 		var open bool
 		select {
 		case <-ctx.Done():
 			go drain(chatResChan)
-			return langchainContentResponse, streamend.Incomplete(ctx, nil)
+			break Stream
 		case chatResChunk, open = <-chatResChan:
 		}
 		if !open {
@@ -253,17 +258,21 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 		}
 		if chatResChunk.Error != nil {
 			go drain(chatResChan)
-			return langchainContentResponse, streamend.Incomplete(ctx, chatResChunk.Error)
+			readErr = chatResChunk.Error
+			break
 		}
-		text := applyStreamChunk(langchainContentResponse.Choices[0], &streamedContent, chatResChunk)
+		text := applyStreamChunk(choice, &streamedContent, chatResChunk)
 		if err := streaming.CallWithText(ctx, callOptions.StreamingFunc, text); err != nil {
 			go drain(chatResChan)
 			return langchainContentResponse, err
 		}
 	}
 
-	if langchainContentResponse.Choices[0].StopReason == "" {
-		return langchainContentResponse, streamend.Incomplete(ctx, nil)
+	switch choice.StopReason {
+	case "":
+		return langchainContentResponse, streamend.Incomplete(ctx, readErr)
+	case string(sdk.FinishReasonError):
+		return langchainContentResponse, fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.StopReason)
 	}
 	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
 		return langchainContentResponse, err
@@ -307,6 +316,31 @@ func applyStreamChunk(
 		}
 	}
 	return text
+}
+
+func startStream(
+	ctx context.Context, start func() (<-chan sdk.ChatCompletionStreamResponse, error),
+) (<-chan sdk.ChatCompletionStreamResponse, error) {
+	type started struct {
+		chunks <-chan sdk.ChatCompletionStreamResponse
+		err    error
+	}
+	result := make(chan started, 1)
+	go func() {
+		chunks, err := start()
+		result <- started{chunks: chunks, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		go func() {
+			if s := <-result; s.err == nil {
+				drain(s.chunks)
+			}
+		}()
+		return nil, streamend.Incomplete(ctx, nil)
+	case s := <-result:
+		return s.chunks, s.err
+	}
 }
 
 func drain(chunks <-chan sdk.ChatCompletionStreamResponse) {

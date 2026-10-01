@@ -107,3 +107,81 @@ func TestAnAbandonedMistralStreamDoesNotLeaveTheSDKReaderBlocked(t *testing.T) {
 	close(release)
 	assert.Eventually(t, func() bool { return !sdkReaderAlive() }, 5*time.Second, 20*time.Millisecond)
 }
+
+const finishedMistralChunk = `{"id":"x","object":"chat.completion.chunk","created":1,"model":"mistral-small-latest",` +
+	`"choices":[{"index":0,"delta":{"role":"assistant","content":"sixty rooms are free"},"finish_reason":"stop"}]}`
+
+func mistralAgainst(t *testing.T, handler http.HandlerFunc) *Model {
+	t.Helper()
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	m, err := New(WithAPIKey("k"), WithEndpoint(srv.URL), WithModel("mistral-small-latest"))
+	require.NoError(t, err)
+	return m
+}
+
+func TestAMistralCallReturnsWhenItsContextEndsBeforeTheServerAnswers(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	m := mistralAgainst(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		<-release
+	})
+	t.Cleanup(func() { close(release) })
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := m.GenerateContent(ctx,
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
+
+func TestAMistralAnswerThatFinishedStaysCompleteWhenTheContextEnds(t *testing.T) {
+	t.Parallel()
+
+	for range 50 {
+		m := mistralAgainst(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.Copy(io.Discard, r.Body)
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", finishedMistralChunk)
+		})
+
+		ctx, cancel := context.WithCancel(t.Context())
+		resp, err := m.GenerateContent(ctx,
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+			llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error {
+				cancel()
+				return nil
+			}))
+
+		require.NoError(t, err)
+		require.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	}
+}
+
+func TestAMistralStreamThatFinishesWithAnErrorIsAStreamFailure(t *testing.T) {
+	t.Parallel()
+
+	m := mistralAgainst(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", partialMistralChunk)
+		_, _ = io.WriteString(w, `data: {"id":"x","object":"chat.completion.chunk","choices":[{"index":0,`+
+			`"delta":{"content":""},"finish_reason":"error"}]}`+"\n\ndata: [DONE]\n\n")
+	})
+
+	resp, err := m.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+
+	require.ErrorIs(t, err, llms.ErrStreamFailed)
+	require.NotNil(t, resp)
+	assert.Equal(t, "sixty rooms are", resp.Choices[0].Content)
+}
