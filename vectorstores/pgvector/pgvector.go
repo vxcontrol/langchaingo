@@ -230,7 +230,7 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 	if _, err := tx.Exec(ctx, sql); err != nil {
 		return err
 	}
-	relation := relationName(s.embeddingTableName)
+	relation, _ := relationName(s.embeddingTableName)
 	sql = fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s ON %s (collection_id)`,
 		indexIdentifier(relation+"_collection_id"), s.embeddingTableName)
 	if _, err := tx.Exec(ctx, sql); err != nil {

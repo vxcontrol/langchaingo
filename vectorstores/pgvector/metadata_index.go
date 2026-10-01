@@ -66,20 +66,43 @@ func (m MetadataIndex) indexName(table string) string {
 		return foldIdentifier(m.Name)
 	}
 
-	relation := relationName(table)
+	stored, written := relationName(table)
 	parts := make([]string, 0, len(m.Keys)+3)
-	parts = append(parts, relation, "meta")
-	parts = append(parts, m.Keys...)
+	parts = append(parts, stored, "meta")
+	for _, key := range m.Keys {
+		parts = append(parts, foldIdentifier(key))
+	}
 	if len(m.Exclude) > 0 {
 		parts = append(parts, "partial")
 	}
 	name := strings.Join(parts, "_")
 	prefix := strings.ToValidUTF8(name[:min(len(name), maxIdentifierLen-9)], "")
-	return foldIdentifier(fmt.Sprintf("%s_%08x", prefix, m.fingerprint(relation)))
+	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(written))
 }
 
-func relationName(table string) string {
-	return table[strings.LastIndex(table, ".")+1:]
+func relationName(table string) (stored, written string) {
+	var s, w strings.Builder
+	quoted := false
+	for i := 0; i < len(table); i++ {
+		switch c := table[i]; {
+		case c == '"' && quoted && i+1 < len(table) && table[i+1] == '"':
+			s.WriteByte(c)
+			w.WriteByte(c)
+			i++
+		case c == '"':
+			quoted = !quoted
+		case c == '.' && !quoted:
+			s.Reset()
+			w.Reset()
+		case !quoted && 'A' <= c && c <= 'Z':
+			s.WriteByte(c + 'a' - 'A')
+			w.WriteByte(c)
+		default:
+			s.WriteByte(c)
+			w.WriteByte(c)
+		}
+	}
+	return s.String(), w.String()
 }
 
 func foldIdentifier(name string) string {
@@ -93,7 +116,7 @@ func foldIdentifier(name string) string {
 }
 
 func indexIdentifier(name string) string {
-	return pgx.Identifier{foldIdentifier(name)}.Sanitize()
+	return pgx.Identifier{name}.Sanitize()
 }
 
 func (m MetadataIndex) fingerprint(table string) uint32 {

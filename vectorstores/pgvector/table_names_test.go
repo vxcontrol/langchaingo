@@ -64,7 +64,9 @@ func TestAStoreOnSchemaQualifiedTablesKeepsOneSetOfIndexes(t *testing.T) {
 		require.Len(t, docs, 1)
 	}
 	open(url, schemaName+".")
-	open(withParameter(t, url, "search_path", schemaName+",public"), "")
+	var searchPath string
+	require.NoError(t, conn.QueryRow(ctx, "SHOW search_path").Scan(&searchPath))
+	open(withParameter(t, url, "search_path", schemaName+", "+searchPath), "")
 
 	definitions := indexDefinitions(t, conn, schemaName, table)
 	require.Len(t, definitions, 4, "the primary key, collection_id, HNSW and metadata indexes, once each:\n%s",
@@ -72,26 +74,33 @@ func TestAStoreOnSchemaQualifiedTablesKeepsOneSetOfIndexes(t *testing.T) {
 	require.Contains(t, strings.Join(definitions, "\n"), "USING hnsw")
 }
 
-func TestAStoreOnAQuotedTableNameStarts(t *testing.T) {
+func TestQuotedTableNamesKeepIndexesOfTheirOwn(t *testing.T) {
 	t.Parallel()
 
 	url := narrowingURL(t)
 	ctx := t.Context()
 	schemaName, conn := newSchema(t, url)
-	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
-		WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
-		WithEmbeddingTableName(schemaName+`."Embedding"`), WithVectorDimensions(64),
-		WithHNSWIndex(16, 64, "vector_cosine_ops"),
-		WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = store.Close() })
+	for _, table := range []string{`"Emb"`, `"emb"`, `emb`, `"a.b"`} {
+		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+			WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
+			WithEmbeddingTableName(schemaName+"."+table), WithVectorDimensions(64),
+			WithHNSWIndex(16, 64, "vector_cosine_ops"),
+			WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
+		require.NoError(t, err, table)
+		t.Cleanup(func() { _ = store.Close() })
 
-	_, err = store.AddDocuments(ctx, []schema.Document{{PageContent: "mine", Metadata: map[string]any{"flow_id": "1"}}})
-	require.NoError(t, err)
-	docs, err := store.SimilaritySearch(ctx, "mine", 1)
-	require.NoError(t, err)
-	require.Len(t, docs, 1)
-	require.Len(t, indexDefinitions(t, conn, schemaName, "Embedding"), 4)
+		_, err = store.AddDocuments(ctx, []schema.Document{{PageContent: table, Metadata: map[string]any{"flow_id": "1"}}})
+		require.NoError(t, err, table)
+		docs, err := store.SimilaritySearch(ctx, table, 1)
+		require.NoError(t, err, table)
+		require.Len(t, docs, 1, table)
+	}
+
+	for _, table := range []string{"Emb", "emb", "a.b"} {
+		definitions := indexDefinitions(t, conn, schemaName, table)
+		require.Len(t, definitions, 4, "the primary key, collection_id, HNSW and metadata indexes of %s:\n%s",
+			table, strings.Join(definitions, "\n"))
+	}
 }
 
 func TestAMetadataIndexNamedLikeAReservedWordIsCreated(t *testing.T) {
@@ -119,14 +128,13 @@ func TestAStoreAdoptsTheMetadataIndexItsUnquotedNameCreated(t *testing.T) {
 	url := narrowingURL(t)
 	ctx := t.Context()
 	schemaName, conn := newSchema(t, url)
-	url = withParameter(t, url, "search_path", schemaName+",public")
 	const table = "ÉmbedX"
 	index := MetadataIndex{Keys: []string{"flow_id"}}
 
 	open := func(indexes ...MetadataIndex) {
 		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
-			WithCollectionName("c"), WithCollectionTableName("collection"), WithEmbeddingTableName(table),
-			WithMetadataIndexes(indexes...))
+			WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
+			WithEmbeddingTableName(schemaName+"."+table), WithMetadataIndexes(indexes...))
 		require.NoError(t, err)
 		require.NoError(t, store.Close())
 	}
