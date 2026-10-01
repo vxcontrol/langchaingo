@@ -6,7 +6,6 @@ import (
 
 	"github.com/vxcontrol/langchaingo/schema"
 
-	"github.com/pkoukk/tiktoken-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -585,7 +584,7 @@ func TestMarkdownHeaderTextSplitter_SplitInline(t *testing.T) {
 func TestMarkdownHeaderTextSplitter_LenFunc(t *testing.T) {
 	t.Parallel()
 
-	tokenEncoder, _ := tiktoken.GetEncoding("cl100k_base")
+	tokenEncoder := cl100kBase(t)
 
 	sampleText := "The quick brown fox jumped over the lazy dog."
 	tokensPerChunk := len(tokenEncoder.Encode(sampleText, nil, nil))
