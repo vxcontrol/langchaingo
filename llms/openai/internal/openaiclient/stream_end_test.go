@@ -232,3 +232,26 @@ func TestAnErrorTheProviderSendsAsAStringIsAStreamFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestAFinishReasonThatAbortsTheGenerationIsAStreamFailure(t *testing.T) {
+	t.Parallel()
+
+	for _, reason := range []string{"error", "insufficient_system_resource", "aborted", "network_error"} {
+		finish := `data: {"choices":[{"index":0,"delta":{},"finish_reason":"` + reason + `"}]}` + "\n\n"
+		for name, body := range map[string]io.Reader{
+			"with done marker":    strings.NewReader(partialChunk + finish + "data: [DONE]\n\n"),
+			"then a dropped line": &failingBody{chunks: []string{partialChunk, finish}, err: io.ErrUnexpectedEOF},
+		} {
+			t.Run(reason+"/"+name, func(t *testing.T) {
+				t.Parallel()
+
+				resp, err := parseStream(t.Context(), t, body)
+
+				require.ErrorIs(t, err, llms.ErrStreamFailed)
+				assert.Contains(t, err.Error(), reason)
+				require.NotNil(t, resp)
+				assert.Equal(t, "partial", resp.Choices[0].Message.Content)
+			})
+		}
+	}
+}

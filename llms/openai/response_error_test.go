@@ -50,3 +50,21 @@ func TestAnErrorBodyServedWithStatus200IsAProviderFailure(t *testing.T) {
 	require.ErrorIs(t, err, llms.ErrStreamFailed)
 	assert.Contains(t, err.Error(), "Provider returned error")
 }
+
+func TestAResponseInterruptedByTheProviderIsAProviderFailure(t *testing.T) {
+	t.Parallel()
+
+	for _, reason := range []string{"insufficient_system_resource", "aborted", "network_error"} {
+		t.Run(reason, func(t *testing.T) {
+			t.Parallel()
+
+			resp, err := answerWith(t, `{"id":"1","object":"chat.completion","created":1,"model":"m",`+
+				`"choices":[{"index":0,"message":{"role":"assistant","content":"partial output"},`+
+				`"finish_reason":"`+reason+`"}]}`)
+
+			require.ErrorIs(t, err, llms.ErrStreamFailed)
+			require.NotNil(t, resp)
+			assert.Equal(t, "partial output", resp.Choices[0].Content)
+		})
+	}
+}

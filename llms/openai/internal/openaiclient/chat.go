@@ -557,7 +557,15 @@ const (
 	FinishReasonContentFilter FinishReason = "content_filter"
 	FinishReasonNull          FinishReason = "null"
 	FinishReasonError         FinishReason = "error"
+
+	FinishReasonAborted                    FinishReason = "aborted"
+	FinishReasonInsufficientSystemResource FinishReason = "insufficient_system_resource"
+	FinishReasonNetworkError               FinishReason = "network_error"
 )
+
+var interruptedFinishReasons = []FinishReason{
+	FinishReasonError, FinishReasonAborted, FinishReasonInsufficientSystemResource, FinishReasonNetworkError,
+}
 
 func (r FinishReason) MarshalJSON() ([]byte, error) {
 	if r == FinishReasonNull || r == "" {
@@ -614,7 +622,7 @@ func (r *ChatCompletionResponse) providerError() error {
 		return r.Error.asError()
 	}
 	for _, choice := range r.Choices {
-		if choice.FinishReason != FinishReasonError {
+		if !slices.Contains(interruptedFinishReasons, choice.FinishReason) {
 			continue
 		}
 		if choice.Error != nil {
