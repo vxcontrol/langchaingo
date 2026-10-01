@@ -15,7 +15,7 @@ import (
 func TestAReplayedClaudeCallWithoutArgumentsSendsAnEmptyInputObject(t *testing.T) {
 	t.Parallel()
 
-	for _, arguments := range []string{"null", "{}", ""} {
+	for _, arguments := range []string{"null", "{}", "", "  "} {
 		t.Run("arguments "+arguments, func(t *testing.T) {
 			t.Parallel()
 
@@ -73,7 +73,7 @@ func TestACachedClaudeCallWithoutArgumentsKeepsItsOtherFields(t *testing.T) {
 func TestAReplayedCallWithoutArgumentsSendsAnEmptyInputOnConverse(t *testing.T) {
 	t.Parallel()
 
-	for _, arguments := range []string{"null", "{}", ""} {
+	for _, arguments := range []string{"null", "{}", "", "  "} {
 		t.Run("arguments "+arguments, func(t *testing.T) {
 			t.Parallel()
 

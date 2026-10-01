@@ -139,7 +139,16 @@ func TestAReplayedCallWithoutArgumentsReachesTheWire(t *testing.T) {
 			}
 			_, err = llm.GenerateContent(t.Context(), history)
 			require.NoError(t, err, "a call the model made without arguments must replay")
-			assert.Contains(t, body, `"name":"clock"`)
+			assert.Contains(t, body, `"functionCall":{"id":"c1","name":"clock"}`)
 		})
+	}
+}
+
+func TestNoToolConfigGoesOutWithoutTools(t *testing.T) {
+	t.Parallel()
+
+	for _, choice := range []any{"none", "auto", "required"} {
+		body := thinkingWireFor(t, "gemini-2.5-flash", llms.WithToolChoice(choice))
+		assert.NotContains(t, body, "toolConfig", "%v with no tools must not reach the wire", choice)
 	}
 }
