@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
+	"github.com/aws/smithy-go"
 )
 
 // ConverseClient wraps the Bedrock Converse API client
@@ -883,6 +884,7 @@ func (c *ConverseClient) processStreamingResponse(ctx context.Context, response 
 	var stopReason string
 	var streamErr error
 	var usage *types.TokenUsage
+	var stopped bool
 	currentToolCalls := make(map[int32]*converseToolCallBuilder) // Track streaming tool calls by content block index
 
 	defer streaming.CallWithDone(ctx, callback)
@@ -953,6 +955,7 @@ DoStream:
 			// The terminal event carries the stop reason (end_turn, tool_use,
 			// max_tokens, guardrail_intervened, content_filtered, ...).
 			stopReason = string(e.Value.StopReason)
+			stopped = true
 			// Stream completed - ensure any remaining tool calls are added
 			salvaged, err := salvageToolCalls(ctx, callback, currentToolCalls)
 			toolCalls = append(toolCalls, salvaged...)
@@ -967,7 +970,12 @@ DoStream:
 	}
 
 	if err := stream.Err(); err != nil {
-		streamErr = fmt.Errorf("stream error: %w", err)
+		streamErr = converseStreamError(err)
+	} else if streamErr == nil && !stopped {
+		streamErr = llms.ErrIncompleteStream
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			streamErr = fmt.Errorf("%w: %w", llms.ErrIncompleteStream, ctxErr)
+		}
 	}
 
 	choice := &llms.ContentChoice{
@@ -985,6 +993,14 @@ DoStream:
 	}
 
 	return result, streamErr
+}
+
+func converseStreamError(err error) error {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return fmt.Errorf("%w: stream error: %w", llms.ErrStreamFailed, err)
+	}
+	return fmt.Errorf("%w: stream error: %w", llms.ErrIncompleteStream, err)
 }
 
 func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {
