@@ -25,9 +25,10 @@ func (gatewayRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header: http.Header{
-			"Content-Type":        []string{"application/json"},
-			"X-Litellm-Key-Spend": []string{"3783.008359056675"},
-			"X-Litellm-Model-Id":  []string{"6915d127a6e7"},
+			"Content-Type":                           []string{"application/json"},
+			"X-Litellm-Key-Spend":                    []string{"3783.008359056675"},
+			"X-Litellm-Model-Id":                     []string{"6915d127a6e7"},
+			"Llm_provider-Anthropic-Organization-Id": []string{"1904456a-0000-0000-0000-000000000000"},
 		},
 		Body:          io.NopCloser(strings.NewReader(`{"ok":true}`)),
 		ContentLength: 11,
@@ -63,7 +64,10 @@ func readRecording(path string) ([]byte, error) {
 	return io.ReadAll(zr)
 }
 
-var accountHeader = regexp.MustCompile(`(?im)^(openai-project|openai-organization): *([^\r\n]*)`)
+var (
+	accountHeader     = regexp.MustCompile(`(?im)^(openai-project|openai-organization): *([^\r\n]*)`)
+	accountOnlyHeader = regexp.MustCompile(`(?im)^(anthropic-organization-id|anthropic-workspace-id|msh-project-id|llm_provider-[^:]*):`)
+)
 
 func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 	root := repositoryRoot(t)
@@ -90,6 +94,7 @@ func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 		name, _ := filepath.Rel(root, path)
 		assert.NotContains(t, strings.ToLower(string(data)), "x-litellm-",
 			"%s carries the gateway's headers: they hold the key's spend and the deployment id", name)
+		assert.NotRegexp(t, accountOnlyHeader, string(data), "%s carries the vendor account's identifier", name)
 		for _, m := range accountHeader.FindAllStringSubmatch(string(data), -1) {
 			assert.Contains(t, []string{"proj_lcgo-tst", "lcgo-tst"}, strings.TrimSpace(m[2]),
 				"%s carries a real %s", name, m[1])
@@ -120,4 +125,6 @@ func TestTheRecorderStripsGatewayHeadersFromAResponse(t *testing.T) {
 	assert.Contains(t, string(recorded), "Content-Type", "the recording kept the ordinary headers")
 	assert.NotContains(t, strings.ToLower(string(recorded)), "x-litellm-",
 		"a recording made through the gateway must not keep its headers")
+	assert.NotContains(t, strings.ToLower(string(recorded)), "llm_provider-",
+		"the gateway forwards the vendor's headers under its own prefix")
 }

@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1164,10 +1165,13 @@ func getDefaultRequestScrubbers() []func(*http.Request) error {
 	}
 }
 
+var (
+	gatewayHeaderPrefixes = []string{"x-litellm-", "llm_provider-"}
+	accountHeaders        = []string{"Anthropic-Organization-Id", "Anthropic-Workspace-Id", "Msh-Project-Id"}
+)
+
 // getDefaultResponseScrubbers returns the default response scrubbing functions to remove
 // sensitive headers and tracing information from response recordings.
-const gatewayHeaderPrefix = "x-litellm-"
-
 func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 	return []func(*bytes.Buffer) error{
 		func(buf *bytes.Buffer) error {
@@ -1182,9 +1186,15 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 			resp.Header.Del("cf-ray")
 
 			for name := range resp.Header {
-				if strings.HasPrefix(strings.ToLower(name), gatewayHeaderPrefix) {
+				lower := strings.ToLower(name)
+				if slices.ContainsFunc(gatewayHeaderPrefixes, func(prefix string) bool {
+					return strings.HasPrefix(lower, prefix)
+				}) {
 					resp.Header.Del(name)
 				}
+			}
+			for _, name := range accountHeaders {
+				resp.Header.Del(name)
 			}
 
 			// Remove Set-Cookie headers (session tokens, etc.)
