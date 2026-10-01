@@ -2,6 +2,7 @@ package pgvector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -495,11 +496,30 @@ func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]st
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
 		}
-		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = $%d",
-			prefix, literal, argOffset+len(args)+1))
+		n := argOffset + len(args) + 1
+		if number, ok := jsonNumber(filter[k]); ok {
+			predicates = append(predicates, fmt.Sprintf(
+				"((%[1]scmetadata ->> %[2]s) = $%[3]d OR (%[1]scmetadata -> %[2]s)::jsonb = $%[3]d::jsonb)",
+				prefix, literal, n))
+			args = append(args, number)
+			continue
+		}
+		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = $%d", prefix, literal, n))
 		args = append(args, fmt.Sprintf("%v", filter[k]))
 	}
 	return predicates, args, nil
+}
+
+func jsonNumber(value any) (string, bool) {
+	switch number := value.(type) {
+	case json.Number:
+		return number.String(), true
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		raw, err := json.Marshal(number)
+		return string(raw), err == nil
+	default:
+		return "", false
+	}
 }
 
 // getFilters return metadata filters, now only support map[key]value pattern
