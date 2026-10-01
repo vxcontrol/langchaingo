@@ -3,6 +3,7 @@ package pgvector
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"os"
 	"strconv"
@@ -405,15 +406,11 @@ func newIsolatedIndexedStore(t *testing.T, url string, indexes ...MetadataIndex)
 	return store, conn
 }
 
-func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
-	t.Parallel()
+func explainFilterWithoutSeqScan(t *testing.T, conn *pgx.Conn, table string, filter map[string]any) string {
+	t.Helper()
 
-	url := narrowingURL(t)
 	ctx := t.Context()
-	index := MetadataIndex{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}}
-	store, conn := newIsolatedIndexedStore(t, url, index)
-
-	predicates, args, err := filterPredicates("", map[string]any{"doc_type": "answer"}, 0)
+	predicates, args, err := filterPredicates("", filter, 0)
 	require.NoError(t, err)
 
 	tx, err := conn.Begin(ctx)
@@ -421,7 +418,7 @@ func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
 	defer func() { _ = tx.Rollback(context.Background()) }()
 	_, err = tx.Exec(ctx, "SET LOCAL enable_seqscan = off")
 	require.NoError(t, err)
-	rows, err := tx.Query(ctx, "EXPLAIN SELECT 1 FROM "+store.embeddingTableName+" WHERE "+predicates[0], args...)
+	rows, err := tx.Query(ctx, "EXPLAIN SELECT 1 FROM "+table+" WHERE "+strings.Join(predicates, " AND "), args...)
 	require.NoError(t, err)
 	var plan []string
 	for rows.Next() {
@@ -430,9 +427,45 @@ func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
 		plan = append(plan, line)
 	}
 	require.NoError(t, rows.Err())
+	return strings.Join(plan, "\n")
+}
 
-	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingRelation),
+func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	index := MetadataIndex{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}}
+	store, conn := newIsolatedIndexedStore(t, url, index)
+
+	require.Contains(t, explainFilterWithoutSeqScan(t, conn, store.embeddingTableName, map[string]any{"doc_type": "answer"}),
+		index.indexName(store.embeddingRelation),
 		"an equality filter on another value must be able to use the exclude index")
+}
+
+func TestAnExcludeIndexBuiltByUpdate8IsBuiltAgainInAFormTheFilterUses(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	store, conn := newIsolatedIndexedStore(t, url)
+	index := MetadataIndex{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}}
+	name := index.indexName(store.embeddingRelation)
+
+	update8 := fnv.New32a()
+	_, _ = fmt.Fprintf(update8, "%q k%q x%q=%q", store.embeddingRelation, "doc_type", "doc_type", "memory")
+	_, err := conn.Exec(ctx, fmt.Sprintf("CREATE INDEX %s ON %s ((cmetadata ->> 'doc_type')) "+
+		"WHERE (cmetadata ->> 'doc_type') IS DISTINCT FROM 'memory'",
+		indexIdentifier(fmt.Sprintf("%s%08x", name[:len(name)-8], update8.Sum32())), store.embeddingTableName))
+	require.NoError(t, err)
+
+	reopened, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("c"), WithEmbeddingTableName(store.embeddingTableName),
+		WithCollectionTableName(store.collectionTableName), WithMetadataIndexes(index))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reopened.Close() })
+
+	require.Contains(t, explainFilterWithoutSeqScan(t, conn, store.embeddingTableName, map[string]any{"doc_type": "answer"}),
+		name, "the index update.8 left under the derived name serves no equality filter")
 }
 
 func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {

@@ -38,7 +38,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 				Keys:    []string{"doc_type"},
 				Exclude: map[string]string{"doc_type": "memory"},
 			},
-			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_doc_type_partial_bf975523" ` +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_doc_type_partial_f9722eb0" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'doc_type')) " +
 				"WHERE (cmetadata ->> 'doc_type') <> 'memory'",
 		},
@@ -48,7 +48,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 				Keys:    []string{"owner"},
 				Exclude: map[string]string{"owner": "O'Brien"},
 			},
-			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_owner_partial_fb6d36ce" ` +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_owner_partial_ebb6c8c3" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'owner')) " +
 				"WHERE (cmetadata ->> 'owner') <> 'O''Brien'",
 		},

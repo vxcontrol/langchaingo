@@ -106,7 +106,7 @@ func (m MetadataIndex) definition(table string) string {
 		_, _ = fmt.Fprintf(&b, " k%q", key)
 	}
 	for _, key := range m.excludedKeys() {
-		_, _ = fmt.Fprintf(&b, " x%q=%q", key, m.Exclude[key])
+		_, _ = fmt.Fprintf(&b, " x%q<>%q", key, m.Exclude[key])
 	}
 	return b.String()
 }
