@@ -15,6 +15,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		return
 	}
 	model := input.ModelID
+	reportClaudeOffFloor(warn, model, input.ReasoningConfig)
 	const (
 		omitted   = "the door left it off the converse request"
 		different = "the door put a different value on the converse request"

@@ -89,7 +89,8 @@ var (
 		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview", "claude-opus-5-5",
 		"claude-fable-latest",
 	}
-	defaultOnClaude = []string{
+	betweenToolsOffClaude = []string{"claude-sonnet-5-5"}
+	defaultOnClaude       = []string{
 		"claude-opus-5", "claude-sonnet-5",
 		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview",
 		"claude-opus-latest", "claude-sonnet-latest", "claude-fable-latest",
@@ -100,6 +101,10 @@ var (
 // so an explicit disable has to be refused rather than sent.
 func ClaudeThinkingAlwaysOn(model string) bool {
 	return containsAny(canonicalClaude(model), alwaysOnClaude)
+}
+
+func ClaudeTurnsOffBetweenTools(model string) bool {
+	return containsAny(canonicalClaude(model), betweenToolsOffClaude)
 }
 
 // ClaudeThinkingDefaultsOn reports whether the model thinks when thinking is

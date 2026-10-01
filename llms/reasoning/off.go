@@ -47,6 +47,7 @@ const (
 	// OffUnsupported: a known mandatory-thinking model that cannot be disabled
 	// (adaptive-only Claude, OpenAI o-series). The adapter returns a typed error.
 	OffUnsupported
+	OffBetweenToolsClaude
 )
 
 // ErrReasoningOffUnsupported is returned when reasoning is explicitly disabled
@@ -66,6 +67,11 @@ func ResolveOff(model string, p Provider) OffWire {
 		switch {
 		case ClaudeThinkingAlwaysOn(model):
 			return OffUnsupported // Fable 5 / Mythos 5: thinking cannot be disabled
+		case ClaudeTurnsOffBetweenTools(model):
+			if p == ProviderOpenAI && !ClaudeThinkingObjectRoute(model) {
+				return OffUnsupported
+			}
+			return OffBetweenToolsClaude
 		case ClaudeThinkingDefaultsOn(model):
 			if p == ProviderOpenAI {
 				if !ClaudeThinkingObjectRoute(model) {

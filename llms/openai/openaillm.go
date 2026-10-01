@@ -423,7 +423,7 @@ func (o *LLM) setReasoning(
 	case llms.ReasoningDefault:
 		return o.setDeferredReasoning(req, opts, toolsRule, warn), nil
 	case llms.ReasoningOff:
-		return "", o.setReasoningOff(req, opts)
+		return "", o.setReasoningOff(req, opts, warn)
 	}
 
 	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
@@ -609,7 +609,7 @@ func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget in
 // setReasoningOff sends the model's explicit disable token so a reasoning model
 // runs as a plain completion; a model whose thinking cannot be disabled returns
 // a typed error.
-func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
 	model := o.effectiveModel(opts)
 	switch reasoning.ResolveOff(reasoning.DashScopeRoute(model, o.host), reasoning.ProviderOpenAI) { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffUnsupported:
@@ -624,6 +624,16 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 			return &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "disabled"}
+	case reasoning.OffBetweenToolsClaude:
+		if !o.sendsClaudeThinkingObject(model) {
+			return &reasoning.ErrReasoningOffUnsupported{Model: model}
+		}
+		req.Thinking = &openaiclient.ThinkingOptions{Type: "between_tools"}
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+			Asked: "off", Sent: "between_tools",
+			Reason: "this model has no off switch, only a lowest thinking level",
+		})
 	}
 	return nil
 }

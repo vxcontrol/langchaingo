@@ -294,6 +294,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		switch reasoning.ResolveOff(input.ModelID, reasoning.ProviderBedrock) {
 		case reasoning.OffDisableClaude:
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "disabled"}
+		case reasoning.OffBetweenToolsClaude:
+			additionalModelFields.Thinking = &converseThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: input.ModelID}
 		}

@@ -82,6 +82,8 @@ func reportLegacyAnthropic(
 ) {
 	const reshaped = "the door reshaped the legacy anthropic payload for this model"
 
+	reportClaudeOffFloor(warn, modelID, options.Reasoning)
+
 	if options.Temperature != nil {
 		reportLegacyFloat(warn, "WithTemperature", modelID, reshaped, *options.Temperature, input.Temperature)
 	}
@@ -125,6 +127,18 @@ func reportLegacyAnthropic(
 			Asked: strings.Join(options.StopWords, ","), Reason: reshaped,
 		})
 	}
+}
+
+func reportClaudeOffFloor(warn *llms.Warnings, modelID string, cfg *llms.ReasoningConfig) {
+	if cfg.ResolveMode() != llms.ReasoningOff ||
+		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) != reasoning.OffBetweenToolsClaude {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: modelID,
+		Asked: "off", Sent: "between_tools",
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
 }
 
 func reportLegacyFloat(warn *llms.Warnings, option, modelID, reason string, asked, sent float64) {

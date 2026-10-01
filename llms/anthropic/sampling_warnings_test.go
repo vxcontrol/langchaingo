@@ -287,3 +287,25 @@ func TestATemperatureOutsideClaudesRangeIsClampedAndReported(t *testing.T) {
 		require.Equal(t, llms.WarningClamp, clamps[0].Kind)
 	}
 }
+
+func TestTurningThinkingOffOnClaudeSonnet55SendsItsLowestSetting(t *testing.T) {
+	t.Parallel()
+
+	resp, body := generateForModelSending(t, "claude-sonnet-5-5", llms.WithReasoningDisabled())
+	require.Equal(t, map[string]any{"type": "between_tools"}, body["thinking"])
+	var floors []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithReasoningDisabled" {
+			floors = append(floors, w)
+		}
+	}
+	require.Len(t, floors, 1)
+	require.Equal(t, llms.WarningSubstitute, floors[0].Kind)
+	require.Equal(t, "between_tools", floors[0].Sent)
+
+	resp, body = generateForModelSending(t, "claude-sonnet-5", llms.WithReasoningDisabled())
+	require.Equal(t, map[string]any{"type": "disabled"}, body["thinking"])
+	for _, w := range resp.Warnings {
+		require.NotEqual(t, "WithReasoningDisabled", w.Option, "Claude Sonnet 5 takes disabled as asked")
+	}
+}

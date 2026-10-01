@@ -231,6 +231,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		switch reasoning.ResolveOff(model, reasoning.ProviderAnthropic) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
 		case reasoning.OffDisableClaude:
 			thinking = &anthropicclient.ThinkingPayload{Type: "disabled"}
+		case reasoning.OffBetweenToolsClaude:
+			thinking = &anthropicclient.ThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}

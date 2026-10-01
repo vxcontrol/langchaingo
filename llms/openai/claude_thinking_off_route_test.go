@@ -28,6 +28,8 @@ func TestTurningOffClaudeIsRefusedWhereTheHostDocumentsNoThinkingObject(t *testi
 		"OpenRouter":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-5", nil},
 		"ZenMux":                         {"http://zenmux.ai/api/v1", "anthropic/claude-opus-5", nil},
 		"Vercel AI Gateway":              {"http://ai-gateway.vercel.sh/v1", "anthropic/claude-sonnet-5", nil},
+		"the gateway's openrouter route to Sonnet 5.5": {gatewayBaseURL, "openrouter/anthropic/claude-sonnet-5-5", nil},
+		"OpenRouter to Sonnet 5.5":                     {"http://openrouter.ai/api/v1", "anthropic/claude-sonnet-5-5", nil},
 		"the reasoning object format": {
 			gatewayBaseURL, "anthropic/claude-sonnet-5", []Option{WithModernReasoningFormat()},
 		},
