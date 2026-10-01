@@ -56,7 +56,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := tc.index.ddl("langchain_pg_embedding")
+			got, err := tc.index.ddl("langchain_pg_embedding", "langchain_pg_embedding")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -88,7 +88,7 @@ func TestMetadataIndexRejectsWhatCannotBeInlinedSafely(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := tc.index.ddl("langchain_pg_embedding"); !errors.Is(err, ErrInvalidMetadataIndex) {
+			if _, err := tc.index.ddl("langchain_pg_embedding", "langchain_pg_embedding"); !errors.Is(err, ErrInvalidMetadataIndex) {
 				t.Fatalf("want ErrInvalidMetadataIndex, got %v", err)
 			}
 		})

@@ -68,6 +68,7 @@ type Store struct {
 	connURL             string
 	conn                PGXConn
 	embeddingTableName  string
+	embeddingRelation   string
 	collectionTableName string
 	collectionName      string
 	collectionUUID      string
@@ -140,7 +141,7 @@ func (s *Store) init(ctx context.Context) (err error) {
 	if err := s.createCollectionTableIfNotExists(ctx, tx); err != nil {
 		return err
 	}
-	if err := s.createEmbeddingTableIfNotExists(ctx, tx); err != nil {
+	if s.embeddingRelation, err = s.createEmbeddingTableIfNotExists(ctx, tx); err != nil {
 		return err
 	}
 	if err := s.createMetadataIndexesIfNotExist(ctx, tx); err != nil {
@@ -201,7 +202,7 @@ func (s Store) createCollectionTableIfNotExists(ctx context.Context, tx pgx.Tx) 
 	return nil
 }
 
-func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) error {
+func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) (string, error) {
 	// inspired by
 	// https://github.com/langchain-ai/langchain/blob/v0.0.340/libs/langchain/langchain/vectorstores/pgvector.py#L167
 	// The advisor lock fixes issue arising from concurrent
@@ -210,7 +211,7 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 	// For more information see:
 	// https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", pgLockIDEmbeddingTable); err != nil {
-		return err
+		return "", err
 	}
 
 	vectorDimensions := ""
@@ -228,13 +229,17 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 	FOREIGN KEY (collection_id) REFERENCES %s (uuid) ON DELETE CASCADE,
 	PRIMARY KEY (uuid))`, s.embeddingTableName, vectorDimensions, s.collectionTableName)
 	if _, err := tx.Exec(ctx, sql); err != nil {
-		return err
+		return "", err
 	}
-	relation, _ := relationName(s.embeddingTableName)
+	var relation string
+	if err := tx.QueryRow(ctx, "SELECT relname FROM pg_class WHERE oid = $1::regclass",
+		s.embeddingTableName).Scan(&relation); err != nil {
+		return "", err
+	}
 	sql = fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s ON %s (collection_id)`,
 		indexIdentifier(relation+"_collection_id"), s.embeddingTableName)
 	if _, err := tx.Exec(ctx, sql); err != nil {
-		return err
+		return "", err
 	}
 
 	// See this for more details on HNWS indexes: https://github.com/pgvector/pgvector#hnsw
@@ -247,11 +252,11 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 			sql = fmt.Sprintf("%s WITH (m=%d, ef_construction = %d)", sql, s.hnswIndex.m, s.hnswIndex.efConstruction)
 		}
 		if _, err := tx.Exec(ctx, sql); err != nil {
-			return err
+			return "", err
 		}
 	}
 
-	return nil
+	return relation, nil
 }
 
 // AddDocuments adds documents to the Postgres collection associated with 'Store'.

@@ -74,32 +74,44 @@ func TestAStoreOnSchemaQualifiedTablesKeepsOneSetOfIndexes(t *testing.T) {
 	require.Contains(t, strings.Join(definitions, "\n"), "USING hnsw")
 }
 
-func TestQuotedTableNamesKeepIndexesOfTheirOwn(t *testing.T) {
+func TestEverySpellingOfATableSharesOneSetOfIndexes(t *testing.T) {
 	t.Parallel()
 
 	url := narrowingURL(t)
 	ctx := t.Context()
 	schemaName, conn := newSchema(t, url)
-	for _, table := range []string{`"Emb"`, `"emb"`, `emb`, `"a.b"`} {
-		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
-			WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
-			WithEmbeddingTableName(schemaName+"."+table), WithVectorDimensions(64),
-			WithHNSWIndex(16, 64, "vector_cosine_ops"),
-			WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
-		require.NoError(t, err, table)
-		t.Cleanup(func() { _ = store.Close() })
+	upperSchema := strings.ToUpper(schemaName)
+	for relation, spellings := range map[string][]string{
+		"emb": {`emb`, `"emb"`, `EMB`, ` emb `, upperSchema + `."emb"`},
+		"Emb": {`"Emb"`},
+		"a.b": {`"a.b"`},
+		"b":   {`b`},
+		`q"t`: {`"q""t"`},
+		"qt":  {`qt`},
+	} {
+		for _, spelling := range spellings {
+			table := spelling
+			if !strings.Contains(spelling, ".") || strings.HasPrefix(spelling, `"`) {
+				table = schemaName + "." + spelling
+			}
+			store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+				WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
+				WithEmbeddingTableName(table), WithVectorDimensions(64),
+				WithHNSWIndex(16, 64, "vector_cosine_ops"),
+				WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
+			require.NoError(t, err, table)
+			t.Cleanup(func() { _ = store.Close() })
+			require.Equal(t, relation, store.embeddingRelation, table)
 
-		_, err = store.AddDocuments(ctx, []schema.Document{{PageContent: table, Metadata: map[string]any{"flow_id": "1"}}})
-		require.NoError(t, err, table)
-		docs, err := store.SimilaritySearch(ctx, table, 1)
-		require.NoError(t, err, table)
-		require.Len(t, docs, 1, table)
-	}
-
-	for _, table := range []string{"Emb", "emb", "a.b"} {
-		definitions := indexDefinitions(t, conn, schemaName, table)
+			_, err = store.AddDocuments(ctx, []schema.Document{{PageContent: table, Metadata: map[string]any{"flow_id": "1"}}})
+			require.NoError(t, err, table)
+			docs, err := store.SimilaritySearch(ctx, table, 1)
+			require.NoError(t, err, table)
+			require.Len(t, docs, 1, table)
+		}
+		definitions := indexDefinitions(t, conn, schemaName, relation)
 		require.Len(t, definitions, 4, "the primary key, collection_id, HNSW and metadata indexes of %s:\n%s",
-			table, strings.Join(definitions, "\n"))
+			relation, strings.Join(definitions, "\n"))
 	}
 }
 
@@ -128,21 +140,23 @@ func TestAStoreAdoptsTheMetadataIndexItsUnquotedNameCreated(t *testing.T) {
 	url := narrowingURL(t)
 	ctx := t.Context()
 	schemaName, conn := newSchema(t, url)
-	const table = "ÉmbedX"
+	const table = "Émbed"
 	index := MetadataIndex{Keys: []string{"flow_id"}}
 
-	open := func(indexes ...MetadataIndex) {
+	open := func(url, table string, indexes ...MetadataIndex) {
 		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
 			WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
-			WithEmbeddingTableName(schemaName+"."+table), WithMetadataIndexes(indexes...))
+			WithEmbeddingTableName(table), WithMetadataIndexes(indexes...))
 		require.NoError(t, err)
 		require.NoError(t, store.Close())
 	}
-	open()
+	open(url, schemaName+"."+table)
 	_, err := conn.Exec(ctx, fmt.Sprintf("CREATE INDEX %s_meta_flow_id_%08x ON %s.%s ((cmetadata ->> 'flow_id'))",
 		table, index.fingerprint(table), schemaName, table))
 	require.NoError(t, err)
-	open(index)
+	var searchPath string
+	require.NoError(t, conn.QueryRow(ctx, "SHOW search_path").Scan(&searchPath))
+	open(withParameter(t, url, "search_path", schemaName+", "+searchPath), table, index)
 
 	var metadataIndexes int
 	require.NoError(t, conn.QueryRow(ctx, `SELECT count(*) FROM pg_indexes

@@ -225,7 +225,7 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 	store, conn := newIsolatedIndexedStore(t, url, declared...)
 
 	for _, index := range declared {
-		name := index.indexName(store.embeddingTableName)
+		name := index.indexName(store.embeddingRelation)
 		var definition string
 		err := conn.QueryRow(ctx,
 			"SELECT indexdef FROM pg_indexes WHERE tablename = $1 AND indexname = $2",
@@ -294,7 +294,7 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 		plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
 			map[string]any{"doc_type": "memory", "flow_id": flow})
 
-		require.Contains(t, plan, index.indexName(store.embeddingTableName),
+		require.Contains(t, plan, index.indexName(store.embeddingRelation),
 			"the metadata index must carry the scan for flow_id %v:\n%s", flow, plan)
 		require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
 			"the whole table was read for flow_id %v:\n%s", flow, plan)
@@ -431,7 +431,7 @@ func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 
-	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingTableName),
+	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingRelation),
 		"an equality filter on another value must be able to use the exclude index")
 }
 

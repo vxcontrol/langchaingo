@@ -61,14 +61,13 @@ func (m MetadataIndex) validate() error {
 	return nil
 }
 
-func (m MetadataIndex) indexName(table string) string {
+func (m MetadataIndex) indexName(relation string) string {
 	if m.Name != "" {
 		return foldIdentifier(m.Name)
 	}
 
-	stored, written := relationName(table)
 	parts := make([]string, 0, len(m.Keys)+3)
-	parts = append(parts, stored, "meta")
+	parts = append(parts, relation, "meta")
 	for _, key := range m.Keys {
 		parts = append(parts, foldIdentifier(key))
 	}
@@ -77,32 +76,7 @@ func (m MetadataIndex) indexName(table string) string {
 	}
 	name := strings.Join(parts, "_")
 	prefix := strings.ToValidUTF8(name[:min(len(name), maxIdentifierLen-9)], "")
-	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(written))
-}
-
-func relationName(table string) (stored, written string) {
-	var s, w strings.Builder
-	quoted := false
-	for i := 0; i < len(table); i++ {
-		switch c := table[i]; {
-		case c == '"' && quoted && i+1 < len(table) && table[i+1] == '"':
-			s.WriteByte(c)
-			w.WriteByte(c)
-			i++
-		case c == '"':
-			quoted = !quoted
-		case c == '.' && !quoted:
-			s.Reset()
-			w.Reset()
-		case !quoted && 'A' <= c && c <= 'Z':
-			s.WriteByte(c + 'a' - 'A')
-			w.WriteByte(c)
-		default:
-			s.WriteByte(c)
-			w.WriteByte(c)
-		}
-	}
-	return s.String(), w.String()
+	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(relation))
 }
 
 func foldIdentifier(name string) string {
@@ -144,7 +118,7 @@ func (m MetadataIndex) excludedKeys() []string {
 // ddl renders the CREATE INDEX for this declaration. Index expressions and
 // predicates admit no bind parameters, so every part is rendered as literal
 // text; validate must pass first.
-func (m MetadataIndex) ddl(table string) (string, error) {
+func (m MetadataIndex) ddl(table, relation string) (string, error) {
 	if err := m.validate(); err != nil {
 		return "", err
 	}
@@ -155,7 +129,7 @@ func (m MetadataIndex) ddl(table string) (string, error) {
 	}
 
 	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)",
-		indexIdentifier(m.indexName(table)), table, strings.Join(columns, ", "))
+		indexIdentifier(m.indexName(relation)), table, strings.Join(columns, ", "))
 
 	if len(m.Exclude) == 0 {
 		return statement, nil
@@ -205,12 +179,12 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 	definitions := make(map[string]string, len(s.metadataIndexes))
 	built := false
 	for _, index := range s.metadataIndexes {
-		statement, err := index.ddl(s.embeddingTableName)
+		statement, err := index.ddl(s.embeddingTableName, s.embeddingRelation)
 		if err != nil {
 			return err
 		}
-		name := index.indexName(s.embeddingTableName)
-		definition := index.definition(s.embeddingTableName)
+		name := index.indexName(s.embeddingRelation)
+		definition := index.definition(s.embeddingRelation)
 		if declared, ok := definitions[name]; ok && declared != definition {
 			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
 		}
