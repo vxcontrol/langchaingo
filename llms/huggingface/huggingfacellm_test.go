@@ -63,8 +63,6 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 }
 
 func TestHuggingFaceLLMGenerateContent(t *testing.T) {
-	t.Skip("temporarily skip")
-
 	ctx := t.Context()
 
 	// Skip if no credentials and no recording

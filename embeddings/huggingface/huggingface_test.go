@@ -12,7 +12,6 @@ import (
 )
 
 func TestHuggingfaceEmbeddings(t *testing.T) {
-	t.Skip("temporary skip")
 	ctx := t.Context()
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")

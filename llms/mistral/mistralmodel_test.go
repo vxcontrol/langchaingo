@@ -481,16 +481,6 @@ func (h *testCallbackHandler) HandleRetrieverEnd(ctx context.Context, query stri
 }
 func (h *testCallbackHandler) HandleStreamingFunc(ctx context.Context, chunk streaming.Chunk) {}
 
-func TestCall(t *testing.T) {
-	// This test requires mocking the Mistral SDK client
-	t.Skip("Call() requires integration testing with mock Mistral client")
-}
-
-func TestGenerateContent(t *testing.T) {
-	// This test requires mocking the Mistral SDK client
-	t.Skip("GenerateContent() requires integration testing with mock Mistral client")
-}
-
 func getStringPointer(s string) *string {
 	return &s
 }

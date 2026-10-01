@@ -15,7 +15,6 @@ import (
 const testURL = "https://router.huggingface.co"
 
 func TestClient_CreateEmbedding(t *testing.T) {
-	t.Skip("temporary skip")
 	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
