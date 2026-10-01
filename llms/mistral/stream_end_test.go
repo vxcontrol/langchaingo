@@ -140,6 +140,7 @@ func TestAMistralCallReturnsWhenItsContextEndsBeforeTheServerAnswers(t *testing.
 		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
 
 	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NotErrorIs(t, err, llms.ErrIncompleteStream)
 	assert.Less(t, time.Since(start), 5*time.Second)
 }
 
@@ -180,6 +181,25 @@ func TestAMistralStreamThatFinishesWithAnErrorIsAStreamFailure(t *testing.T) {
 	resp, err := m.GenerateContent(t.Context(),
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")},
 		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+
+	require.ErrorIs(t, err, llms.ErrStreamFailed)
+	require.NotNil(t, resp)
+	assert.Equal(t, "sixty rooms are", resp.Choices[0].Content)
+}
+
+func TestAMistralAnswerThatFinishedWithAnErrorIsAStreamFailure(t *testing.T) {
+	t.Parallel()
+
+	m := mistralAgainst(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"x","object":"chat.completion","created":1,"model":"mistral-small-latest",`+
+			`"choices":[{"index":0,"message":{"role":"assistant","content":"sixty rooms are"},"finish_reason":"error"}],`+
+			`"usage":{"prompt_tokens":1,"completion_tokens":3,"total_tokens":4}}`)
+	})
+
+	resp, err := m.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "how many rooms are free?")})
 
 	require.ErrorIs(t, err, llms.ErrStreamFailed)
 	require.NotNil(t, resp)

@@ -144,3 +144,17 @@ func TestAGeminiStreamCutInsideItsFirstEventKeepsTheDeadline(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 }
+
+func TestADeadlineBeforeTheGeminiStreamStartsIsNotACutStream(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	_, err := streamFrom(t, ctx, func(_ http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		<-r.Context().Done()
+	}, func() {})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NotErrorIs(t, err, llms.ErrIncompleteStream)
+}

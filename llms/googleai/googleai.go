@@ -545,10 +545,10 @@ func geminiStreamEndError(
 
 func geminiStreamError(ctx context.Context, received bool, err error) error {
 	wrapped := fmt.Errorf("error generating content: %w", err)
-	if ctx.Err() != nil {
-		return streamend.Incomplete(ctx, wrapped)
-	}
 	if !received {
+		if ctxErr := ctx.Err(); ctxErr != nil && !errors.Is(err, ctxErr) {
+			return streamend.Incomplete(ctx, wrapped)
+		}
 		return wrapped
 	}
 	var apiErr genai.APIError

@@ -215,6 +215,11 @@ func generateNonStreamingContent(m *Model, callOptions *llms.CallOptions, messag
 			}
 		}
 	}
+	for _, choice := range langchainContentResponse.Choices {
+		if choice.StopReason == string(sdk.FinishReasonError) {
+			return langchainContentResponse, fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.StopReason)
+		}
+	}
 	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
 		return langchainContentResponse, err
 	}
@@ -337,7 +342,10 @@ func startStream(
 				drain(s.chunks)
 			}
 		}()
-		return nil, streamend.Incomplete(ctx, nil)
+		if cause := context.Cause(ctx); !errors.Is(cause, ctx.Err()) {
+			return nil, fmt.Errorf("%w: %w", ctx.Err(), cause)
+		}
+		return nil, ctx.Err()
 	case s := <-result:
 		return s.chunks, s.err
 	}
