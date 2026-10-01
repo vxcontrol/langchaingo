@@ -113,7 +113,7 @@ func (m MetadataIndex) ddl(table string) (string, error) {
 	}
 
 	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)",
-		m.indexName(table), table, strings.Join(columns, ", "))
+		pgx.Identifier{strings.ToLower(m.indexName(table))}.Sanitize(), table, strings.Join(columns, ", "))
 
 	if len(m.Exclude) == 0 {
 		return statement, nil

@@ -98,7 +98,7 @@ func TestInitRollsBackWhenAnyStepFails(t *testing.T) {
 		"CREATE TABLE IF NOT EXISTS langchain_pg_embedding",
 		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_collection_id",
 		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_embedding_hnsw",
-		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_flow_id",
+		`CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_flow_id`,
 		"ANALYZE",
 		"DELETE FROM langchain_pg_collection",
 		"INSERT INTO langchain_pg_collection",

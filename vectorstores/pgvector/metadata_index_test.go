@@ -18,19 +18,19 @@ func TestMetadataIndexDDL(t *testing.T) {
 		{
 			name:  "one key",
 			index: MetadataIndex{Keys: []string{"flow_id"}},
-			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_flow_id_6de4f5f1 " +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_flow_id_6de4f5f1" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'flow_id'))",
 		},
 		{
 			name:  "keys keep the order they were declared in",
 			index: MetadataIndex{Keys: []string{"doc_type", "flow_id"}},
-			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_doc_type_flow_id_6c451f01 " +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_doc_type_flow_id_6c451f01" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'doc_type'), (cmetadata ->> 'flow_id'))",
 		},
 		{
 			name:  "an explicit name wins",
 			index: MetadataIndex{Name: "lpe_custom", Keys: []string{"flow_id"}},
-			want:  "CREATE INDEX IF NOT EXISTS lpe_custom ON langchain_pg_embedding ((cmetadata ->> 'flow_id'))",
+			want:  `CREATE INDEX IF NOT EXISTS "lpe_custom" ON langchain_pg_embedding ((cmetadata ->> 'flow_id'))`,
 		},
 		{
 			name: "exclude renders a partial index",
@@ -38,7 +38,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 				Keys:    []string{"doc_type"},
 				Exclude: map[string]string{"doc_type": "memory"},
 			},
-			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_doc_type_partial_bf975523 " +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_doc_type_partial_bf975523" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'doc_type')) " +
 				"WHERE (cmetadata ->> 'doc_type') <> 'memory'",
 		},
@@ -48,7 +48,7 @@ func TestMetadataIndexDDL(t *testing.T) {
 				Keys:    []string{"owner"},
 				Exclude: map[string]string{"owner": "O'Brien"},
 			},
-			want: "CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_owner_partial_fb6d36ce " +
+			want: `CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_owner_partial_fb6d36ce" ` +
 				"ON langchain_pg_embedding ((cmetadata ->> 'owner')) " +
 				"WHERE (cmetadata ->> 'owner') <> 'O''Brien'",
 		},
