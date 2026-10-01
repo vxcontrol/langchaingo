@@ -521,10 +521,26 @@ StreamEnd:
 	if streamErr != nil {
 		return resp, streamErr
 	}
+	endErr := geminiStreamEndError(ctx, lastCandidate, blockReason)
 	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0]); err != nil {
+		if endErr != nil {
+			return resp, fmt.Errorf("%w: %w", err, endErr)
+		}
 		return resp, err
 	}
-	return resp, nil
+	return resp, endErr
+}
+
+func geminiStreamEndError(
+	ctx context.Context, last *genai.Candidate, blocked *genai.GenerateContentResponsePromptFeedback,
+) error {
+	if blocked != nil || (last != nil && last.FinishReason != "" && last.FinishReason != genai.FinishReasonUnspecified) {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%w: %w", llms.ErrIncompleteStream, err)
+	}
+	return llms.ErrIncompleteStream
 }
 
 func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse, error) {

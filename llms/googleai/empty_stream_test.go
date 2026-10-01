@@ -50,6 +50,7 @@ func TestStreamWithoutCandidatesIsNotASilentSuccess(t *testing.T) {
 
 			require.ErrorIs(t, err, ErrNoContentInResponse,
 				"an empty stream must fail the way an empty non-streaming answer does")
+			require.ErrorIs(t, err, llms.ErrIncompleteStream)
 			assert.False(t, llms.IsTokenLimitError(err),
 				"the vendor gave no stop reason, so the budget is not a known cause")
 			require.NotNil(t, resp)
