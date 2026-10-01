@@ -466,3 +466,25 @@ func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
 	require.NoError(t, rows.Err())
 	require.Empty(t, modes, "indexes that exist need neither a build lock nor fresh statistics, so writers wait for nothing")
 }
+
+func TestSimilaritySearchChecksTheFilterBeforeTheDimensionGuard(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	store, conn := newIsolatedIndexedStore(t, url)
+	_, err := store.AddDocuments(ctx, []schema.Document{{PageContent: "mine", Metadata: map[string]any{"flow_id": "3"}}})
+	require.NoError(t, err)
+
+	plan := explainSimilaritySearch(t, ctx, conn, store, "mine", map[string]any{"flow_id": "3"})
+
+	var filter string
+	for _, line := range strings.Split(plan, "\n") {
+		if strings.Contains(line, "vector_dims") {
+			filter = line
+		}
+	}
+	require.NotEmpty(t, filter, plan)
+	require.Less(t, strings.Index(filter, "cmetadata"), strings.Index(filter, "vector_dims"),
+		"a vector is detoasted for the dimension guard, so the metadata filter has to reject rows first:\n%s", plan)
+}

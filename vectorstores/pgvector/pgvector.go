@@ -322,10 +322,6 @@ func (s Store) SimilaritySearch(
 	args := make([]any, 0, 5+len(filter))
 	args = append(args, len(embedderData), pgvector.NewVector(embedderData), numDocuments, collectionName)
 
-	// Every predicate that can reject a row belongs inside the fence, so that a
-	// distance is computed only for the rows that survive it, and so that a
-	// metadata index is reachable at the scan. Hoisting them out, as this query
-	// once did, costs a full table scan and a detoast of every stored vector.
 	innerQuerys, filterArgs, err := filterPredicates(s.embeddingTableName+".", filter, len(args))
 	if err != nil {
 		return nil, err
@@ -356,8 +352,8 @@ func (s Store) SimilaritySearch(
 	FROM
 		%[1]s
 	WHERE %[1]s.collection_id = (SELECT %[2]s.uuid FROM %[2]s WHERE %[2]s.name = $4 ORDER BY %[2]s.name LIMIT 1)
-		AND vector_dims(%[1]s.embedding) = $1
 		AND %[3]s
+		AND vector_dims(%[1]s.embedding) = $1
 )
 SELECT
 	data.document,
