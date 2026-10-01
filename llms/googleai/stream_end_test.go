@@ -6,18 +6,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vxcontrol/langchaingo/internal/testutil/cutctx"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 const partialGeminiChunk = `data: {"candidates":[{"content":{"role":"model","parts":[{"text":"partial"}]}}]}` + "\n\n"
 
-func streamFrom(t *testing.T, ctx context.Context, handler http.HandlerFunc) (*llms.ContentResponse, error) {
+func streamFrom(
+	t *testing.T, ctx context.Context, handler http.HandlerFunc, onChunk func(),
+) (*llms.ContentResponse, error) {
 	t.Helper()
 
 	server := httptest.NewServer(handler)
@@ -29,7 +31,10 @@ func streamFrom(t *testing.T, ctx context.Context, handler http.HandlerFunc) (*l
 
 	return llm.GenerateContent(ctx,
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error {
+			onChunk()
+			return nil
+		}))
 }
 
 func TestAGeminiStreamWithoutAFinishReasonIsAnError(t *testing.T) {
@@ -38,7 +43,7 @@ func TestAGeminiStreamWithoutAFinishReasonIsAnError(t *testing.T) {
 	resp, err := streamFrom(t, t.Context(), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = io.WriteString(w, partialGeminiChunk)
-	})
+	}, func() {})
 
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 	require.NotNil(t, resp)
@@ -48,15 +53,14 @@ func TestAGeminiStreamWithoutAFinishReasonIsAnError(t *testing.T) {
 func TestAGeminiStreamCutByTheDeadlineKeepsItsCause(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-	defer cancel()
+	ctx := cutctx.New(t.Context(), context.DeadlineExceeded)
 
 	resp, err := streamFrom(t, ctx, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = io.WriteString(w, partialGeminiChunk)
 		w.(http.Flusher).Flush()
 		<-r.Context().Done()
-	})
+	}, ctx.Cut)
 
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
@@ -71,7 +75,7 @@ func TestAGeminiStreamWithAFinishReasonIsComplete(t *testing.T) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = io.WriteString(w, partialGeminiChunk+
 			`data: {"candidates":[{"content":{"role":"model","parts":[{"text":" answer"}]},"finishReason":"STOP"}]}`+"\n\n")
-	})
+	}, func() {})
 
 	require.NoError(t, err)
 	assert.Equal(t, "partial answer", resp.Choices[0].Content)

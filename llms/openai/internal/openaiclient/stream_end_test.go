@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vxcontrol/langchaingo/internal/testutil/cutctx"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -110,22 +110,22 @@ func TestAStreamCutByTheContextIsAnErrorEveryTime(t *testing.T) {
 			t.Parallel()
 
 			for range 100 {
-				var (
-					ctx    context.Context
-					cancel context.CancelFunc
-				)
-				if cause == context.DeadlineExceeded {
-					ctx, cancel = context.WithTimeout(t.Context(), 5*time.Millisecond)
-				} else {
-					ctx, cancel = context.WithCancel(t.Context())
-					time.AfterFunc(5*time.Millisecond, cancel)
+				ctx := cutctx.New(t.Context(), cause)
+				r := &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(&blockingBody{ctx: ctx, chunks: []string{partialChunk}}),
 				}
-				resp, err := parseStream(ctx, t, &blockingBody{ctx: ctx, chunks: []string{partialChunk}})
-				cancel()
+				req := &ChatRequest{StreamingFunc: func(context.Context, streaming.Chunk) error {
+					ctx.Cut()
+					return nil
+				}}
+
+				resp, err := parseStreamingChatResponse(ctx, r, req)
 
 				require.ErrorIs(t, err, llms.ErrIncompleteStream)
 				require.ErrorIs(t, err, cause)
 				require.NotNil(t, resp)
+				require.Len(t, resp.Choices, 1)
 				require.Equal(t, "partial", resp.Choices[0].Message.Content)
 			}
 		})
