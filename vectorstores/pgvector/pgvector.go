@@ -545,7 +545,8 @@ func filterTexts(value any) []string {
 
 	if number, ok := value.(json.Number); ok {
 		if strings.ContainsAny(number.String(), ".eE") {
-			if float, err := number.Float64(); err == nil {
+			float, err := number.Float64()
+			if err == nil && decimalValue(number.String()) == decimalValue(strconv.FormatFloat(float, 'g', -1, 64)) {
 				addFloat(float, 64)
 			}
 		}
@@ -560,6 +561,30 @@ func filterTexts(value any) []string {
 		addFloat(v.Float(), v.Type().Bits())
 	}
 	return texts
+}
+
+func decimalValue(number string) string {
+	mantissa, exponent, hasExponent := strings.Cut(strings.ToLower(number), "e")
+	power := 0
+	if hasExponent {
+		parsed, err := strconv.Atoi(exponent)
+		if err != nil {
+			return ""
+		}
+		power = parsed
+	}
+	sign := ""
+	if unsigned, ok := strings.CutPrefix(mantissa, "-"); ok {
+		sign, mantissa = "-", unsigned
+	}
+	whole, fraction, _ := strings.Cut(mantissa, ".")
+	digits := strings.TrimLeft(whole+fraction, "0")
+	significant := strings.TrimRight(digits, "0")
+	if significant == "" {
+		return "0"
+	}
+	power += len(digits) - len(significant) - len(fraction)
+	return sign + significant + "e" + strconv.Itoa(power)
 }
 
 // getFilters return metadata filters, now only support map[key]value pattern

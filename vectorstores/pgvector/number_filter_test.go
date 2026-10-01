@@ -37,6 +37,8 @@ func TestANumberFilterFindsTheDocumentsHoldingItsValue(t *testing.T) {
 				{PageContent: "huge", Metadata: map[string]any{"n": 1e21}},
 				{PageContent: "tiny", Metadata: map[string]any{"n": 1e-7}},
 				{PageContent: "an id past float precision", Metadata: map[string]any{"n": uint64(12345678901234567000)}},
+				{PageContent: "a tenth", Metadata: map[string]any{"n": 0.1}},
+				{PageContent: "zero", Metadata: map[string]any{"n": 0}},
 			})
 			require.NoError(t, err)
 
@@ -44,18 +46,23 @@ func TestANumberFilterFindsTheDocumentsHoldingItsValue(t *testing.T) {
 				filter any
 				want   []string
 			}{
-				"float decoded from JSON":         {1e6, []string{"a million", "a million in Go text"}},
-				"int":                             {1000000, []string{"a million"}},
-				"named float type":                {score(1e6), []string{"a million", "a million in Go text"}},
-				"json.Number":                     {json.Number("1e6"), []string{"a million"}},
-				"number held as text":             {5, []string{"five in text"}},
-				"float from 1e21 up":              {1e21, []string{"huge"}},
-				"float below 1e-6":                {1e-7, []string{"tiny"}},
-				"json.Number that is no number":   {json.Number(""), nil},
-				"uint64":                          {uint64(12345678901234567000), []string{"an id past float precision"}},
-				"json.Number of another id":       {json.Number("12345678901234567890"), nil},
-				"named int with a String method":  {time.Duration(2), []string{"two"}},
-				"named uint with a String method": {os.FileMode(2), []string{"two"}},
+				"float decoded from JSON":                    {1e6, []string{"a million", "a million in Go text"}},
+				"int":                                        {1000000, []string{"a million"}},
+				"named float type":                           {score(1e6), []string{"a million", "a million in Go text"}},
+				"json.Number":                                {json.Number("1e6"), []string{"a million"}},
+				"number held as text":                        {5, []string{"five in text"}},
+				"float from 1e21 up":                         {1e21, []string{"huge"}},
+				"float below 1e-6":                           {1e-7, []string{"tiny"}},
+				"json.Number that is no number":              {json.Number(""), nil},
+				"uint64":                                     {uint64(12345678901234567000), []string{"an id past float precision"}},
+				"json.Number of another id":                  {json.Number("12345678901234567890"), nil},
+				"json.Number with a trailing zero":           {json.Number("1000000.0"), []string{"a million"}},
+				"json.Number of a tenth":                     {json.Number("0.1"), []string{"a tenth"}},
+				"json.Number past float precision":           {json.Number("0.1000000000000000000000001"), nil},
+				"json.Number below the float range":          {json.Number("1e-400"), nil},
+				"json.Number of another id in exponent form": {json.Number("1.2345678901234567890e19"), nil},
+				"named int with a String method":             {time.Duration(2), []string{"two"}},
+				"named uint with a String method":            {os.FileMode(2), []string{"two"}},
 			} {
 				docs, err := store.SimilaritySearch(ctx, "anything", 10,
 					vectorstores.WithFilters(map[string]any{"n": tc.filter}))
