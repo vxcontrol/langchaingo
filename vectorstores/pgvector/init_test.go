@@ -205,7 +205,7 @@ func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	cfg, err := pgxpool.ParseConfig(url)
 	require.NoError(t, err)
 	cfg.MaxConns = 1
-	cfg.ConnConfig.RuntimeParams["statement_timeout"] = "500"
+	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "500"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() {
