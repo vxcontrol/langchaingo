@@ -77,26 +77,53 @@ func droppedHeaderLines() []string {
 	return lines
 }
 
+func recordingsUnder(root string) ([]string, error) {
+	var paths []string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err //nolint:wrapcheck // the walk reports its own error unchanged
+		case entry.IsDir():
+			if path != root && (strings.HasPrefix(entry.Name(), ".") || strings.HasPrefix(entry.Name(), "_")) {
+				return fs.SkipDir
+			}
+		case strings.HasSuffix(path, ".httprr"), strings.HasSuffix(path, ".httprr.gz"):
+			paths = append(paths, path)
+		}
+		return nil
+	})
+	return paths, err //nolint:wrapcheck // the walk reports its own error unchanged
+}
+
+func TestTheSweepLeavesOutWhatTheGoToolIgnores(t *testing.T) {
+	root := t.TempDir()
+	for _, path := range []string{
+		"llms/x/testdata/kept.httprr",
+		".claude/worktrees/old/llms/x/testdata/nested.httprr",
+		"_attic/testdata/attic.httprr.gz",
+	} {
+		full := filepath.Join(root, path)
+		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
+		require.NoError(t, os.WriteFile(full, nil, 0o600))
+	}
+
+	paths, err := recordingsUnder(root)
+	require.NoError(t, err)
+	require.Equal(t, []string{filepath.Join(root, "llms/x/testdata/kept.httprr")}, paths)
+}
+
 func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 	root := repositoryRoot(t)
-	scanned := map[string]int{}
+	paths, err := recordingsUnder(root)
+	require.NoError(t, err)
 
-	require.NoError(t, filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err //nolint:wrapcheck // the walk reports its own error unchanged
-		}
-		kind := ""
-		switch {
-		case strings.HasSuffix(path, ".httprr"):
-			kind = ".httprr"
-		case strings.HasSuffix(path, ".httprr.gz"):
-			kind = ".httprr.gz"
-		default:
-			return nil
-		}
+	scanned := map[string]int{}
+	for _, path := range paths {
 		data, err := readRecording(path)
-		if err != nil {
-			return err
+		require.NoError(t, err)
+		kind := ".httprr"
+		if strings.HasSuffix(path, ".gz") {
+			kind = ".httprr.gz"
 		}
 		scanned[kind]++
 		name, _ := filepath.Rel(root, path)
@@ -109,8 +136,7 @@ func TestNoRecordingInThisRepositoryCarriesGatewayHeaders(t *testing.T) {
 			assert.Contains(t, []string{"proj_lcgo-tst", "lcgo-tst"}, strings.TrimSpace(m[2]),
 				"%s carries a real %s", name, m[1])
 		}
-		return nil
-	}))
+	}
 	assert.Positive(t, scanned[".httprr"], "the sweep found no recordings at all, so it proves nothing")
 	assert.Positive(t, scanned[".httprr.gz"], "the replayer also reads compressed recordings")
 }
