@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"slices"
@@ -181,6 +182,10 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 		}
 
 		newParts, toolCalls, toolCallResponses := ExtractToolParts(msg)
+		newParts, err := binaryAsImageURLs(newParts)
+		if err != nil {
+			return nil, err
+		}
 		msg.MultiContent = newParts
 		msg.ToolCalls = toolCallsFromToolCalls(toolCalls)
 
@@ -927,6 +932,22 @@ func ExtractToolParts(msg *ChatMessage) ([]llms.ContentPart, []llms.ToolCall, []
 		}
 	}
 	return content, toolCalls, toolCallResponses
+}
+
+func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
+	for i, part := range parts {
+		binary, ok := part.(llms.BinaryContent)
+		if !ok {
+			continue
+		}
+		if !strings.HasPrefix(strings.ToLower(binary.MIMEType), "image/") {
+			return nil, fmt.Errorf("%w: binary content of type %q", ErrUnsupportedContentType, binary.MIMEType)
+		}
+		parts[i] = llms.ImageURLContent{
+			URL: "data:" + binary.MIMEType + ";base64," + base64.StdEncoding.EncodeToString(binary.Data),
+		}
+	}
+	return parts, nil
 }
 
 // extractReasoningContent extracts reasoning content from message parts.

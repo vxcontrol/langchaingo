@@ -15,6 +15,7 @@ var (
 	ErrMissingAzureEmbeddingModel = errors.New("embeddings model needs to be provided when using Azure API")
 
 	ErrUnexpectedResponseLength = errors.New("unexpected length of response")
+	ErrUnsupportedContentType   = errors.New("openai: unsupported content type")
 )
 
 // newClient creates an instance of the internal client.
