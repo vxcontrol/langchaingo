@@ -62,7 +62,6 @@ CI (`.github/workflows/ci.yaml`) runs on pushes and PRs to `main-vxcontrol`: gol
   - pgvector, cloudsql and alloydb tests start a `pgvector/pgvector:pg16` container unless `PGVECTOR_CONNECTION_STRING` names a database, and skip without Docker.
   - ollama cloud tests replay with a throwaway signing key when `~/.ollama/id_ed25519` is missing; recording needs the account's key.
   - Bedrock replay needs no AWS credentials but fails when `AWS_CA_BUNDLE` is set or `AWS_PROFILE` names a profile missing from the shared config: unset both.
-  - `TestCountTokens` downloads a tiktoken encoding and needs the network.
 
 ## Changing model capabilities
 
