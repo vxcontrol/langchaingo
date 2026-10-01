@@ -2,7 +2,6 @@ package openai
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"slices"
@@ -942,9 +941,7 @@ func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
 		if !strings.HasPrefix(strings.ToLower(binary.MIMEType), "image/") {
 			return nil, fmt.Errorf("%w: binary content of type %q", ErrUnsupportedContentType, binary.MIMEType)
 		}
-		parts[i] = llms.ImageURLContent{
-			URL: "data:" + binary.MIMEType + ";base64," + base64.StdEncoding.EncodeToString(binary.Data),
-		}
+		parts[i] = llms.ImageURLContent{URL: binary.String()}
 	}
 	return parts, nil
 }

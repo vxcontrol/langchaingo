@@ -479,15 +479,18 @@ func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
 }
 
 func imageSource(url string) (anthropicclient.ImageSource, error) {
+	if hasPrefixFold(url, "https://") || hasPrefixFold(url, "http://") {
+		return anthropicclient.ImageSource{Type: "url", URL: url}, nil
+	}
 	if data, mediaType, err := parseBase64URI(url); err == nil {
 		return anthropicclient.ImageSource{Type: "base64", MediaType: mediaType, Data: data}, nil
 	}
-	lower := strings.ToLower(url)
-	if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
-		return anthropicclient.ImageSource{Type: "url", URL: url}, nil
-	}
 	return anthropicclient.ImageSource{}, fmt.Errorf("%w: image URL is neither base64 data nor http(s)",
 		ErrUnsupportedContentType)
+}
+
+func hasPrefixFold(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
 // parseBase64URI returns values data, media type from a base64 URI and error if invalid.
@@ -886,9 +889,6 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 			if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w: data follows the object: %s",
 					toolcall.ErrNotAnObject, p.FunctionCall.Arguments)
-			}
-			if inputStruct == nil {
-				inputStruct = map[string]interface{}{}
 			}
 
 			toolUse := &anthropicclient.ToolUseContent{
