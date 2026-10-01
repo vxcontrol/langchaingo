@@ -13,6 +13,8 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
+const model = "gemini-3.8-flash"
+
 func main() {
 	apiKey := os.Getenv("GOOGLE_API_KEY")
 	if apiKey == "" {
@@ -42,13 +44,13 @@ func demonstrateReasoning(ctx context.Context, apiKey string) {
 	// Create client with Gemini 3.8 Flash (supports reasoning)
 	client, err := googleai.New(ctx,
 		googleai.WithAPIKey(apiKey),
-		googleai.WithDefaultModel("gemini-3.8-flash"),
+		googleai.WithDefaultModel(model),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 	// Check if model supports reasoning
-	fmt.Printf("Model supports reasoning: %v\n", reasoning.IsReasoningModel("gemini-3.8-flash"))
+	fmt.Printf("Model supports reasoning: %v\n", reasoning.IsReasoningModel(model))
 
 	// Test with a complex reasoning problem
 	messages := []llms.MessageContent{
@@ -92,6 +94,14 @@ func demonstrateCaching(ctx context.Context, apiKey string) {
 
 	helper := setupCachingHelper(ctx, apiKey)
 	cachedName := createCachedContent(ctx, helper)
+	if cachedName == "" {
+		return
+	}
+	defer func() {
+		if err := helper.DeleteCachedContent(ctx, cachedName); err != nil {
+			log.Printf("Failed to delete cached content: %v", err)
+		}
+	}()
 	runCachedRequests(ctx, apiKey, cachedName)
 }
 
@@ -115,7 +125,7 @@ func createCachedContent(ctx context.Context, helper *googleai.CachingHelper) st
 	` + strings.Repeat("Always write clean, efficient, and well-documented code. ", 400)
 
 	fmt.Println("Creating cached content...")
-	cached, err := helper.CreateCachedContent(ctx, "gemini-3.8-flash",
+	cached, err := helper.CreateCachedContent(ctx, model,
 		[]llms.MessageContent{
 			{
 				Role: llms.ChatMessageTypeSystem,
@@ -131,19 +141,13 @@ func createCachedContent(ctx context.Context, helper *googleai.CachingHelper) st
 		log.Printf("Failed to create cached content: %v", err)
 		return ""
 	}
-	defer func() {
-		if err := helper.DeleteCachedContent(ctx, cached.Name); err != nil {
-			log.Printf("Failed to delete cached content: %v", err)
-		}
-	}()
-
 	fmt.Printf("Cached content created: %s\n", cached.Name)
 	fmt.Printf("Token count: %d\n", cached.UsageMetadata.TotalTokenCount)
 	return cached.Name
 }
 
 func runCachedRequests(ctx context.Context, apiKey, cachedContentName string) {
-	client, err := googleai.New(ctx, googleai.WithAPIKey(apiKey))
+	client, err := googleai.New(ctx, googleai.WithAPIKey(apiKey), googleai.WithDefaultModel(model))
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}

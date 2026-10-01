@@ -111,7 +111,7 @@ func testReasoning(ctx context.Context, llm llms.Model, modelName string, prompt
 
 	if supportsReasoning && expectReasoning {
 		// Use high thinking mode for complex reasoning
-		opts = append(opts, llms.WithReasoning(llms.ReasoningHigh, 4000))
+		opts = append(opts, llms.WithReasoning(llms.ReasoningHigh, 0))
 		fmt.Println("Thinking Mode: HIGH (maximum reasoning depth)")
 	} else {
 		fmt.Println("Thinking Mode: NONE (standard generation)")
@@ -160,7 +160,7 @@ func testReasoning(ctx context.Context, llm llms.Model, modelName string, prompt
 			fmt.Printf("  Visible Output:    %d\n", outputTokens-v)
 			fmt.Printf("  Thinking Ratio:    %.1f%% of output\n",
 				float64(v)/float64(outputTokens)*100)
-		} else if supportsReasoning {
+		} else if expectReasoning {
 			fmt.Println("\nNote: Model supports reasoning but no thinking tokens were used.")
 			fmt.Println("      This may happen for simpler prompts or certain model versions.")
 		}

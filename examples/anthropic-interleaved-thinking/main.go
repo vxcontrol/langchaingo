@@ -199,7 +199,7 @@ func main() {
 	ctx := context.Background()
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
-	fmt.Println("║      Claude 4 Interleaved Thinking Demo                   ║")
+	fmt.Println("║      Claude 5 Interleaved Thinking Demo                   ║")
 	fmt.Println("║     Demonstrating thinking between tool calls             ║")
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
 	fmt.Println()
@@ -319,7 +319,6 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 	fmt.Println("─────────────────────────")
 	fmt.Println("  • Thinking Mode: MEDIUM")
 	fmt.Println("  • Interleaved Thinking: ENABLED")
-	fmt.Println("  • Temperature: 1.0 (required for thinking)")
 	fmt.Println("  • Max Tokens: 4000")
 	fmt.Println("  • Prompt Caching: ENABLED (1-hour TTL)")
 	fmt.Println("  • Cache Strategy:")
@@ -353,13 +352,11 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 
 	opts := []llms.CallOption{
 		// Enable thinking mode for reasoning between tools
-		llms.WithReasoning(llms.ReasoningMedium, 4000),
+		llms.WithReasoning(llms.ReasoningMedium, 0),
 		// Enable prompt caching (CRITICAL for interleaved thinking with tools!)
 		anthropic.WithPromptCaching(),
 		// Note: Cache strategy is set at CLIENT level (see anthropic.New above)
 		// This ensures it applies to ALL requests automatically
-		// Temperature must be 1 when thinking is enabled
-		llms.WithTemperature(1.0),
 		// Provide tools
 		llms.WithTools([]llms.Tool{
 			calculateTool,

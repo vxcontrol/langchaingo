@@ -13,7 +13,7 @@ and reuse them across multiple requests. This can significantly reduce:
 
 ## Requirements
 
-- Minimum cacheable content: **32,768 tokens** (~24,000 words)
+- Minimum cacheable content: depends on the model (4,096 tokens for gemini-3.8-flash)
 - Supported models: Gemini models with explicit caching, such as gemini-3.8-flash
 - Google API key
 
@@ -35,7 +35,7 @@ go run main.go
 ## Expected Output
 
 The example will:
-1. Create a cached content with Go programming expertise (~32k+ tokens)
+1. Create a cached content with Go programming expertise (about 8,000 tokens)
 2. Make two different requests using the same cache
 3. Show cached token usage in responses
 4. List all cached contents
@@ -45,9 +45,7 @@ The example will:
 
 ### Minimum Size Requirement
 
-Google AI requires at least 32,768 tokens for caching. In practice, this is approximately:
-- 24,000 words (assuming ~1.4 tokens per word)
-- 120,000 characters (assuming ~4 characters per token)
+Google AI caches content only above a minimum size that depends on the model; for gemini-3.8-flash it is 4,096 tokens, roughly 16,000 characters at about 4 characters per token. The [caching documentation](https://ai.google.dev/gemini-api/docs/caching) lists the current limits.
 
 ### TTL (Time To Live)
 
@@ -112,11 +110,11 @@ err := helper.DeleteCachedContent(ctx, name)
 2. **Appropriate TTL**: Set TTL based on how often content changes
 3. **Clean Up**: Delete caches you no longer need to avoid accumulation
 4. **Monitor Usage**: Check `CachedTokens` in response metadata
-5. **Size Requirements**: Ensure content meets minimum 32,768 token threshold
+5. **Size Requirements**: Ensure content meets the model's minimum cache size
 
 ## Limitations
 
-- Minimum size: 32,768 tokens
+- Minimum size: depends on the model
 - Maximum cached content per project: Check current quotas
 - TTL range: Minimum 5 minutes, maximum 24 hours (may vary)
 - Model support: the models and the minimum cached size are listed in the caching documentation

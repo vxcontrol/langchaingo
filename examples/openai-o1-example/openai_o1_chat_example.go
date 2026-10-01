@@ -35,8 +35,7 @@ at the beginning and end, not throughout the code.`),
 	}
 	fmt.Println("Generating content...")
 	output, err := llm.GenerateContent(ctx, content,
-		llms.WithMaxTokens(4000),
-		llms.WithTemperature(1),
+		llms.WithMaxTokens(25000),
 	)
 	if err != nil {
 		log.Fatal(err)

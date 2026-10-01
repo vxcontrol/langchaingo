@@ -25,10 +25,10 @@ go run .
 ```go
 opts := []llms.CallOption{
     // Extended thinking for complex reasoning
-    llms.WithReasoning(llms.ReasoningHigh, 16000),
+    llms.WithReasoning(llms.ReasoningHigh, 0),
 
     // Leave room for a long answer after the thinking
-    llms.WithMaxTokens(32000),
+    llms.WithMaxTokens(20000),
 }
 ```
 

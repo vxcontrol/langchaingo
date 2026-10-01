@@ -27,7 +27,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create a large context to cache (minimum 32,768 tokens required)
+	// Create a large context to cache (the minimum size depends on the model)
 	// This example creates a comprehensive guide about Go programming
 	baseContext := `You are an expert Go programming assistant with deep knowledge of Go best practices, 
 idioms, and the Go ecosystem. You specialize in:
@@ -76,9 +76,9 @@ When reviewing code or answering questions, always:
 
 `
 
-	// Repeat the context to reach the minimum cache size (~32k tokens)
+	// Repeat the context to pass the minimum cache size
 	// Each repetition adds context about different aspects of Go
-	longContext := strings.Repeat(baseContext, 500)
+	longContext := strings.Repeat(baseContext, 20)
 
 	fmt.Println("Creating cached content (this may take a moment)...")
 	cached, err := helper.CreateCachedContent(

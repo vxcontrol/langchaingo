@@ -58,16 +58,14 @@ who want to deeply understand distributed systems architecture.`
 
 	opts := []llms.CallOption{
 		// Enable extended thinking for complex reasoning
-		llms.WithReasoning(llms.ReasoningHigh, 16000),
+		llms.WithReasoning(llms.ReasoningHigh, 0),
 		// Leave room for a long answer after the thinking
-		llms.WithMaxTokens(32000),
-		// Temperature must be 1 when thinking is enabled
-		llms.WithTemperature(1.0),
+		llms.WithMaxTokens(20000),
 	}
 
 	fmt.Println("Generating comprehensive guide with:")
 	fmt.Println("  • Extended thinking (HIGH mode)")
-	fmt.Println("  • Max tokens set to 32,000")
+	fmt.Println("  • Max tokens set to 20,000")
 	fmt.Println()
 	fmt.Print("Processing (this may take a while)... ")
 
