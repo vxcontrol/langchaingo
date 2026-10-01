@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -438,6 +439,17 @@ func parseStreamingMessageResponse(
 			response MessageResponsePayload
 			stopped  bool
 		)
+		endStream := func() {
+			if stopped {
+				return
+			}
+			var readErr error
+			if err := scanner.Err(); err != nil {
+				readErr = fmt.Errorf("issue scanning response: %w", err)
+			}
+			partial := response
+			eventChan <- MessageEvent{Response: &partial, Err: streamend.Incomplete(ctx, readErr)}
+		}
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -460,6 +472,10 @@ func parseStreamingMessageResponse(
 			data := strings.TrimPrefix(line, "data: ")
 			event, err := parseStreamEvent(data)
 			if err != nil {
+				if !scanner.Scan() {
+					endStream()
+					return
+				}
 				partial := response
 				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)}
 				return
@@ -477,19 +493,7 @@ func parseStreamingMessageResponse(
 				return
 			}
 		}
-		if err := scanner.Err(); err != nil {
-			partial := response
-			eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("%w: issue scanning response: %w", llms.ErrIncompleteStream, err)}
-			return
-		}
-		if !stopped {
-			partial := response
-			endErr := llms.ErrIncompleteStream
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				endErr = fmt.Errorf("%w: %w", llms.ErrIncompleteStream, ctxErr)
-			}
-			eventChan <- MessageEvent{Response: &partial, Err: endErr}
-		}
+		endStream()
 	}()
 
 	var (
@@ -497,9 +501,6 @@ func parseStreamingMessageResponse(
 		streamErr    error
 	)
 	for event := range eventChan {
-		if streamErr != nil {
-			continue
-		}
 		if event.Err != nil {
 			if event.Response != nil {
 				lastResponse = event.Response
