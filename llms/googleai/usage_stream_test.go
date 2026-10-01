@@ -52,6 +52,41 @@ func TestAStreamedAnswerReportsCountersThatAddUp(t *testing.T) {
 		"prompt plus completion must equal the total, as every other door reports it")
 }
 
+type thinkingUsageStream struct{}
+
+func (thinkingUsageStream) RoundTrip(r *http.Request) (*http.Response, error) {
+	const body = `data: {"candidates":[{"content":{"parts":[{"text":"4"}],"role":"model"},` +
+		`"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":8,` +
+		`"candidatesTokenCount":19,"thoughtsTokenCount":59,"totalTokenCount":86}}` + "\r\n\r\n"
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(bytes.NewReader([]byte(body))),
+		Request:    r,
+	}, nil
+}
+
+func TestAStreamedAnswerCountsItsThinkingAsOutput(t *testing.T) {
+	t.Parallel()
+
+	llm, err := New(context.Background(),
+		WithAPIKey("unit-test-key"), WithRest(),
+		WithDefaultModel("gemini-3.8-flash"),
+		WithHTTPClient(&http.Client{Transport: thinkingUsageStream{}}))
+	require.NoError(t, err)
+
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+
+	info := resp.Choices[0].GenerationInfo
+	assert.Equal(t, 59, info["ReasoningTokens"])
+	assert.Equal(t, 19+59, info["CompletionTokens"], "Google bills thinking as output")
+	assert.Equal(t, info["TotalTokens"], info["PromptTokens"].(int)+info["CompletionTokens"].(int))
+}
+
 func TestReadingACacheIsNotWritingOne(t *testing.T) {
 	t.Parallel()
 

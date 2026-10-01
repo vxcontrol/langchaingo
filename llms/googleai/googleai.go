@@ -495,7 +495,7 @@ StreamEnd:
 
 		// Standardized field names for cross-provider compatibility
 		metadata["PromptTokens"] = int(lastUsageMetadata.PromptTokenCount)
-		metadata["CompletionTokens"] = int(lastUsageMetadata.CandidatesTokenCount)
+		metadata["CompletionTokens"] = int(lastUsageMetadata.CandidatesTokenCount + lastUsageMetadata.ThoughtsTokenCount)
 		metadata["TotalTokens"] = int(lastUsageMetadata.TotalTokenCount)
 		metadata["ReasoningTokens"] = int(lastUsageMetadata.ThoughtsTokenCount)
 		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
@@ -647,7 +647,7 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 
 			// Standardized field names for cross-provider compatibility
 			metadata["PromptTokens"] = int(usage.PromptTokenCount)
-			metadata["CompletionTokens"] = int(usage.CandidatesTokenCount)
+			metadata["CompletionTokens"] = int(usage.CandidatesTokenCount + usage.ThoughtsTokenCount)
 			metadata["TotalTokens"] = int(usage.TotalTokenCount)
 			metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
 			metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
