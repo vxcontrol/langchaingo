@@ -86,16 +86,20 @@ func New(ctx context.Context, opts ...Option) (Store, error) {
 	if err != nil {
 		return Store{}, err
 	}
-	if store.conn == nil {
+	opened := store.conn == nil
+	if opened {
 		store.conn, err = pgx.Connect(ctx, store.connURL)
 		if err != nil {
 			return Store{}, err
 		}
 	}
-	if err = store.conn.Ping(ctx); err != nil {
-		return Store{}, err
+	if err = store.conn.Ping(ctx); err == nil {
+		err = store.init(ctx)
 	}
-	if err = store.init(ctx); err != nil {
+	if err != nil {
+		if opened {
+			_ = store.Close()
+		}
 		return Store{}, err
 	}
 	return store, nil
@@ -103,6 +107,9 @@ func New(ctx context.Context, opts ...Option) (Store, error) {
 
 // Close closes the connection.
 func (s Store) Close() error {
+	if closer, ok := s.conn.(interface{ Close(context.Context) error }); ok {
+		return closer.Close(context.Background())
+	}
 	if closer, ok := s.conn.(io.Closer); ok {
 		return closer.Close()
 	}
