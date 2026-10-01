@@ -472,7 +472,7 @@ func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
 		toolReq[i] = anthropicclient.Tool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
-			InputSchema: tool.Function.Parameters,
+			InputSchema: toolcall.Schema(tool.Function.Parameters),
 		}
 	}
 	return toolReq

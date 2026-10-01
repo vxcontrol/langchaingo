@@ -487,7 +487,13 @@ func (o *LLM) servesCloud(model string) bool {
 // processTools adds tools to the chat request.
 func (o *LLM) processTools(req *api.ChatRequest, tools []llms.Tool) error {
 	for i := range tools {
-		jt, err := json.Marshal(tools[i])
+		definition := tools[i]
+		if definition.Function != nil {
+			function := *definition.Function
+			function.Parameters = toolcall.Schema(function.Parameters)
+			definition.Function = &function
+		}
+		jt, err := json.Marshal(definition)
 		if err != nil {
 			return fmt.Errorf("error marshalling tool: %w", err)
 		}

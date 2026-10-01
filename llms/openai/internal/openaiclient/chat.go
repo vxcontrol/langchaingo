@@ -711,7 +711,7 @@ type FunctionDefinition struct {
 	// Description is a description of the function.
 	Description string `json:"description,omitempty"`
 	// Parameters is a list of parameters for the function.
-	Parameters any `json:"parameters"`
+	Parameters any `json:"parameters,omitempty"`
 	// Strict is a flag to enable structured output mode.
 	Strict bool `json:"strict,omitempty"`
 }

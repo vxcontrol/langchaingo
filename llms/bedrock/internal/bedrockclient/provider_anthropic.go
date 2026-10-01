@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -242,7 +243,7 @@ func createAnthropicCompletion(ctx context.Context,
 		tools[i] = anthropicTool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
-			InputSchema: tool.Function.Parameters,
+			InputSchema: toolcall.Schema(tool.Function.Parameters),
 		}
 	}
 

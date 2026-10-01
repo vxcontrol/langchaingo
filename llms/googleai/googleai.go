@@ -822,7 +822,7 @@ func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {
 			Description: tool.Function.Description,
 		}
 
-		schema, err := convertToSchema(tool.Function.Parameters, true, i, "")
+		schema, err := convertToSchema(toolcall.Schema(tool.Function.Parameters), true, i, "")
 		if err != nil {
 			return nil, err
 		}

@@ -145,7 +145,7 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 				Function: sdk.Function{
 					Name:        tool.Function.Name,
 					Description: tool.Function.Description,
-					Parameters:  tool.Function.Parameters,
+					Parameters:  toolcall.Schema(tool.Function.Parameters),
 				},
 			})
 		}
@@ -156,7 +156,7 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 				Function: sdk.Function{
 					Name:        function.Name,
 					Description: function.Description,
-					Parameters:  function.Parameters,
+					Parameters:  toolcall.Schema(function.Parameters),
 				},
 			})
 		}

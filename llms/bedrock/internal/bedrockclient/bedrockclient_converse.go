@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -741,15 +742,12 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 			Description: aws.String(tool.Function.Description),
 		}
 
-		// Convert function parameters to tool input schema
-		if tool.Function.Parameters != nil {
-			parameters, err := c.convertToolCallInput(tool.Function.Parameters)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert tool call input: %w", err)
-			}
-			toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
-				Value: document.NewLazyDocument(parameters),
-			}
+		parameters, err := c.convertToolCallInput(toolcall.Schema(tool.Function.Parameters))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert tool call input: %w", err)
+		}
+		toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
+			Value: document.NewLazyDocument(parameters),
 		}
 
 		converseTools = append(converseTools, &types.ToolMemberToolSpec{

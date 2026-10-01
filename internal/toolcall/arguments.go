@@ -68,6 +68,13 @@ func Normalize(raw string) string {
 	return raw
 }
 
+func Schema(parameters any) any {
+	if parameters == nil {
+		return map[string]any{"type": "object", "properties": map[string]any{}}
+	}
+	return parameters
+}
+
 func absent(raw string) bool {
 	trimmed := strings.TrimSpace(raw)
 	return trimmed == "" || trimmed == "null"
