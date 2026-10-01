@@ -101,19 +101,11 @@ func narrowingCollection() string {
 	return "narrowing-" + uuid.New().String()
 }
 
-func newNarrowingStore(t *testing.T, url, collection string, dims int, indexes ...MetadataIndex) Store {
+func newNarrowingStore(t *testing.T, url, collection string, dims int) Store {
 	t.Helper()
 
-	opts := []Option{
-		WithConnectionURL(url),
-		WithEmbedder(fixedEmbedder{dims: dims}),
-		WithCollectionName(collection),
-	}
-	if len(indexes) > 0 {
-		opts = append(opts, WithMetadataIndexes(indexes...))
-	}
-
-	store, err := New(t.Context(), opts...)
+	store, err := New(t.Context(), WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: dims}),
+		WithCollectionName(collection))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
 	return store
@@ -230,14 +222,10 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "memory"}},
 		{Keys: []string{"doc_type"}, Exclude: map[string]string{"doc_type": "session"}},
 	}
-	store := newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
-
-	conn, err := pgx.Connect(ctx, url)
-	require.NoError(t, err)
-	defer conn.Close(ctx)
+	store, conn := newIsolatedIndexedStore(t, url, declared...)
 
 	for _, index := range declared {
-		name := index.indexName(store.embeddingTableName)
+		name := index.indexName(store.embeddingRelation)
 		var definition string
 		err := conn.QueryRow(ctx,
 			"SELECT indexdef FROM pg_indexes WHERE tablename = $1 AND indexname = $2",
@@ -250,9 +238,6 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 			require.Contains(t, definition, fmt.Sprintf("'%s'::text", value))
 		}
 	}
-
-	// A second store against the same table must be a no-op rather than an error.
-	newNarrowingStore(t, url, narrowingCollection(), 64, declared...)
 }
 
 // The whole point of the rewrite: the scan reads one flow, not the table.
@@ -305,13 +290,15 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 	_, err = conn.Exec(ctx, "ANALYZE "+store.embeddingTableName)
 	require.NoError(t, err)
 
-	plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
-		map[string]any{"doc_type": "memory", "flow_id": "3"})
+	for _, flow := range []any{"3", 3, 1e6} {
+		plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
+			map[string]any{"doc_type": "memory", "flow_id": flow})
 
-	require.Contains(t, plan, index.indexName(store.embeddingTableName),
-		"the metadata index must carry the scan:\n%s", plan)
-	require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
-		"the whole table was read:\n%s", plan)
+		require.Contains(t, plan, index.indexName(store.embeddingRelation),
+			"the metadata index must carry the scan for flow_id %v:\n%s", flow, plan)
+		require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
+			"the whole table was read for flow_id %v:\n%s", flow, plan)
+	}
 }
 
 type recordingConn struct {
@@ -444,7 +431,7 @@ func TestAnExcludeIndexServesTheStoresOwnFilter(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 
-	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingTableName),
+	require.Contains(t, strings.Join(plan, "\n"), index.indexName(store.embeddingRelation),
 		"an equality filter on another value must be able to use the exclude index")
 }
 
@@ -474,4 +461,22 @@ func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
 	}
 	require.NoError(t, rows.Err())
 	require.Empty(t, modes, "indexes that exist need neither a build lock nor fresh statistics, so writers wait for nothing")
+}
+
+func TestSimilaritySearchChecksTheFilterBeforeTheDimensionGuard(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	store, conn := newIsolatedIndexedStore(t, url)
+	_, err := store.AddDocuments(ctx, []schema.Document{{PageContent: "mine", Metadata: map[string]any{"flow_id": "3"}}})
+	require.NoError(t, err)
+
+	for _, flow := range []any{"3", 1e6} {
+		plan := explainSimilaritySearch(t, ctx, conn, store, "mine", map[string]any{"flow_id": flow})
+
+		require.Regexp(t, `cmetadata[^\n]*vector_dims`, plan,
+			"a vector is detoasted for the dimension guard, so the filter on flow_id %v has to reject rows first:\n%s",
+			flow, plan)
+	}
 }

@@ -40,7 +40,10 @@ func (tx *scriptedTx) QueryRow(_ context.Context, sql string, _ ...any) pgx.Row 
 	if tx.fails(sql) {
 		return scriptedRow{err: tx.failWith}
 	}
-	return scriptedRow{}
+	if strings.Contains(sql, "pg_class") {
+		return scriptedRow{text: "langchain_pg_embedding"}
+	}
+	return scriptedRow{text: uuid.NewString()}
 }
 
 func (tx *scriptedTx) Commit(context.Context) error {
@@ -54,14 +57,17 @@ func (tx *scriptedTx) Rollback(ctx context.Context) error {
 	return nil
 }
 
-type scriptedRow struct{ err error }
+type scriptedRow struct {
+	err  error
+	text string
+}
 
 func (r scriptedRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	if id, ok := dest[0].(*string); ok {
-		*id = uuid.NewString()
+	if text, ok := dest[0].(*string); ok {
+		*text = r.text
 	}
 	return nil
 }
@@ -96,9 +102,10 @@ func TestInitRollsBackWhenAnyStepFails(t *testing.T) {
 		"CREATE EXTENSION",
 		"CREATE TABLE IF NOT EXISTS langchain_pg_collection",
 		"CREATE TABLE IF NOT EXISTS langchain_pg_embedding",
-		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_collection_id",
-		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_embedding_hnsw",
-		"CREATE INDEX IF NOT EXISTS langchain_pg_embedding_meta_flow_id",
+		"SELECT relname FROM pg_class",
+		`CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_collection_id"`,
+		`CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_embedding_hnsw"`,
+		`CREATE INDEX IF NOT EXISTS "langchain_pg_embedding_meta_flow_id`,
 		"ANALYZE",
 		"DELETE FROM langchain_pg_collection",
 		"INSERT INTO langchain_pg_collection",

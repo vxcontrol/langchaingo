@@ -2,11 +2,14 @@ package pgvector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"maps"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -55,12 +58,17 @@ type CloseNoErr interface {
 	Close()
 }
 
+type ownedConn struct{ *pgx.Conn }
+
+func (c ownedConn) Close() error { return c.Conn.Close(context.Background()) }
+
 // Store is a wrapper around the pgvector client.
 type Store struct {
 	embedder            embeddings.Embedder
 	connURL             string
 	conn                PGXConn
 	embeddingTableName  string
+	embeddingRelation   string
 	collectionTableName string
 	collectionName      string
 	collectionUUID      string
@@ -85,16 +93,21 @@ func New(ctx context.Context, opts ...Option) (Store, error) {
 	if err != nil {
 		return Store{}, err
 	}
-	if store.conn == nil {
-		store.conn, err = pgx.Connect(ctx, store.connURL)
+	opened := store.conn == nil
+	if opened {
+		conn, err := pgx.Connect(ctx, store.connURL)
 		if err != nil {
 			return Store{}, err
 		}
+		store.conn = ownedConn{conn}
 	}
-	if err = store.conn.Ping(ctx); err != nil {
-		return Store{}, err
+	if err = store.conn.Ping(ctx); err == nil {
+		err = store.init(ctx)
 	}
-	if err = store.init(ctx); err != nil {
+	if err != nil {
+		if opened {
+			_ = store.Close()
+		}
 		return Store{}, err
 	}
 	return store, nil
@@ -128,7 +141,7 @@ func (s *Store) init(ctx context.Context) (err error) {
 	if err := s.createCollectionTableIfNotExists(ctx, tx); err != nil {
 		return err
 	}
-	if err := s.createEmbeddingTableIfNotExists(ctx, tx); err != nil {
+	if s.embeddingRelation, err = s.createEmbeddingTableIfNotExists(ctx, tx); err != nil {
 		return err
 	}
 	if err := s.createMetadataIndexesIfNotExist(ctx, tx); err != nil {
@@ -189,7 +202,7 @@ func (s Store) createCollectionTableIfNotExists(ctx context.Context, tx pgx.Tx) 
 	return nil
 }
 
-func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) error {
+func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) (string, error) {
 	// inspired by
 	// https://github.com/langchain-ai/langchain/blob/v0.0.340/libs/langchain/langchain/vectorstores/pgvector.py#L167
 	// The advisor lock fixes issue arising from concurrent
@@ -198,7 +211,7 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 	// For more information see:
 	// https://www.postgresql.org/docs/16/explicit-locking.html#ADVISORY-LOCKS
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", pgLockIDEmbeddingTable); err != nil {
-		return err
+		return "", err
 	}
 
 	vectorDimensions := ""
@@ -216,28 +229,34 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) e
 	FOREIGN KEY (collection_id) REFERENCES %s (uuid) ON DELETE CASCADE,
 	PRIMARY KEY (uuid))`, s.embeddingTableName, vectorDimensions, s.collectionTableName)
 	if _, err := tx.Exec(ctx, sql); err != nil {
-		return err
+		return "", err
 	}
-	sql = fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_collection_id ON %s (collection_id)`, s.embeddingTableName, s.embeddingTableName)
+	var relation string
+	if err := tx.QueryRow(ctx, "SELECT relname FROM pg_class WHERE oid = $1::regclass",
+		s.embeddingTableName).Scan(&relation); err != nil {
+		return "", err
+	}
+	sql = fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s ON %s (collection_id)`,
+		indexIdentifier(relation+"_collection_id"), s.embeddingTableName)
 	if _, err := tx.Exec(ctx, sql); err != nil {
-		return err
+		return "", err
 	}
 
 	// See this for more details on HNWS indexes: https://github.com/pgvector/pgvector#hnsw
 	if s.hnswIndex != nil {
 		sql = fmt.Sprintf(
-			`CREATE INDEX IF NOT EXISTS %s_embedding_hnsw ON %s USING hnsw (embedding %s)`,
-			s.embeddingTableName, s.embeddingTableName, s.hnswIndex.distanceFunction,
+			`CREATE INDEX IF NOT EXISTS %s ON %s USING hnsw (embedding %s)`,
+			indexIdentifier(relation+"_embedding_hnsw"), s.embeddingTableName, s.hnswIndex.distanceFunction,
 		)
 		if s.hnswIndex.m > 0 && s.hnswIndex.efConstruction > 0 {
 			sql = fmt.Sprintf("%s WITH (m=%d, ef_construction = %d)", sql, s.hnswIndex.m, s.hnswIndex.efConstruction)
 		}
 		if _, err := tx.Exec(ctx, sql); err != nil {
-			return err
+			return "", err
 		}
 	}
 
-	return nil
+	return relation, nil
 }
 
 // AddDocuments adds documents to the Postgres collection associated with 'Store'.
@@ -313,10 +332,6 @@ func (s Store) SimilaritySearch(
 	args := make([]any, 0, 5+len(filter))
 	args = append(args, len(embedderData), pgvector.NewVector(embedderData), numDocuments, collectionName)
 
-	// Every predicate that can reject a row belongs inside the fence, so that a
-	// distance is computed only for the rows that survive it, and so that a
-	// metadata index is reachable at the scan. Hoisting them out, as this query
-	// once did, costs a full table scan and a detoast of every stored vector.
 	innerQuerys, filterArgs, err := filterPredicates(s.embeddingTableName+".", filter, len(args))
 	if err != nil {
 		return nil, err
@@ -347,8 +362,8 @@ func (s Store) SimilaritySearch(
 	FROM
 		%[1]s
 	WHERE %[1]s.collection_id = (SELECT %[2]s.uuid FROM %[2]s WHERE %[2]s.name = $4 ORDER BY %[2]s.name LIMIT 1)
-		AND vector_dims(%[1]s.embedding) = $1
 		AND %[3]s
+		AND vector_dims(%[1]s.embedding) = $1
 )
 SELECT
 	data.document,
@@ -495,11 +510,86 @@ func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]st
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
 		}
-		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = $%d",
-			prefix, literal, argOffset+len(args)+1))
-		args = append(args, fmt.Sprintf("%v", filter[k]))
+		texts := filterTexts(filter[k])
+		params := make([]string, 0, len(texts))
+		for _, text := range texts {
+			args = append(args, text)
+			params = append(params, fmt.Sprintf("$%d", argOffset+len(args)))
+		}
+		if len(params) == 1 {
+			predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = %s", prefix, literal, params[0]))
+		} else {
+			predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) IN (%s)",
+				prefix, literal, strings.Join(params, ", ")))
+		}
 	}
 	return predicates, args, nil
+}
+
+func filterTexts(value any) []string {
+	texts := []string{fmt.Sprintf("%v", value)}
+	add := func(text string) {
+		if !slices.Contains(texts, text) {
+			texts = append(texts, text)
+		}
+	}
+	addFloat := func(number float64, bits int) {
+		var written []byte
+		var err error
+		if bits == 32 {
+			written, err = json.Marshal(float32(number))
+		} else {
+			written, err = json.Marshal(number)
+		}
+		if err != nil {
+			return
+		}
+		add(string(written))
+		add(strconv.FormatFloat(number, 'f', -1, bits))
+	}
+
+	if number, ok := value.(json.Number); ok {
+		if strings.ContainsAny(number.String(), ".eE") {
+			float, err := number.Float64()
+			if err == nil && decimalValue(number.String()) == decimalValue(strconv.FormatFloat(float, 'g', -1, 64)) {
+				addFloat(float, 64)
+			}
+		}
+		return texts
+	}
+	switch v := reflect.ValueOf(value); {
+	case v.CanInt():
+		add(strconv.FormatInt(v.Int(), 10))
+	case v.CanUint():
+		add(strconv.FormatUint(v.Uint(), 10))
+	case v.CanFloat():
+		addFloat(v.Float(), v.Type().Bits())
+	}
+	return texts
+}
+
+func decimalValue(number string) string {
+	mantissa, exponent, hasExponent := strings.Cut(strings.ToLower(number), "e")
+	power := 0
+	if hasExponent {
+		parsed, err := strconv.Atoi(exponent)
+		if err != nil {
+			return ""
+		}
+		power = parsed
+	}
+	sign := ""
+	if unsigned, ok := strings.CutPrefix(mantissa, "-"); ok {
+		sign, mantissa = "-", unsigned
+	}
+	whole, fraction, _ := strings.Cut(mantissa, ".")
+	digits := strings.TrimLeft(whole+fraction, "0")
+	significant := strings.TrimRight(digits, "0")
+	if significant == "" {
+		return "0"
+	}
+	power += len(digits) - len(significant) - len(fraction)
+	return sign + significant + "e" + strconv.Itoa(power)
 }
 
 // getFilters return metadata filters, now only support map[key]value pattern
