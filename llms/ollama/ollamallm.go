@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -569,7 +572,16 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		return nil
 	}
 
-	err := o.client.Chat(ctx, req, fn)
+	var received bool
+	var callbackErr error
+	err := o.client.Chat(ctx, req, func(response api.ChatResponse) error {
+		received = true
+		callbackErr = fn(response)
+		return callbackErr
+	})
+	if err != nil && callbackErr == nil {
+		err = streamError(ctx, received, err)
+	}
 	// A stream the server closed without its final frame, as Ollama up to 0.34.0
 	// does when it stops a model repeating itself, still delivered an answer:
 	// keep the text that arrived instead of an empty one.
@@ -582,6 +594,24 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		}
 	}
 	return resp, err
+}
+
+func streamError(ctx context.Context, received bool, err error) error {
+	if ctx.Err() != nil {
+		return streamend.Incomplete(ctx, err)
+	}
+	if !received {
+		return err
+	}
+	var netErr net.Error
+	if errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &netErr) || isUndecodedLine(err) {
+		return streamend.Incomplete(ctx, err)
+	}
+	return fmt.Errorf("%w: %w", llms.ErrStreamFailed, err)
+}
+
+func isUndecodedLine(err error) bool {
+	return strings.HasPrefix(strings.TrimSpace(err.Error()), "{")
 }
 
 // createContentResponse creates a LangChain content response from Ollama response.
