@@ -749,7 +749,7 @@ func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOpt
 			Function: openaiclient.FunctionDefinition{
 				Name:        fn.Name,
 				Description: fn.Description,
-				Parameters:  fn.Parameters,
+				Parameters:  functionParameters(fn.Parameters, fn.Strict),
 				Strict:      fn.Strict,
 			},
 		})
@@ -990,13 +990,22 @@ func toolFromTool(t llms.Tool) (openaiclient.Tool, error) {
 		tool.Function = openaiclient.FunctionDefinition{
 			Name:        t.Function.Name,
 			Description: t.Function.Description,
-			Parameters:  t.Function.Parameters,
+			Parameters:  functionParameters(t.Function.Parameters, t.Function.Strict),
 			Strict:      t.Function.Strict,
 		}
 	default:
 		return openaiclient.Tool{}, fmt.Errorf("tool type %v not supported", t.Type)
 	}
 	return tool, nil
+}
+
+func functionParameters(parameters any, strict bool) any {
+	if strict && toolcall.NoParameters(parameters) {
+		return map[string]any{
+			"type": "object", "properties": map[string]any{}, "additionalProperties": false, "required": []string{},
+		}
+	}
+	return toolcall.Schema(parameters)
 }
 
 // toolCallsFromToolCalls converts a slice of llms.ToolCall to a slice of ToolCall.

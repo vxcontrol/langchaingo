@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 )
 
@@ -69,10 +70,25 @@ func Normalize(raw string) string {
 }
 
 func Schema(parameters any) any {
-	if parameters == nil {
+	if NoParameters(parameters) {
 		return map[string]any{"type": "object", "properties": map[string]any{}}
 	}
 	return parameters
+}
+
+func NoParameters(parameters any) bool {
+	if raw, ok := parameters.(json.RawMessage); ok {
+		return absent(string(raw))
+	}
+	if parameters == nil {
+		return true
+	}
+	switch value := reflect.ValueOf(parameters); value.Kind() {
+	case reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func absent(raw string) bool {
