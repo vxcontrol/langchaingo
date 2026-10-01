@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -178,6 +179,7 @@ func (c *Client) CreateChat(ctx context.Context, r *ChatRequest) (*ChatCompletio
 		if resp == nil || len(resp.Choices) == 0 {
 			return nil, err
 		}
+		dropUnfinishedToolCalls(resp)
 		return resp, err
 	}
 	if len(resp.Choices) == 0 {
@@ -242,25 +244,48 @@ func sanitizeHTTPError(err error) error {
 
 	// Check for context deadline exceeded
 	if errors.Is(err, context.DeadlineExceeded) {
-		return errors.New("request timeout: API call exceeded deadline")
+		return &transportError{msg: "request timeout: API call exceeded deadline", cause: err}
 	}
 
 	// Check for context cancellation
 	if errors.Is(err, context.Canceled) {
-		return errors.New("request cancelled")
+		return &transportError{msg: "request cancelled", cause: err}
 	}
 
 	// Check for network timeout errors
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return errors.New("request timeout: network operation exceeded timeout")
+		return &transportError{msg: "request timeout: network operation exceeded timeout", cause: err}
 	}
 
 	// For other network errors, provide generic message without exposing details
 	if _, ok := err.(net.Error); ok {
-		return errors.New("network error: failed to reach API server")
+		return &transportError{msg: "network error: failed to reach API server" + networkErrorClass(err), cause: err}
 	}
 
 	// Return original error if it's not a sensitive type
 	return err
+}
+
+type transportError struct {
+	msg   string
+	cause error
+}
+
+func (e *transportError) Error() string { return e.msg }
+
+func (e *transportError) Unwrap() error { return e.cause }
+
+func networkErrorClass(err error) string {
+	var dnsErr *net.DNSError
+	switch {
+	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
+		return ": no such host"
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return ": connection refused"
+	case errors.Is(err, syscall.ECONNRESET):
+		return ": connection reset"
+	default:
+		return ""
+	}
 }

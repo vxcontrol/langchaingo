@@ -88,6 +88,19 @@ func TestTheCallerLearnsWhatTheSamplingPolicyTookAway(t *testing.T) {
 	}
 }
 
+func TestADroppedTemperatureOfZeroIsReported(t *testing.T) {
+	t.Parallel()
+
+	resp, sent := sendForWarningsWith(t, "gpt-5", nil, llms.WithTemperature(0))
+
+	if _, ok := sent["temperature"]; ok {
+		t.Fatalf("gpt-5 takes no temperature, got body %v", sent)
+	}
+	if w := warningFor(t, resp, "WithTemperature"); w.Kind != llms.WarningDrop || w.Asked != "0" {
+		t.Errorf("temperature warning = %+v", w)
+	}
+}
+
 func TestAnUntouchedRequestCarriesNoWarnings(t *testing.T) {
 	t.Parallel()
 

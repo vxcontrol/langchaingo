@@ -15,6 +15,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
 	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -382,12 +383,14 @@ func (g *GoogleAI) generateStreamingContent(
 	var lastCandidate *genai.Candidate
 	var blockReason *genai.GenerateContentResponsePromptFeedback
 	var streamErr error
+	var received bool
 
 	for chunk, err := range iter {
 		if err != nil {
-			streamErr = fmt.Errorf("error generating content: %w", err)
+			streamErr = geminiStreamError(ctx, received, err)
 			goto StreamEnd
 		}
+		received = true
 		if chunk == nil {
 			streamErr = errors.New("unexpected case: chunk is nil")
 			goto StreamEnd
@@ -521,10 +524,39 @@ StreamEnd:
 	if streamErr != nil {
 		return resp, streamErr
 	}
+	endErr := geminiStreamEndError(ctx, lastCandidate, blockReason)
 	if err := checkEmptyStream(lastCandidate, blockReason, resp.Choices[0]); err != nil {
+		if endErr != nil {
+			return resp, fmt.Errorf("%w: %w", err, endErr)
+		}
 		return resp, err
 	}
-	return resp, nil
+	return resp, endErr
+}
+
+func geminiStreamEndError(
+	ctx context.Context, last *genai.Candidate, blocked *genai.GenerateContentResponsePromptFeedback,
+) error {
+	if blocked != nil || (last != nil && last.FinishReason != "" && last.FinishReason != genai.FinishReasonUnspecified) {
+		return nil
+	}
+	return streamend.Incomplete(ctx, nil)
+}
+
+func geminiStreamError(ctx context.Context, received bool, err error) error {
+	wrapped := fmt.Errorf("error generating content: %w", err)
+	var cutEvent *json.SyntaxError
+	if !received && !errors.As(err, &cutEvent) {
+		if ctxErr := ctx.Err(); ctxErr != nil && !errors.Is(err, ctxErr) {
+			return fmt.Errorf("%w: %w", wrapped, ctxErr)
+		}
+		return wrapped
+	}
+	var apiErr genai.APIError
+	if errors.As(err, &apiErr) {
+		return fmt.Errorf("%w: %w", llms.ErrStreamFailed, wrapped)
+	}
+	return streamend.Incomplete(ctx, wrapped)
 }
 
 func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse, error) {
@@ -806,7 +838,7 @@ func convertTools(tools []llms.Tool) ([]*genai.Tool, error) {
 			Description: tool.Function.Description,
 		}
 
-		schema, err := convertToSchema(tool.Function.Parameters, true, i, "")
+		schema, err := convertToSchema(toolcall.Schema(tool.Function.Parameters), true, i, "")
 		if err != nil {
 			return nil, err
 		}

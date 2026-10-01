@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -180,6 +181,10 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 		}
 
 		newParts, toolCalls, toolCallResponses := ExtractToolParts(msg)
+		newParts, err := binaryAsImageURLs(newParts)
+		if err != nil {
+			return nil, err
+		}
 		msg.MultiContent = newParts
 		msg.ToolCalls = toolCallsFromToolCalls(toolCalls)
 
@@ -743,7 +748,7 @@ func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOpt
 			Function: openaiclient.FunctionDefinition{
 				Name:        fn.Name,
 				Description: fn.Description,
-				Parameters:  fn.Parameters,
+				Parameters:  functionParameters(fn.Parameters, fn.Strict),
 				Strict:      fn.Strict,
 			},
 		})
@@ -778,7 +783,6 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 	return nil, 0
 }
 
-// processResponse processes the OpenAI API response into a ContentResponse.
 func (o *LLM) partialWithTruncation(
 	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings, opts llms.CallOptions, cause error,
 ) (*llms.ContentResponse, error) {
@@ -928,6 +932,20 @@ func ExtractToolParts(msg *ChatMessage) ([]llms.ContentPart, []llms.ToolCall, []
 	return content, toolCalls, toolCallResponses
 }
 
+func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
+	for i, part := range parts {
+		binary, ok := part.(llms.BinaryContent)
+		if !ok {
+			continue
+		}
+		if !strings.HasPrefix(strings.ToLower(binary.MIMEType), "image/") {
+			return nil, fmt.Errorf("%w: binary content of type %q", ErrUnsupportedContentType, binary.MIMEType)
+		}
+		parts[i] = llms.ImageURLContent{URL: binary.String()}
+	}
+	return parts, nil
+}
+
 // extractReasoningContent extracts reasoning content from message parts.
 // It returns the first non-empty reasoning content found in TextContent parts.
 func extractReasoningContent(parts []llms.ContentPart) string {
@@ -969,13 +987,22 @@ func toolFromTool(t llms.Tool) (openaiclient.Tool, error) {
 		tool.Function = openaiclient.FunctionDefinition{
 			Name:        t.Function.Name,
 			Description: t.Function.Description,
-			Parameters:  t.Function.Parameters,
+			Parameters:  functionParameters(t.Function.Parameters, t.Function.Strict),
 			Strict:      t.Function.Strict,
 		}
 	default:
 		return openaiclient.Tool{}, fmt.Errorf("tool type %v not supported", t.Type)
 	}
 	return tool, nil
+}
+
+func functionParameters(parameters any, strict bool) any {
+	if strict && toolcall.NoParameters(parameters) {
+		return map[string]any{
+			"type": "object", "properties": map[string]any{}, "additionalProperties": false, "required": []string{},
+		}
+	}
+	return toolcall.Schema(parameters)
 }
 
 // toolCallsFromToolCalls converts a slice of llms.ToolCall to a slice of ToolCall.
@@ -998,7 +1025,7 @@ func toolCallFromToolCall(tc llms.ToolCall) openaiclient.ToolCall {
 		Type: toolType,
 		Function: openaiclient.ToolFunction{
 			Name:      tc.FunctionCall.Name,
-			Arguments: tc.FunctionCall.Arguments,
+			Arguments: toolcall.Normalize(tc.FunctionCall.Arguments),
 		},
 	}
 }

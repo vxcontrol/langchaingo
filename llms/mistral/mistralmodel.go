@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/streamend"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
@@ -144,7 +146,7 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 				Function: sdk.Function{
 					Name:        tool.Function.Name,
 					Description: tool.Function.Description,
-					Parameters:  tool.Function.Parameters,
+					Parameters:  toolcall.Schema(tool.Function.Parameters),
 				},
 			})
 		}
@@ -155,7 +157,7 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 				Function: sdk.Function{
 					Name:        function.Name,
 					Description: function.Description,
-					Parameters:  function.Parameters,
+					Parameters:  toolcall.Schema(function.Parameters),
 				},
 			})
 		}
@@ -213,6 +215,11 @@ func generateNonStreamingContent(m *Model, callOptions *llms.CallOptions, messag
 			}
 		}
 	}
+	for _, choice := range langchainContentResponse.Choices {
+		if choice.StopReason == string(sdk.FinishReasonError) {
+			return langchainContentResponse, fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.StopReason)
+		}
+	}
 	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
 		return langchainContentResponse, err
 	}
@@ -221,7 +228,9 @@ func generateNonStreamingContent(m *Model, callOptions *llms.CallOptions, messag
 }
 
 func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.CallOptions, messages []sdk.ChatMessage, chatOpts sdk.ChatRequestParams) (*llms.ContentResponse, error) {
-	chatResChan, err := m.client.ChatStream(callOptions.GetModel(), messages, &chatOpts)
+	chatResChan, err := startStream(ctx, func() (<-chan sdk.ChatCompletionStreamResponse, error) {
+		return m.client.ChatStream(callOptions.GetModel(), messages, &chatOpts)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -237,52 +246,114 @@ func generateStreamingContent(ctx context.Context, m *Model, callOptions *llms.C
 	var streamedContent strings.Builder
 	defer func() { langchainContentResponse.Choices[0].Content = streamedContent.String() }()
 
-	for chatResChunk := range chatResChan {
-		chunkStr := ""
-		if chatResChunk.Created != 0 {
-			langchainContentResponse.Choices[0].GenerationInfo["created"] = chatResChunk.Created
+	choice := langchainContentResponse.Choices[0]
+	var readErr error
+Stream:
+	for {
+		var chatResChunk sdk.ChatCompletionStreamResponse
+		var open bool
+		select {
+		case <-ctx.Done():
+			go drain(chatResChan)
+			break Stream
+		case chatResChunk, open = <-chatResChan:
 		}
-		if chatResChunk.Model != "" {
-			langchainContentResponse.Choices[0].GenerationInfo["model"] = chatResChunk.Model
+		if !open {
+			break
 		}
-		if chatResChunk.Usage.TotalTokens != 0 {
-			langchainContentResponse.Choices[0].GenerationInfo["usage"] = chatResChunk.Usage
+		if chatResChunk.Error != nil {
+			go drain(chatResChan)
+			readErr = chatResChunk.Error
+			break
 		}
-		if chatResChunk.Error == nil {
-			for _, choice := range chatResChunk.Choices {
-				chunkStr += choice.Delta.Content
-				streamedContent.WriteString(choice.Delta.Content)
-				if choice.FinishReason != "" {
-					langchainContentResponse.Choices[0].StopReason = string(choice.FinishReason)
-					langchainContentResponse.Choices[0].Truncated = llms.IsTruncated(string(choice.FinishReason))
-				}
-				if len(choice.Delta.ToolCalls) > 0 {
-					langchainContentResponse.Choices[0].FuncCall = (*llms.FunctionCall)(&choice.Delta.ToolCalls[0].Function)
-					for _, tool := range choice.Delta.ToolCalls {
-						langchainContentResponse.Choices[0].ToolCalls = append(langchainContentResponse.Choices[0].ToolCalls, llms.ToolCall{
-							ID:   tool.Id,
-							Type: string(tool.Type),
-							FunctionCall: &llms.FunctionCall{
-								Name:      tool.Function.Name,
-								Arguments: tool.Function.Arguments,
-							},
-						})
-					}
-				}
-			}
-			if err := streaming.CallWithText(ctx, callOptions.StreamingFunc, chunkStr); err != nil {
-				return langchainContentResponse, err
-			}
-		} else {
-			return langchainContentResponse, chatResChunk.Error
+		text := applyStreamChunk(choice, &streamedContent, chatResChunk)
+		if err := streaming.CallWithText(ctx, callOptions.StreamingFunc, text); err != nil {
+			go drain(chatResChan)
+			return langchainContentResponse, err
 		}
 	}
 
+	switch choice.StopReason {
+	case "":
+		return langchainContentResponse, streamend.Incomplete(ctx, readErr)
+	case string(sdk.FinishReasonError):
+		return langchainContentResponse, fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.StopReason)
+	}
 	if err := llms.CheckTruncation(langchainContentResponse, *callOptions); err != nil {
 		return langchainContentResponse, err
 	}
 
 	return langchainContentResponse, nil
+}
+
+func applyStreamChunk(
+	choice *llms.ContentChoice, streamed *strings.Builder, chunk sdk.ChatCompletionStreamResponse,
+) string {
+	if chunk.Created != 0 {
+		choice.GenerationInfo["created"] = chunk.Created
+	}
+	if chunk.Model != "" {
+		choice.GenerationInfo["model"] = chunk.Model
+	}
+	if chunk.Usage.TotalTokens != 0 {
+		choice.GenerationInfo["usage"] = chunk.Usage
+	}
+	text := ""
+	for _, streamChoice := range chunk.Choices {
+		text += streamChoice.Delta.Content
+		streamed.WriteString(streamChoice.Delta.Content)
+		if streamChoice.FinishReason != "" {
+			choice.StopReason = string(streamChoice.FinishReason)
+			choice.Truncated = llms.IsTruncated(string(streamChoice.FinishReason))
+		}
+		if len(streamChoice.Delta.ToolCalls) > 0 {
+			choice.FuncCall = (*llms.FunctionCall)(&streamChoice.Delta.ToolCalls[0].Function)
+			for _, tool := range streamChoice.Delta.ToolCalls {
+				choice.ToolCalls = append(choice.ToolCalls, llms.ToolCall{
+					ID:   tool.Id,
+					Type: string(tool.Type),
+					FunctionCall: &llms.FunctionCall{
+						Name:      tool.Function.Name,
+						Arguments: tool.Function.Arguments,
+					},
+				})
+			}
+		}
+	}
+	return text
+}
+
+func startStream(
+	ctx context.Context, start func() (<-chan sdk.ChatCompletionStreamResponse, error),
+) (<-chan sdk.ChatCompletionStreamResponse, error) {
+	type started struct {
+		chunks <-chan sdk.ChatCompletionStreamResponse
+		err    error
+	}
+	result := make(chan started, 1)
+	go func() {
+		chunks, err := start()
+		result <- started{chunks: chunks, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		go func() {
+			if s := <-result; s.err == nil {
+				drain(s.chunks)
+			}
+		}()
+		if cause := context.Cause(ctx); !errors.Is(cause, ctx.Err()) {
+			return nil, fmt.Errorf("%w: %w", ctx.Err(), cause)
+		}
+		return nil, ctx.Err()
+	case s := <-result:
+		return s.chunks, s.err
+	}
+}
+
+func drain(chunks <-chan sdk.ChatCompletionStreamResponse) {
+	for range chunks {
+	}
 }
 
 func convertToMistralChatMessages(langchainMessages []llms.MessageContent) ([]sdk.ChatMessage, error) {
@@ -301,7 +372,7 @@ func convertToMistralChatMessages(langchainMessages []llms.MessageContent) ([]sd
 				setMistralChatMessageRole(&msg, &chatMsg) // #nosec G601
 				messages = append(messages, chatMsg)
 			case llms.ToolCall:
-				chatMsg := sdk.ChatMessage{Role: string(msg.Role), ToolCalls: []sdk.ToolCall{{Id: p.ID, Type: sdk.ToolTypeFunction, Function: sdk.FunctionCall{Name: p.FunctionCall.Name, Arguments: p.FunctionCall.Arguments}}}}
+				chatMsg := sdk.ChatMessage{Role: string(msg.Role), ToolCalls: []sdk.ToolCall{{Id: p.ID, Type: sdk.ToolTypeFunction, Function: sdk.FunctionCall{Name: p.FunctionCall.Name, Arguments: toolcall.Normalize(p.FunctionCall.Arguments)}}}}
 				setMistralChatMessageRole(&msg, &chatMsg) // #nosec G601
 				messages = append(messages, chatMsg)
 			default:

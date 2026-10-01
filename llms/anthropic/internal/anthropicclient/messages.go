@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vxcontrol/langchaingo/internal/streamend"
+	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -164,8 +166,9 @@ func (ic ImageContent) GetType() string {
 
 type ImageSource struct {
 	Type      string `json:"type"`
-	MediaType string `json:"media_type"`
-	Data      string `json:"data"`
+	MediaType string `json:"media_type,omitempty"`
+	Data      string `json:"data,omitempty"`
+	URL       string `json:"url,omitempty"`
 }
 
 type ThinkingContent struct {
@@ -432,7 +435,21 @@ func parseStreamingMessageResponse(
 		defer close(eventChan)
 		defer streaming.CallWithDone(ctx, payload.StreamingFunc) //nolint:errcheck
 
-		var response MessageResponsePayload
+		var (
+			response MessageResponsePayload
+			stopped  bool
+		)
+		endStream := func() {
+			if stopped {
+				return
+			}
+			var readErr error
+			if err := scanner.Err(); err != nil {
+				readErr = fmt.Errorf("issue scanning response: %w", err)
+			}
+			partial := response
+			eventChan <- MessageEvent{Response: &partial, Err: streamend.Incomplete(ctx, readErr)}
+		}
 		for scanner.Scan() {
 			line := scanner.Text()
 			if line == "" {
@@ -441,21 +458,30 @@ func parseStreamingMessageResponse(
 			if !strings.HasPrefix(line, "data:") {
 				// it's happening when the server answer is not a streaming response
 				// we need to parse the response as a normal response and return it
-				if err := parseMessageResponse(ctx, line, payload, eventChan); err != nil {
+				sent, err := parseMessageResponse(ctx, line, payload, eventChan)
+				if err != nil {
 					eventChan <- MessageEvent{
 						Response: nil,
 						Err:      fmt.Errorf("failed to parse stream message response: %w", err),
 					}
 					return
 				}
+				stopped = stopped || sent
 				continue
 			}
 			data := strings.TrimPrefix(line, "data: ")
 			event, err := parseStreamEvent(data)
 			if err != nil {
+				if !scanner.Scan() {
+					endStream()
+					return
+				}
 				partial := response
 				eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("failed to parse stream event: %w", err)}
 				return
+			}
+			if eventType, _ := event["type"].(string); eventType == "message_stop" {
+				stopped = true
 			}
 			response, err = processStreamEvent(ctx, event, payload, response, eventChan)
 			if errors.Is(err, errStreamEnded) {
@@ -467,33 +493,34 @@ func parseStreamingMessageResponse(
 				return
 			}
 		}
-		if err := scanner.Err(); err != nil {
-			partial := response
-			eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("issue scanning response: %w", err)}
-		}
+		endStream()
 	}()
 
-	var lastResponse *MessageResponsePayload
+	var (
+		lastResponse *MessageResponsePayload
+		streamErr    error
+	)
 	for event := range eventChan {
 		if event.Err != nil {
 			if event.Response != nil {
 				lastResponse = event.Response
 			}
-			return lastResponse, event.Err
+			streamErr = event.Err
+			continue
 		}
 		lastResponse = event.Response
 	}
-	return lastResponse, nil
+	return lastResponse, streamErr
 }
 
 func parseMessageResponse(ctx context.Context, line string,
 	payload *messagePayload, eventChan chan<- MessageEvent,
-) error {
+) (bool, error) {
 	var response MessageResponsePayload
 	if err := json.Unmarshal([]byte(line), &response); err != nil {
 		// skip line if it's not a valid json as a message response
 		// it's happening when custom server is used with the same API as anthropic
-		return nil //nolint:nilerr
+		return false, nil //nolint:nilerr
 	}
 
 	for _, content := range response.Content {
@@ -501,26 +528,26 @@ func parseMessageResponse(ctx context.Context, line string,
 		case *ThinkingContent:
 			reasoning := &reasoning.ContentReasoning{Content: cv.Thinking}
 			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
-				return fmt.Errorf("streaming func returned an error: %w", err)
+				return false, fmt.Errorf("streaming func returned an error: %w", err)
 			}
 		case *TextContent:
 			if err := streaming.CallWithText(ctx, payload.StreamingFunc, cv.Text); err != nil {
-				return fmt.Errorf("streaming func returned an error: %w", err)
+				return false, fmt.Errorf("streaming func returned an error: %w", err)
 			}
 		case *ToolUseContent:
 			toolArgs, err := json.Marshal(cv.Input)
 			if err != nil {
-				return fmt.Errorf("failed to marshal tool use input: %w", err)
+				return false, fmt.Errorf("failed to marshal tool use input: %w", err)
 			}
 			toolCall := streaming.NewToolCall(cv.ID, cv.Name, string(toolArgs))
 			if err := streaming.CallWithToolCall(ctx, payload.StreamingFunc, toolCall); err != nil {
-				return fmt.Errorf("streaming func returned an error: %w", err)
+				return false, fmt.Errorf("streaming func returned an error: %w", err)
 			}
 		}
 	}
 
 	eventChan <- MessageEvent{Response: &response, Err: nil}
-	return nil
+	return true, nil
 }
 
 func parseStreamEvent(data string) (map[string]interface{}, error) {
@@ -553,7 +580,7 @@ func processStreamEvent(ctx context.Context, event map[string]interface{}, paylo
 		// Nothing to do here
 	case "error":
 		partial := response
-		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("received error event: %v", event)}
+		eventChan <- MessageEvent{Response: &partial, Err: fmt.Errorf("%w: received error event: %v", llms.ErrStreamFailed, event)}
 		return response, errStreamEnded
 	default:
 		log.Printf("unknown event type: %s - %v", eventType, event)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -242,7 +243,7 @@ func createAnthropicCompletion(ctx context.Context,
 		tools[i] = anthropicTool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
-			InputSchema: tool.Function.Parameters,
+			InputSchema: toolcall.Schema(tool.Function.Parameters),
 		}
 	}
 
@@ -528,10 +529,6 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 
 DoStream:
 	for e := range stream.Events() {
-		if err = stream.Err(); err != nil {
-			streamErr = err
-			break DoStream
-		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp streamingCompletionResponseChunk
@@ -620,8 +617,8 @@ DoStream:
 			}
 		}
 	}
-	if err = stream.Err(); err != nil {
-		streamErr = err
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, contentchoices[0].StopReason != "", stream.Err())
 	}
 
 	// Add tool calls to the final response

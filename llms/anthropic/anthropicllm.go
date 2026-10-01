@@ -472,10 +472,25 @@ func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
 		toolReq[i] = anthropicclient.Tool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
-			InputSchema: tool.Function.Parameters,
+			InputSchema: toolcall.Schema(tool.Function.Parameters),
 		}
 	}
 	return toolReq
+}
+
+func imageSource(url string) (anthropicclient.ImageSource, error) {
+	if hasPrefixFold(url, "https://") || hasPrefixFold(url, "http://") {
+		return anthropicclient.ImageSource{Type: "url", URL: url}, nil
+	}
+	if data, mediaType, err := parseBase64URI(url); err == nil {
+		return anthropicclient.ImageSource{Type: "base64", MediaType: mediaType, Data: data}, nil
+	}
+	return anthropicclient.ImageSource{}, fmt.Errorf("%w: image URL is neither base64 data nor http(s)",
+		ErrUnsupportedContentType)
+}
+
+func hasPrefixFold(s, prefix string) bool {
+	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
 }
 
 // parseBase64URI returns values data, media type from a base64 URI and error if invalid.
@@ -806,18 +821,11 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 				},
 			})
 		case llms.ImageURLContent:
-			data, mediaType, err := parseBase64URI(p.URL)
+			source, err := imageSource(p.URL)
 			if err != nil {
 				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for human message", err)
 			}
-			contents = append(contents, anthropicclient.ImageContent{
-				Type: "image",
-				Source: anthropicclient.ImageSource{
-					Type:      "base64",
-					MediaType: mediaType,
-					Data:      data,
-				},
-			})
+			contents = append(contents, anthropicclient.ImageContent{Type: "image", Source: source})
 		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: unsupported human message part type: %T", part)
 		}
@@ -872,7 +880,7 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 			}
 
 			var inputStruct map[string]interface{}
-			dec := json.NewDecoder(strings.NewReader(p.FunctionCall.Arguments))
+			dec := json.NewDecoder(strings.NewReader(toolcall.Normalize(p.FunctionCall.Arguments)))
 			dec.UseNumber()
 			if err := dec.Decode(&inputStruct); err != nil {
 				err = fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)
@@ -881,9 +889,6 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 			if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w: data follows the object: %s",
 					toolcall.ErrNotAnObject, p.FunctionCall.Arguments)
-			}
-			if inputStruct == nil {
-				inputStruct = map[string]interface{}{}
 			}
 
 			toolUse := &anthropicclient.ToolUseContent{

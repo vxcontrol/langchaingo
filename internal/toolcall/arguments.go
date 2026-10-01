@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ type Field struct {
 // DecodeFields decodes tool call arguments, keeping the order of the keys and
 // the exact value of integers wider than float64 can hold.
 func DecodeFields(raw string) ([]Field, error) {
-	if strings.TrimSpace(raw) == "null" {
+	if absent(raw) {
 		return nil, nil
 	}
 	dec := json.NewDecoder(strings.NewReader(raw))
@@ -59,6 +60,40 @@ func DecodeFields(raw string) ([]Field, error) {
 	}
 
 	return fields, nil
+}
+
+func Normalize(raw string) string {
+	if absent(raw) {
+		return "{}"
+	}
+	return raw
+}
+
+func Schema(parameters any) any {
+	if NoParameters(parameters) {
+		return map[string]any{"type": "object", "properties": map[string]any{}}
+	}
+	return parameters
+}
+
+func NoParameters(parameters any) bool {
+	if raw, ok := parameters.(json.RawMessage); ok {
+		return absent(string(raw))
+	}
+	if parameters == nil {
+		return true
+	}
+	switch value := reflect.ValueOf(parameters); value.Kind() {
+	case reflect.Map, reflect.Pointer, reflect.Slice, reflect.Interface:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
+func absent(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	return trimmed == "" || trimmed == "null"
 }
 
 // Decode decodes tool call arguments into a map, keeping integers exact.

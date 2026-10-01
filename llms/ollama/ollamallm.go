@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -487,7 +490,13 @@ func (o *LLM) servesCloud(model string) bool {
 // processTools adds tools to the chat request.
 func (o *LLM) processTools(req *api.ChatRequest, tools []llms.Tool) error {
 	for i := range tools {
-		jt, err := json.Marshal(tools[i])
+		definition := tools[i]
+		if definition.Function != nil {
+			function := *definition.Function
+			function.Parameters = toolcall.Schema(function.Parameters)
+			definition.Function = &function
+		}
+		jt, err := json.Marshal(definition)
 		if err != nil {
 			return fmt.Errorf("error marshalling tool: %w", err)
 		}
@@ -563,7 +572,16 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		return nil
 	}
 
-	err := o.client.Chat(ctx, req, fn)
+	var received bool
+	var callbackErr error
+	err := o.client.Chat(ctx, req, func(response api.ChatResponse) error {
+		received = true
+		callbackErr = fn(response)
+		return callbackErr
+	})
+	if err != nil && callbackErr == nil {
+		err = streamError(ctx, received, finished, err)
+	}
 	// A stream the server closed without its final frame, as Ollama up to 0.34.0
 	// does when it stops a model repeating itself, still delivered an answer:
 	// keep the text that arrived instead of an empty one.
@@ -576,6 +594,29 @@ func (o *LLM) handleChat(ctx context.Context, req *api.ChatRequest, opts llms.Ca
 		}
 	}
 	return resp, err
+}
+
+var serverMessage = reflect.TypeOf(errors.New(""))
+
+func streamError(ctx context.Context, received, finished bool, err error) error {
+	if !received && !isUndecodedLine(err) {
+		return err
+	}
+	if ctx.Err() == nil && isServerMessage(err) {
+		return fmt.Errorf("%w: %w", llms.ErrStreamFailed, err)
+	}
+	if finished {
+		return nil
+	}
+	return streamend.Incomplete(ctx, err)
+}
+
+func isServerMessage(err error) bool {
+	return reflect.TypeOf(err) == serverMessage && !errors.Is(err, io.ErrUnexpectedEOF) && !isUndecodedLine(err)
+}
+
+func isUndecodedLine(err error) bool {
+	return strings.HasPrefix(strings.TrimSpace(err.Error()), "{")
 }
 
 // createContentResponse creates a LangChain content response from Ollama response.

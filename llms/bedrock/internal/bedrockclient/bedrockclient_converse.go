@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/numutil"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -740,15 +741,12 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 			Description: aws.String(tool.Function.Description),
 		}
 
-		// Convert function parameters to tool input schema
-		if tool.Function.Parameters != nil {
-			parameters, err := c.convertToolCallInput(tool.Function.Parameters)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert tool call input: %w", err)
-			}
-			toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
-				Value: document.NewLazyDocument(parameters),
-			}
+		parameters, err := c.convertToolCallInput(toolcall.Schema(tool.Function.Parameters))
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert tool call input: %w", err)
+		}
+		toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
+			Value: document.NewLazyDocument(parameters),
 		}
 
 		converseTools = append(converseTools, &types.ToolMemberToolSpec{
@@ -762,8 +760,6 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 	}, nil
 }
 
-// converseToolChoice carries the caller's choice to the wire. An unset or
-// unrecognized choice leaves the decision to the model.
 func carriesToolBlocks(messages []types.Message) bool {
 	for _, message := range messages {
 		for _, block := range message.Content {
@@ -883,6 +879,7 @@ func (c *ConverseClient) processStreamingResponse(ctx context.Context, response 
 	var stopReason string
 	var streamErr error
 	var usage *types.TokenUsage
+	var stopped bool
 	currentToolCalls := make(map[int32]*converseToolCallBuilder) // Track streaming tool calls by content block index
 
 	defer streaming.CallWithDone(ctx, callback)
@@ -953,6 +950,7 @@ DoStream:
 			// The terminal event carries the stop reason (end_turn, tool_use,
 			// max_tokens, guardrail_intervened, content_filtered, ...).
 			stopReason = string(e.Value.StopReason)
+			stopped = true
 			// Stream completed - ensure any remaining tool calls are added
 			salvaged, err := salvageToolCalls(ctx, callback, currentToolCalls)
 			toolCalls = append(toolCalls, salvaged...)
@@ -966,8 +964,8 @@ DoStream:
 		}
 	}
 
-	if err := stream.Err(); err != nil {
-		streamErr = fmt.Errorf("stream error: %w", err)
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, stopped, stream.Err())
 	}
 
 	choice := &llms.ContentChoice{

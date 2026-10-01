@@ -327,10 +327,6 @@ func parseAi21StreamingResponse(ctx context.Context, client *bedrockruntime.Clie
 
 DoStream:
 	for e := range stream.Events() {
-		if err = stream.Err(); err != nil {
-			streamErr = err
-			break DoStream
-		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp ai21StreamingResponseChunk
@@ -369,8 +365,8 @@ DoStream:
 			}
 		}
 	}
-	if err = stream.Err(); err != nil {
-		streamErr = err
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, contentchoices[0].StopReason != "", stream.Err())
 	}
 
 	contentchoices[0].Content = streamedContent.String()

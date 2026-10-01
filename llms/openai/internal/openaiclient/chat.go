@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/streamend"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -554,7 +556,16 @@ const (
 	FinishReasonToolCalls     FinishReason = "tool_calls"
 	FinishReasonContentFilter FinishReason = "content_filter"
 	FinishReasonNull          FinishReason = "null"
+	FinishReasonError         FinishReason = "error"
+
+	FinishReasonAborted                    FinishReason = "aborted"
+	FinishReasonInsufficientSystemResource FinishReason = "insufficient_system_resource"
+	FinishReasonNetworkError               FinishReason = "network_error"
 )
+
+var interruptedFinishReasons = []FinishReason{
+	FinishReasonError, FinishReasonAborted, FinishReasonInsufficientSystemResource, FinishReasonNetworkError,
+}
 
 func (r FinishReason) MarshalJSON() ([]byte, error) {
 	if r == FinishReasonNull || r == "" {
@@ -565,10 +576,11 @@ func (r FinishReason) MarshalJSON() ([]byte, error) {
 
 // ChatCompletionChoice is a choice in a chat response.
 type ChatCompletionChoice struct {
-	Index        int          `json:"index"`
-	Message      ChatMessage  `json:"message"`
-	FinishReason FinishReason `json:"finish_reason"`
-	LogProbs     *LogProbs    `json:"logprobs,omitempty"`
+	Index        int            `json:"index"`
+	Message      ChatMessage    `json:"message"`
+	FinishReason FinishReason   `json:"finish_reason"`
+	LogProbs     *LogProbs      `json:"logprobs,omitempty"`
+	Error        *providerError `json:"error,omitempty"`
 }
 
 // ChatUsage is the usage of a chat completion request.
@@ -602,6 +614,23 @@ type ChatCompletionResponse struct {
 	Object            string                  `json:"object,omitempty"`
 	Usage             ChatUsage               `json:"usage,omitempty"`
 	SystemFingerprint string                  `json:"system_fingerprint"`
+	Error             *providerError          `json:"error,omitempty"`
+}
+
+func (r *ChatCompletionResponse) providerError() error {
+	if r.Error != nil {
+		return r.Error.asError()
+	}
+	for _, choice := range r.Choices {
+		if !slices.Contains(interruptedFinishReasons, choice.FinishReason) {
+			continue
+		}
+		if choice.Error != nil {
+			return choice.Error.asError()
+		}
+		return fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.FinishReason)
+	}
+	return nil
 }
 
 type Usage struct {
@@ -638,9 +667,8 @@ type StreamedChatResponseChunkDelta struct {
 	Content      string        `json:"content,omitempty"`
 	FunctionCall *FunctionCall `json:"function_call,omitempty"`
 	// ToolCalls is a list of tools that were called in the message.
-	ToolCalls []*StreamedToolCall `json:"tool_calls,omitempty"`
-	// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
-	ReasoningContent string `json:"reasoning_content,omitempty"`
+	ToolCalls        []*StreamedToolCall `json:"tool_calls,omitempty"`
+	ReasoningContent string              `json:"reasoning_content,omitempty"`
 	// Fallback field for reasoning content (it depends on the model and the provider)
 	Reasoning string `json:"reasoning,omitempty"`
 	// Refusal streams in when the model declines under Structured Outputs; it must
@@ -687,8 +715,34 @@ type StreamedChatResponsePayload struct {
 	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
 	// When present, it contains a null value except for the last chunk which contains the token usage statistics
 	// for the entire request.
-	Usage *Usage `json:"usage,omitempty"`
-	Error error  `json:"-"` // use for error handling only
+	Usage      *Usage         `json:"usage,omitempty"`
+	ErrorEvent *providerError `json:"error,omitempty"`
+	Error      error          `json:"-"` // use for error handling only
+	final      bool
+	readErr    error
+}
+
+type providerError struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Code    any    `json:"code"`
+}
+
+func (e *providerError) UnmarshalJSON(data []byte) error {
+	var message string
+	if err := json.Unmarshal(data, &message); err == nil {
+		e.Message = message
+		return nil
+	}
+	type object providerError
+	return json.Unmarshal(data, (*object)(e))
+}
+
+func (e *providerError) asError() error {
+	if e.Type == "" && e.Code == nil {
+		return fmt.Errorf("%w: %s", llms.ErrStreamFailed, e.Message)
+	}
+	return fmt.Errorf("%w: %s (type %q, code %v)", llms.ErrStreamFailed, e.Message, e.Type, e.Code)
 }
 
 // FunctionDefinition is a definition of a function that can be called by the model.
@@ -784,7 +838,11 @@ func (c *Client) createChat(ctx context.Context, payload *ChatRequest) (*ChatCom
 		return parseStreamingChatResponse(ctx, r, payload)
 	}
 
-	return parseChatResponse(r.Body)
+	response, err := parseChatResponse(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	return response, response.providerError()
 }
 
 func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
@@ -900,6 +958,10 @@ func parseStreamingChatResponse(
 			data := strings.TrimPrefix(line, "data:") // here use `data:` instead of `data: ` for compatibility
 			data = strings.TrimSpace(data)
 			if data == "[DONE]" {
+				select {
+				case <-producerCtx.Done():
+				case responseChan <- StreamedChatResponsePayload{final: true}:
+				}
 				return
 			}
 			if !looksLikeJSONObject(data) {
@@ -913,6 +975,9 @@ func parseStreamingChatResponse(
 				// This could happen if the data field contains non-JSON content
 				continue
 			}
+			if streamPayload.ErrorEvent != nil {
+				streamPayload.Error = streamPayload.ErrorEvent.asError()
+			}
 
 			// Non-blocking send with context check
 			select {
@@ -920,14 +985,15 @@ func parseStreamingChatResponse(
 				return
 			case responseChan <- streamPayload:
 			}
+			if streamPayload.Error != nil {
+				return
+			}
 		}
 		if err := scanner.Err(); err != nil {
 			select {
 			case <-producerCtx.Done():
-				return
-			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("error reading streaming response: %w", err)}:
+			case responseChan <- StreamedChatResponsePayload{readErr: fmt.Errorf("error reading streaming response: %w", err)}:
 			}
-			return
 		}
 	}()
 
@@ -957,10 +1023,22 @@ func combineStreamingChatResponse(
 		toolCallNameCache = make(map[string]string) // Cache tool call names by ID for streaming
 	)
 
-	var streamErr error
+	var (
+		streamErr error
+		readErr   error
+		completed bool
+	)
 
 DoStream:
 	for streamResponse := range responseChan {
+		if streamResponse.final {
+			completed = true
+			continue
+		}
+		if streamResponse.readErr != nil {
+			readErr = streamResponse.readErr
+			continue
+		}
 		if streamResponse.Error != nil {
 			streamErr = streamResponse.Error
 			break DoStream
@@ -1037,7 +1115,27 @@ DoStream:
 
 	removeEmptyToolCalls(&response)
 
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, completed, readErr, &response)
+	}
+
 	return &response, streamErr
+}
+
+func streamEndError(ctx context.Context, completed bool, readErr error, response *ChatCompletionResponse) error {
+	if err := response.providerError(); err != nil {
+		return err
+	}
+	finished := len(response.Choices) > 0
+	for _, choice := range response.Choices {
+		if choice.FinishReason == "" || choice.FinishReason == FinishReasonNull {
+			finished = false
+		}
+	}
+	if completed || finished {
+		return nil
+	}
+	return streamend.Incomplete(ctx, readErr)
 }
 
 // streamedText collects one choice's text across deltas.
@@ -1162,6 +1260,17 @@ func updateToolCall(message *ChatMessage, delta *StreamedToolCall, nameCache map
 }
 
 // some providers starts streaming tool calls since the first index number istead of zero
+func dropUnfinishedToolCalls(response *ChatCompletionResponse) {
+	for _, choice := range response.Choices {
+		choice.Message.ToolCalls = slices.DeleteFunc(choice.Message.ToolCalls, func(toolCall ToolCall) bool {
+			return !json.Valid([]byte(toolCall.Function.Arguments))
+		})
+		if call := choice.Message.FunctionCall; call != nil && !json.Valid([]byte(call.Arguments)) {
+			choice.Message.FunctionCall = nil
+		}
+	}
+}
+
 func removeEmptyToolCalls(response *ChatCompletionResponse) {
 	for _, choice := range response.Choices {
 		if len(choice.Message.ToolCalls) == 0 {
