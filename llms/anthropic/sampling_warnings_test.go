@@ -258,3 +258,32 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 	}
 	t.Fatalf("the dropped extra body went unreported: %v", resp.Warnings)
 }
+
+func TestATemperatureOutsideClaudesRangeIsClampedAndReported(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		asked, sent float64
+		reported    bool
+	}{
+		{asked: 1.5, sent: 1, reported: true},
+		{asked: -0.5, sent: 0, reported: true},
+		{asked: 0.7, sent: 0.7},
+	} {
+		resp, body := generateForModelSending(t, "claude-sonnet-4-5", llms.WithTemperature(tc.asked))
+
+		require.InDelta(t, tc.sent, body["temperature"], 1e-9, "asked %v", tc.asked)
+		var clamps []llms.Warning
+		for _, w := range resp.Warnings {
+			if w.Option == "WithTemperature" {
+				clamps = append(clamps, w)
+			}
+		}
+		if !tc.reported {
+			require.Empty(t, clamps, "asked %v", tc.asked)
+			continue
+		}
+		require.Len(t, clamps, 1, "asked %v", tc.asked)
+		require.Equal(t, llms.WarningClamp, clamps[0].Kind)
+	}
+}
