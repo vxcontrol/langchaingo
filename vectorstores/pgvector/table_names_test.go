@@ -2,6 +2,7 @@ package pgvector
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -12,24 +13,74 @@ import (
 	"github.com/vxcontrol/langchaingo/schema"
 )
 
-func TestAStoreOnSchemaQualifiedTablesStarts(t *testing.T) {
+func newSchema(t *testing.T, url string) (string, *pgx.Conn) {
+	t.Helper()
+
+	ctx := t.Context()
+	name := "lcg_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+name+" CASCADE")
+		_ = conn.Close(context.Background())
+	})
+	_, err = conn.Exec(ctx, "CREATE SCHEMA "+name)
+	require.NoError(t, err)
+	return name, conn
+}
+
+func indexDefinitions(t *testing.T, conn *pgx.Conn, schemaName, table string) []string {
+	t.Helper()
+
+	rows, err := conn.Query(t.Context(),
+		"SELECT indexdef FROM pg_indexes WHERE schemaname = $1 AND tablename = $2", schemaName, table)
+	require.NoError(t, err)
+	definitions, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	require.NoError(t, err)
+	return definitions
+}
+
+func TestAStoreOnSchemaQualifiedTablesKeepsOneSetOfIndexes(t *testing.T) {
 	t.Parallel()
 
 	url := narrowingURL(t)
 	ctx := t.Context()
-	schemaName := "lcg_" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	conn, err := pgx.Connect(ctx, url)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = conn.Exec(context.Background(), "DROP SCHEMA IF EXISTS "+schemaName+" CASCADE")
-		_ = conn.Close(context.Background())
-	})
-	_, err = conn.Exec(ctx, "CREATE SCHEMA "+schemaName)
-	require.NoError(t, err)
+	schemaName, conn := newSchema(t, url)
+	const table = "langchain_pg_embedding_tenant"
 
+	open := func(url, prefix string) {
+		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+			WithCollectionName("c"), WithCollectionTableName(prefix+"collection"),
+			WithEmbeddingTableName(prefix+table), WithVectorDimensions(64),
+			WithHNSWIndex(16, 64, "vector_cosine_ops"),
+			WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = store.Close() })
+
+		_, err = store.AddDocuments(ctx, []schema.Document{{PageContent: "mine", Metadata: map[string]any{"flow_id": "1"}}})
+		require.NoError(t, err)
+		docs, err := store.SimilaritySearch(ctx, "mine", 1)
+		require.NoError(t, err)
+		require.Len(t, docs, 1)
+	}
+	open(url, schemaName+".")
+	open(withParameter(t, url, "search_path", schemaName+",public"), "")
+
+	definitions := indexDefinitions(t, conn, schemaName, table)
+	require.Len(t, definitions, 4, "the primary key, collection_id, HNSW and metadata indexes, once each:\n%s",
+		strings.Join(definitions, "\n"))
+	require.Contains(t, strings.Join(definitions, "\n"), "USING hnsw")
+}
+
+func TestAStoreOnAQuotedTableNameStarts(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	schemaName, conn := newSchema(t, url)
 	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
 		WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
-		WithEmbeddingTableName(schemaName+".embedding"), WithVectorDimensions(64),
+		WithEmbeddingTableName(schemaName+`."Embedding"`), WithVectorDimensions(64),
 		WithHNSWIndex(16, 64, "vector_cosine_ops"),
 		WithMetadataIndexes(MetadataIndex{Keys: []string{"flow_id"}}))
 	require.NoError(t, err)
@@ -40,17 +91,53 @@ func TestAStoreOnSchemaQualifiedTablesStarts(t *testing.T) {
 	docs, err := store.SimilaritySearch(ctx, "mine", 1)
 	require.NoError(t, err)
 	require.Len(t, docs, 1)
+	require.Len(t, indexDefinitions(t, conn, schemaName, "Embedding"), 4)
 }
 
 func TestAMetadataIndexNamedLikeAReservedWordIsCreated(t *testing.T) {
 	t.Parallel()
 
 	url := narrowingURL(t)
-	store, conn := newIsolatedIndexedStore(t, url, MetadataIndex{Name: "Order", Keys: []string{"flow_id"}})
+	schemaName, conn := newSchema(t, url)
+	store, err := New(t.Context(), WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+		WithCollectionName("c"), WithCollectionTableName(schemaName+".collection"),
+		WithEmbeddingTableName(schemaName+".embedding"),
+		WithMetadataIndexes(MetadataIndex{Name: "Order", Keys: []string{"flow_id"}}))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 
 	var exists bool
 	require.NoError(t, conn.QueryRow(t.Context(),
-		"SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename = $1 AND indexname = 'order')",
-		store.embeddingTableName).Scan(&exists))
+		"SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = $1 AND indexname = 'order')",
+		schemaName).Scan(&exists))
 	require.True(t, exists)
+}
+
+func TestAStoreAdoptsTheMetadataIndexItsUnquotedNameCreated(t *testing.T) {
+	t.Parallel()
+
+	url := narrowingURL(t)
+	ctx := t.Context()
+	schemaName, conn := newSchema(t, url)
+	url = withParameter(t, url, "search_path", schemaName+",public")
+	const table = "ÉmbedX"
+	index := MetadataIndex{Keys: []string{"flow_id"}}
+
+	open := func(indexes ...MetadataIndex) {
+		store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
+			WithCollectionName("c"), WithCollectionTableName("collection"), WithEmbeddingTableName(table),
+			WithMetadataIndexes(indexes...))
+		require.NoError(t, err)
+		require.NoError(t, store.Close())
+	}
+	open()
+	_, err := conn.Exec(ctx, fmt.Sprintf("CREATE INDEX %s_meta_flow_id_%08x ON %s.%s ((cmetadata ->> 'flow_id'))",
+		table, index.fingerprint(table), schemaName, table))
+	require.NoError(t, err)
+	open(index)
+
+	var metadataIndexes int
+	require.NoError(t, conn.QueryRow(ctx, `SELECT count(*) FROM pg_indexes
+		WHERE schemaname = $1 AND indexdef LIKE '%cmetadata%'`, schemaName).Scan(&metadataIndexes))
+	require.Equal(t, 1, metadataIndexes)
 }

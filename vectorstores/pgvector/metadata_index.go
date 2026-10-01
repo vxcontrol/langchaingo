@@ -63,18 +63,37 @@ func (m MetadataIndex) validate() error {
 
 func (m MetadataIndex) indexName(table string) string {
 	if m.Name != "" {
-		return m.Name
+		return foldIdentifier(m.Name)
 	}
 
+	relation := relationName(table)
 	parts := make([]string, 0, len(m.Keys)+3)
-	parts = append(parts, strings.ReplaceAll(table, ".", "_"), "meta")
+	parts = append(parts, relation, "meta")
 	parts = append(parts, m.Keys...)
 	if len(m.Exclude) > 0 {
 		parts = append(parts, "partial")
 	}
 	name := strings.Join(parts, "_")
 	prefix := strings.ToValidUTF8(name[:min(len(name), maxIdentifierLen-9)], "")
-	return fmt.Sprintf("%s_%08x", prefix, m.fingerprint(table))
+	return foldIdentifier(fmt.Sprintf("%s_%08x", prefix, m.fingerprint(relation)))
+}
+
+func relationName(table string) string {
+	return table[strings.LastIndex(table, ".")+1:]
+}
+
+func foldIdentifier(name string) string {
+	folded := []byte(name)
+	for i, c := range folded {
+		if 'A' <= c && c <= 'Z' {
+			folded[i] = c + 'a' - 'A'
+		}
+	}
+	return string(folded)
+}
+
+func indexIdentifier(name string) string {
+	return pgx.Identifier{foldIdentifier(name)}.Sanitize()
 }
 
 func (m MetadataIndex) fingerprint(table string) uint32 {
@@ -113,7 +132,7 @@ func (m MetadataIndex) ddl(table string) (string, error) {
 	}
 
 	statement := fmt.Sprintf("CREATE INDEX IF NOT EXISTS %s ON %s (%s)",
-		pgx.Identifier{strings.ToLower(m.indexName(table))}.Sanitize(), table, strings.Join(columns, ", "))
+		indexIdentifier(m.indexName(table)), table, strings.Join(columns, ", "))
 
 	if len(m.Exclude) == 0 {
 		return statement, nil
@@ -168,16 +187,15 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 			return err
 		}
 		name := index.indexName(s.embeddingTableName)
-		folded := strings.ToLower(name)
 		definition := index.definition(s.embeddingTableName)
-		if declared, ok := definitions[folded]; ok && declared != definition {
+		if declared, ok := definitions[name]; ok && declared != definition {
 			return fmt.Errorf("%w: two declarations share the index name %s", ErrInvalidMetadataIndex, name)
 		}
-		definitions[folded] = definition
+		definitions[name] = definition
 
 		var exists bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
-			WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, folded).Scan(&exists); err != nil {
+			WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, name).Scan(&exists); err != nil {
 			return fmt.Errorf("look up metadata index %s: %w", name, err)
 		}
 		if exists {
