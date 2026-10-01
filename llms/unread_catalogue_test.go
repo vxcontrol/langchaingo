@@ -89,6 +89,23 @@ func TestTheUnreadCatalogueReportsEveryOptionADoorDoesNotCarry(t *testing.T) {
 	require.ElementsMatch(t, want, reported)
 }
 
+func TestTheOptionsADoorReshapesAreOutsideTheUnreadCatalogue(t *testing.T) {
+	t.Parallel()
+
+	opts := llms.CallOptions{}
+	for _, apply := range []llms.CallOption{
+		llms.WithTemperature(0.4), llms.WithTopP(0.9), llms.WithMaxTokens(1024),
+		llms.WithStopWords([]string{"stop"}),
+	} {
+		apply(&opts)
+	}
+
+	var warn llms.Warnings
+	warn.AddUnreadOptions("m", opts, "no field")
+
+	require.Empty(t, warn.List(), "an option the door reshapes is reported with the value that travelled, not as unread")
+}
+
 func TestAnExplicitZeroSeedIsReportedNotSwallowed(t *testing.T) {
 	t.Parallel()
 
