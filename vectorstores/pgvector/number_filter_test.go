@@ -1,21 +1,21 @@
 package pgvector
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"os"
 	"testing"
+	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/schema"
 	"github.com/vxcontrol/langchaingo/vectorstores"
 )
 
-func TestANumberFilterDecodedFromJSONFindsItsDocument(t *testing.T) {
+type score float64
+
+func TestANumberFilterFindsTheDocumentsHoldingItsValue(t *testing.T) {
 	t.Parallel()
 
 	url := narrowingURL(t)
@@ -24,46 +24,47 @@ func TestANumberFilterDecodedFromJSONFindsItsDocument(t *testing.T) {
 			t.Parallel()
 
 			ctx := t.Context()
-			suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
-			collections, embeddings := "num_collection_"+suffix, "num_embedding_"+suffix
-			conn, err := pgx.Connect(ctx, url)
+			store, conn := newIsolatedIndexedStore(t, url)
+			_, err := conn.Exec(ctx, "ALTER TABLE "+store.embeddingTableName+
+				" ALTER COLUMN cmetadata TYPE "+column+" USING cmetadata::"+column)
 			require.NoError(t, err)
-			t.Cleanup(func() {
-				_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
-				_ = conn.Close(context.Background())
-			})
-			_, err = conn.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector")
-			require.NoError(t, err)
-			_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE TABLE %[1]s (name varchar UNIQUE, cmetadata json,
-	"uuid" uuid PRIMARY KEY);
-CREATE TABLE %[2]s (collection_id uuid REFERENCES %[1]s (uuid) ON DELETE CASCADE, embedding vector,
-	document varchar, cmetadata %[3]s, "uuid" uuid PRIMARY KEY)`, collections, embeddings, column))
-			require.NoError(t, err)
-
-			store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
-				WithCollectionName("c"), WithCollectionTableName(collections), WithEmbeddingTableName(embeddings))
-			require.NoError(t, err)
-			t.Cleanup(func() { _ = store.Close() })
 
 			_, err = store.AddDocuments(ctx, []schema.Document{
 				{PageContent: "a million", Metadata: map[string]any{"n": 1000000}},
+				{PageContent: "a million in Go text", Metadata: map[string]any{"n": fmt.Sprint(1e6)}},
 				{PageContent: "two", Metadata: map[string]any{"n": 2}},
-				{PageContent: "five written as text", Metadata: map[string]any{"n": "5"}},
+				{PageContent: "five in text", Metadata: map[string]any{"n": "5"}},
+				{PageContent: "huge", Metadata: map[string]any{"n": 1e21}},
+				{PageContent: "tiny", Metadata: map[string]any{"n": 1e-7}},
+				{PageContent: "an id past float precision", Metadata: map[string]any{"n": uint64(12345678901234567000)}},
 			})
 			require.NoError(t, err)
 
-			for filter, want := range map[string]string{
-				`{"n": 1e6}`:     "a million",
-				`{"n": 1000000}`: "a million",
-				`{"n": 5}`:       "five written as text",
+			for name, tc := range map[string]struct {
+				filter any
+				want   []string
+			}{
+				"float decoded from JSON":         {1e6, []string{"a million", "a million in Go text"}},
+				"int":                             {1000000, []string{"a million"}},
+				"named float type":                {score(1e6), []string{"a million", "a million in Go text"}},
+				"json.Number":                     {json.Number("1e6"), []string{"a million"}},
+				"number held as text":             {5, []string{"five in text"}},
+				"float from 1e21 up":              {1e21, []string{"huge"}},
+				"float below 1e-6":                {1e-7, []string{"tiny"}},
+				"json.Number that is no number":   {json.Number(""), nil},
+				"uint64":                          {uint64(12345678901234567000), []string{"an id past float precision"}},
+				"json.Number of another id":       {json.Number("12345678901234567890"), nil},
+				"named int with a String method":  {time.Duration(2), []string{"two"}},
+				"named uint with a String method": {os.FileMode(2), []string{"two"}},
 			} {
-				var decoded map[string]any
-				require.NoError(t, json.Unmarshal([]byte(filter), &decoded))
-
-				docs, err := store.SimilaritySearch(ctx, "anything", 10, vectorstores.WithFilters(decoded))
-				require.NoError(t, err)
-				require.Len(t, docs, 1, filter)
-				require.Equal(t, want, docs[0].PageContent, filter)
+				docs, err := store.SimilaritySearch(ctx, "anything", 10,
+					vectorstores.WithFilters(map[string]any{"n": tc.filter}))
+				require.NoError(t, err, name)
+				found := make([]string, 0, len(docs))
+				for _, doc := range docs {
+					found = append(found, doc.PageContent)
+				}
+				require.ElementsMatch(t, tc.want, found, name)
 			}
 		})
 	}

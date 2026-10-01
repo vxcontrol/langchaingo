@@ -89,8 +89,8 @@ func WithVectorDimensions(size int) Option {
 // WithMetadataIndexes declares indexes over keys inside the cmetadata column.
 // The store creates any of them it does not find when it starts.
 //
-// Without one, a filtered search scans every row of the table to evaluate the
-// metadata predicates.
+// Without one, a filtered search scans every row of the collection to evaluate
+// the metadata predicates.
 func WithMetadataIndexes(indexes ...MetadataIndex) Option {
 	return func(p *Store) {
 		p.metadataIndexes = indexes

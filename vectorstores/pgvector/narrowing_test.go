@@ -296,13 +296,15 @@ func TestSimilaritySearchReadsOnlyTheFilteredRows(t *testing.T) {
 	_, err = conn.Exec(ctx, "ANALYZE "+store.embeddingTableName)
 	require.NoError(t, err)
 
-	plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
-		map[string]any{"doc_type": "memory", "flow_id": "3"})
+	for _, flow := range []any{"3", 3, 1e6} {
+		plan := explainSimilaritySearch(t, ctx, conn, store, "flow 3 document 1",
+			map[string]any{"doc_type": "memory", "flow_id": flow})
 
-	require.Contains(t, plan, index.indexName(store.embeddingTableName),
-		"the metadata index must carry the scan:\n%s", plan)
-	require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
-		"the whole table was read:\n%s", plan)
+		require.Contains(t, plan, index.indexName(store.embeddingTableName),
+			"the metadata index must carry the scan for flow_id %v:\n%s", flow, plan)
+		require.NotContains(t, plan, "Seq Scan on "+store.embeddingTableName,
+			"the whole table was read for flow_id %v:\n%s", flow, plan)
+	}
 }
 
 type recordingConn struct {
@@ -476,15 +478,11 @@ func TestSimilaritySearchChecksTheFilterBeforeTheDimensionGuard(t *testing.T) {
 	_, err := store.AddDocuments(ctx, []schema.Document{{PageContent: "mine", Metadata: map[string]any{"flow_id": "3"}}})
 	require.NoError(t, err)
 
-	plan := explainSimilaritySearch(t, ctx, conn, store, "mine", map[string]any{"flow_id": "3"})
+	for _, flow := range []any{"3", 1e6} {
+		plan := explainSimilaritySearch(t, ctx, conn, store, "mine", map[string]any{"flow_id": flow})
 
-	var filter string
-	for _, line := range strings.Split(plan, "\n") {
-		if strings.Contains(line, "vector_dims") {
-			filter = line
-		}
+		require.Regexp(t, `cmetadata[^\n]*vector_dims`, plan,
+			"a vector is detoasted for the dimension guard, so the filter on flow_id %v has to reject rows first:\n%s",
+			flow, plan)
 	}
-	require.NotEmpty(t, filter, plan)
-	require.Less(t, strings.Index(filter, "cmetadata"), strings.Index(filter, "vector_dims"),
-		"a vector is detoasted for the dimension guard, so the metadata filter has to reject rows first:\n%s", plan)
 }

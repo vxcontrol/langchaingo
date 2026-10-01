@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
@@ -500,30 +502,61 @@ func filterPredicates(prefix string, filter map[string]any, argOffset int) ([]st
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidFilterKey, k)
 		}
-		n := argOffset + len(args) + 1
-		if number, ok := jsonNumber(filter[k]); ok {
-			predicates = append(predicates, fmt.Sprintf(
-				"((%[1]scmetadata ->> %[2]s) = $%[3]d OR (%[1]scmetadata -> %[2]s)::jsonb = $%[3]d::jsonb)",
-				prefix, literal, n))
-			args = append(args, number)
-			continue
+		texts := filterTexts(filter[k])
+		params := make([]string, 0, len(texts))
+		for _, text := range texts {
+			args = append(args, text)
+			params = append(params, fmt.Sprintf("$%d", argOffset+len(args)))
 		}
-		predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = $%d", prefix, literal, n))
-		args = append(args, fmt.Sprintf("%v", filter[k]))
+		if len(params) == 1 {
+			predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) = %s", prefix, literal, params[0]))
+		} else {
+			predicates = append(predicates, fmt.Sprintf("(%scmetadata ->> %s) IN (%s)",
+				prefix, literal, strings.Join(params, ", ")))
+		}
 	}
 	return predicates, args, nil
 }
 
-func jsonNumber(value any) (string, bool) {
-	switch number := value.(type) {
-	case json.Number:
-		return number.String(), true
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
-		raw, err := json.Marshal(number)
-		return string(raw), err == nil
-	default:
-		return "", false
+func filterTexts(value any) []string {
+	texts := []string{fmt.Sprintf("%v", value)}
+	add := func(text string) {
+		if !slices.Contains(texts, text) {
+			texts = append(texts, text)
+		}
 	}
+	addFloat := func(number float64, bits int) {
+		var written []byte
+		var err error
+		if bits == 32 {
+			written, err = json.Marshal(float32(number))
+		} else {
+			written, err = json.Marshal(number)
+		}
+		if err != nil {
+			return
+		}
+		add(string(written))
+		add(strconv.FormatFloat(number, 'f', -1, bits))
+	}
+
+	if number, ok := value.(json.Number); ok {
+		if strings.ContainsAny(number.String(), ".eE") {
+			if float, err := number.Float64(); err == nil {
+				addFloat(float, 64)
+			}
+		}
+		return texts
+	}
+	switch v := reflect.ValueOf(value); {
+	case v.CanInt():
+		add(strconv.FormatInt(v.Int(), 10))
+	case v.CanUint():
+		add(strconv.FormatUint(v.Uint(), 10))
+	case v.CanFloat():
+		addFloat(v.Float(), v.Type().Bits())
+	}
+	return texts
 }
 
 // getFilters return metadata filters, now only support map[key]value pattern
