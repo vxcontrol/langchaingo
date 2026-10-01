@@ -1,0 +1,133 @@
+package openaiclient
+
+import (
+	"context"
+	"io"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+)
+
+const partialChunk = `data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"partial"}}]}` + "\n\n"
+
+func parseStream(ctx context.Context, t *testing.T, body io.Reader) (*ChatCompletionResponse, error) {
+	t.Helper()
+
+	r := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(body)}
+	req := &ChatRequest{StreamingFunc: func(context.Context, streaming.Chunk) error { return nil }}
+	return parseStreamingChatResponse(ctx, r, req)
+}
+
+func TestAStreamThatEndsWithoutItsFinalEventIsAnError(t *testing.T) {
+	t.Parallel()
+
+	resp, err := parseStream(t.Context(), t, strings.NewReader(partialChunk))
+
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+	require.NotNil(t, resp)
+	require.Len(t, resp.Choices, 1)
+	assert.Equal(t, "partial", resp.Choices[0].Message.Content)
+}
+
+func TestAStreamThatFinishesItsChoicesIsComplete(t *testing.T) {
+	t.Parallel()
+
+	for name, tail := range map[string]string{
+		"done marker":   "data: [DONE]\n\n",
+		"finish reason": `data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}` + "\n\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			resp, err := parseStream(t.Context(), t, strings.NewReader(partialChunk+tail))
+			require.NoError(t, err)
+			assert.Equal(t, "partial", resp.Choices[0].Message.Content)
+		})
+	}
+}
+
+func TestAnErrorTheProviderSendsInsideTheStreamIsAnError(t *testing.T) {
+	t.Parallel()
+
+	for name, tail := range map[string]string{
+		"error event":  `data: {"error":{"message":"upstream overloaded","type":"server_error","code":529}}` + "\n\ndata: [DONE]\n\n",
+		"error finish": `data: {"choices":[{"index":0,"delta":{},"finish_reason":"error"}]}` + "\n\ndata: [DONE]\n\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			resp, err := parseStream(t.Context(), t, strings.NewReader(partialChunk+tail))
+			require.ErrorIs(t, err, llms.ErrStreamFailed)
+			require.NotNil(t, resp)
+			assert.Equal(t, "partial", resp.Choices[0].Message.Content)
+		})
+	}
+}
+
+func TestAnErrorEventCarriesTheProvidersMessage(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseStream(t.Context(), t, strings.NewReader(partialChunk+
+		`data: {"error":{"message":"upstream overloaded","type":"server_error","code":529}}`+"\n\n"))
+
+	require.ErrorIs(t, err, llms.ErrStreamFailed)
+	assert.Contains(t, err.Error(), "upstream overloaded")
+}
+
+type blockingBody struct {
+	ctx    context.Context
+	chunks []string
+}
+
+func (b *blockingBody) Read(p []byte) (int, error) {
+	if len(b.chunks) > 0 {
+		n := copy(p, b.chunks[0])
+		b.chunks[0] = b.chunks[0][n:]
+		if b.chunks[0] == "" {
+			b.chunks = b.chunks[1:]
+		}
+		return n, nil
+	}
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
+}
+
+func TestAStreamCutByTheContextIsAnErrorEveryTime(t *testing.T) {
+	t.Parallel()
+
+	for name, cause := range map[string]error{
+		"deadline": context.DeadlineExceeded,
+		"cancel":   context.Canceled,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			for range 100 {
+				var (
+					ctx    context.Context
+					cancel context.CancelFunc
+				)
+				if cause == context.DeadlineExceeded {
+					ctx, cancel = context.WithTimeout(t.Context(), 5*time.Millisecond)
+				} else {
+					ctx, cancel = context.WithCancel(t.Context())
+					time.AfterFunc(5*time.Millisecond, cancel)
+				}
+				resp, err := parseStream(ctx, t, &blockingBody{ctx: ctx, chunks: []string{partialChunk}})
+				cancel()
+
+				require.ErrorIs(t, err, llms.ErrIncompleteStream)
+				require.ErrorIs(t, err, cause)
+				require.NotNil(t, resp)
+				require.Equal(t, "partial", resp.Choices[0].Message.Content)
+			}
+		})
+	}
+}

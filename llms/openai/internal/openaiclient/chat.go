@@ -554,6 +554,7 @@ const (
 	FinishReasonToolCalls     FinishReason = "tool_calls"
 	FinishReasonContentFilter FinishReason = "content_filter"
 	FinishReasonNull          FinishReason = "null"
+	FinishReasonError         FinishReason = "error"
 )
 
 func (r FinishReason) MarshalJSON() ([]byte, error) {
@@ -687,8 +688,20 @@ type StreamedChatResponsePayload struct {
 	// An optional field that will only be present when you set stream_options: {"include_usage": true} in your request.
 	// When present, it contains a null value except for the last chunk which contains the token usage statistics
 	// for the entire request.
-	Usage *Usage `json:"usage,omitempty"`
-	Error error  `json:"-"` // use for error handling only
+	Usage      *Usage            `json:"usage,omitempty"`
+	ErrorEvent *streamErrorEvent `json:"error,omitempty"`
+	Error      error             `json:"-"` // use for error handling only
+	final      bool
+}
+
+type streamErrorEvent struct {
+	Message string `json:"message"`
+	Type    string `json:"type"`
+	Code    any    `json:"code"`
+}
+
+func (e *streamErrorEvent) asError() error {
+	return fmt.Errorf("%w: %s (type %q, code %v)", llms.ErrStreamFailed, e.Message, e.Type, e.Code)
 }
 
 // FunctionDefinition is a definition of a function that can be called by the model.
@@ -900,6 +913,10 @@ func parseStreamingChatResponse(
 			data := strings.TrimPrefix(line, "data:") // here use `data:` instead of `data: ` for compatibility
 			data = strings.TrimSpace(data)
 			if data == "[DONE]" {
+				select {
+				case <-producerCtx.Done():
+				case responseChan <- StreamedChatResponsePayload{final: true}:
+				}
 				return
 			}
 			if !looksLikeJSONObject(data) {
@@ -913,6 +930,9 @@ func parseStreamingChatResponse(
 				// This could happen if the data field contains non-JSON content
 				continue
 			}
+			if streamPayload.ErrorEvent != nil {
+				streamPayload.Error = streamPayload.ErrorEvent.asError()
+			}
 
 			// Non-blocking send with context check
 			select {
@@ -920,12 +940,15 @@ func parseStreamingChatResponse(
 				return
 			case responseChan <- streamPayload:
 			}
+			if streamPayload.Error != nil {
+				return
+			}
 		}
 		if err := scanner.Err(); err != nil {
 			select {
 			case <-producerCtx.Done():
 				return
-			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("error reading streaming response: %w", err)}:
+			case responseChan <- StreamedChatResponsePayload{Error: fmt.Errorf("%w: error reading streaming response: %w", llms.ErrIncompleteStream, err)}:
 			}
 			return
 		}
@@ -957,10 +980,17 @@ func combineStreamingChatResponse(
 		toolCallNameCache = make(map[string]string) // Cache tool call names by ID for streaming
 	)
 
-	var streamErr error
+	var (
+		streamErr error
+		completed bool
+	)
 
 DoStream:
 	for streamResponse := range responseChan {
+		if streamResponse.final {
+			completed = true
+			continue
+		}
 		if streamResponse.Error != nil {
 			streamErr = streamResponse.Error
 			break DoStream
@@ -1037,7 +1067,30 @@ DoStream:
 
 	removeEmptyToolCalls(&response)
 
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, completed, &response)
+	}
+
 	return &response, streamErr
+}
+
+func streamEndError(ctx context.Context, completed bool, response *ChatCompletionResponse) error {
+	finished := len(response.Choices) > 0
+	for _, choice := range response.Choices {
+		if choice.FinishReason == FinishReasonError {
+			return fmt.Errorf("%w: finish_reason %q", llms.ErrStreamFailed, choice.FinishReason)
+		}
+		if choice.FinishReason == "" || choice.FinishReason == FinishReasonNull {
+			finished = false
+		}
+	}
+	if completed || finished {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%w: %w", llms.ErrIncompleteStream, err)
+	}
+	return llms.ErrIncompleteStream
 }
 
 // streamedText collects one choice's text across deltas.
