@@ -784,7 +784,6 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 	return nil, 0
 }
 
-// processResponse processes the OpenAI API response into a ContentResponse.
 func (o *LLM) partialWithTruncation(
 	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings, opts llms.CallOptions, cause error,
 ) (*llms.ContentResponse, error) {

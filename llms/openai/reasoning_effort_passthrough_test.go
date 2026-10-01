@@ -69,8 +69,6 @@ func TestReasoningEffortPassthroughToWire(t *testing.T) {
 	}
 }
 
-// WithAdaptiveReasoning with no explicit effort must not silently disable
-// reasoning here: it defaults to high, matching the Anthropic/Bedrock paths.
 func TestAdaptiveReasoningWithNoEffortSendsNoEffort(t *testing.T) {
 	t.Parallel()
 

@@ -761,8 +761,6 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 	}, nil
 }
 
-// converseToolChoice carries the caller's choice to the wire. An unset or
-// unrecognized choice leaves the decision to the model.
 func carriesToolBlocks(messages []types.Message) bool {
 	for _, message := range messages {
 		for _, block := range message.Content {

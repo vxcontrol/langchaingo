@@ -59,7 +59,6 @@ func (s samplingSnapshot) report(req *openaiclient.ChatRequest, model, reason st
 	}
 }
 
-// addNonZeroChange is for options whose zero asks for nothing — unlike temperature.
 const refusedByEndpoint = "the endpoint refuses the whole request when this field is present"
 
 func addNonZeroChange(warn *llms.Warnings, option, model, reason string, before, after *float64) {

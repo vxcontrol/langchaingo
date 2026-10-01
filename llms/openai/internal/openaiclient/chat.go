@@ -639,9 +639,8 @@ type StreamedChatResponseChunkDelta struct {
 	Content      string        `json:"content,omitempty"`
 	FunctionCall *FunctionCall `json:"function_call,omitempty"`
 	// ToolCalls is a list of tools that were called in the message.
-	ToolCalls []*StreamedToolCall `json:"tool_calls,omitempty"`
-	// This field is only used with the deepseek-reasoner model and represents the reasoning contents of the assistant message before the final answer.
-	ReasoningContent string `json:"reasoning_content,omitempty"`
+	ToolCalls        []*StreamedToolCall `json:"tool_calls,omitempty"`
+	ReasoningContent string              `json:"reasoning_content,omitempty"`
 	// Fallback field for reasoning content (it depends on the model and the provider)
 	Reasoning string `json:"reasoning,omitempty"`
 	// Refusal streams in when the model declines under Structured Outputs; it must
