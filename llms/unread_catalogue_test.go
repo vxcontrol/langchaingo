@@ -1,6 +1,7 @@
 package llms_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,77 +9,84 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-func everyCatalogueOption() []llms.CallOption {
-	return []llms.CallOption{
-		llms.WithMinP(0.05), llms.WithRepetitionPenalty(1.1),
-		llms.WithFrequencyPenalty(0.3), llms.WithPresencePenalty(0.7),
-		llms.WithTopK(40), llms.WithN(2), llms.WithCandidateCount(3),
-		llms.WithTopLogProbs(5), llms.WithMinLength(10), llms.WithMaxLength(20),
-		llms.WithSeed(7), llms.WithVerbosity("low"),
-		llms.WithResponseMIMEType("application/json"),
-		llms.WithLogProbs(true), llms.WithJSONMode(), llms.WithInferenceSpeed("fast"),
+var optionsEveryDoorHandles = map[string]bool{
+	"Model": true, "MaxTokens": true, "Temperature": true, "StopWords": true, "StreamingFunc": true,
+	"TopP": true, "Reasoning": true, "FailOnTruncation": true, "StructuredOutput": true,
+	"Tools": true, "ToolChoice": true, "Functions": true, "FunctionCallBehavior": true,
+	"ExtraBody": true, "Metadata": true, "Voice": true, "Speed": true, "ResponseFormat": true,
+	"WebSearchOptions": true,
+}
+
+func setAsked(t *testing.T, field reflect.Value, name string) {
+	t.Helper()
+
+	switch field.Interface().(type) {
+	case *float64:
+		field.Set(reflect.ValueOf(new(0.5)))
+	case *int:
+		field.Set(reflect.ValueOf(new(7)))
+	case *string:
+		field.Set(reflect.ValueOf(new("asked")))
+	case *bool:
+		field.Set(reflect.ValueOf(new(true)))
+	case bool:
+		field.SetBool(true)
+	default:
+		t.Fatalf("CallOptions.%s is neither in the unread catalogue nor among the options every door handles", name)
 	}
 }
 
-var catalogueOptionNames = []string{
-	"WithMinP", "WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
-	"WithTopK", "WithN", "WithCandidateCount", "WithTopLogProbs",
-	"WithMinLength", "WithMaxLength", "WithSeed", "WithVerbosity",
-	"WithResponseMIMEType", "WithLogProbs", "WithJSONMode", "WithInferenceSpeed",
+func catalogueOptions(t *testing.T) []reflect.StructField {
+	t.Helper()
+
+	var fields []reflect.StructField
+	for _, field := range reflect.VisibleFields(reflect.TypeFor[llms.CallOptions]()) {
+		if !optionsEveryDoorHandles[field.Name] {
+			fields = append(fields, field)
+		}
+	}
+	require.NotEmpty(t, fields)
+	return fields
+}
+
+func TestEveryCallOptionIsReportedByTheUnreadCatalogueOrHandledByEveryDoor(t *testing.T) {
+	t.Parallel()
+
+	for _, field := range catalogueOptions(t) {
+		opts := llms.CallOptions{}
+		setAsked(t, reflect.ValueOf(&opts).Elem().FieldByIndex(field.Index), field.Name)
+
+		var warn llms.Warnings
+		warn.AddUnreadOptions("m", opts, "no field")
+
+		reported := warn.List()
+		require.Len(t, reported, 1, "a door that leaves CallOptions.%s off the wire must say so", field.Name)
+		require.Equal(t, "With"+field.Name, reported[0].Option)
+		require.Equal(t, llms.WarningDrop, reported[0].Kind)
+		require.NotEmpty(t, reported[0].Asked, "%s reported without the value asked", field.Name)
+	}
 }
 
 func TestTheUnreadCatalogueReportsEveryOptionADoorDoesNotCarry(t *testing.T) {
 	t.Parallel()
 
 	opts := llms.CallOptions{}
-	for _, apply := range everyCatalogueOption() {
-		apply(&opts)
+	var want []string
+	for _, field := range catalogueOptions(t) {
+		setAsked(t, reflect.ValueOf(&opts).Elem().FieldByIndex(field.Index), field.Name)
+		if field.Name != "Seed" && field.Name != "TopK" {
+			want = append(want, "With"+field.Name)
+		}
 	}
 
 	var warn llms.Warnings
 	warn.AddUnreadOptions("m", opts, "no field", "WithSeed", "WithTopK")
 
-	reported := make(map[string]llms.Warning, len(catalogueOptionNames))
-	for _, w := range warn.List() {
-		reported[w.Option] = w
-	}
-	for _, option := range catalogueOptionNames {
-		switch option {
-		case "WithSeed", "WithTopK":
-			require.NotContains(t, reported, option, "the door carries it")
-		default:
-			w, ok := reported[option]
-			require.True(t, ok, "%s went unreported", option)
-			require.Equal(t, llms.WarningDrop, w.Kind)
-			require.NotEmpty(t, w.Asked, "%s reported without the value asked", option)
-		}
-	}
-}
-
-func TestADoorThatCarriesNothingReportsTheWholeCatalogue(t *testing.T) {
-	t.Parallel()
-
-	opts := llms.CallOptions{}
-	for _, apply := range everyCatalogueOption() {
-		apply(&opts)
-	}
-	for _, apply := range []llms.CallOption{
-		llms.WithTemperature(0.4), llms.WithTopP(0.9), llms.WithMaxTokens(1024),
-		llms.WithStopWords([]string{"stop"}),
-	} {
-		apply(&opts)
-	}
-
-	var warn llms.Warnings
-	warn.AddUnreadOptions("m", opts, "no field")
-
-	reported := make([]string, 0, len(catalogueOptionNames))
+	reported := make([]string, 0, len(want))
 	for _, w := range warn.List() {
 		reported = append(reported, w.Option)
 	}
-	require.ElementsMatch(t, catalogueOptionNames, reported,
-		"the catalogue holds the options a door carries verbatim or not at all; "+
-			"an option the door reshapes is reported with the value that travelled")
+	require.ElementsMatch(t, want, reported)
 }
 
 func TestAnExplicitZeroSeedIsReportedNotSwallowed(t *testing.T) {
