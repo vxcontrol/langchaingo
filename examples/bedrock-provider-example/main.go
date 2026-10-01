@@ -12,7 +12,7 @@ import (
 
 func main() {
 	var (
-		modelID   = flag.String("model", "amazon.titan-text-lite-v1", "Model ID to use")
+		modelID   = flag.String("model", "amazon.nova-lite-v1:0", "Model ID to use")
 		provider  = flag.String("provider", "", "Explicit provider (optional)")
 		prompt    = flag.String("prompt", "Say hello in one word", "Prompt to send")
 		awsRegion = flag.String("region", "us-east-1", "AWS region")

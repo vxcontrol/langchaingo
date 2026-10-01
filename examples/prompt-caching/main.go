@@ -145,7 +145,7 @@ When answering questions, consider these patterns and provide specific, actionab
 		}
 
 		resp, err := llm.GenerateContent(ctx, messages,
-			llms.WithMaxTokens(200),
+			llms.WithMaxTokens(4096),
 			anthropic.WithPromptCaching(), // Enable prompt caching beta feature
 		)
 

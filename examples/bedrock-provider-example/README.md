@@ -17,11 +17,8 @@ This example demonstrates how to use the Bedrock LLM with different model provid
 ## Usage
 
 ```bash
-# Using default Titan model
+# Using the default Nova Lite model
 go run main.go
-
-# Using Nova model
-go run main.go -model "amazon.nova-lite-v1:0"
 
 # Using inference profile
 go run main.go -model "us.amazon.nova-lite-v1:0"
