@@ -238,7 +238,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 	}
 
-	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) {
+	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) && len(opts.Tools) > 0 {
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
 	if err := llms.CheckForcedToolUse(model, *opts); err != nil {

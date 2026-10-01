@@ -1225,6 +1225,19 @@ func TestAnthropic_ForcedToolChoiceWithBudgetThinking(t *testing.T) {
 		require.Equal(t, int32(1), hits.Load())
 	})
 
+	t.Run("budget thinking with a forced choice and no tools goes out", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-4-5")
+		_, err := llm.GenerateContent(t.Context(), messages,
+			llms.WithReasoning(llms.ReasoningMedium, 0),
+			llms.WithToolChoice(map[string]any{"type": "any"}),
+		)
+
+		require.NoError(t, err, "with no tools the choice never reaches the wire")
+		require.Equal(t, int32(1), hits.Load())
+	})
+
 	t.Run("budget thinking allows auto", func(t *testing.T) {
 		t.Parallel()
 

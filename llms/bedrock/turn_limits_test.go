@@ -10,6 +10,11 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
+var turnLimitTools = llms.WithTools([]llms.Tool{{
+	Type:     "function",
+	Function: &llms.FunctionDefinition{Name: "calc", Parameters: map[string]any{"type": "object"}},
+}})
+
 func turnLimitMessages(last llms.ChatMessageType) []llms.MessageContent {
 	msgs := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
 	if last == llms.ChatMessageTypeAI {
@@ -46,7 +51,7 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}, opts...)...)
 			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
 				llms.WithReasoning(llms.ReasoningMedium, 2048),
-				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+				turnLimitTools, llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
 			var target *reasoning.ErrForcedToolUseWithThinking
 			if !errors.As(err, &target) {
 				t.Errorf("want ErrForcedToolUseWithThinking, got %v", err)
@@ -59,10 +64,23 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-opus-4-6-v1:0")}, opts...)...)
 			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
 				llms.WithReasoning(llms.ReasoningMedium, 2048),
-				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+				turnLimitTools, llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
 			var target *reasoning.ErrForcedToolUseWithThinking
 			if !errors.As(err, &target) {
 				t.Errorf("this door sends the budget itself, so the rule holds even off a budget-only generation: %v", err)
+			}
+		})
+
+		t.Run(name+"/a forced choice with manual thinking and no tools goes out", func(t *testing.T) {
+			t.Parallel()
+			llm := truncationLLMWithBody(t, `{}`,
+				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}, opts...)...)
+			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
+				llms.WithReasoning(llms.ReasoningMedium, 2048),
+				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+			var target *reasoning.ErrForcedToolUseWithThinking
+			if errors.As(err, &target) {
+				t.Errorf("with no tools the choice never reaches the wire, so nothing is refused: %v", err)
 			}
 		})
 
