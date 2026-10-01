@@ -196,9 +196,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			maxTokens = *input.MaxTokens
 		}
 		setAdaptive := func() {
-			effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "adaptive", Display: "summarized"}
-			additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
+			if !input.ReasoningConfig.DelegatesDepth() {
+				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
+				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
+			}
 			// Adaptive models reject sampling params.
 			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = nil

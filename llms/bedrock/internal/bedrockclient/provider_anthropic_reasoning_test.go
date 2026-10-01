@@ -76,7 +76,7 @@ func TestApplyAnthropicReasoning_AdaptiveOnPreAdaptiveModelIsGated(t *testing.T)
 	assert.Nil(t, input.Thinking, "pre-adaptive model must not receive adaptive thinking")
 }
 
-func TestApplyAnthropicReasoning_AdaptiveEmptyEffortDefaultsToHigh(t *testing.T) {
+func TestApplyAnthropicReasoning_AdaptiveWithoutAnEffortLeavesTheDepthToTheVendor(t *testing.T) {
 	t.Parallel()
 
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
@@ -84,8 +84,9 @@ func TestApplyAnthropicReasoning_AdaptiveEmptyEffortDefaultsToHigh(t *testing.T)
 		&llms.ReasoningConfig{Adaptive: true},
 		"anthropic.claude-opus-4-7-v1:0", 2048)
 
-	require.NotNil(t, input.OutputConfig)
-	assert.Equal(t, "high", input.OutputConfig.Effort)
+	require.NotNil(t, input.Thinking)
+	assert.Equal(t, "adaptive", input.Thinking.Type)
+	assert.Nil(t, input.OutputConfig)
 }
 
 func TestApplyAnthropicReasoning_NoBudgetEffortForOpus45OnBedrock(t *testing.T) {

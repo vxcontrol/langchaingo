@@ -842,16 +842,18 @@ func TestAnthropic_AdaptiveThinkingRequest(t *testing.T) {
 		assert.False(t, hasTopP, "adaptive must omit top_p even when WithTopP is set")
 	})
 
-	t.Run("empty adaptive effort defaults to high", func(t *testing.T) {
+	t.Run("an adaptive call without an effort leaves the depth to the vendor", func(t *testing.T) {
 		t.Parallel()
 
-		payload, _ := captureMessagesRequest(t,
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-5-5",
 			llms.WithAdaptiveReasoning(llms.ReasoningNone),
 			llms.WithMaxTokens(4096),
 		)
 
+		thinking, _ := payload["thinking"].(map[string]any)
+		assert.Equal(t, "adaptive", thinking["type"])
 		outputConfig, _ := payload["output_config"].(map[string]any)
-		assert.Equal(t, "high", outputConfig["effort"])
+		assert.NotContains(t, outputConfig, "effort")
 	})
 
 	t.Run("xhigh flows through where the generation takes it", func(t *testing.T) {

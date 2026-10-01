@@ -865,7 +865,9 @@ func applyAnthropicReasoning(
 
 	setAdaptive := func() {
 		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
-		input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
+		if !cfg.DelegatesDepth() {
+			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
+		}
 		input.Temperature = 0
 		input.TopP = 0
 		input.TopK = 0

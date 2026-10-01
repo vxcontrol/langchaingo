@@ -203,8 +203,10 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 				Type:    "adaptive",
 				Display: "summarized",
 			}
-			outputConfig = &anthropicclient.OutputConfig{
-				Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+			if !opts.Reasoning.DelegatesDepth() {
+				outputConfig = &anthropicclient.OutputConfig{
+					Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+				}
 			}
 		} else if budget := reasoning.ClaudeClampBudget(model,
 			opts.Reasoning.GetTokens(opts.GetMaxTokens())); budget > 0 {

@@ -69,3 +69,27 @@ func TestTheLegacyNovaDelegationSendsNoLimitTheCallerDidNotSet(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(body), "reasoningConfig", "a Nova that does not reason gets no reasoning config")
 }
+
+func TestClaudeOnConverseLeavesADelegatedDepthToTheVendor(t *testing.T) {
+	t.Parallel()
+
+	client := NewConverseClient(nil)
+	for effort, want := range map[llms.ReasoningEffort]string{
+		llms.ReasoningNone: "",
+		llms.ReasoningLow:  `"output_config":{"effort":"low"}`,
+	} {
+		built, err := client.buildConverseInput(converseFieldsFor(t, "us.anthropic.claude-sonnet-5-5",
+			&llms.ReasoningConfig{Adaptive: true, Effort: effort}))
+		require.NoError(t, err)
+
+		require.NotNil(t, built.AdditionalModelRequestFields)
+		raw, err := built.AdditionalModelRequestFields.MarshalSmithyDocument()
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"thinking":{"type":"adaptive"`)
+		if want == "" {
+			assert.NotContains(t, string(raw), "effort", "an adaptive call without an effort leaves the depth to the vendor")
+		} else {
+			assert.Contains(t, string(raw), want)
+		}
+	}
+}
