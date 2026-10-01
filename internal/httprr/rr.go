@@ -1176,7 +1176,7 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 	return []func(*bytes.Buffer) error{
 		func(buf *bytes.Buffer) error {
 			// Parse the response from the buffer
-			resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(buf.Bytes())), nil)
+			resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(bytes.Clone(buf.Bytes()))), nil)
 			if err != nil {
 				return nil // Ignore parse errors, just return the buffer as-is
 			}
