@@ -22,6 +22,13 @@ func TestAChainStoredByEarlierBuildsStillReads(t *testing.T) {
 				{"type":"tool_call","tool_call":{"id":"c1","type":"function","function":{"name":"f","arguments":"{}"},"reasoning":{"redacted":"cmVk"}}}
 			]}
 		]`,
+		"encrypted thought under the key update.2 wrote": `[
+			{"role":"human","text":"hi"},
+			{"role":"ai","parts":[
+				{"type":"text","text":"x","reasoning":{"content":"t","signature":"c2ln","redacted_content":"cmVk"}},
+				{"type":"tool_call","tool_call":{"id":"c1","type":"function","function":{"name":"f","arguments":"{}"},"reasoning":{"redacted_content":"cmVk"}}}
+			]}
+		]`,
 		"encrypted thoughts as an array": `[
 			{"role":"human","text":"hi"},
 			{"role":"ai","parts":[
