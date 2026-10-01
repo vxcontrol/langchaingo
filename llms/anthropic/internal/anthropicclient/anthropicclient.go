@@ -103,6 +103,9 @@ func New(token string, model string, baseURL string, opts ...Option) (*Client, e
 			return nil, err
 		}
 	}
+	if c.baseURL == "" {
+		c.baseURL = DefaultBaseURL
+	}
 
 	return c, nil
 }
@@ -245,10 +248,6 @@ func (c *Client) doWithHeaders(ctx context.Context, path string, payloadBytes []
 func (c *Client) request(
 	ctx context.Context, method, path string, body io.Reader, betaHeaders []string,
 ) (*http.Response, error) {
-	if c.baseURL == "" {
-		c.baseURL = DefaultBaseURL
-	}
-
 	url := c.baseURL + path
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)

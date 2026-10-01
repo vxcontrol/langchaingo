@@ -157,12 +157,7 @@ func (f *federatedAuth) exchange(ctx context.Context, assertion string) (string,
 		return "", 0, fmt.Errorf("marshal token exchange: %w", err)
 	}
 
-	base := f.client.baseURL
-	if base == "" {
-		base = DefaultBaseURL
-	}
-
-	url := base + tokenExchangePath
+	url := f.client.baseURL + tokenExchangePath
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return "", 0, fmt.Errorf("create token exchange request: %w", err)
