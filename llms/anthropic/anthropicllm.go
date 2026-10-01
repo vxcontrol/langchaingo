@@ -478,6 +478,18 @@ func toolsToTools(tools []llms.Tool) []anthropicclient.Tool {
 	return toolReq
 }
 
+func imageSource(url string) (anthropicclient.ImageSource, error) {
+	if data, mediaType, err := parseBase64URI(url); err == nil {
+		return anthropicclient.ImageSource{Type: "base64", MediaType: mediaType, Data: data}, nil
+	}
+	lower := strings.ToLower(url)
+	if strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://") {
+		return anthropicclient.ImageSource{Type: "url", URL: url}, nil
+	}
+	return anthropicclient.ImageSource{}, fmt.Errorf("%w: image URL is neither base64 data nor http(s)",
+		ErrUnsupportedContentType)
+}
+
 // parseBase64URI returns values data, media type from a base64 URI and error if invalid.
 func parseBase64URI(uri string) (string, string, error) {
 	re := regexp.MustCompile(`^data:(.*?);base64,(.*)$`)
@@ -806,18 +818,11 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 				},
 			})
 		case llms.ImageURLContent:
-			data, mediaType, err := parseBase64URI(p.URL)
+			source, err := imageSource(p.URL)
 			if err != nil {
 				return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for human message", err)
 			}
-			contents = append(contents, anthropicclient.ImageContent{
-				Type: "image",
-				Source: anthropicclient.ImageSource{
-					Type:      "base64",
-					MediaType: mediaType,
-					Data:      data,
-				},
-			})
+			contents = append(contents, anthropicclient.ImageContent{Type: "image", Source: source})
 		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: unsupported human message part type: %T", part)
 		}
