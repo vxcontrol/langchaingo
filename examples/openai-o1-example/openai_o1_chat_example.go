@@ -12,7 +12,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/openai"
 )
 
-var flagModel = flag.String("model", "o1-preview", "model to use (e.g. 'o1-preview', 'o1-mini')")
+var flagModel = flag.String("model", "gpt-5.6-sol", "model to use (e.g. 'gpt-5.6-sol', 'gpt-5.6-terra')")
 
 func main() {
 	flag.Parse()

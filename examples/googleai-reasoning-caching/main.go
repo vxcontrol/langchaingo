@@ -39,16 +39,16 @@ func demonstrateReasoning(ctx context.Context, apiKey string) {
 	fmt.Println("Part 1: Reasoning Support")
 	fmt.Println(strings.Repeat("-", 40))
 
-	// Create client with Gemini 2.0 Flash (supports reasoning)
+	// Create client with Gemini 3.8 Flash (supports reasoning)
 	client, err := googleai.New(ctx,
 		googleai.WithAPIKey(apiKey),
-		googleai.WithDefaultModel("gemini-2.0-flash"),
+		googleai.WithDefaultModel("gemini-3.8-flash"),
 	)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
 	// Check if model supports reasoning
-	fmt.Printf("Model supports reasoning: %v\n", reasoning.IsReasoningModel("gemini-2.5-flash"))
+	fmt.Printf("Model supports reasoning: %v\n", reasoning.IsReasoningModel("gemini-3.8-flash"))
 
 	// Test with a complex reasoning problem
 	messages := []llms.MessageContent{
@@ -112,10 +112,10 @@ func createCachedContent(ctx context.Context, helper *googleai.CachingHelper) st
 	- Goroutine safety and concurrency
 	- Memory efficiency
 	- Code readability and maintainability
-	` + strings.Repeat("Always write clean, efficient, and well-documented code. ", 50)
+	` + strings.Repeat("Always write clean, efficient, and well-documented code. ", 400)
 
 	fmt.Println("Creating cached content...")
-	cached, err := helper.CreateCachedContent(ctx, "gemini-2.0-flash",
+	cached, err := helper.CreateCachedContent(ctx, "gemini-3.8-flash",
 		[]llms.MessageContent{
 			{
 				Role: llms.ChatMessageTypeSystem,

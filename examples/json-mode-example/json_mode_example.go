@@ -42,9 +42,9 @@ func initBackend(ctx context.Context) (llms.Model, error) {
 	case "ollama":
 		return ollama.New(ollama.WithModel("mistral"))
 	case "anthropic":
-		return anthropic.New(anthropic.WithModel("claude-sonnet-4-5"))
+		return anthropic.New(anthropic.WithModel("claude-sonnet-5-5"))
 	case "googleai":
-		return googleai.New(ctx, googleai.WithDefaultModel("gemini-1.5-flash"))
+		return googleai.New(ctx, googleai.WithDefaultModel("gemini-3.8-flash"))
 	default:
 		return nil, fmt.Errorf("unknown backend: %s", *flagBackend)
 	}

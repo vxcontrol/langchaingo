@@ -26,13 +26,13 @@ func main() {
 	}
 
 	// Initialize Anthropic client
-	llm, err := anthropic.New(anthropic.WithModel("claude-3-5-sonnet-20241022"))
+	llm, err := anthropic.New(anthropic.WithModel("claude-sonnet-5-5"))
 	if err != nil {
 		fmt.Printf("Error initializing Anthropic: %v\n", err)
 		return
 	}
 
-	// Large context that will be cached (minimum 1024 tokens for caching)
+	// Large context that will be cached (the minimum cacheable length depends on the model)
 	largeContext := `You are an expert software architect with deep knowledge of system design patterns.
 
 ## System Design Patterns Reference

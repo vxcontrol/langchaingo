@@ -13,8 +13,8 @@ import (
 func main() {
 	ctx := context.Background()
 
-	fmt.Println("=== Claude 3.7+ Extended Capabilities Demo ===")
-	fmt.Println("Demonstrating combined extended thinking + 128K output")
+	fmt.Println("=== Claude Extended Capabilities Demo ===")
+	fmt.Println("Demonstrating extended thinking with a long answer")
 	fmt.Println()
 
 	// Complex prompt that benefits from both extended thinking and long output
@@ -41,9 +41,8 @@ who want to deeply understand distributed systems architecture.`
 		return
 	}
 
-	// Initialize Claude 3.7 with extended capabilities
 	llm, err := anthropic.New(
-		anthropic.WithModel("claude-3-7-sonnet-20250219"),
+		anthropic.WithModel("claude-sonnet-5-5"),
 	)
 	if err != nil {
 		fmt.Printf("Error initializing Anthropic: %v\n", err)
@@ -57,22 +56,18 @@ who want to deeply understand distributed systems architecture.`
 		},
 	}
 
-	// Configure with both extended thinking AND extended output
 	opts := []llms.CallOption{
 		// Enable extended thinking for complex reasoning
-		llms.WithReasoning(llms.ReasoningHigh, 32000),
-		// Enable 128K output for comprehensive response
-		anthropic.WithExtendedOutput(),
-		// Set high token limit to utilize extended output
-		llms.WithMaxTokens(50000), // Can go up to 128K
+		llms.WithReasoning(llms.ReasoningHigh, 16000),
+		// Leave room for a long answer after the thinking
+		llms.WithMaxTokens(32000),
 		// Temperature must be 1 when thinking is enabled
 		llms.WithTemperature(1.0),
 	}
 
 	fmt.Println("Generating comprehensive guide with:")
 	fmt.Println("  • Extended thinking (HIGH mode)")
-	fmt.Println("  • Extended output (up to 128K tokens)")
-	fmt.Println("  • Max tokens set to 50,000")
+	fmt.Println("  • Max tokens set to 32,000")
 	fmt.Println()
 	fmt.Print("Processing (this may take a while)... ")
 
@@ -140,18 +135,13 @@ who want to deeply understand distributed systems architecture.`
 			}
 		}
 
-		// Highlight extended output usage
-		if outputTokens > 8192 {
-			fmt.Printf("\n✅ Extended Output Active: Generated %d tokens (standard limit is 8192)\n", outputTokens)
-		}
 	}
 
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("Demo complete!")
 	fmt.Println("\nKey Features Demonstrated:")
 	fmt.Println("• Extended thinking for complex reasoning about distributed systems")
-	fmt.Println("• Extended output allowing comprehensive, detailed responses")
-	fmt.Println("• Combined capabilities working together seamlessly")
+	fmt.Println("• A long, detailed answer in a single response")
 
 	// Optionally save full response to file
 	if contentLen > 10000 {

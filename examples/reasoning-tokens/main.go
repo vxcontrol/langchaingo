@@ -25,31 +25,31 @@ The boat can only carry the farmer and one item at a time.
 If left alone, the fox will eat the chicken, and the chicken will eat the grain. 
 How can the farmer get everything across safely? Think through this step-by-step.`
 
-	// Test with OpenAI o1-mini (reasoning model)
+	// Test with OpenAI GPT-5.6 Sol (reasoning model)
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		fmt.Println(strings.Repeat("=", 60))
-		fmt.Println("OpenAI o1-mini (Reasoning Model)")
+		fmt.Println("OpenAI GPT-5.6 Sol (Reasoning Model)")
 		fmt.Println(strings.Repeat("=", 60))
 
-		llm, err := openai.New(openai.WithModel("o1-mini"))
+		llm, err := openai.New(openai.WithModel("gpt-5.6-sol"))
 		if err != nil {
 			fmt.Printf("Error initializing OpenAI: %v\n\n", err)
 		} else {
-			testReasoning(ctx, llm, "o1-mini", prompt, true)
+			testReasoning(ctx, llm, "gpt-5.6-sol", prompt, true)
 		}
 	}
 
-	// Test with Anthropic Claude 3.7 (supports extended thinking)
+	// Test with Anthropic Claude Sonnet 5.5 (adaptive thinking)
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		fmt.Println(strings.Repeat("=", 60))
-		fmt.Println("Anthropic Claude 3.7 Sonnet (Extended Thinking)")
+		fmt.Println("Anthropic Claude Sonnet 5.5 (Adaptive Thinking)")
 		fmt.Println(strings.Repeat("=", 60))
 
-		llm, err := anthropic.New(anthropic.WithModel("claude-3-7-sonnet-20250219"))
+		llm, err := anthropic.New(anthropic.WithModel("claude-sonnet-5-5"))
 		if err != nil {
 			fmt.Printf("Error initializing Anthropic: %v\n\n", err)
 		} else {
-			testReasoning(ctx, llm, "claude-3-7-sonnet-20250219", prompt, true)
+			testReasoning(ctx, llm, "claude-sonnet-5-5", prompt, true)
 		}
 	}
 
@@ -59,22 +59,22 @@ How can the farmer get everything across safely? Think through this step-by-step
 	fmt.Println(strings.Repeat("=", 60))
 
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
-		fmt.Println("\n--- OpenAI GPT-4 Turbo ---")
-		llm, err := openai.New(openai.WithModel("gpt-4-turbo-preview"))
+		fmt.Println("\n--- OpenAI GPT-4.1 ---")
+		llm, err := openai.New(openai.WithModel("gpt-4.1"))
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
-			testReasoning(ctx, llm, "gpt-4-turbo-preview", prompt, false)
+			testReasoning(ctx, llm, "gpt-4.1", prompt, false)
 		}
 	}
 
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
-		fmt.Println("\n--- Anthropic Claude 3 Sonnet ---")
-		llm, err := anthropic.New(anthropic.WithModel("claude-3-sonnet-20240229"))
+		fmt.Println("\n--- Anthropic Claude Haiku 4.5 ---")
+		llm, err := anthropic.New(anthropic.WithModel("claude-haiku-4-5"))
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 		} else {
-			testReasoning(ctx, llm, "claude-3-sonnet-20240229", prompt, false)
+			testReasoning(ctx, llm, "claude-haiku-4-5", prompt, false)
 		}
 	}
 
@@ -109,7 +109,7 @@ func testReasoning(ctx context.Context, llm llms.Model, modelName string, prompt
 		llms.WithMaxTokens(6000),
 	}
 
-	if supportsReasoning {
+	if supportsReasoning && expectReasoning {
 		// Use high thinking mode for complex reasoning
 		opts = append(opts, llms.WithReasoning(llms.ReasoningHigh, 4000))
 		fmt.Println("Thinking Mode: HIGH (maximum reasoning depth)")

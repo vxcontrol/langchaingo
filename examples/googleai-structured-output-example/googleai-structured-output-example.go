@@ -26,7 +26,7 @@ func main() {
 	apiKey := os.Getenv("GOOGLE_API_KEY")
 	llm, err := googleai.New(ctx,
 		googleai.WithAPIKey(apiKey),
-		googleai.WithDefaultModel("gemini-2.5-flash"),
+		googleai.WithDefaultModel("gemini-3.8-flash"),
 	)
 	if err != nil {
 		log.Fatal(err)

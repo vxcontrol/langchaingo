@@ -83,7 +83,7 @@ When reviewing code or answering questions, always:
 	fmt.Println("Creating cached content (this may take a moment)...")
 	cached, err := helper.CreateCachedContent(
 		ctx,
-		"gemini-2.5-pro",
+		"gemini-3.8-flash",
 		[]llms.MessageContent{
 			{
 				Role: llms.ChatMessageTypeSystem,
@@ -120,7 +120,7 @@ When reviewing code or answering questions, always:
 	fmt.Println("Making request with cached content...")
 	client, err := googleai.New(ctx,
 		googleai.WithAPIKey(apiKey),
-		googleai.WithDefaultModel("gemini-2.5-pro"), // Must match cached content model
+		googleai.WithDefaultModel("gemini-3.8-flash"), // Must match cached content model
 	)
 	if err != nil {
 		log.Fatal(err)

@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	llm, err := anthropic.New(anthropic.WithModel("claude-3-haiku-20240307"))
+	llm, err := anthropic.New(anthropic.WithModel("claude-haiku-4-5"))
 	if err != nil {
 		log.Fatal(err)
 	}
