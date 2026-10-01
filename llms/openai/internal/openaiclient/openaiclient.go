@@ -243,12 +243,12 @@ func sanitizeHTTPError(err error) error {
 
 	// Check for context deadline exceeded
 	if errors.Is(err, context.DeadlineExceeded) {
-		return &transportError{msg: "request timeout: API call exceeded deadline", cause: context.DeadlineExceeded}
+		return &transportError{msg: "request timeout: API call exceeded deadline", cause: err}
 	}
 
 	// Check for context cancellation
 	if errors.Is(err, context.Canceled) {
-		return &transportError{msg: "request cancelled", cause: context.Canceled}
+		return &transportError{msg: "request cancelled", cause: err}
 	}
 
 	// Check for network timeout errors
@@ -279,7 +279,7 @@ func networkErrorClass(err error) string {
 	var dnsErr *net.DNSError
 	switch {
 	case errors.As(err, &dnsErr) && dnsErr.IsNotFound:
-		return ": host not found"
+		return ": no such host"
 	case errors.Is(err, syscall.ECONNREFUSED):
 		return ": connection refused"
 	case errors.Is(err, syscall.ECONNRESET):

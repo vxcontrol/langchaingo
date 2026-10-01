@@ -3,6 +3,7 @@ package openaiclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"os"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/llms"
 )
 
 func TestASanitizedTransportErrorKeepsItsCauseForErrorsIs(t *testing.T) {
@@ -35,5 +38,19 @@ func TestASanitizedNetworkErrorNamesItsClass(t *testing.T) {
 	err = sanitizeHTTPError(&url.Error{Op: "Post", URL: "https://api.example.invalid/v1?key=secret", Err: notFound})
 	var dnsErr *net.DNSError
 	require.True(t, errors.As(err, &dnsErr))
-	assert.Equal(t, "network error: failed to reach API server: host not found", err.Error())
+	assert.Equal(t, "network error: failed to reach API server: no such host", err.Error())
+	var mapped *llms.Error
+	require.ErrorAs(t, llms.NewErrorMapper("openai").Map(err), &mapped)
+	assert.NotEqual(t, llms.ErrCodeResourceNotFound, mapped.Code)
+}
+
+func TestASanitizedTimeoutKeepsTheCallersCause(t *testing.T) {
+	t.Parallel()
+
+	cause := fmt.Errorf("call window spent: %w", context.DeadlineExceeded)
+	err := sanitizeHTTPError(&url.Error{Op: "Post", URL: "https://api.example.com/v1?key=secret", Err: cause})
+
+	require.ErrorIs(t, err, cause)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.NotContains(t, err.Error(), "secret")
 }
