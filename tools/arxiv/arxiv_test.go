@@ -1,17 +1,22 @@
 package arxiv
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/vxcontrol/langchaingo/internal/httprr"
+)
 
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	tool, err := New(10, DefaultUserAgent)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	tool, err := New(2, DefaultUserAgent, WithHTTPClient(rr.Client()))
+	require.NoError(t, err)
+
 	call, err := tool.Call(t.Context(), "electron")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(call)
+	require.NoError(t, err)
+	require.Contains(t, call, "Title:")
 }
