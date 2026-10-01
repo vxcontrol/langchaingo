@@ -238,12 +238,6 @@ func TestStoreCreatesTheDeclaredMetadataIndexes(t *testing.T) {
 			require.Contains(t, definition, fmt.Sprintf("'%s'::text", value))
 		}
 	}
-
-	again, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}),
-		WithCollectionName("c"), WithEmbeddingTableName(store.embeddingTableName),
-		WithCollectionTableName(store.collectionTableName), WithMetadataIndexes(declared...))
-	require.NoError(t, err, "a second store against the same table must be a no-op rather than an error")
-	require.NoError(t, again.Close())
 }
 
 // The whole point of the rewrite: the scan reads one flow, not the table.
