@@ -529,10 +529,6 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 
 DoStream:
 	for e := range stream.Events() {
-		if err = stream.Err(); err != nil {
-			streamErr = err
-			break DoStream
-		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp streamingCompletionResponseChunk
@@ -621,8 +617,8 @@ DoStream:
 			}
 		}
 	}
-	if err = stream.Err(); err != nil {
-		streamErr = err
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, contentchoices[0].StopReason != "", stream.Err())
 	}
 
 	// Add tool calls to the final response

@@ -153,10 +153,6 @@ func parseDeepSeekStreamingResponse(ctx context.Context, client *bedrockruntime.
 
 DoStream:
 	for e := range stream.Events() {
-		if err = stream.Err(); err != nil {
-			streamErr = err
-			break DoStream
-		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp deepSeekStreamingResponseChunk
@@ -180,8 +176,8 @@ DoStream:
 			}
 		}
 	}
-	if err = stream.Err(); err != nil {
-		streamErr = err
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, contentchoices[0].StopReason != "", stream.Err())
 	}
 
 	contentchoices[0].Content = streamedContent.String()

@@ -20,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
-	"github.com/aws/smithy-go"
 )
 
 // ConverseClient wraps the Bedrock Converse API client
@@ -965,13 +964,8 @@ DoStream:
 		}
 	}
 
-	if err := stream.Err(); err != nil {
-		streamErr = converseStreamError(err)
-	} else if streamErr == nil && !stopped {
-		streamErr = llms.ErrIncompleteStream
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			streamErr = fmt.Errorf("%w: %w", llms.ErrIncompleteStream, ctxErr)
-		}
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, stopped, stream.Err())
 	}
 
 	choice := &llms.ContentChoice{
@@ -989,14 +983,6 @@ DoStream:
 	}
 
 	return result, streamErr
-}
-
-func converseStreamError(err error) error {
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
-		return fmt.Errorf("%w: stream error: %w", llms.ErrStreamFailed, err)
-	}
-	return fmt.Errorf("%w: stream error: %w", llms.ErrIncompleteStream, err)
 }
 
 func applyConverseUsage(info map[string]any, usage *types.TokenUsage) {

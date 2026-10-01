@@ -309,10 +309,6 @@ func parseCohereStreamingResponse(ctx context.Context, client *bedrockruntime.Cl
 
 DoStream:
 	for e := range stream.Events() {
-		if err = stream.Err(); err != nil {
-			streamErr = err
-			break DoStream
-		}
 
 		if v, ok := e.(*types.ResponseStreamMemberChunk); ok {
 			var resp cohereStreamingResponseChunk
@@ -343,8 +339,8 @@ DoStream:
 			}
 		}
 	}
-	if err = stream.Err(); err != nil {
-		streamErr = err
+	if streamErr == nil {
+		streamErr = streamEndError(ctx, contentchoices[0].StopReason != "", stream.Err())
 	}
 
 	contentchoices[0].Content = streamedContent.String()
