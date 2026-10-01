@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -998,7 +999,7 @@ func toolCallFromToolCall(tc llms.ToolCall) openaiclient.ToolCall {
 		Type: toolType,
 		Function: openaiclient.ToolFunction{
 			Name:      tc.FunctionCall.Name,
-			Arguments: tc.FunctionCall.Arguments,
+			Arguments: toolcall.Normalize(tc.FunctionCall.Arguments),
 		},
 	}
 }

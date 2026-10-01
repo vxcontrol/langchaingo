@@ -872,7 +872,7 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 			}
 
 			var inputStruct map[string]interface{}
-			dec := json.NewDecoder(strings.NewReader(p.FunctionCall.Arguments))
+			dec := json.NewDecoder(strings.NewReader(toolcall.Normalize(p.FunctionCall.Arguments)))
 			dec.UseNumber()
 			if err := dec.Decode(&inputStruct); err != nil {
 				err = fmt.Errorf("anthropic: failed to unmarshal tool call arguments: %w", err)

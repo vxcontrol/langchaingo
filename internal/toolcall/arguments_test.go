@@ -64,3 +64,24 @@ func TestDataAfterTheArgumentsObjectIsRefused(t *testing.T) {
 	_, err := toolcall.DecodeFields(`{"city":"Paris"}{"city":"London"}`)
 	require.ErrorIs(t, err, toolcall.ErrNotAnObject, "a second object is another call's arguments, not something to drop")
 }
+
+func TestBlankArgumentsDecodeAsNoArguments(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"", "  ", "\n"} {
+		fields, err := toolcall.DecodeFields(raw)
+		require.NoError(t, err, "%q", raw)
+		assert.Empty(t, fields, "%q", raw)
+	}
+}
+
+func TestNormalizeGivesACallWithoutArgumentsAnEmptyObject(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{"", "  ", "null", " null "} {
+		assert.Equal(t, "{}", toolcall.Normalize(raw), "%q", raw)
+	}
+	for _, raw := range []string{`{"city":"Paris"}`, `{}`, `[1,2]`} {
+		assert.Equal(t, raw, toolcall.Normalize(raw), "%q", raw)
+	}
+}

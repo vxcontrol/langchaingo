@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
@@ -301,7 +302,7 @@ func convertToMistralChatMessages(langchainMessages []llms.MessageContent) ([]sd
 				setMistralChatMessageRole(&msg, &chatMsg) // #nosec G601
 				messages = append(messages, chatMsg)
 			case llms.ToolCall:
-				chatMsg := sdk.ChatMessage{Role: string(msg.Role), ToolCalls: []sdk.ToolCall{{Id: p.ID, Type: sdk.ToolTypeFunction, Function: sdk.FunctionCall{Name: p.FunctionCall.Name, Arguments: p.FunctionCall.Arguments}}}}
+				chatMsg := sdk.ChatMessage{Role: string(msg.Role), ToolCalls: []sdk.ToolCall{{Id: p.ID, Type: sdk.ToolTypeFunction, Function: sdk.FunctionCall{Name: p.FunctionCall.Name, Arguments: toolcall.Normalize(p.FunctionCall.Arguments)}}}}
 				setMistralChatMessageRole(&msg, &chatMsg) // #nosec G601
 				messages = append(messages, chatMsg)
 			default:

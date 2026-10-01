@@ -3,6 +3,7 @@ package anthropic_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,8 +21,8 @@ import (
 func TestAReplayedCallWithoutArgumentsSendsAnEmptyInputObject(t *testing.T) {
 	t.Parallel()
 
-	for _, arguments := range []string{"null", "{}"} {
-		t.Run(arguments, func(t *testing.T) {
+	for _, arguments := range []string{"null", "{}", "", "  "} {
+		t.Run(fmt.Sprintf("%q", arguments), func(t *testing.T) {
 			t.Parallel()
 
 			var body []byte
