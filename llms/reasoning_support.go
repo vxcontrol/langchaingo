@@ -111,7 +111,7 @@ func tableReasoningSupport(model string, p reasoning.Provider) ReasoningSupport 
 		}
 	}
 
-	if p == reasoning.ProviderBedrock && reasoning.IsGptOssModel(model) {
+	if reasoning.IsGptOssModel(model) {
 		return levelOnlySupport(model, p, reasoning.GptOssEfforts(), true)
 	}
 

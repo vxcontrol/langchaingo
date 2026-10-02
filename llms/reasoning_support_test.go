@@ -530,10 +530,6 @@ func TestTheBedrockHintOffersOnlyTheLevelsTheConverseDoorSends(t *testing.T) {
 			if s.DefaultOn == nil || !*s.DefaultOn {
 				t.Errorf("%s: the model reasons when reasoning is unset, the hint must say so", tc.model)
 			}
-			if other := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI); len(other.Efforts) > 0 {
-				t.Errorf("%s: the openai door never sends the Converse field, yet its hint advertises %v",
-					tc.model, other.Efforts)
-			}
 		})
 	}
 }
@@ -734,9 +730,8 @@ func TestTheOllamaHintOffersGPTOSSTheLevelsOllamaDocuments(t *testing.T) {
 		}
 	}
 
-	if efforts := ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderUnknown).Efforts; len(efforts) != 0 {
-		t.Errorf("gpt-oss:120b on an unknown provider offers %v, but these levels are what ollama documents for its own door",
-			efforts)
+	if efforts := ReasoningSupportFor("gpt-oss:120b", reasoning.ProviderUnknown).Efforts; !slices.Equal(efforts, want) {
+		t.Errorf("gpt-oss:120b on an unknown provider offers %v, want the model's own %v", efforts, want)
 	}
 }
 
