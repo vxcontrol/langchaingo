@@ -456,7 +456,7 @@ func (o *LLM) setReasoning(
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
+	if len(req.Tools) > 0 {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
