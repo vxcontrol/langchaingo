@@ -330,7 +330,8 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOn
 	}
 
-	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) {
+	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) ||
+		reasoning.ServedByZAI(o.effectiveModel(opts), o.host) || o.host == "api.mistral.ai" {
 		req.MaxTokens = opts.MaxTokens
 	} else {
 		req.MaxCompletionTokens = opts.MaxTokens
@@ -665,6 +666,15 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
+	if t := req.Temperature; t != nil && *t > 1 && reasoning.ServedByZAI(model, o.host) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
+			Asked: strconv.FormatFloat(*t, 'g', -1, 64), Sent: "1",
+			Reason: "Z.ai takes a temperature from 0 to 1",
+		})
+		ceiling := 1.0
+		req.Temperature = &ceiling
+	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, opts, wireEffort)
 	o.enforceSamplingPolicy(req, opts, wireEffort)

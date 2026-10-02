@@ -24,6 +24,18 @@ var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-
 
 const deepSeekAPIHost = "api.deepseek.com"
 
+func ServedByZAI(model, host string) bool {
+	if host != "api.z.ai" && host != "open.bigmodel.cn" {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "glm-") {
+			return true
+		}
+	}
+	return false
+}
+
 func ServedByDeepSeek(model, host string) bool {
 	m := strings.ToLower(model)
 	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok {
