@@ -200,18 +200,28 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		// The wire mechanism is resolved from the model, not the raw Adaptive
 		// flag: adaptive-only generations reject budget thinking and vice versa,
 		// so honor the caller's preference only where the model accepts it.
-		if reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive) {
+		effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+		adaptive := reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
+		budget := reasoning.ClaudeClampBudget(model, opts.Reasoning.GetTokens(opts.GetMaxTokens()))
+		if !adaptive && budget <= 0 {
+			refusal := &reasoning.ErrEffortHasNoBudget{Model: model, Effort: effort}
+			sent := reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic)
+			if warn.KeepRefusal(model, "WithReasoning", effort, sent, refusal) {
+				return nil, refusal
+			}
+			adaptive = true
+		}
+		if adaptive {
 			thinking = &anthropicclient.ThinkingPayload{
 				Type:    "adaptive",
 				Display: "summarized",
 			}
 			if !opts.Reasoning.DelegatesDepth() {
 				outputConfig = &anthropicclient.OutputConfig{
-					Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+					Effort: reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic),
 				}
 			}
-		} else if budget := reasoning.ClaudeClampBudget(model,
-			opts.Reasoning.GetTokens(opts.GetMaxTokens())); budget > 0 {
+		} else {
 			thinking = &anthropicclient.ThinkingPayload{
 				Type:   "enabled",
 				Budget: budget,
@@ -220,30 +230,23 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 			// the caller's effort is silently dropped on the budget path.
 			if reasoning.ClaudeSupportsEffortWithBudget(model, reasoning.ProviderAnthropic) {
 				outputConfig = &anthropicclient.OutputConfig{
-					Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+					Effort: reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic),
 				}
 			}
-		} else {
-			effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-			refusal := &reasoning.ErrEffortHasNoBudget{Model: model, Effort: effort}
-			if warn.KeepRefusal(model, "WithReasoning", effort, refusal) {
-				return nil, refusal
-			}
-			thinking = &anthropicclient.ThinkingPayload{Type: "adaptive", Display: "summarized"}
-			outputConfig = &anthropicclient.OutputConfig{Effort: effort}
 		}
 	case llms.ReasoningOff:
-		switch reasoning.ResolveOff(model, reasoning.ProviderAnthropic) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
+		off := reasoning.ResolveOff(model, reasoning.ProviderAnthropic)
+		if off == reasoning.OffUnsupported {
+			off = reasoning.InheritedOffWire(model, reasoning.ProviderAnthropic)
+			if warn.KeepOffRefusal(model, off) {
+				return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
+			}
+		}
+		switch off { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
 		case reasoning.OffDisableClaude:
 			thinking = &anthropicclient.ThinkingPayload{Type: "disabled"}
 		case reasoning.OffBetweenToolsClaude:
 			thinking = &anthropicclient.ThinkingPayload{Type: "between_tools"}
-		case reasoning.OffUnsupported:
-			refusal := &reasoning.ErrReasoningOffUnsupported{Model: model}
-			if warn.KeepRefusal(model, "WithReasoningDisabled", "off", refusal) {
-				return nil, refusal
-			}
-			thinking = &anthropicclient.ThinkingPayload{Type: "disabled"}
 		}
 	}
 

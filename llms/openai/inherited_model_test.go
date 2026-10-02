@@ -32,6 +32,18 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	body, warnings = hostCall(t, "https://api.x.ai/v1", "grok-4.8", llms.WithReasoningDisabled())
 	require.Equal(t, "none", body["reasoning_effort"], "grok-4.3 is the newest grok that documents none")
 	inherited(warnings, "WithReasoningDisabled")
+	require.Equal(t, "off", warnings["WithReasoningDisabled"].Sent)
+
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://openrouter.ai/api/v1", "anthropic/claude-sonnet-6"},
+		{"https://openrouter.ai/api/v1", "anthropic/claude-opus-6"},
+		{"https://api.anthropic.com/v1", "claude-sonnet-6"},
+	} {
+		body, warnings = hostCall(t, route.baseURL, route.model, llms.WithReasoningDisabled())
+		require.NotContains(t, body, "thinking", "%s: the host carries no thinking object: %v", route.model, body)
+		inherited(warnings, "WithReasoningDisabled")
+		require.Empty(t, warnings["WithReasoningDisabled"].Sent, route.model)
+	}
 
 	body, _ = hostCall(t, "https://api.z.ai/api/paas/v4", "glm-6", llms.WithReasoningDisabled())
 	thinking, _ := body["thinking"].(map[string]any)

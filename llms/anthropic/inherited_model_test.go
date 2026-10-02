@@ -71,7 +71,7 @@ func TestAnUnlistedClaudeVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Equal(t, "disabled", thinking["type"], "%v", body)
 	warnings := inheritWarnings(resp)
 	require.Contains(t, warnings, "WithModel")
-	require.Contains(t, warnings, "WithReasoningDisabled")
+	require.Equal(t, "off", warnings["WithReasoningDisabled"].Sent)
 
 	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
 		Name: "lookup", Parameters: map[string]any{"type": "object"},
@@ -87,4 +87,23 @@ func TestAnUnlistedClaudeVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	_, _, err = generateRecording(t, "claude-opus-5-5", llms.WithReasoningDisabled())
 	var refusal *reasoning.ErrReasoningOffUnsupported
 	require.ErrorAs(t, err, &refusal, "the documented release keeps its refusal")
+}
+
+func TestAnUnlistedClaudeVersionIsSentTheDisableAndEffortItsLineDocuments(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"claude-fable-6", "claude-mythos-6"} {
+		body, resp, err := generateRecording(t, model, llms.WithReasoningDisabled())
+		require.NoError(t, err)
+		require.NotContains(t, body, "thinking", "no %s release documents a disable: %v", model, body)
+		warning, recorded := inheritWarnings(resp)["WithReasoningDisabled"]
+		require.True(t, recorded, model)
+		require.Empty(t, warning.Sent, model)
+	}
+
+	body, resp, err := generateRecording(t, "claude-haiku-5", llms.WithReasoning(llms.ReasoningMinimal, 0))
+	require.NoError(t, err)
+	config, _ := body["output_config"].(map[string]any)
+	require.Equal(t, "low", config["effort"], "%v", body)
+	require.Equal(t, "low", inheritWarnings(resp)["WithReasoning"].Sent)
 }

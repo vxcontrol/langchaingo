@@ -390,7 +390,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host),
 		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
-		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal) {
+		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
 			return refusal
 		}
 	}
@@ -487,7 +487,7 @@ func (o *LLM) setReasoning(
 		if o.sendsBudgetInsteadOfEffort(model, opts, reasoningTokens) {
 			sendsEffort = false
 		} else if refusal := (&reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}); warn.KeepRefusal(
-			model, "WithReasoning", string(reasoningEffort), refusal) {
+			model, "WithReasoning", string(reasoningEffort), string(reasoningEffort), refusal) {
 			return "", refusal
 		}
 	}
@@ -618,13 +618,14 @@ func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions, warn *llms.Warnings
 	model := o.effectiveModel(*opts)
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
-		if warn.KeepRefusal(model, "WithModel", model, refusal) {
+		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
 			return refusal
 		}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
-		if warn.KeepRefusal(model, "WithStopWords", strings.Join(opts.StopWords, ", "), refusal) {
+		stop := strings.Join(opts.StopWords, ", ")
+		if warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
 			return refusal
 		}
 	}
@@ -703,12 +704,16 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 	model := o.effectiveModel(opts)
 	route := reasoning.DashScopeRoute(model, o.host)
 	off := reasoning.ResolveOff(route, reasoning.ProviderOpenAI)
-	if off == reasoning.OffUnsupported {
-		refusal := &reasoning.ErrReasoningOffUnsupported{Model: model}
-		if warn.KeepRefusal(model, "WithReasoningDisabled", "off", refusal) {
-			return refusal
-		}
+	softened := false
+	if !o.carriesOff(model, off) {
 		off = reasoning.InheritedOffWire(route, reasoning.ProviderOpenAI)
+		if !o.carriesOff(model, off) {
+			off = reasoning.OffOmit
+		}
+		if warn.KeepOffRefusal(model, off) {
+			return &reasoning.ErrReasoningOffUnsupported{Model: model}
+		}
+		softened = true
 	}
 	switch off { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffEffortNone:
@@ -717,22 +722,30 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 		thinkingOff := false
 		req.EnableThinking = &thinkingOff
 	case reasoning.OffDisableThinkingObject:
-		if reasoning.ClaudeThinkingDefaultsOn(model) && !o.sendsClaudeThinkingObject(model) {
-			return &reasoning.ErrReasoningOffUnsupported{Model: model}
-		}
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "disabled"}
 	case reasoning.OffBetweenToolsClaude:
-		if o.host == anthropicAPIHost || !o.sendsClaudeThinkingObject(model) {
-			return &reasoning.ErrReasoningOffUnsupported{Model: model}
-		}
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "between_tools"}
-		warn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
-			Asked: "off", Sent: "between_tools",
-			Reason: "this model has no off switch, only a lowest thinking level",
-		})
+		if !softened {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+				Asked: "off", Sent: "between_tools",
+				Reason: "this model has no off switch, only a lowest thinking level",
+			})
+		}
 	}
 	return nil
+}
+
+func (o *LLM) carriesOff(model string, off reasoning.OffWire) bool {
+	switch off { //nolint:exhaustive // the other wires go out on any host
+	case reasoning.OffUnsupported:
+		return false
+	case reasoning.OffDisableThinkingObject:
+		return !reasoning.ClaudeThinkingDefaultsOn(model) || o.sendsClaudeThinkingObject(model)
+	case reasoning.OffBetweenToolsClaude:
+		return o.host != anthropicAPIHost && o.sendsClaudeThinkingObject(model)
+	}
+	return true
 }
 
 func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
@@ -849,7 +862,8 @@ func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOpt
 	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
 		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
 			refusal := &reasoning.ErrChatToolsUnsupported{Model: model}
-			if warn.KeepRefusal(model, "WithTools", strconv.Itoa(len(opts.Tools)+len(opts.Functions)), refusal) {
+			offered := strconv.Itoa(len(opts.Tools) + len(opts.Functions))
+			if warn.KeepRefusal(model, "WithTools", offered, offered, refusal) {
 				return refusal
 			}
 		}

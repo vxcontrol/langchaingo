@@ -270,14 +270,8 @@ func createAnthropicCompletion(ctx context.Context,
 		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice, len(tools) > 0),
 	}
 
-	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens); err != nil {
-		var noBudget *reasoning.ErrEffortHasNoBudget
-		if !errors.As(err, &noBudget) || warn.KeepRefusal(modelID, "WithReasoning", noBudget.Effort, err) {
-			return nil, err
-		}
-		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
-		input.OutputConfig = &anthropicOutputConfig{Effort: noBudget.Effort}
-		input.Temperature, input.TopP, input.TopK = nil, 0, 0
+	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens, warn); err != nil {
+		return nil, err
 	}
 	if input.Thinking != nil {
 		input.MaxTokens = reasoning.ClaudeMaxTokensForBudget(input.Thinking.BudgetTokens, input.MaxTokens)
@@ -857,7 +851,7 @@ func claudeTemperature(modelID string, asked *float64) *float64 {
 // thinking and drops sampling params, a budget-only generation gets budget
 // thinking, and the caller's preference is honored where the model supports both.
 func applyAnthropicReasoning(
-	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int,
+	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int, warn *llms.Warnings,
 ) error {
 	callerTemperature := input.Temperature
 	// Adaptive-only models reject sampling params even without thinking.
@@ -880,8 +874,11 @@ func applyAnthropicReasoning(
 		case reasoning.OffBetweenToolsClaude:
 			input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
-			if _, inherited := reasoning.InheritedModel(modelID); inherited {
+			switch reasoning.InheritedOffWire(modelID, reasoning.ProviderBedrock) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
+			case reasoning.OffDisableClaude:
 				input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
+			case reasoning.OffBetweenToolsClaude:
+				input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
 			}
 		}
 		return nil
@@ -925,7 +922,13 @@ func applyAnthropicReasoning(
 	case reasoning.MechanismAdaptive:
 		setAdaptive()
 	case reasoning.MechanismBudget:
-		return setBudget()
+		err := setBudget()
+		var noBudget *reasoning.ErrEffortHasNoBudget
+		if !errors.As(err, &noBudget) || warn.KeepRefusal(modelID, "WithReasoning", noBudget.Effort,
+			reasoning.ClaudeClampEffort(modelID, noBudget.Effort, reasoning.ProviderBedrock), err) {
+			return err
+		}
+		setAdaptive()
 	}
 	return nil
 }

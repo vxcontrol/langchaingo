@@ -118,11 +118,9 @@ func (c *Client) CreateCompletion(ctx context.Context,
 	warn := &llms.Warnings{}
 	warn.AddInherited(modelID)
 	if options.Reasoning.ResolveMode() == llms.ReasoningOff &&
-		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported {
-		refusal := &reasoning.ErrReasoningOffUnsupported{Model: modelID}
-		if warn.KeepRefusal(modelID, "WithReasoningDisabled", "off", refusal) {
-			return nil, refusal
-		}
+		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported &&
+		warn.KeepOffRefusal(modelID, reasoning.InheritedOffWire(modelID, reasoning.ProviderBedrock)) {
+		return nil, &reasoning.ErrReasoningOffUnsupported{Model: modelID}
 	}
 	reportLegacyOptions(warn, provider, modelID, options)
 

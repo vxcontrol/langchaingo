@@ -147,8 +147,11 @@ func (g *GoogleAI) GenerateContent(
 	// Handle thinking configuration for reasoning models
 	tc, err := resolveThinkingConfig(opts.GetModel(), opts.Reasoning, opts.GetMaxTokens())
 	var refusal *reasoning.ErrReasoningOffUnsupported
-	if errors.As(err, &refusal) && !warn.KeepRefusal(opts.GetModel(), "WithReasoningDisabled", "off", err) {
-		tc, err = offThinkingConfig(reasoning.InheritedOffWire(opts.GetModel(), reasoning.ProviderGoogleAI)), nil
+	if errors.As(err, &refusal) {
+		off := reasoning.InheritedOffWire(opts.GetModel(), reasoning.ProviderGoogleAI)
+		if !warn.KeepOffRefusal(opts.GetModel(), off) {
+			tc, err = offThinkingConfig(off), nil
+		}
 	}
 	if err != nil {
 		return nil, err

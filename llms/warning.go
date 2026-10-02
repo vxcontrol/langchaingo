@@ -205,19 +205,39 @@ func (w *Warnings) AddInherited(model string) {
 }
 
 // KeepRefusal reports whether a door refuses before the network. It does for a
-// model the tables list; a model that only inherits the refusal goes out as asked,
-// and the refusal is recorded against option instead.
-func (w *Warnings) KeepRefusal(model, option, asked string, refusal error) bool {
+// model the tables list; a model that only inherits the refusal goes out, and the
+// refusal is recorded against option with sent, what the door puts on the wire
+// instead ("" when nothing).
+func (w *Warnings) KeepRefusal(model, option, asked, sent string, refusal error) bool {
 	documented, inherited := reasoning.InheritedModel(model)
 	if !inherited {
 		return true
 	}
 	w.Add(Warning{
-		Kind: WarningInherit, Option: option, Model: model, Asked: asked, Sent: asked,
-		Reason: fmt.Sprintf("%s refuses this (%v), but the tables do not list this version, so it goes out as asked",
-			documented, refusal),
+		Kind: WarningInherit, Option: option, Model: model, Asked: asked, Sent: sent,
+		Reason: fmt.Sprintf("%s refuses this (%v), but the tables do not list this version", documented, refusal),
 	})
 	return false
+}
+
+// KeepOffRefusal is KeepRefusal for WithReasoningDisabled on a model whose thinking
+// cannot be switched off; off is the disable the door sends when the model only
+// inherits the refusal.
+func (w *Warnings) KeepOffRefusal(model string, off reasoning.OffWire) bool {
+	return w.KeepRefusal(model, "WithReasoningDisabled", "off", offSent(off),
+		&reasoning.ErrReasoningOffUnsupported{Model: model})
+}
+
+func offSent(off reasoning.OffWire) string {
+	switch off { //nolint:exhaustive // every other wire is a plain disable
+	case reasoning.OffOmit, reasoning.OffUnsupported:
+		return ""
+	case reasoning.OffMinimalLevel:
+		return "minimal"
+	case reasoning.OffBetweenToolsClaude:
+		return "between_tools"
+	}
+	return "off"
 }
 
 func (w *Warnings) List() []Warning {

@@ -26,6 +26,19 @@ func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 		}
 	}
 	require.Equal(t, map[string]bool{"WithModel": true, "WithReasoningDisabled": true}, inherited)
+	for _, w := range resp.Warnings {
+		if w.Option == "WithReasoningDisabled" {
+			require.Equal(t, "minimal", w.Sent, "%v", w)
+		}
+	}
+
+	config, _ = generationConfigSent(t, "gemini-4-pro", llms.WithReasoningDisabled())
+	require.NotContains(t, config, "thinkingConfig", "no pro release documents a disable: %v", config)
+	for _, w := range generateForWarnings(t, "gemini-4-pro", llms.WithReasoningDisabled()).Warnings {
+		if w.Option == "WithReasoningDisabled" {
+			require.Empty(t, w.Sent, "%v", w)
+		}
+	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
