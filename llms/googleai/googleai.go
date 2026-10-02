@@ -1164,25 +1164,18 @@ func dropCandidatesTheModelCannotReturn(
 		return
 	}
 	asked := config.CandidateCount
+	config.CandidateCount = 0
+	if asked <= 1 {
+		return
+	}
+	reason := "the Gemini API does not support a candidate count on this model"
 	if vertex {
-		config.CandidateCount = 0
-	} else {
-		config.CandidateCount = 1
+		reason = "Vertex AI rejects a candidate count on this model"
 	}
-	switch {
-	case asked <= 1:
-	case vertex:
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
-			Asked: strconv.Itoa(int(asked)), Reason: "Vertex AI rejects a candidate count on this model",
-		})
-	default:
-		warn.Add(llms.Warning{
-			Kind: llms.WarningClamp, Option: "WithCandidateCount", Model: model,
-			Asked: strconv.Itoa(int(asked)), Sent: "1",
-			Reason: "Google returns one candidate on this model",
-		})
-	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
+		Asked: strconv.Itoa(int(asked)), Reason: reason,
+	})
 }
 
 func convertToFloat32Pointer(f *float64) *float32 {

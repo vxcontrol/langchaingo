@@ -1,5 +1,5 @@
 httprr trace v1
-617 201158
+617 201337
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -11,16 +11,20 @@ X-Goog-Api-Key: test-api-key
 {"requests":[{"content":{"parts":[{"text":"foo"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"parrot"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"foo"}],"role":"user"},"model":"models/gemini-embedding-001"}]}HTTP/2.0 200 OK
 Content-Length: 200777
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Wed, 23 Sep 2026 11:12:06 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=300
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:04:20 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=262
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
+X-Content-Type-Options: nosniff
 X-Content-Type-Options: nosniff
 X-Frame-Options: SAMEORIGIN
+X-Frame-Options: SAMEORIGIN
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "embeddings": [

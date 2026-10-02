@@ -1,27 +1,31 @@
 httprr trace v1
-775 1865
+756 2100
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 455
+Content-Length: 436
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Name five countries in Africa"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384,"temperature":1},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 1452
+{"contents":[{"parts":[{"text":"Name five countries in Africa"}],"role":"user"}],"generationConfig":{"maxOutputTokens":16384,"temperature":1},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 1508
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Wed, 23 Sep 2026 11:12:09 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=1249
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:04:23 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1124
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -30,7 +34,7 @@ X-Xss-Protection: 0
         "parts": [
           {
             "text": "Here are five countries in Africa:\n\n1. Nigeria\n2. Kenya\n3. Egypt\n4. South Africa\n5. Ghana",
-            "thoughtSignature": "EqwECqkEAWkUfROQDyZ0hgRKzp/A307o/CI27aIHz3I2CxuCfAhrOJSp1dVlLuOCdyWDEoprO9RexY8yW6/HWXaArEha63w6WDsY/2jg6tTRSNIpFAPnwfc2fg9+DXHUct/5IHZVsTZ1DaUdMMg8EMww0QVUM4pgO8/p2vR3dd1Xye0s4QhL6hxWjMrbmtFcOPB4UGGCU2YTMpn8m8WFZB9gyKVWY5DP9G5u8sDzzWWIAuBqVqR1SD25i9pl7VjMO8lxUNb2nxuWVh0jUB3qikaYI9RhI+q+0mHairp4QGkPrQwmVOtjJnOW0olHUuR75GEuFLAxuCWBFAtxSe9PQNZcucBMi47n7wp2RCvEXLOGhmD7HO3FXgfMnrUqKkPJHwtpYZ/ovUHh04Lo6hUpSPMrbaDydFsIbipDK8HUkt5WO3g9BSdRu481s28hR313IDN9Axc5cFweAO7UcTJ1tRBkYooTY3c8yuXzccXH9PrPicBADbVef1q7FIX01HKZMQM1kPdgt9DTAn544JzU5Biut9/UJw7PquwGJ9PhZYrgK4b0BjVWeN7kXTq+YEGS52iAh9DsrI3zygJ/5fnYwpbFVfPHnOseQCdEa1P/71hMI9wODQ4bzZn7+PZOjCwlYXY3BcGp+0TMTUG5TV8bu1Q289a6KdROXvpsxz6+ihFQ1ZlGCXKBU7qEmuDmyZy+s+2E3YtECBEJ/jTY5E9Otgb94cWC3SXHBDirdx7Y2w=="
+            "thoughtSignature": "EtYECtMEAWkUfRPozPIuFV0uu5mjxRCcjWXw8eGzD4up6W8glKXF2hREWrfBo90MHARUH3HT8hxp7gjEWJoM+JvIXWX2FND7rF6EL+4gLW3ZcYDlAmxiarUTyejp4MB9oUNaPI1tZ/C2DQnaqDZRwGkrWfCHam4341330Gta4p0ygztY36pIrG9KbTVawixBG3MhXZLK518cC4ThJPkc6+mpVzwZbvBMntof88D/Yqi9oi9NmPEvIj4SdmnfYvFry4NVpV0pQOM/nv4Wrd2ftg0g56lp/zm4mdihJ7ACf3RqTD/fwT1je2Cp3Xq96LD5hs/E14AvXo4LXTJixNu7liyTeCnVqDWbWiJ70fFfLhBnpMvSziCR+Elv2f/RXIYoh4GPRw0NzBnrhQfMhSe1Cb34Gc7xSCcWSHvfmruICeqXxm0hJ/TGVn63mwtLKutNJEkvvIiXNnvv0mE/xsauFUSLGmBPtRof9kyIQcV3r7Mx6+UKqKDfp8YBDVkTzeao1qXQrTKherYUXsw156q04FqcdVnIlgKEkpfa7B1aPZMRcZEHQt90oyoh7UGzKTXYW3E0wlSAmLS+cc7ViEbDag3yrw68NWdl+pxlEDiETaxlNIjKs10qnRpg9wJaHXlt958aOjuSsvyo8miUqx8T4MHDGBpuJJ3rsEAtVqgH9KY1ba48szevrQDdcqoqfcXnF3PGWDblGtcU9j6C6IUGlTlLKxufEb/7ecQMujBOeKA5R7pdAR2TkjSy3V2XhPIUpcL337W4uLP8XOHKRELtrWMQcass3ZjMbQ=="
           }
         ],
         "role": "model"
@@ -42,16 +46,16 @@ X-Xss-Protection: 0
   "usageMetadata": {
     "promptTokenCount": 6,
     "candidatesTokenCount": 28,
-    "totalTokenCount": 151,
+    "totalTokenCount": 164,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 6
       }
     ],
-    "thoughtsTokenCount": 117,
+    "thoughtsTokenCount": 130,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3.8-flash",
-  "responseId": "CLSzarn1CpfynsEPg8aW8A0"
+  "responseId": "VhzAapelEZf7xN8P7see0QY"
 }

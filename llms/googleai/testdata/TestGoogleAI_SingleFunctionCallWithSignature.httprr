@@ -1,21 +1,21 @@
 httprr trace v1
-1056 1825
+1037 1877
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 730
+Content-Length: 711
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Multiply two numbers together","name":"multiply","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
-Content-Length: 1233
+{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"}],"generationConfig":{"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Multiply two numbers together","name":"multiply","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 1285
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Fri, 02 Oct 2026 20:47:03 GMT
+Date: Fri, 02 Oct 2026 21:03:25 GMT
 Server: nginx
-Server-Timing: gfet4t7; dur=1103
+Server-Timing: gfet4t7; dur=1390
 Strict-Transport-Security: max-age=31536000
 Vary: Accept-Encoding
 Vary: Origin, X-Origin, Referer
@@ -39,9 +39,9 @@ X-Xss-Protection: 1; mode=block
                 "b": 9,
                 "a": 7
               },
-              "id": "call_459874"
+              "id": "call_294653"
             },
-            "thoughtSignature": "EpoCCpcCAWkUfRPQmvA+tXRV0EqKM3+9T6j6v6flIcbj9eGAYY6ybUdpPQN6XQN3v0nCqsD+SfiOvqsamMR645gLH/NRLz89G+N3vqfWM3C7BqGhJdDwiX5w48I5xS2stGV7fRrsCbkd9ErJczx1tDn9/tOuloXtLW2GHGJJbhQAsND6ym0HEZSHSz78m5MvAR7Wt7H0OHbUCz3qaWUThL87NGQvfdFMyD8vcSWhEzrXq4tHVAhrKvYEueKhunxhqaGjLSxLpEyya7ujothbe77pgITL+4QEu1Qi2AbO62npUFCvJDQDU8kccSgWWaJGZxdObOFqfT31TuoMOYfg7G1Rhfom+drwdeHloZRnZzF1FR+DG/HJ5PgK7+YC"
+            "thoughtSignature": "EsECCr4CAWkUfRNuPlWth2reSSjwAf1/XFkmD1+6EXIb1jcEAAjjqAA8fbNEiVlBM50qJh1iBGMiyex0Jxc8xbbW34r91J4Lb2XMmQBb7bxnNSXLwUA4C1C8rhcFu5K4mJkSYz99uF9CN3QOa1bEo7B1HfG7nJ0yxDkDdD+qgdlVlvI4Vm7ALmewDnfSS1qwL2uKlm2Y9qOOMiwGkUwy8gHOXCwO/Tjdj9z1wa7khMm4ObXjVLgD8a7Ka/erYglbYWNVEkRcg6+XlIxqXR/pAuMMjlGYGhyYhAeyC+sha1rHyJ4r+h4TFYVsW51/3iB/O+R/p73RX46bjs5WXkkAMFnbhu+tJaFp2UEj5VXRzvyeSaNO8v0Q5me7MjYTb2oE6jy1lOgiqqX8j0xqEy6evQOF7d+i344+ttFQAJ68P70UODBa"
           }
         ],
         "role": "model"
@@ -54,36 +54,36 @@ X-Xss-Protection: 1; mode=block
   "usageMetadata": {
     "promptTokenCount": 77,
     "candidatesTokenCount": 16,
-    "totalTokenCount": 149,
+    "totalTokenCount": 160,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 77
       }
     ],
-    "thoughtsTokenCount": 56,
+    "thoughtsTokenCount": 67,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "RhjAaun-Gfv1xN8Pn5q16Q0"
+  "responseId": "HBzAatiSA7P4xN8Pp_CekAo"
 }
-1404 1518
+1437 1157
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 1077
+Content-Length: 1110
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"},{"parts":[{"functionCall":{"args":{"a":7,"b":9},"id":"call_459874","name":"multiply"},"thoughtSignature":"EpoCCpcCAWkUfRPQmvA+tXRV0EqKM3+9T6j6v6flIcbj9eGAYY6ybUdpPQN6XQN3v0nCqsD+SfiOvqsamMR645gLH/NRLz89G+N3vqfWM3C7BqGhJdDwiX5w48I5xS2stGV7fRrsCbkd9ErJczx1tDn9/tOuloXtLW2GHGJJbhQAsND6ym0HEZSHSz78m5MvAR7Wt7H0OHbUCz3qaWUThL87NGQvfdFMyD8vcSWhEzrXq4tHVAhrKvYEueKhunxhqaGjLSxLpEyya7ujothbe77pgITL+4QEu1Qi2AbO62npUFCvJDQDU8kccSgWWaJGZxdObOFqfT31TuoMOYfg7G1Rhfom+drwdeHloZRnZzF1FR+DG/HJ5PgK7+YC"}],"role":"model"},{"parts":[{"functionResponse":{"id":"call_459874","name":"multiply","response":{"response":"63"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":512},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 927
+{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"},{"parts":[{"functionCall":{"args":{"a":7,"b":9},"id":"call_294653","name":"multiply"},"thoughtSignature":"EsECCr4CAWkUfRNuPlWth2reSSjwAf1/XFkmD1+6EXIb1jcEAAjjqAA8fbNEiVlBM50qJh1iBGMiyex0Jxc8xbbW34r91J4Lb2XMmQBb7bxnNSXLwUA4C1C8rhcFu5K4mJkSYz99uF9CN3QOa1bEo7B1HfG7nJ0yxDkDdD+qgdlVlvI4Vm7ALmewDnfSS1qwL2uKlm2Y9qOOMiwGkUwy8gHOXCwO/Tjdj9z1wa7khMm4ObXjVLgD8a7Ka/erYglbYWNVEkRcg6+XlIxqXR/pAuMMjlGYGhyYhAeyC+sha1rHyJ4r+h4TFYVsW51/3iB/O+R/p73RX46bjs5WXkkAMFnbhu+tJaFp2UEj5VXRzvyeSaNO8v0Q5me7MjYTb2oE6jy1lOgiqqX8j0xqEy6evQOF7d+i344+ttFQAJ68P70UODBa"}],"role":"model"},{"parts":[{"functionResponse":{"id":"call_294653","name":"multiply","response":{"response":"63"}}}],"role":"user"}],"generationConfig":{"maxOutputTokens":512},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 567
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Fri, 02 Oct 2026 20:47:05 GMT
+Date: Fri, 02 Oct 2026 21:03:27 GMT
 Server: nginx
-Server-Timing: gfet4t7; dur=1187
+Server-Timing: gfet4t7; dur=864
 Strict-Transport-Security: max-age=31536000
 Vary: Accept-Encoding
 Vary: Origin, X-Origin, Referer
@@ -101,8 +101,7 @@ X-Xss-Protection: 1; mode=block
       "content": {
         "parts": [
           {
-            "text": "7 times 9 is 63.",
-            "thoughtSignature": "EtsBCtgBAWkUfRO6QyzFPYpBDxDz5ogHkzmZZczoX8YSy6YmwsxkcycxI7oUuM0xXKupGpAeV4fT8MSMfr9qA9V+h5OzmcTWbU6HQiQNlEQsIkeEUQ7oEHmjqVZ7LlU6bNlId0JhtzJDZbASdNmy1RQXqTSNiAR4ipzlIcqhTuYyTs4B+Qzx02nvW/uiQERBjnKlIFDBAbyIn/ApvztVIl+ZLBRSjTRZ9O1BJroCPHhvragTdwCZnbGt5IH57xGmho3gVD3XHSRVKpafK9HF5TPmYJsqEhrQx8oAS+21"
+            "text": "7 times 9 is 63."
           }
         ],
         "role": "model"
@@ -112,18 +111,17 @@ X-Xss-Protection: 1; mode=block
     }
   ],
   "usageMetadata": {
-    "promptTokenCount": 97,
+    "promptTokenCount": 108,
     "candidatesTokenCount": 9,
-    "totalTokenCount": 134,
+    "totalTokenCount": 117,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
-        "tokenCount": 97
+        "tokenCount": 108
       }
     ],
-    "thoughtsTokenCount": 28,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "SBjAapiDNITnvdIPi576iAs"
+  "responseId": "HhzAauPsL7SDvdIPpd3z6Ak"
 }

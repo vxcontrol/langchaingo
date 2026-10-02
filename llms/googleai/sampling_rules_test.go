@@ -45,28 +45,27 @@ func generationConfigSent(t *testing.T, model string, opts ...llms.CallOption) (
 	return sent.GenerationConfig, warnings
 }
 
-func TestAGemini3ModelIsAskedForOneCandidate(t *testing.T) {
+func TestAGemini3ModelIsSentNoCandidateCount(t *testing.T) {
 	t.Parallel()
 
 	for _, model := range []string{
 		"gemini-3.8-flash", "gemini-3-flash-preview", "gemini-4-flash", "gemini-flash-latest", "models/gemini-3.8-flash",
 	} {
 		config, warnings := generationConfigSent(t, model, llms.WithCandidateCount(2))
-		assert.InDelta(t, 1, config["candidateCount"], 0, model)
+		assert.NotContains(t, config, "candidateCount", model)
 		if assert.Contains(t, warnings, "WithCandidateCount", model) {
-			assert.Equal(t, llms.WarningClamp, warnings["WithCandidateCount"].Kind, model)
+			assert.Equal(t, llms.WarningDrop, warnings["WithCandidateCount"].Kind, model)
 			assert.Equal(t, "2", warnings["WithCandidateCount"].Asked, model)
-			assert.Equal(t, "1", warnings["WithCandidateCount"].Sent, model)
 		}
 
 		config, warnings = generationConfigSent(t, model)
-		assert.InDelta(t, 1, config["candidateCount"], 0, model)
-		assert.NotContains(t, warnings, "WithCandidateCount", model)
+		assert.NotContains(t, config, "candidateCount", model)
+		assert.NotContains(t, warnings, "WithCandidateCount", model, "the door's own default is not the caller's request")
 	}
 
 	config, warnings := generationConfigSent(t, "gemini-2.5-flash",
 		llms.WithModel("gemini-3.8-flash"), llms.WithCandidateCount(2))
-	assert.InDelta(t, 1, config["candidateCount"], 0, "the per-call model decides, not the client's default")
+	assert.NotContains(t, config, "candidateCount", "the per-call model decides, not the client's default")
 	assert.Contains(t, warnings, "WithCandidateCount")
 
 	for _, model := range []string{"gemini-2.5-flash", "gemini-2.5-flash-native-audio-latest"} {
