@@ -239,6 +239,7 @@ func mandatoryThinking(model string) bool {
 			strings.HasPrefix(form, "kimi-k2.7-code") ||
 			hasGeneration(form, "kimi-k3") ||
 			hasGeneration(form, "qwen3.8-2.4t-a95b") ||
+			form == "qwen3.7-max-2026-05-17" ||
 			strings.HasPrefix(form, "gpt-oss") ||
 			strings.HasPrefix(form, "aion-") ||
 			strings.HasPrefix(form, "step-3") ||

@@ -148,3 +148,29 @@ func TestEveryListedReleaseReadsAsItself(t *testing.T) {
 		}
 	}
 }
+
+func TestADocumentedQwenAliasOrSnapshotAnswersAsItsStableID(t *testing.T) {
+	t.Parallel()
+
+	for name, stable := range map[string]string{
+		"qwen-plus-latest": "qwen-plus", "qwen-plus-2025-12-01": "qwen-plus", "qwen-plus-2025-04-28": "qwen-plus",
+		"qwen-flash-2025-07-28": "qwen-flash", "qwen-turbo-latest": "qwen-turbo",
+		"qwen3-max-2026-01-23": "qwen3-max", "qwen3-max-preview": "qwen3-max",
+		"qwen3-vl-plus-2025-12-19": "qwen3-vl-plus", "dashscope/qwen-plus-latest": "dashscope/qwen-plus",
+		"qwen3.7-max-2026-05-20": "qwen3.7-max",
+	} {
+		got, want := tableAnswers(name), tableAnswers(stable)
+		for key := range want {
+			assert.Equal(t, want[key], got[key], "%s should answer %s like %s", name, key, stable)
+		}
+		_, inherited := InheritedModel(name)
+		assert.False(t, inherited, "%s is documented", name)
+	}
+
+	for _, own := range []string{"qwen-plus-2025-01-25", "qwen3-max-2025-09-23"} {
+		require.False(t, QwenThinkingEnabledByFlag(own), "%s predates the stable id's thinking", own)
+		require.False(t, IsReasoningModel(own), own)
+	}
+	require.Equal(t, OffUnsupported, ResolveOff("qwen3.7-max-2026-05-17", ProviderOpenAI), "a thinking-only snapshot")
+	require.Equal(t, ResolveOff("qwen3.7-max", ProviderOpenAI), ResolveOff("qwen3.7-max-2026-05-20", ProviderOpenAI))
+}

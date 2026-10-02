@@ -34,9 +34,7 @@ func splitModelName(model string) (vendor, dashVendor, bare string) {
 	m = stripBedrockRegion(m)
 
 	vendor, bare = splitPlatformPrefix(m)
-	if alias, ok := vendorAliases[bare]; ok {
-		bare = alias
-	}
+	bare = documentedAlias(bare)
 	if vendor == "" {
 		if dashVendor, stripped, ok := stripDashWrittenVendor(bare); ok {
 			return "", dashVendor, stripped
@@ -46,7 +44,29 @@ func splitModelName(model string) (vendor, dashVendor, bare string) {
 }
 
 // vendorAliases entries must be backed by a vendor page that serves both names with one model.
-var vendorAliases = map[string]string{"zai-glm-5": "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3"}
+var vendorAliases = map[string]string{
+	"zai-glm-5": "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3",
+	"qwen-plus-latest": "qwen-plus", "qwen-turbo-latest": "qwen-turbo",
+	"qwen3-max-2026-01-23": "qwen3-max", "qwen3-max-preview": "qwen3-max",
+	"qwen3-vl-plus-2025-12-19": "qwen3-vl-plus",
+}
+
+// qwenSnapshotsFrom entries come from Model Studio's deep-thinking page: the first
+// dated snapshot it lists with the stable id's thinking.
+var qwenSnapshotsFrom = map[string]string{"qwen-plus": "2025-04-28", "qwen-flash": "2025-07-28"}
+
+func documentedAlias(bare string) string {
+	if alias, ok := vendorAliases[bare]; ok {
+		return alias
+	}
+	for stable, first := range qwenSnapshotsFrom {
+		date, ok := strings.CutPrefix(bare, stable+"-")
+		if ok && len(date) == len(first) && date[4] == '-' && date >= first {
+			return stable
+		}
+	}
+	return bare
+}
 
 func inheritedOrSelf(bare string) string {
 	if documented, ok := inheritLine(bare); ok {

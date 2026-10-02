@@ -68,7 +68,7 @@ func dashScopeSpelling(model string) string {
 	if strings.Contains(m, "/") {
 		return ""
 	}
-	return inheritedOrSelf(m)
+	return inheritedOrSelf(documentedAlias(m))
 }
 
 // ErrThinkingRequiresStream reports thinking asked of a stream-only model
