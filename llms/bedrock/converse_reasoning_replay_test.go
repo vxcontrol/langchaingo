@@ -62,3 +62,36 @@ func TestKimiK3IsSentAHistoryWithoutTheReasoningOfEarlierTurns(t *testing.T) {
 	require.Equal(t, []string{"reasoningContent", "text"}, assistantBlocks("moonshotai.kimi-k2.5"),
 		"other models keep the reasoning they were given")
 }
+
+func TestKimiK3IsNotSentTwoUserTurnsWhereAnAnswerWasOnlyReasoning(t *testing.T) {
+	t.Parallel()
+
+	var raw []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, converseAnswer)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel("moonshotai.kimi-k3"), bedrock.WithConverseAPI())
+	_, err := llm.GenerateContent(t.Context(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "add two and two"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("",
+			&reasoning.ContentReasoning{Content: "two plus two", Signature: []byte("sig")})}},
+		llms.TextParts(llms.ChatMessageTypeHuman, "go on"),
+	})
+	require.NoError(t, err)
+
+	var sent struct {
+		Messages []struct {
+			Role string `json:"role"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &sent))
+	roles := make([]string, 0, len(sent.Messages))
+	for _, message := range sent.Messages {
+		roles = append(roles, message.Role)
+	}
+	require.Equal(t, []string{"user"}, roles, "the emptied turn merges the user turns around it")
+}

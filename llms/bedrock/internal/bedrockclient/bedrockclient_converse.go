@@ -132,13 +132,13 @@ type converseGptOssFields struct {
 
 // buildConverseInput converts our input to AWS Converse format
 func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockruntime.ConverseInput, error) {
-	// Convert messages
-	converseMessages, systemPrompts, err := c.convertMessages(input.Messages)
+	messages := input.Messages
+	if reasoning.BedrockRejectsReasoningReplay(input.ModelID) {
+		messages = withoutReasoning(messages)
+	}
+	converseMessages, systemPrompts, err := c.convertMessages(messages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert messages: %w", err)
-	}
-	if reasoning.BedrockRejectsReasoningReplay(input.ModelID) {
-		converseMessages = withoutReasoningBlocks(converseMessages)
 	}
 
 	// Build inference configuration
@@ -760,22 +760,12 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 	}, nil
 }
 
-func withoutReasoningBlocks(messages []types.Message) []types.Message {
-	kept := messages[:0]
-	for _, message := range messages {
-		content := make([]types.ContentBlock, 0, len(message.Content))
-		for _, block := range message.Content {
-			if _, thought := block.(*types.ContentBlockMemberReasoningContent); !thought {
-				content = append(content, block)
-			}
-		}
-		if len(content) == 0 {
-			continue
-		}
-		message.Content = content
-		kept = append(kept, message)
+func withoutReasoning(messages []Message) []Message {
+	stripped := slices.Clone(messages)
+	for i := range stripped {
+		stripped[i].Reasoning = nil
 	}
-	return kept
+	return stripped
 }
 
 func carriesToolBlocks(messages []types.Message) bool {
