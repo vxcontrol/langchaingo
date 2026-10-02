@@ -40,12 +40,14 @@ func NewConverseClient(client BedrockRuntimeClientInterface) *ConverseClient {
 
 // CreateCompletionConverse creates a completion using the Converse API
 func (c *ConverseClient) CreateCompletionConverse(ctx context.Context, input *ConverseInput) (*llms.ContentResponse, error) {
+	warn := &llms.Warnings{}
+	warn.AddInherited(input.ModelID)
+	input.Warnings = warn
 	converseInput, err := c.buildConverseInput(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build converse input: %w", err)
 	}
 
-	warn := &llms.Warnings{}
 	reportConverseInput(warn, input, converseInput)
 
 	var resp *llms.ContentResponse
@@ -81,6 +83,7 @@ type ConverseInput struct {
 	ReasoningConfig  *llms.ReasoningConfig
 	EnableCaching    bool
 	StructuredOutput *llms.StructuredOutputConfig
+	Warnings         *llms.Warnings
 }
 
 type converseThinkingPayload struct {
@@ -284,7 +287,12 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			setAdaptive()
 		case reasoning.MechanismBudget:
 			if err := setBudget(); err != nil {
-				return nil, err
+				var noBudget *reasoning.ErrEffortHasNoBudget
+				if !errors.As(err, &noBudget) ||
+					input.Warnings.KeepRefusal(input.ModelID, "WithReasoning", noBudget.Effort, err) {
+					return nil, err
+				}
+				setAdaptive()
 			}
 		case reasoning.MechanismNovaReasoningConfig:
 			setNova()
@@ -306,7 +314,13 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		case reasoning.OffBetweenToolsClaude:
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
-			return nil, &reasoning.ErrReasoningOffUnsupported{Model: input.ModelID}
+			refusal := &reasoning.ErrReasoningOffUnsupported{Model: input.ModelID}
+			if input.Warnings.KeepRefusal(input.ModelID, "WithReasoningDisabled", "off", refusal) {
+				return nil, refusal
+			}
+			if isAnthropicModelID(input.ModelID) {
+				additionalModelFields.Thinking = &converseThinkingPayload{Type: "disabled"}
+			}
 		}
 	}
 

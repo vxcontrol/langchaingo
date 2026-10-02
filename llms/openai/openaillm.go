@@ -107,7 +107,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	if err := o.refuseBeforeTheNetwork(&opts); err != nil {
+	warn := warningsFor(o.effectiveModel(opts))
+	if err := o.refuseBeforeTheNetwork(&opts, warn); err != nil {
 		return nil, err
 	}
 
@@ -122,7 +123,6 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	warn := &llms.Warnings{}
 	reportOpenAIUnread(warn, o.effectiveModel(opts), opts)
 	req, err := o.createChatRequest(chatMsgs, opts, warn)
 	if err != nil {
@@ -344,7 +344,7 @@ func (o *LLM) createChatRequest(
 	setJSONMode(req, model, opts, warn)
 
 	// add tools from functions and tool definitions
-	if err := o.addToolsToRequest(req, opts); err != nil {
+	if err := o.addToolsToRequest(req, opts, warn); err != nil {
 		return nil, err
 	}
 
@@ -360,7 +360,7 @@ func (o *LLM) createChatRequest(
 	if err != nil {
 		return nil, err
 	}
-	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, wireEffort); err != nil {
+	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, wireEffort, warn); err != nil {
 		return nil, err
 	}
 	o.applySamplingPolicy(req, opts, wireEffort, warn)
@@ -369,7 +369,7 @@ func (o *LLM) createChatRequest(
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) error {
 	if len(req.Tools) == 0 {
 		return nil
@@ -384,11 +384,15 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	}
 	model := o.effectiveModel(opts)
 	named := name != ""
+	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
-	case reasoning.ServedByZAI(model, o.host),
-		!named && reasoning.RejectsRequiredToolChoice(model, o.host),
+	case reasoning.ServedByZAI(model, o.host):
+		return refusal
+	case !named && reasoning.RejectsRequiredToolChoice(model, o.host),
 		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
-		return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
+		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal) {
+			return refusal
+		}
 	}
 	return nil
 }
@@ -480,10 +484,12 @@ func (o *LLM) setReasoning(
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
 	if toolsRule != reasoning.EffortToolsFree {
-		if !o.sendsBudgetInsteadOfEffort(model, opts, reasoningTokens) {
-			return "", &reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}
+		if o.sendsBudgetInsteadOfEffort(model, opts, reasoningTokens) {
+			sendsEffort = false
+		} else if refusal := (&reasoning.ErrEffortWithTools{Model: model, Effort: string(reasoningEffort)}); warn.KeepRefusal(
+			model, "WithReasoning", string(reasoningEffort), refusal) {
+			return "", refusal
 		}
-		sendsEffort = false
 	}
 	if o.writeVendorBudget(req, opts, reasoningTokens, warnCtx{model, warn}) {
 		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
@@ -599,16 +605,28 @@ func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
 
 const anthropicAPIHost = "api.anthropic.com"
 
-func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions) error {
+func warningsFor(model string) *llms.Warnings {
+	warn := &llms.Warnings{}
+	warn.AddInherited(model)
+	return warn
+}
+
+func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions, warn *llms.Warnings) error {
 	if err := opts.ValidateReasoning(); err != nil {
 		return err
 	}
 	model := o.effectiveModel(*opts)
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
-		return &reasoning.ErrChatCompletionsUnsupported{Model: model}
+		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithModel", model, refusal) {
+			return refusal
+		}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
-		return &reasoning.ErrStopWordsUnsupported{Model: model}
+		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithStopWords", strings.Join(opts.StopWords, ", "), refusal) {
+			return refusal
+		}
 	}
 	return nil
 }
@@ -683,9 +701,16 @@ func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget in
 // off switch; a model whose thinking this host cannot turn off returns a typed error.
 func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
 	model := o.effectiveModel(opts)
-	switch reasoning.ResolveOff(reasoning.DashScopeRoute(model, o.host), reasoning.ProviderOpenAI) { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
-	case reasoning.OffUnsupported:
-		return &reasoning.ErrReasoningOffUnsupported{Model: model}
+	route := reasoning.DashScopeRoute(model, o.host)
+	off := reasoning.ResolveOff(route, reasoning.ProviderOpenAI)
+	if off == reasoning.OffUnsupported {
+		refusal := &reasoning.ErrReasoningOffUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithReasoningDisabled", "off", refusal) {
+			return refusal
+		}
+		off = reasoning.InheritedOffWire(route, reasoning.ProviderOpenAI)
+	}
+	switch off { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffEffortNone:
 		o.writeDisableEffort(req)
 	case reasoning.OffDisableDashScope:
@@ -820,10 +845,13 @@ func isThinkingOnTheWire(wireEffort string) bool {
 }
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
-func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
+func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
 	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
 		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
-			return &reasoning.ErrChatToolsUnsupported{Model: model}
+			refusal := &reasoning.ErrChatToolsUnsupported{Model: model}
+			if warn.KeepRefusal(model, "WithTools", strconv.Itoa(len(opts.Tools)+len(opts.Functions)), refusal) {
+				return refusal
+			}
 		}
 	}
 

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 // WarningKind names what a door did to a caller option on the way to the wire.
@@ -14,6 +16,10 @@ const (
 	WarningDrop       WarningKind = "drop"
 	WarningClamp      WarningKind = "clamp"
 	WarningSubstitute WarningKind = "substitute"
+	// WarningInherit marks a model the tables do not list: the door applied the
+	// rules of the documented release it follows, or sent a request that release
+	// refuses.
+	WarningInherit WarningKind = "inherit"
 )
 
 // Warning reports one caller option that did not reach the vendor as asked.
@@ -183,6 +189,35 @@ func (w *Warnings) AddUnreadExtraBody(model string, opts CallOptions, reason str
 		Kind: WarningDrop, Option: "WithExtraBody", Model: model,
 		Asked: strings.Join(keys, ", "), Reason: reason,
 	})
+}
+
+// AddInherited records that the tables answer for model with the rules of the
+// documented release it follows.
+func (w *Warnings) AddInherited(model string) {
+	documented, inherited := reasoning.InheritedModel(model)
+	if !inherited {
+		return
+	}
+	w.Add(Warning{
+		Kind: WarningInherit, Option: "WithModel", Model: model, Asked: model, Sent: model,
+		Reason: "the tables do not list this version, so the door applies the rules of " + documented,
+	})
+}
+
+// KeepRefusal reports whether a door refuses before the network. It does for a
+// model the tables list; a model that only inherits the refusal goes out as asked,
+// and the refusal is recorded against option instead.
+func (w *Warnings) KeepRefusal(model, option, asked string, refusal error) bool {
+	documented, inherited := reasoning.InheritedModel(model)
+	if !inherited {
+		return true
+	}
+	w.Add(Warning{
+		Kind: WarningInherit, Option: option, Model: model, Asked: asked, Sent: asked,
+		Reason: fmt.Sprintf("%s refuses this (%v), but the tables do not list this version, so it goes out as asked",
+			documented, refusal),
+	})
+	return false
 }
 
 func (w *Warnings) List() []Warning {

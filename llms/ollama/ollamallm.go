@@ -172,6 +172,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	warn := &llms.Warnings{}
+	warn.AddInherited(model)
 	reportOllamaOptions(warn, model, opts)
 	thinking, err := o.thinkingFor(ctx, model, opts)
 	if err != nil {

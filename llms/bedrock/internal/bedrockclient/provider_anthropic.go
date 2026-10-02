@@ -271,7 +271,13 @@ func createAnthropicCompletion(ctx context.Context,
 	}
 
 	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens); err != nil {
-		return nil, err
+		var noBudget *reasoning.ErrEffortHasNoBudget
+		if !errors.As(err, &noBudget) || warn.KeepRefusal(modelID, "WithReasoning", noBudget.Effort, err) {
+			return nil, err
+		}
+		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
+		input.OutputConfig = &anthropicOutputConfig{Effort: noBudget.Effort}
+		input.Temperature, input.TopP, input.TopK = nil, 0, 0
 	}
 	if input.Thinking != nil {
 		input.MaxTokens = reasoning.ClaudeMaxTokensForBudget(input.Thinking.BudgetTokens, input.MaxTokens)
@@ -873,6 +879,10 @@ func applyAnthropicReasoning(
 			input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
 		case reasoning.OffBetweenToolsClaude:
 			input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
+		case reasoning.OffUnsupported:
+			if _, inherited := reasoning.InheritedModel(modelID); inherited {
+				input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
+			}
 		}
 		return nil
 	}

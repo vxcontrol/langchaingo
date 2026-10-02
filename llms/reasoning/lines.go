@@ -319,6 +319,9 @@ func (f lineFamily) inherit(name string) (string, bool) {
 	if !found {
 		return "", false
 	}
+	if g.major == p.major && g.minor == p.minor && p.qualifier != "" {
+		return "", false
+	}
 	documented := g.member(p.qualifier)
 	if p.dashMinor {
 		documented = strings.Replace(documented, fmt.Sprintf("%d.%d", g.major, g.minor), fmt.Sprintf("%d-%d", g.major, g.minor), 1)
@@ -377,4 +380,56 @@ func inheritLine(bare string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// InheritedOffWire is the disable a door sends for a model that inherits a
+// refusal to switch thinking off: the wire of the newest release of its line that
+// documents one, or OffOmit when none does.
+func InheritedOffWire(model string, p Provider) OffWire {
+	for _, release := range releasesBelow(model) {
+		if off := ResolveOff(release, p); off != OffUnsupported {
+			return off
+		}
+	}
+	return OffOmit
+}
+
+func releasesBelow(model string) []string {
+	documented, inherited := InheritedModel(model)
+	if !inherited {
+		return nil
+	}
+	var line []string
+	if rest, ok := strings.CutPrefix(documented, "claude-"); ok {
+		tier, _, _ := strings.Cut(rest, "-")
+		for _, r := range claudeReleases[tier] {
+			line = append(line, r.id)
+		}
+	} else {
+		for _, f := range lineFamilies {
+			p, ok := f.parse(documented)
+			if !ok {
+				continue
+			}
+			for _, g := range f.lines[p.product] {
+				if id := g.member(p.qualifier); id != "" {
+					line = append(line, id)
+				}
+			}
+			break
+		}
+	}
+	idx := slices.Index(line, documented)
+	if idx == -1 {
+		line, idx = []string{documented}, 0
+	}
+	route := ""
+	if slash := strings.LastIndex(model, "/"); slash != -1 {
+		route = model[:slash+1]
+	}
+	below := make([]string, 0, idx+1)
+	for i := idx; i >= 0; i-- {
+		below = append(below, route+line[i])
+	}
+	return below
 }

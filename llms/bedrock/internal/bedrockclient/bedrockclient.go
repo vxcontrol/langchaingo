@@ -115,11 +115,15 @@ func (c *Client) CreateCompletion(ctx context.Context,
 			Reason:   "legacy InvokeModel structured output is only implemented for Anthropic models; use the Converse API for other providers",
 		}
 	}
+	warn := &llms.Warnings{}
+	warn.AddInherited(modelID)
 	if options.Reasoning.ResolveMode() == llms.ReasoningOff &&
 		reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffUnsupported {
-		return nil, &reasoning.ErrReasoningOffUnsupported{Model: modelID}
+		refusal := &reasoning.ErrReasoningOffUnsupported{Model: modelID}
+		if warn.KeepRefusal(modelID, "WithReasoningDisabled", "off", refusal) {
+			return nil, refusal
+		}
 	}
-	warn := &llms.Warnings{}
 	reportLegacyOptions(warn, provider, modelID, options)
 
 	var (

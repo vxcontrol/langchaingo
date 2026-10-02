@@ -116,6 +116,9 @@ func CheckForcedToolUse(model string, opts CallOptions) error {
 	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
+	if _, inherited := reasoning.InheritedModel(model); inherited {
+		return nil
+	}
 	if name == "" {
 		name = "any"
 	}

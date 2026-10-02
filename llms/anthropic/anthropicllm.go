@@ -190,6 +190,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	// API will run — otherwise an unset model reads as unknown while the wire runs
 	// the default (an adaptive-only model that rejects budget thinking and sampling).
 	model := o.client.EffectiveModel(opts.GetModel())
+	warn := &llms.Warnings{}
+	warn.AddInherited(model)
 
 	var thinking *anthropicclient.ThinkingPayload
 	var outputConfig *anthropicclient.OutputConfig
@@ -222,10 +224,13 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 				}
 			}
 		} else {
-			return nil, &reasoning.ErrEffortHasNoBudget{
-				Model:  model,
-				Effort: string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
+			effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+			refusal := &reasoning.ErrEffortHasNoBudget{Model: model, Effort: effort}
+			if warn.KeepRefusal(model, "WithReasoning", effort, refusal) {
+				return nil, refusal
 			}
+			thinking = &anthropicclient.ThinkingPayload{Type: "adaptive", Display: "summarized"}
+			outputConfig = &anthropicclient.OutputConfig{Effort: effort}
 		}
 	case llms.ReasoningOff:
 		switch reasoning.ResolveOff(model, reasoning.ProviderAnthropic) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
@@ -234,7 +239,11 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		case reasoning.OffBetweenToolsClaude:
 			thinking = &anthropicclient.ThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
-			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
+			refusal := &reasoning.ErrReasoningOffUnsupported{Model: model}
+			if warn.KeepRefusal(model, "WithReasoningDisabled", "off", refusal) {
+				return nil, refusal
+			}
+			thinking = &anthropicclient.ThinkingPayload{Type: "disabled"}
 		}
 	}
 
@@ -283,7 +292,6 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 	}
 
-	warn := &llms.Warnings{}
 	temperature, topP, topK, maxTokens := opts.Temperature, opts.TopP, opts.TopK, opts.GetMaxTokens()
 	switch {
 	case thinking != nil && thinking.Type == "adaptive":
