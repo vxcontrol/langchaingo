@@ -1,8 +1,6 @@
 package reasoning
 
 import (
-	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -20,50 +18,25 @@ func baseModelName(model string) string {
 	return m
 }
 
-var geminiVersionPattern = regexp.MustCompile(`^gemini-(\d+)(?:\.(\d+))?(?:-|$)`)
-
-func geminiVersion(model string) (major, minor int, ok bool) {
-	m := geminiVersionPattern.FindStringSubmatch(model)
-	if m == nil {
-		return 0, 0, false
-	}
-	major, _ = strconv.Atoi(m[1])
-	if m[2] != "" {
-		minor, _ = strconv.Atoi(m[2])
-	}
-	return major, minor, true
-}
-
-func geminiLatestAlias(model string) bool {
-	return strings.HasPrefix(model, "gemini-") && strings.HasSuffix(model, "-latest")
-}
-
-func geminiLatestAPIGeneration(model string) bool {
-	if geminiLatestAlias(model) {
-		return true
-	}
-	major, minor, ok := geminiVersion(model)
+func GeminiRejectsAssistantPrefill(model string) bool {
+	m := baseModelName(model)
+	major, minor, ok := generationAfter("gemini-", m)
 	switch {
 	case !ok:
 		return false
 	case major > 3 || major == 3 && minor >= 6:
 		return true
 	default:
-		return major == 3 && minor == 5 && strings.Contains(model, "flash-lite")
+		return major == 3 && minor == 5 && strings.Contains(m, "flash-lite")
 	}
-}
-
-func GeminiRejectsAssistantPrefill(model string) bool {
-	return geminiLatestAPIGeneration(baseModelName(model))
 }
 
 func GeminiTakesNoCandidateCount(model string) bool {
 	m := baseModelName(model)
-	if geminiLatestAlias(m) {
-		return true
+	if major, _, ok := generationAfter("gemini-", m); ok {
+		return major >= 3
 	}
-	major, _, ok := geminiVersion(m)
-	return ok && major >= 3
+	return strings.HasPrefix(m, "gemini-") && strings.HasSuffix(m, "-latest")
 }
 
 func hasFamily(model, family string) bool {

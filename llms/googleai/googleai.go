@@ -121,10 +121,6 @@ func (g *GoogleAI) GenerateContent(
 	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
 		opts.Temperature = &temperature
 	}
-	if reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) && llms.HasAssistantPrefill(messages) {
-		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
-	}
-
 	config := newGenerationConfig(opts)
 
 	// Check for cached content
@@ -320,6 +316,9 @@ func (g *GoogleAI) generateFromMessages(
 		}
 	}
 
+	if endsOnTheModel(contents) && reasoning.GeminiRejectsAssistantPrefill(model) {
+		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: model}
+	}
 	if systemInstruction != nil {
 		config.SystemInstruction = systemInstruction
 	}
@@ -336,6 +335,15 @@ func (g *GoogleAI) generateFromMessages(
 	}
 
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
+}
+
+func endsOnTheModel(contents []*genai.Content) bool {
+	for i := len(contents) - 1; i >= 0; i-- {
+		if len(contents[i].Parts) > 0 {
+			return contents[i].Role == RoleModel
+		}
+	}
+	return false
 }
 
 // geminiSignaturePlaceholder is the value Google documents for a function call
