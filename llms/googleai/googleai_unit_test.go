@@ -1084,3 +1084,18 @@ func TestNewRefusesTheOptionsThisDoorCannotCarry(t *testing.T) {
 		})
 	}
 }
+
+func TestCallReturnsTheAnswerToTheSinglePrompt(t *testing.T) {
+	t.Parallel()
+
+	rt := &captureTransport{resp: `{"candidates":[{"content":{"role":"model","parts":[{"text":"4"}]},` +
+		`"finishReason":"STOP"}],"usageMetadata":{}}`}
+	llm, err := New(t.Context(), WithAPIKey("unit-test-key"), WithDefaultModel("gemini-2.5-flash"),
+		WithHTTPClient(&http.Client{Transport: rt}))
+	require.NoError(t, err)
+
+	answer, err := llm.Call(t.Context(), "What is 2 + 2?")
+	require.NoError(t, err)
+	assert.Equal(t, "4", answer)
+	assert.Contains(t, string(rt.body), "What is 2 + 2?")
+}
