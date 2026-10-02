@@ -24,25 +24,39 @@ var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-
 
 const deepSeekAPIHost = "api.deepseek.com"
 
-func RejectsForcedToolChoiceWhileThinking(model string, named bool) bool {
+func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
+	if ServedByDeepSeek(model, host) {
+		return true
+	}
+	if name, ok := onDashScope(model, host); ok {
+		return strings.HasPrefix(name, "qwen") || strings.HasPrefix(name, "qwq")
+	}
+	if !servedByMoonshot(model, host) {
+		return false
+	}
 	for _, form := range modelSpellings(model) {
-		switch {
-		case strings.HasPrefix(form, "deepseek-"), strings.HasPrefix(form, "qwen"), strings.HasPrefix(form, "qwq"):
-			return true
-		case strings.HasPrefix(form, "kimi-"):
+		if strings.HasPrefix(form, "kimi-") {
 			return named
 		}
 	}
 	return false
 }
 
-func RejectsRequiredToolChoice(model string) bool {
+func RejectsRequiredToolChoice(model, host string) bool {
+	if !servedByMoonshot(model, host) {
+		return false
+	}
 	for _, form := range modelSpellings(model) {
 		if hasGeneration(form, "kimi-k2.6") || hasGeneration(form, "kimi-k2.7-code") {
 			return true
 		}
 	}
 	return false
+}
+
+func servedByMoonshot(model, host string) bool {
+	return host == "api.moonshot.ai" || host == "api.moonshot.cn" ||
+		strings.HasPrefix(strings.ToLower(model), "moonshot/")
 }
 
 type ErrStopWordsUnsupported struct{ Model string }
@@ -73,7 +87,7 @@ func GrokFamily(model string) bool {
 }
 
 func ServedByZAI(model, host string) bool {
-	if host != "api.z.ai" && host != "open.bigmodel.cn" {
+	if host != "api.z.ai" && host != "open.bigmodel.cn" && !strings.HasPrefix(strings.ToLower(model), "zai/") {
 		return false
 	}
 	for _, form := range modelSpellings(model) {

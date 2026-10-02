@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -370,20 +371,39 @@ func (o *LLM) createChatRequest(
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string,
 ) error {
-	kind, name := llms.ClassifyToolChoice(opts.ToolChoice)
-	if len(req.Tools) == 0 || kind != llms.ToolChoiceAny && kind != llms.ToolChoiceNamed {
+	if len(req.Tools) == 0 {
+		return nil
+	}
+	choice := req.ToolChoice
+	if fromExtraBody, set := llms.ExtraBody(opts)["tool_choice"]; set {
+		choice = fromExtraBody
+	}
+	name, forced := llms.ForcedToolName(choice)
+	if !forced {
 		return nil
 	}
 	model := o.effectiveModel(opts)
-	named := kind == llms.ToolChoiceNamed
-	if reasoning.ServedByZAI(model, o.host) || !named && reasoning.RejectsRequiredToolChoice(model) ||
-		reasoning.RejectsForcedToolChoiceWhileThinking(model, named) && thinkingRuns(model, opts, wireEffort) {
-		if !named {
-			name = "required"
-		}
-		return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
+	named := name != ""
+	switch {
+	case reasoning.ServedByZAI(model, o.host),
+		!named && reasoning.RejectsRequiredToolChoice(model, o.host),
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
+		return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	}
 	return nil
+}
+
+func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
+	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+	case on:
+		return true
+	case off:
+		return false
+	}
+	if req.EnableThinking != nil {
+		return *req.EnableThinking
+	}
+	return thinkingRuns(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
