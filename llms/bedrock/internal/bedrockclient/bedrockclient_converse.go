@@ -144,7 +144,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Build inference configuration
 	inferenceConfig := &types.InferenceConfiguration{}
 	if input.MaxTokens != nil && *input.MaxTokens > 0 {
-		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
+		maxTokens := *input.MaxTokens
+		if ceiling := answerCeiling(input.ModelID); ceiling != 0 && GetProvider(input.ModelID) == "nova" {
+			maxTokens = min(maxTokens, ceiling)
+		}
+		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(maxTokens))
 	}
 	if input.Temperature != nil {
 		temperature, _ := clampTemperature(input.ModelID, *input.Temperature)

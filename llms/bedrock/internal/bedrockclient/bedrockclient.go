@@ -191,7 +191,7 @@ func maxTokensOnTheWire(
 
 func answerLimit(modelID string, options llms.CallOptions, defaultValue int) int {
 	sent := getMaxTokens(options.GetMaxTokens(), defaultValue)
-	if ceiling := legacyAnswerCeiling(modelID); ceiling != 0 && sent > ceiling {
+	if ceiling := answerCeiling(modelID); ceiling != 0 && sent > ceiling {
 		return ceiling
 	}
 	return sent
@@ -221,7 +221,7 @@ func reportAnswerLimit(warn *llms.Warnings, modelID string, options llms.CallOpt
 	}
 }
 
-var legacyAnswerCeilings = []struct {
+var answerCeilings = []struct {
 	family  string
 	ceiling int
 }{
@@ -244,9 +244,9 @@ var legacyAnswerCeilings = []struct {
 	{"deepseek.r1", 32768},
 }
 
-func legacyAnswerCeiling(modelID string) int {
+func answerCeiling(modelID string) int {
 	id := strings.ToLower(modelID)
-	for _, entry := range legacyAnswerCeilings {
+	for _, entry := range answerCeilings {
 		if strings.Contains(id, entry.family) {
 			return entry.ceiling
 		}
