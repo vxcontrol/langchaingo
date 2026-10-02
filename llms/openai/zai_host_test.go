@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -52,18 +53,26 @@ func hostCall(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map
 func TestGLMOnZAIIsSentTheTemperatureRangeZAIDocuments(t *testing.T) {
 	t.Parallel()
 
-	for _, baseURL := range []string{"https://api.z.ai/api/paas/v4", "https://open.bigmodel.cn/api/paas/v4"} {
-		body, warnings := hostCall(t, baseURL, "glm-4.6", llms.WithTemperature(1.5))
-		assert.InDelta(t, 1, body["temperature"], 0, baseURL)
-		if assert.Contains(t, warnings, "WithTemperature", baseURL) {
-			assert.Equal(t, llms.WarningClamp, warnings["WithTemperature"].Kind)
-			assert.Equal(t, "1.5", warnings["WithTemperature"].Asked)
-			assert.Equal(t, "1", warnings["WithTemperature"].Sent)
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://api.z.ai/api/paas/v4", "glm-4.6"},
+		{"https://open.bigmodel.cn/api/paas/v4", "glm-4.6"},
+		{"http://litellm.internal/v1", "zai/glm-4.6"},
+	} {
+		for _, asked := range []float64{1.5, 1.0001} {
+			body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(asked))
+			assert.InDelta(t, 1, body["temperature"], 0, route)
+			if assert.Contains(t, warnings, "WithTemperature", route) {
+				assert.Equal(t, llms.WarningClamp, warnings["WithTemperature"].Kind)
+				assert.Equal(t, strconv.FormatFloat(asked, 'g', -1, 64), warnings["WithTemperature"].Asked)
+				assert.Equal(t, "1", warnings["WithTemperature"].Sent)
+			}
 		}
 
-		body, warnings = hostCall(t, baseURL, "glm-4.6", llms.WithTemperature(0.7))
-		assert.InDelta(t, 0.7, body["temperature"], 1e-9, baseURL)
-		assert.NotContains(t, warnings, "WithTemperature", baseURL)
+		for _, asked := range []float64{0.7, 1} {
+			body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(asked))
+			assert.InDelta(t, asked, body["temperature"], 1e-9, route)
+			assert.NotContains(t, warnings, "WithTemperature", route)
+		}
 	}
 
 	body, warnings := hostCall(t, "http://litellm.internal/v1", "glm-4.6", llms.WithTemperature(1.5))
@@ -78,6 +87,7 @@ func TestZAIAndMistralAreSentTheAnswerLimitTheirSchemasName(t *testing.T) {
 		{"https://api.z.ai/api/paas/v4", "glm-4.6"},
 		{"https://open.bigmodel.cn/api/paas/v4", "glm-5.2"},
 		{"https://api.mistral.ai/v1", "mistral-large-latest"},
+		{"http://litellm.internal/v1", "zai/glm-5.2"},
 	} {
 		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithMaxTokens(1000))
 		assert.InDelta(t, 1000, body["max_tokens"], 0, tc.baseURL)
