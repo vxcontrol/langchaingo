@@ -22,6 +22,7 @@ func TestThinkingSwitchedOnInTheExtraBodyDropsTheSamplingItRefuses(t *testing.T)
 		"a Claude thinking object":       {"anthropic/claude-sonnet-4-5", map[string]any{"thinking": map[string]any{"type": "enabled", "budget_tokens": 2048}}},
 		"Claude adaptive on a gateway":   {"anthropic/claude-sonnet-4-6", map[string]any{"thinking": map[string]any{"type": "adaptive"}}},
 		"an OpenRouter reasoning budget": {"anthropic/claude-sonnet-4-5", map[string]any{"reasoning": map[string]any{"max_tokens": 2048}}},
+		"a budget decoded from JSON":     {"anthropic/claude-sonnet-4-5", map[string]any{"reasoning": map[string]any{"max_tokens": float64(2048)}}},
 		"an OpenRouter reasoning switch": {"gpt-5.4", map[string]any{"reasoning": map[string]any{"enabled": true}}},
 	} {
 		body, err := wireBodyOf(t, tc.model, nil, append(sampling, llms.WithExtraBody(tc.extra))...)
@@ -54,8 +55,9 @@ func TestTheExtraBodyDecidesThinkingBecauseItWinsOnTheWire(t *testing.T) {
 	assert.NotContains(t, body, "temperature", "DeepSeek V4 thinks unless told otherwise")
 
 	for name, extra := range map[string]map[string]any{
-		"thinking disabled":     {"thinking": map[string]any{"type": "disabled"}},
-		"enable_thinking false": {"enable_thinking": false},
+		"thinking disabled":       {"thinking": map[string]any{"type": "disabled"}},
+		"enable_thinking false":   {"enable_thinking": false},
+		"reasoning enabled false": {"reasoning": map[string]any{"enabled": false}},
 	} {
 		body, _ = hostCall(t, deepSeek, "deepseek-v4-pro", llms.WithTemperature(0.7), llms.WithExtraBody(extra))
 		assert.InDelta(t, 0.7, body["temperature"], 1e-9, name)

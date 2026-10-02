@@ -37,6 +37,7 @@ func TestQwenIsSentAJSONSchemaOnlyWhereDashScopeDocumentsIt(t *testing.T) {
 	for _, tc := range []struct{ baseURL, model string }{
 		{dashScope, "qwen3.6-flash"}, {dashScope, "qwen-plus"}, {dashScope, "qwen3-max"}, {dashScope, "qwq-plus"},
 		{dashScope, "kimi-k3"}, {dashScope, "kimi/kimi-k3"}, {dashScope, "kimi-k2-thinking"},
+		{dashScope, "Moonshot-Kimi-K2-Instruct"}, {dashScope, "qwen3.8-plus"}, {dashScope, "qwen2.5-72b-instruct"},
 		{gateway, "dashscope/qwen3.6-flash"},
 	} {
 		body, err := call(tc.baseURL, tc.model)

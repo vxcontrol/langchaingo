@@ -28,7 +28,7 @@ func QwenThinkingRequiresStream(model string) bool {
 }
 
 func DashScopeTakesNoJSONSchema(route string) bool {
-	if strings.HasPrefix(dashScopeGuestSpelling(route), "kimi") {
+	if guest := dashScopeGuestSpelling(route); strings.HasPrefix(guest, "kimi") || strings.HasPrefix(guest, "moonshot-kimi") {
 		return true
 	}
 	name, ok := dashScopeRouteName(route)

@@ -100,7 +100,7 @@ func ServedByZAI(model, host string) bool {
 
 func ServedByDeepSeek(model, host string) bool {
 	m := strings.ToLower(model)
-	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok {
+	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok && host != "openrouter.ai" {
 		return slices.Contains(deepSeekAPIModels, rest)
 	}
 	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, m)
