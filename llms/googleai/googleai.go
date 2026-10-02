@@ -363,11 +363,15 @@ func endsOnTheModel(messages []llms.MessageContent) bool {
 func carriesAPart(parts []llms.ContentPart) bool {
 	for _, part := range parts {
 		text, isText := part.(llms.TextContent)
-		if !isText || text.Text != "" || !text.Reasoning.IsEmpty() {
+		if !isText || sendsTextPart(text) {
 			return true
 		}
 	}
 	return false
+}
+
+func sendsTextPart(text llms.TextContent) bool {
+	return text.Text != "" || len(extractThoughtSignature(text.Reasoning)) > 0
 }
 
 // geminiSignaturePlaceholder is the value Google documents for a function call
@@ -716,10 +720,7 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 
 		switch p := part.(type) {
 		case llms.TextContent:
-			// Skip completely empty text parts without reasoning.
-			// Empty parts serve no purpose and cause Gemini API errors:
-			// "required oneof field 'data' must have one initialized field"
-			if p.Text == "" && (p.Reasoning == nil || p.Reasoning.IsEmpty()) {
+			if !sendsTextPart(p) {
 				continue
 			}
 
