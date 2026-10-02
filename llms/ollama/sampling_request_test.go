@@ -59,8 +59,12 @@ func TestAZeroTheCallerAsksForReachesTheWire(t *testing.T) {
 	t.Parallel()
 
 	options := sentOptions(t, nil, llms.WithTemperature(0), llms.WithSeed(0), llms.WithTopP(0), llms.WithTopK(0),
-		llms.WithMinP(0), llms.WithRepetitionPenalty(0))
-	for _, field := range []string{"temperature", "seed", "top_p", "top_k", "min_p", "repeat_penalty"} {
+		llms.WithMinP(0), llms.WithMaxTokens(0), llms.WithRepetitionPenalty(0), llms.WithFrequencyPenalty(0),
+		llms.WithPresencePenalty(0))
+	for _, field := range []string{
+		"temperature", "seed", "top_p", "top_k", "min_p", "num_predict",
+		"repeat_penalty", "frequency_penalty", "presence_penalty",
+	} {
 		got, present := options[field]
 		require.Truef(t, present, "%s 0 was asked and the server would use its own default; options=%v", field, options)
 		require.InDeltaf(t, 0, got, 0, field)
@@ -70,17 +74,30 @@ func TestAZeroTheCallerAsksForReachesTheWire(t *testing.T) {
 func TestTheClientsSamplingReachesTheWireUnlessTheCallSetsIt(t *testing.T) {
 	t.Parallel()
 
-	client := []Option{WithSeed(42), WithTopK(9), WithTopP(0.5), WithMinP(0.1), WithNumPredict(77)}
+	client := []Option{
+		WithSeed(42), WithTopK(9), WithTopP(0.5), WithMinP(0.1), WithNumPredict(77), WithPredictRepeatPenalty(1.2),
+		WithPredictPresencePenalty(0.3), WithPredictFrequencyPenalty(0.4), WithPredictStop([]string{"END"}),
+	}
+	fromClient := map[string]float64{
+		"seed": 42, "top_k": 9, "top_p": 0.5, "min_p": 0.1, "num_predict": 77,
+		"repeat_penalty": 1.2, "presence_penalty": 0.3, "frequency_penalty": 0.4,
+	}
 
 	options := sentOptions(t, client)
-	for field, want := range map[string]float64{"seed": 42, "top_k": 9, "top_p": 0.5, "min_p": 0.1, "num_predict": 77} {
+	for field, want := range fromClient {
 		require.InDeltaf(t, want, options[field], 1e-6, "%s set on the client; options=%v", field, options)
 	}
+	require.Equal(t, []any{"END"}, options["stop"])
 
-	options = sentOptions(t, client, llms.WithSeed(1), llms.WithTopK(3), llms.WithMinP(0.2), llms.WithMaxTokens(5))
-	for field, want := range map[string]float64{"seed": 1, "top_k": 3, "top_p": 0.5, "min_p": 0.2, "num_predict": 5} {
+	options = sentOptions(t, client, llms.WithSeed(1), llms.WithTopK(3), llms.WithMinP(0.2), llms.WithMaxTokens(5),
+		llms.WithPresencePenalty(0.6), llms.WithStopWords([]string{"STOP"}))
+	for field, want := range map[string]float64{
+		"seed": 1, "top_k": 3, "top_p": 0.5, "min_p": 0.2, "num_predict": 5,
+		"repeat_penalty": 1.2, "presence_penalty": 0.6, "frequency_penalty": 0.4,
+	} {
 		require.InDeltaf(t, want, options[field], 1e-6, "%s: the call wins over the client; options=%v", field, options)
 	}
+	require.Equal(t, []any{"STOP"}, options["stop"])
 }
 
 func TestSamplingNobodySetStaysOffTheWire(t *testing.T) {
