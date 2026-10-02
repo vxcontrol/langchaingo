@@ -30,17 +30,26 @@ func TestQwenIsSentAJSONSchemaOnlyWhereDashScopeDocumentsIt(t *testing.T) {
 		return body, err
 	}
 
-	const dashScope = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-	for _, model := range []string{"qwen3.6-flash", "qwen-plus", "qwen3-max", "dashscope/qwen3.6-flash"} {
-		body, err := call(dashScope, model)
+	const (
+		dashScope = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+		gateway   = "http://litellm.internal/v1"
+	)
+	for _, tc := range []struct{ baseURL, model string }{
+		{dashScope, "qwen3.6-flash"}, {dashScope, "qwen-plus"}, {dashScope, "qwen3-max"}, {dashScope, "qwq-plus"},
+		{gateway, "dashscope/qwen3.6-flash"},
+	} {
+		body, err := call(tc.baseURL, tc.model)
 		var unsupported *llms.ErrStructuredOutputUnsupported
-		require.True(t, errors.As(err, &unsupported), "%s: %v", model, err)
-		require.Nil(t, body, "%s: refused before the network", model)
+		require.True(t, errors.As(err, &unsupported), "%s: %v", tc.model, err)
+		require.Nil(t, body, "%s: refused before the network", tc.model)
 	}
 
 	for _, tc := range []struct{ baseURL, model string }{
-		{dashScope, "qwen3.7-flash"}, {dashScope, "qwen3.8-max"}, {dashScope, "qwen3.7-plus"},
-		{"http://litellm.internal/v1", "openrouter/qwen/qwen3.6-flash"},
+		{dashScope, "qwen3.7-flash"}, {dashScope, "qwen3.7-plus"}, {dashScope, "qwen3.7-max"},
+		{dashScope, "qwen3.8-max"}, {dashScope, "qwen3.8-flash"},
+		{dashScope, "qwen3.9-plus"}, {dashScope, "qwen4-max"},
+		{gateway, "openrouter/qwen/qwen3.6-flash"}, {gateway, "qwen3.6-flash"},
+		{"http://vllm.internal:8000/v1", "qwen3-32b"}, {"http://localhost:11434/v1", "qwen3:32b"},
 	} {
 		body, err := call(tc.baseURL, tc.model)
 		require.NoError(t, err, tc.model)

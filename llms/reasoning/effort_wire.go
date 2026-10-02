@@ -154,9 +154,6 @@ func TakesNoJSONSchema(model string) bool {
 	if ServedByMistral(model) {
 		return false
 	}
-	if m := dashScopeSpelling(model); strings.HasPrefix(m, "qwen") && !qwenTakesJSONSchema(m) {
-		return true
-	}
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "deepseek-") || strings.HasPrefix(form, "glm-") {
 			return true

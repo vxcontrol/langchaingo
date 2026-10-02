@@ -62,3 +62,24 @@ func TestQVQIsAskedOnlyForWhatDashScopeServesIt(t *testing.T) {
 	assert.NotContains(t, body, "reasoning_effort", "DashScope documents no effort for QVQ")
 	assert.Equal(t, true, body["stream"])
 }
+
+func TestOnlyModelStudioHoldsQVQToAStream(t *testing.T) {
+	t.Parallel()
+
+	call := func(baseURL, model string) (*bodyDoer, error) {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "what is in the picture?")})
+		return doer, err
+	}
+
+	doer, err := call("http://litellm.internal/v1", "dashscope/qvq-max")
+	var streamOnly *reasoning.ErrThinkingRequiresStream
+	require.True(t, errors.As(err, &streamOnly), "the gateway's dashscope route is Model Studio: %v", err)
+	require.Nil(t, doer.body)
+
+	doer, err = call("http://vllm.internal:8000/v1", "qvq-72b-preview")
+	require.NoError(t, err, "open weights on another host answer without a stream")
+	require.NotNil(t, doer.body)
+}

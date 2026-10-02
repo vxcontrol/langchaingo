@@ -313,7 +313,7 @@ func (o *LLM) createChatRequest(
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
 
-	if model := o.effectiveModel(opts); reasoning.QVQStreamsOnly(model) && opts.StreamingFunc == nil {
+	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
