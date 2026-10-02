@@ -36,7 +36,7 @@ const (
 
 	// Claude Fable 5 is Anthropic's most capable widely released model, built for the most demanding
 	// reasoning and long-horizon agentic work. Thinking is always on (adaptive); the raw chain of thought
-	// is never returned. On Bedrock it requires opting into the provider data-share retention mode, and
+	// is never returned. On Bedrock the account must set its data retention mode to aws_review, and
 	// temperature must be 1.0 or unset.
 	//
 	// Max tokens: 1M

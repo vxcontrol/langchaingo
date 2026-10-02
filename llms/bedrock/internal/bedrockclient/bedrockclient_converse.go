@@ -670,8 +670,9 @@ func isEmptyAssistantPart(msg Message) bool {
 		len(msg.Reasoning.Sequence()) == 0
 }
 
-// ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
-var ErrUnsupportedImageFormat = errors.New("bedrock: unsupported image mime type")
+// ErrUnsupportedImageFormat reports a binary part whose MIME type is not an image
+// format the door sends; binary parts reach Bedrock only as images.
+var ErrUnsupportedImageFormat = errors.New("bedrock: a binary part must be an image this door can send")
 
 func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Message, error) {
 	var role types.ConversationRole
@@ -837,7 +838,6 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 	return c.processStreamingResponse(ctx, response, callback)
 }
 
-// processStreamingResponse processes streaming events
 func deliverToolCall(
 	ctx context.Context, callback streaming.Callback, builder *converseToolCallBuilder,
 ) (llms.ToolCall, error) {
