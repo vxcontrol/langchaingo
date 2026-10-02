@@ -83,6 +83,12 @@ func TestAConversationEndingOnTheModelIsRefusedWhereGeminiRejectsIt(t *testing.T
 		assert.Equal(t, []string{"user", "model"}, roles, model)
 	}
 
+	withAnImage := llms.MessageContent{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
+		llms.TextContent{Text: "what is this?"}, llms.ImageURLContent{URL: "http://127.0.0.1:1/gone.png"},
+	}}
+	roles, err = sendConversation(t, "gemini-3.8-flash", []llms.MessageContent{withAnImage, answer})
+	refused(t, "an image in the history is not fetched before the refusal", roles, err)
+
 	roles, err = sendConversation(t, "gemini-3.8-flash",
 		[]llms.MessageContent{human, llms.TextParts(llms.ChatMessageTypeAI, "")})
 	require.NoError(t, err, "a model turn with nothing in it is not the last non-empty turn")

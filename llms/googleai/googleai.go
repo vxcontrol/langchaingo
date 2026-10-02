@@ -121,6 +121,9 @@ func (g *GoogleAI) GenerateContent(
 	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
 		opts.Temperature = &temperature
 	}
+	if endsOnTheModel(messages) && reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) {
+		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
+	}
 	config := newGenerationConfig(opts)
 
 	// Check for cached content
@@ -317,9 +320,6 @@ func (g *GoogleAI) generateFromMessages(
 		}
 	}
 
-	if endsOnTheModel(contents) && reasoning.GeminiRejectsAssistantPrefill(model) {
-		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: model}
-	}
 	if systemInstruction != nil {
 		config.SystemInstruction = systemInstruction
 	}
@@ -338,10 +338,21 @@ func (g *GoogleAI) generateFromMessages(
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
 }
 
-func endsOnTheModel(contents []*genai.Content) bool {
-	for i := len(contents) - 1; i >= 0; i-- {
-		if len(contents[i].Parts) > 0 {
-			return contents[i].Role == RoleModel
+func endsOnTheModel(messages []llms.MessageContent) bool {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == llms.ChatMessageTypeSystem || !carriesAPart(messages[i].Parts) {
+			continue
+		}
+		return messages[i].Role == llms.ChatMessageTypeAI
+	}
+	return false
+}
+
+func carriesAPart(parts []llms.ContentPart) bool {
+	for _, part := range parts {
+		text, isText := part.(llms.TextContent)
+		if !isText || text.Text != "" || !text.Reasoning.IsEmpty() {
+			return true
 		}
 	}
 	return false
