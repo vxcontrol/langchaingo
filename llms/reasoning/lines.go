@@ -3,6 +3,7 @@ package reasoning
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -93,11 +94,49 @@ type lineFamily struct {
 	products   []string
 	qualifiers []string
 	stages     []string
+	// compounds maps a token to the product it extends: lite after flash is flash-lite.
+	compounds map[string]string
+	// sizes lets parameter counts (26b, a4b) stand without changing the line.
+	sizes bool
 	// dashMinor reads glm-5-3 as 5.3; decimalMinor reads grok-4.20 as 4.2.
 	dashMinor, decimalMinor bool
 }
 
 var lineFamilies = []lineFamily{
+	{
+		prefix: "gemini-",
+		lines: map[string][]generation{
+			"flash": {
+				{2, 0, map[string]string{"": "gemini-2.0-flash"}}, {2, 5, map[string]string{"": "gemini-2.5-flash"}},
+				{3, 0, map[string]string{"": "gemini-3-flash-preview"}}, {3, 5, map[string]string{"": "gemini-3.5-flash"}},
+				{3, 6, map[string]string{"": "gemini-3.6-flash"}}, {3, 7, map[string]string{"": "gemini-3.7-flash"}},
+				{3, 8, map[string]string{"": "gemini-3.8-flash"}},
+			},
+			"pro": {
+				{2, 5, map[string]string{"": "gemini-2.5-pro"}}, {3, 0, map[string]string{"": "gemini-3-pro-preview"}},
+				{3, 1, map[string]string{
+					"": "gemini-3.1-pro-preview", "customtools": "gemini-3.1-pro-preview-customtools",
+				}},
+			},
+			"flash-lite": {
+				{2, 5, map[string]string{"": "gemini-2.5-flash-lite"}},
+				{3, 1, map[string]string{"": "gemini-3.1-flash-lite-preview"}},
+				{3, 5, map[string]string{"": "gemini-3.5-flash-lite"}},
+			},
+		},
+		products:   []string{"pro", "flash"},
+		compounds:  map[string]string{"lite": "flash"},
+		qualifiers: []string{"customtools"},
+		stages:     []string{"preview"},
+	},
+	{
+		prefix: "gemma-",
+		lines: map[string][]generation{"": {
+			{3, 0, map[string]string{"": "gemma-3-27b-it"}}, {4, 0, map[string]string{"": "gemma-4-26b-a4b-it"}},
+		}},
+		qualifiers: []string{"it"},
+		sizes:      true,
+	},
 	{
 		prefix: "gpt-",
 		lines: map[string][]generation{
@@ -241,6 +280,10 @@ func (f lineFamily) parse(name string) (parsedName, bool) {
 		case p.product == "" && slices.Contains(f.products, token):
 			p.product = token
 			core = append(core, token)
+		case p.product != "" && f.compounds[token] == p.product:
+			p.product += "-" + token
+			core = append(core, token)
+		case f.sizes && parameterCount.MatchString(token):
 		case p.qualifier == "" && slices.Contains(f.qualifiers, token):
 			p.qualifier = token
 			core = append(core, token)
@@ -300,6 +343,8 @@ func (g generation) member(qualifier string) string {
 	}
 	return ""
 }
+
+var parameterCount = regexp.MustCompile(`^a?\d+(\.\d+)?[bt]$`)
 
 func parseVersion(token string) (major, minor int, ok bool) {
 	majorText, minorText, dotted := strings.Cut(token, ".")

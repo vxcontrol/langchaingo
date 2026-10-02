@@ -18,7 +18,6 @@ func TestReasoningSupportForNewerGeneration(t *testing.T) {
 		want     bool
 	}{
 		{"gpt-5.3-codex", reasoning.ProviderOpenAI, true},
-		{"gemini-4-pro", reasoning.ProviderGoogleAI, true},
 		{"gpt-4o", reasoning.ProviderOpenAI, false},
 		{"claude-3-5-sonnet-latest", reasoning.ProviderAnthropic, false},
 	}
@@ -44,6 +43,7 @@ func TestAnUnlistedVersionIsAnsweredStrictlyByTheReleaseItFollows(t *testing.T) 
 		{"gpt-6", "gpt-6-sol", reasoning.ProviderOpenAI},
 		{"gpt-5.7", "gpt-5.6", reasoning.ProviderOpenAI},
 		{"kimi-k4", "kimi-k3", reasoning.ProviderOpenAI},
+		{"gemini-4-pro", "gemini-3.1-pro-preview", reasoning.ProviderGoogleAI},
 	} {
 		got := ReasoningSupportFor(tc.model, tc.provider)
 		want := ReasoningSupportFor(tc.documented, tc.provider)
