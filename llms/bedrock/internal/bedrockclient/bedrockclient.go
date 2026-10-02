@@ -184,26 +184,41 @@ func IsCohereCommandR(modelID string) bool {
 func maxTokensOnTheWire(
 	warn *llms.Warnings, modelID string, options llms.CallOptions, defaultValue int,
 ) int {
+	sent := answerLimit(modelID, options, defaultValue)
+	reportAnswerLimit(warn, modelID, options, sent)
+	return sent
+}
+
+func answerLimit(modelID string, options llms.CallOptions, defaultValue int) int {
 	sent := getMaxTokens(options.GetMaxTokens(), defaultValue)
-	if asked := options.MaxTokens; asked != nil && *asked <= 0 && sent != *asked {
+	if ceiling := legacyAnswerCeiling(modelID); ceiling != 0 && sent > ceiling {
+		return ceiling
+	}
+	return sent
+}
+
+func reportAnswerLimit(warn *llms.Warnings, modelID string, options llms.CallOptions, sent int) {
+	asked := options.MaxTokens
+	switch {
+	case asked == nil || *asked == sent:
+	case sent == 0:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Reason: "the request names no answer limit, so the vendor's default applies",
+		})
+	case *asked <= 0:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithMaxTokens", Model: modelID,
 			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
 			Reason: "the legacy payload has to name an answer limit, so the door named one",
 		})
-	}
-	ceiling := legacyAnswerCeiling(modelID)
-	if ceiling == 0 || sent <= ceiling {
-		return sent
-	}
-	if asked := options.MaxTokens; asked != nil && *asked > ceiling {
+	default:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningClamp, Option: "WithMaxTokens", Model: modelID,
-			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(ceiling),
+			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
 			Reason: "the model's documented answer limit is lower",
 		})
 	}
-	return ceiling
 }
 
 var legacyAnswerCeilings = []struct {

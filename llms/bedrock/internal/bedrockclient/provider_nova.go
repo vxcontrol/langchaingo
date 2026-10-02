@@ -168,7 +168,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	options llms.CallOptions, warn *llms.Warnings,
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
-		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 0),
+		MaxTokens:     answerLimit(modelID, options, 0),
 		TopP:          options.GetTopP(),
 		StopSequences: options.StopWords,
 	}
@@ -180,6 +180,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		temperature, _ := clampTemperature(modelID, *options.Temperature)
 		inferenceConfig.Temperature = &temperature
 	}
+	cleared := false
 	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{
 			Type: "enabled", MaxReasoningEffort: reasoning.NovaDelegatedEffort,
@@ -196,10 +197,14 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = 0
 			inferenceConfig.TopK = nil
+			cleared = true
 		}
 		reportNovaReasoning(warn, modelID, options, effort)
 	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {
 		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+	if !cleared {
+		reportAnswerLimit(warn, modelID, options, inferenceConfig.MaxTokens)
 	}
 	if inferenceConfig.Temperature != nil {
 		reportTemperatureClamp(warn, modelID, *options.Temperature)
