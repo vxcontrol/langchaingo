@@ -724,21 +724,19 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 }
 
 func deepSeekThinks(model string, opts llms.CallOptions, wireEffort string) bool {
-	return thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
-}
-
-func extraBodyStopsThinking(opts llms.CallOptions) bool {
-	extra := llms.ExtraBody(opts)
-	if thinking, ok := extra["thinking"].(map[string]any); ok && thinking["type"] == "disabled" {
-		return true
-	}
-	return extra["reasoning_effort"] == reasoning.OpenAIDisableEffort
+	return thinkingRuns(model, opts, wireEffort)
 }
 
 // thinkingRuns reports whether the model reasons on this request: an effort
 // reached the wire, or none did and the model reasons until told otherwise.
 func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
 	if opts.Reasoning.IsDisabled() || !reasoning.IsReasoningModel(model) {
+		return false
+	}
+	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+	case on:
+		return true
+	case off:
 		return false
 	}
 	if isThinkingOnTheWire(wireEffort) || reasoning.ThinkingMarkedInName(model) {

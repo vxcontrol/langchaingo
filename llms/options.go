@@ -961,3 +961,33 @@ func WithExtraBody(extraBody map[string]any) CallOption {
 func ExtraBody(opts CallOptions) map[string]any {
 	return opts.ExtraBody
 }
+
+// ExtraBodyThinking reports whether extra body fields turn thinking on or off.
+func ExtraBodyThinking(extra map[string]any) (on, off bool) {
+	if enabled, ok := extra["enable_thinking"].(bool); ok {
+		on, off = enabled, !enabled
+	}
+	if thinking, ok := extra["thinking"].(map[string]any); ok {
+		if kind, typed := thinking["type"]; typed {
+			if kind == "disabled" {
+				off = true
+			} else {
+				on = true
+			}
+		}
+	}
+	levels := []any{extra["reasoning_effort"]}
+	if nested, ok := extra["reasoning"].(map[string]any); ok {
+		levels = append(levels, nested["effort"])
+	}
+	for _, level := range levels {
+		if level, ok := level.(string); ok && level != "" {
+			if level == reasoning.OpenAIDisableEffort {
+				off = true
+			} else {
+				on = true
+			}
+		}
+	}
+	return on, off
+}
