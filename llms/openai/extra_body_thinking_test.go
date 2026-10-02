@@ -17,10 +17,12 @@ func TestThinkingSwitchedOnInTheExtraBodyDropsTheSamplingItRefuses(t *testing.T)
 		model string
 		extra map[string]any
 	}{
-		"an OpenAI effort":             {"gpt-5.4", map[string]any{"reasoning_effort": "high"}},
-		"a nested OpenAI effort":       {"gpt-5.2", map[string]any{"reasoning": map[string]any{"effort": "medium"}}},
-		"a Claude thinking object":     {"anthropic/claude-sonnet-4-5", map[string]any{"thinking": map[string]any{"type": "enabled", "budget_tokens": 2048}}},
-		"Claude adaptive on a gateway": {"anthropic/claude-sonnet-4-6", map[string]any{"thinking": map[string]any{"type": "adaptive"}}},
+		"an OpenAI effort":               {"gpt-5.4", map[string]any{"reasoning_effort": "high"}},
+		"a nested OpenAI effort":         {"gpt-5.2", map[string]any{"reasoning": map[string]any{"effort": "medium"}}},
+		"a Claude thinking object":       {"anthropic/claude-sonnet-4-5", map[string]any{"thinking": map[string]any{"type": "enabled", "budget_tokens": 2048}}},
+		"Claude adaptive on a gateway":   {"anthropic/claude-sonnet-4-6", map[string]any{"thinking": map[string]any{"type": "adaptive"}}},
+		"an OpenRouter reasoning budget": {"anthropic/claude-sonnet-4-5", map[string]any{"reasoning": map[string]any{"max_tokens": 2048}}},
+		"an OpenRouter reasoning switch": {"gpt-5.4", map[string]any{"reasoning": map[string]any{"enabled": true}}},
 	} {
 		body, err := wireBodyOf(t, tc.model, nil, append(sampling, llms.WithExtraBody(tc.extra))...)
 		require.NoError(t, err, name)

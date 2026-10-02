@@ -978,6 +978,15 @@ func ExtraBodyThinking(extra map[string]any) (on, off bool) {
 	levels := []any{extra["reasoning_effort"]}
 	if nested, ok := extra["reasoning"].(map[string]any); ok {
 		levels = append(levels, nested["effort"])
+		if enabled, set := nested["enabled"].(bool); set {
+			on, off = on || enabled, off || !enabled
+		}
+		switch budget := nested["max_tokens"].(type) {
+		case int:
+			on = on || budget > 0
+		case float64:
+			on = on || budget > 0
+		}
 	}
 	for _, level := range levels {
 		if level, ok := level.(string); ok && level != "" {
