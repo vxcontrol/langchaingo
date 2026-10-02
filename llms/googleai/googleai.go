@@ -716,10 +716,7 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 
 		switch p := part.(type) {
 		case llms.TextContent:
-			// Skip completely empty text parts without reasoning.
-			// Empty parts serve no purpose and cause Gemini API errors:
-			// "required oneof field 'data' must have one initialized field"
-			if p.Text == "" && (p.Reasoning == nil || p.Reasoning.IsEmpty()) {
+			if p.Text == "" && len(extractThoughtSignature(p.Reasoning)) == 0 {
 				continue
 			}
 
