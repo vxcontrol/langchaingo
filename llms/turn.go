@@ -1,6 +1,10 @@
 package llms
 
-import "github.com/vxcontrol/langchaingo/llms/reasoning"
+import (
+	"cmp"
+
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+)
 
 // ToolChoiceKind is what a tool choice asks of the model, apart from the
 // spelling the door expects. Doors translate it into their own wire shape.
@@ -116,11 +120,12 @@ func CheckForcedToolUse(model string, opts CallOptions, warn *Warnings) error {
 	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
-	if name == "" {
-		name = "any"
+	asked := name
+	if spelled, ok := opts.ToolChoice.(string); ok && asked == "" {
+		asked = spelled
 	}
-	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
-	if warn.KeepRefusal(model, "WithToolChoice", name, name, refusal) {
+	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "any")}
+	if warn.KeepRefusal(model, "WithToolChoice", cmp.Or(asked, "any"), cmp.Or(asked, "any"), refusal) {
 		return refusal
 	}
 	return nil

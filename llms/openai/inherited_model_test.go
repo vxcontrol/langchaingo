@@ -10,15 +10,22 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
+var lookupTool = llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+	Name: "lookup", Parameters: map[string]any{"type": "object"},
+}}})
+
+func requireInherited(t *testing.T, warnings map[string]llms.Warning, option string) {
+	t.Helper()
+	require.Equal(t, llms.WarningInherit, warnings[option].Kind, "%s: %v", option, warnings)
+}
+
 func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	t.Parallel()
 
-	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
-		Name: "lookup", Parameters: map[string]any{"type": "object"},
-	}}})
+	tools := lookupTool
 	inherited := func(warnings map[string]llms.Warning, option string) {
 		t.Helper()
-		require.Equal(t, llms.WarningInherit, warnings[option].Kind, "%s: %v", option, warnings)
+		requireInherited(t, warnings, option)
 	}
 
 	body, warnings := hostCall(t, "https://api.openai.com/v1", "gpt-6.2-sol", tools)
@@ -33,17 +40,6 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Equal(t, "none", body["reasoning_effort"], "grok-4.3 is the newest grok that documents none")
 	inherited(warnings, "WithReasoningDisabled")
 	require.Equal(t, "off", warnings["WithReasoningDisabled"].Sent)
-
-	for _, route := range []struct{ baseURL, model string }{
-		{"https://openrouter.ai/api/v1", "anthropic/claude-sonnet-6"},
-		{"https://openrouter.ai/api/v1", "anthropic/claude-opus-6"},
-		{"https://api.anthropic.com/v1", "claude-sonnet-6"},
-	} {
-		body, warnings = hostCall(t, route.baseURL, route.model, llms.WithReasoningDisabled())
-		require.NotContains(t, body, "thinking", "%s: the host carries no thinking object: %v", route.model, body)
-		inherited(warnings, "WithReasoningDisabled")
-		require.Empty(t, warnings["WithReasoningDisabled"].Sent, route.model)
-	}
 
 	body, _ = hostCall(t, "https://api.z.ai/api/paas/v4", "glm-6", llms.WithReasoningDisabled())
 	thinking, _ := body["thinking"].(map[string]any)
@@ -74,12 +70,31 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Len(t, model, 2, "the release it follows, and its Chat Completions refusal: %v", resp.Warnings)
 }
 
+func TestAnUnlistedClaudeOnTheOpenAIDoorIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
+	t.Parallel()
+
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://openrouter.ai/api/v1", "anthropic/claude-sonnet-6"},
+		{"https://openrouter.ai/api/v1", "anthropic/claude-opus-6"},
+		{"https://api.anthropic.com/v1", "claude-sonnet-6"},
+	} {
+		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithReasoningDisabled())
+		require.NotContains(t, body, "thinking", "%s: the host carries no thinking object: %v", route.model, body)
+		requireInherited(t, warnings, "WithReasoningDisabled")
+		require.Empty(t, warnings["WithReasoningDisabled"].Sent, route.model)
+	}
+
+	body, warnings := hostCall(t, "http://litellm.internal/v1", "anthropic/claude-sonnet-6", lookupTool,
+		llms.WithToolChoice("required"))
+	require.Equal(t, "required", body["tool_choice"])
+	requireInherited(t, warnings, "WithToolChoice")
+	require.Equal(t, "required", warnings["WithToolChoice"].Sent)
+}
+
 func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	t.Parallel()
 
-	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
-		Name: "lookup", Parameters: map[string]any{"type": "object"},
-	}}})
+	tools := lookupTool
 	call := func(baseURL, model string, opts ...llms.CallOption) error {
 		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(&bodyDoer{}))
 		_, err := llm.GenerateContent(context.Background(),
@@ -102,9 +117,7 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 func TestAHostThatRejectsAForcedToolWhileThinkingRefusesItForEveryVersion(t *testing.T) {
 	t.Parallel()
 
-	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
-		Name: "lookup", Parameters: map[string]any{"type": "object"},
-	}}})
+	tools := lookupTool
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://api.deepseek.com", "deepseek-v5"},
 		{"https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "qwen3.9-max"},

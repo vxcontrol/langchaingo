@@ -91,5 +91,5 @@ func TestAnUnlistedClaudeOnBedrockIsSentAForcedToolChoiceWithAWarning(t *testing
 	require.Contains(t, config["toolChoice"], "any", "%v", body)
 	warning := bedrockWarningsByOption(resp.Warnings)["WithToolChoice"]
 	require.Equal(t, llms.WarningInherit, warning.Kind, "%v", resp.Warnings)
-	require.Equal(t, "any", warning.Sent)
+	require.Equal(t, "required", warning.Sent, "the choice goes out as the caller asked it")
 }
