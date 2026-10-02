@@ -30,6 +30,11 @@ func captureChatRequestFor(t *testing.T, model string, opts ...llms.CallOption) 
 
 func sendChatRequest(t *testing.T, model string, opts ...llms.CallOption) ([]byte, error) {
 	t.Helper()
+	return sendChatRequestWithClient(t, model, nil, opts...)
+}
+
+func sendChatRequestWithClient(t *testing.T, model string, client []Option, opts ...llms.CallOption) ([]byte, error) {
+	t.Helper()
 
 	var body []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +45,7 @@ func sendChatRequest(t *testing.T, model string, opts ...llms.CallOption) ([]byt
 	}))
 	t.Cleanup(srv.Close)
 
-	llm, err := New(WithServerURL(srv.URL), WithModel(model))
+	llm, err := New(append([]Option{WithServerURL(srv.URL), WithModel(model)}, client...)...)
 	require.NoError(t, err)
 
 	_, err = llm.GenerateContent(t.Context(),

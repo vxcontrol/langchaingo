@@ -142,6 +142,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	for _, opt := range options {
 		opt(&opts)
 	}
+	if numPredict := o.options.ollamaOptions.NumPredict; opts.MaxTokens == nil && numPredict > 0 {
+		opts.MaxTokens = &numPredict
+	}
 
 	// override LLM model if set as llms.CallOption
 	model := o.getModel(opts)
@@ -718,29 +721,40 @@ func typeToRole(typ llms.ChatMessageType) string {
 }
 
 func makeOllamaOptionsFromOptions(ollamaOptions api.Options, opts llms.CallOptions) (map[string]any, error) {
-	// Load back CallOptions as ollamaOptions
-	ollamaOptions.NumPredict = opts.GetMaxTokens()
-	ollamaOptions.Temperature = float32(opts.GetTemperature())
-	ollamaOptions.Stop = opts.StopWords
-	ollamaOptions.TopK = opts.GetTopK()
-	ollamaOptions.TopP = float32(opts.GetTopP())
-	ollamaOptions.Seed = opts.GetSeed()
-	ollamaOptions.RepeatPenalty = float32(opts.GetRepetitionPenalty())
-	ollamaOptions.FrequencyPenalty = float32(opts.GetFrequencyPenalty())
-	ollamaOptions.PresencePenalty = float32(opts.GetPresencePenalty())
+	if opts.MaxTokens == nil && ollamaOptions.NumPredict == 0 {
+		ollamaOptions.NumPredict = llms.DefaultMaxTokens
+	}
 
-	os, err := json.Marshal(ollamaOptions)
+	raw, err := json.Marshal(ollamaOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling ollama options: %w", err)
 	}
 
 	var result map[string]any
-	err = json.Unmarshal(os, &result)
-	if err != nil {
+	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, fmt.Errorf("error unmarshalling ollama options: %w", err)
 	}
 
+	setIfAsked(result, "num_predict", opts.MaxTokens)
+	setIfAsked(result, "temperature", opts.Temperature)
+	setIfAsked(result, "top_k", opts.TopK)
+	setIfAsked(result, "top_p", opts.TopP)
+	setIfAsked(result, "min_p", opts.MinP)
+	setIfAsked(result, "seed", opts.Seed)
+	setIfAsked(result, "repeat_penalty", opts.RepetitionPenalty)
+	setIfAsked(result, "frequency_penalty", opts.FrequencyPenalty)
+	setIfAsked(result, "presence_penalty", opts.PresencePenalty)
+	if len(opts.StopWords) > 0 {
+		result["stop"] = opts.StopWords
+	}
+
 	return result, nil
+}
+
+func setIfAsked[T any](options map[string]any, field string, value *T) {
+	if value != nil {
+		options[field] = *value
+	}
 }
 
 // pullModelIfNeeded pulls the model if it's not already available.
