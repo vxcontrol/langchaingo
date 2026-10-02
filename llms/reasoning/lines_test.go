@@ -1,6 +1,7 @@
 package reasoning
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"slices"
@@ -264,5 +265,47 @@ func TestEveryWordALineReadsChangesWhatTheNameFollows(t *testing.T) {
 		documented, inherited := InheritedModel(name)
 		assert.True(t, inherited, name)
 		assert.Equal(t, want, documented, name)
+	}
+}
+
+func TestAHiddenNewestReleaseReadsAsTheOneBeforeItInItsOwnLine(t *testing.T) {
+	t.Parallel()
+
+	byVersion := func(a, b generation) int {
+		return cmp.Or(cmp.Compare(a.major, b.major), cmp.Compare(a.minor, b.minor))
+	}
+	without := func(line []generation, hidden generation) []generation {
+		return slices.DeleteFunc(slices.Clone(line), func(g generation) bool { return byVersion(g, hidden) == 0 })
+	}
+	for _, f := range lineFamilies {
+		for product, line := range f.lines {
+			if len(line) < 2 {
+				continue
+			}
+			newest := slices.MaxFunc(line, byVersion)
+			hidden := f
+			hidden.lines = maps.Clone(f.lines)
+			hidden.lines[product] = without(line, newest)
+			previous := slices.MaxFunc(hidden.lines[product], byVersion)
+			for qualifier, id := range newest.members {
+				if p, ok := f.parse(id); !ok || p.product != product {
+					continue
+				}
+				documented, inherited := hidden.inherit(id)
+				require.True(t, inherited, "%s with its release hidden", id)
+				require.Equal(t, previous.member(qualifier), documented, "%s with its release hidden", id)
+			}
+		}
+	}
+	for tier, line := range claudeReleases {
+		if len(line) < 2 {
+			continue
+		}
+		newest := slices.MaxFunc(line, byVersion)
+		_, major, minor, ok := claudeVersion(newest.members[""])
+		require.True(t, ok, tier)
+		g, listed, found := nearest(without(line, newest), major, minor)
+		require.True(t, found && !listed, tier)
+		require.Equal(t, slices.MaxFunc(without(line, newest), byVersion).members[""], g.members[""], tier)
 	}
 }
