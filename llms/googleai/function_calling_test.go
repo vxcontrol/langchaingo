@@ -38,4 +38,13 @@ func TestToolsAreRefusedBeforeTheNetworkForAGeminiWithoutFunctionCalling(t *test
 	rt, err := send("gemini-3.8-flash")
 	require.NoError(t, err)
 	assert.NotNil(t, rt.body)
+
+	rt = &captureTransport{resp: `{"candidates":[{"content":{"role":"model","parts":[{"text":"hi"}]},` +
+		`"finishReason":"STOP"}],"usageMetadata":{}}`}
+	llm, err := New(t.Context(), WithAPIKey("unit-test-key"), WithDefaultModel("gemini-3.8-flash-cyber"),
+		WithHTTPClient(&http.Client{Transport: rt}))
+	require.NoError(t, err)
+	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+	require.NoError(t, err, "the model answers a call without tools")
+	assert.NotNil(t, rt.body)
 }

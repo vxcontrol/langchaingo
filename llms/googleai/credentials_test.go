@@ -120,6 +120,7 @@ func TestAnAPIKeyBesideAVertexProjectIsRefused(t *testing.T) {
 	var notHonored *ErrOptionNotHonored
 	require.True(t, errors.As(err, &notHonored), "the Vertex backend would drop the key: %v", err)
 	assert.Equal(t, []string{"WithAPIKey"}, notHonored.Options)
+	assert.Contains(t, notHonored.Error(), "Vertex AI backend")
 }
 
 func TestTheEnvironmentsAPIKeyLeavesAVertexProjectAlone(t *testing.T) {
