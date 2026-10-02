@@ -78,9 +78,6 @@ var bedrockStructuredOutputModels = []string{
 	"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5",
 }
 
-// BedrockStructuredOutputNeedsStrict reports whether the model's card asks for
-// additionalModelRequestFields.text.format.strict beside a Converse schema, which
-// it documents for non-streaming calls only.
 func BedrockStructuredOutputNeedsStrict(model string) bool {
 	m := bedrockModelWithoutRegion(model)
 	return strings.HasPrefix(m, "openai.gpt-5.6-") || strings.HasPrefix(m, "openai.gpt-6")
@@ -150,4 +147,8 @@ func GrokEffort(model, effort string) string {
 	default:
 		return ""
 	}
+}
+
+func BedrockRejectsReasoningReplay(model string) bool {
+	return strings.HasPrefix(bedrockModelWithoutRegion(model), "moonshotai.kimi-k3")
 }

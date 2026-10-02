@@ -136,6 +136,9 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert messages: %w", err)
 	}
+	if reasoning.BedrockRejectsReasoningReplay(input.ModelID) {
+		converseMessages = withoutReasoningBlocks(converseMessages)
+	}
 
 	// Build inference configuration
 	inferenceConfig := &types.InferenceConfiguration{}
@@ -753,6 +756,24 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 		Tools:      converseTools,
 		ToolChoice: converseToolChoice(choice),
 	}, nil
+}
+
+func withoutReasoningBlocks(messages []types.Message) []types.Message {
+	kept := messages[:0]
+	for _, message := range messages {
+		content := make([]types.ContentBlock, 0, len(message.Content))
+		for _, block := range message.Content {
+			if _, thought := block.(*types.ContentBlockMemberReasoningContent); !thought {
+				content = append(content, block)
+			}
+		}
+		if len(content) == 0 {
+			continue
+		}
+		message.Content = content
+		kept = append(kept, message)
+	}
+	return kept
 }
 
 func carriesToolBlocks(messages []types.Message) bool {
