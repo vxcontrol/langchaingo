@@ -192,7 +192,51 @@ func maxTokensOnTheWire(
 			Reason: "the legacy payload has to name an answer limit, so the door named one",
 		})
 	}
-	return sent
+	ceiling := legacyAnswerCeiling(modelID)
+	if ceiling == 0 || sent <= ceiling {
+		return sent
+	}
+	if asked := options.MaxTokens; asked != nil && *asked > ceiling {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(ceiling),
+			Reason: "the model's documented answer limit is lower",
+		})
+	}
+	return ceiling
+}
+
+var legacyAnswerCeilings = []struct {
+	family  string
+	ceiling int
+}{
+	{"amazon.titan-text-lite", 4096},
+	{"amazon.titan-text-express", 8192},
+	{"amazon.titan-text-premier", 3072},
+	{"amazon.nova-micro", 5000},
+	{"amazon.nova-lite", 5000},
+	{"amazon.nova-pro", 5000},
+	{"amazon.nova-premier", 5000},
+	{"amazon.nova-2-lite", 64000},
+	{"cohere.command-text", 4096},
+	{"cohere.command-light-text", 4096},
+	{"ai21.jamba", 4096},
+	{"ai21.j2-mid", 8191},
+	{"ai21.j2-ultra", 8191},
+	{"ai21.j2-large", 8191},
+	{"ai21.j2", 2048},
+	{"meta.llama", 2048},
+	{"deepseek.r1", 32768},
+}
+
+func legacyAnswerCeiling(modelID string) int {
+	id := strings.ToLower(modelID)
+	for _, entry := range legacyAnswerCeilings {
+		if strings.Contains(id, entry.family) {
+			return entry.ceiling
+		}
+	}
+	return 0
 }
 
 func getMaxTokens(maxTokens, defaultValue int) int {

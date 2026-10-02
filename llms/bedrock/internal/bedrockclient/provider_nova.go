@@ -172,7 +172,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	options llms.CallOptions, warn *llms.Warnings,
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
-		MaxTokens:     options.GetMaxTokens(),
+		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 0),
 		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		TopK:          options.TopK,
