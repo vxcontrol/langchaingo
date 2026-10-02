@@ -436,7 +436,7 @@ func (o *LLM) setReasoning(
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if len(opts.Tools) > 0 {
+	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
@@ -585,8 +585,12 @@ func (o *LLM) refuseBeforeTheNetwork(opts llms.CallOptions) error {
 	if err := opts.ValidateReasoning(); err != nil {
 		return err
 	}
-	if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
+	model := o.effectiveModel(opts)
+	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		return &reasoning.ErrChatCompletionsUnsupported{Model: model}
+	}
+	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) {
+		return &reasoning.ErrStopWordsUnsupported{Model: model}
 	}
 	return nil
 }

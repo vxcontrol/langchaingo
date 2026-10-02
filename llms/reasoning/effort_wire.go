@@ -45,6 +45,24 @@ func RejectsRequiredToolChoice(model string) bool {
 	return false
 }
 
+type ErrStopWordsUnsupported struct{ Model string }
+
+func (e *ErrStopWordsUnsupported) Error() string {
+	return fmt.Sprintf("model %q refuses stop sequences, which bound the answer, so the request cannot go out as asked", e.Model)
+}
+
+func RejectsStop(model string) bool {
+	if GrokFamily(model) && IsReasoningModel(model) {
+		return true
+	}
+	for _, form := range modelSpellings(model) {
+		if form == "o3" || strings.HasPrefix(form, "o3-20") || form == "o4-mini" || strings.HasPrefix(form, "o4-mini-20") {
+			return true
+		}
+	}
+	return false
+}
+
 func GrokFamily(model string) bool {
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "grok-") {
