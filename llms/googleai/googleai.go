@@ -124,6 +124,9 @@ func (g *GoogleAI) GenerateContent(
 	if endsOnTheModel(messages) && reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) {
 		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
 	}
+	if len(opts.Tools) > 0 && reasoning.GeminiServesNoFunctionCalling(opts.GetModel()) {
+		return nil, &reasoning.ErrFunctionCallingUnsupported{Model: opts.GetModel()}
+	}
 	config := newGenerationConfig(opts)
 
 	// Check for cached content

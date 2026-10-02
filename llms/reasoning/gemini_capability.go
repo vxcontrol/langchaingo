@@ -1,6 +1,7 @@
 package reasoning
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -191,4 +192,14 @@ func GeminiBudgetRange(model string) (minimum, maximum int, known bool) {
 	default:
 		return 0, 0, false
 	}
+}
+
+func GeminiServesNoFunctionCalling(model string) bool {
+	return strings.HasPrefix(baseModelName(model), "gemini-3.8-flash-cyber")
+}
+
+type ErrFunctionCallingUnsupported struct{ Model string }
+
+func (e *ErrFunctionCallingUnsupported) Error() string {
+	return fmt.Sprintf("model %q serves no function calling, so a request with tools cannot go out as asked", e.Model)
 }
