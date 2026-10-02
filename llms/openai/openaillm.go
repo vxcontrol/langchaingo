@@ -302,7 +302,7 @@ func (o *LLM) createChatRequest(
 		Verbosity:            opts.Verbosity,
 		LogProbs:             opts.LogProbs != nil && *opts.LogProbs || derefInt(opts.TopLogProbs) > 0,
 		TopLogProbs:          derefInt(opts.TopLogProbs),
-		ToolChoice:           openaiToolChoice(opts.ToolChoice),
+		ToolChoice:           toolChoiceForTheToolsOffered(opts),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
 		Seed:                 opts.Seed,
 		Metadata:             opts.Metadata,
@@ -1061,6 +1061,13 @@ func webSearchOptionsFromCallOptions(opts *llms.WebSearchOptions) *openaiclient.
 		}
 	}
 	return result
+}
+
+func toolChoiceForTheToolsOffered(opts llms.CallOptions) any {
+	if len(opts.Tools) == 0 && len(opts.Functions) == 0 {
+		return nil
+	}
+	return openaiToolChoice(opts.ToolChoice)
 }
 
 func openaiToolChoice(choice any) any {
