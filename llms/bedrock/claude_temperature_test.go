@@ -85,3 +85,28 @@ func TestConverseKeepsATopPOfExactlyTheThinkingFloor(t *testing.T) {
 	_, dropped := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
 	require.False(t, dropped, "%v", resp.Warnings)
 }
+
+func TestClaudeOpus41OnBedrockIsSentAZeroTemperatureWithoutTopP(t *testing.T) {
+	t.Parallel()
+
+	const model = "us.anthropic.claude-opus-4-1-20250805-v1:0"
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{bedrock.WithModel(model)}
+		answer := legacyAnswer
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+			answer = converseAnswer
+		}
+		resp, body := bedrockWarningsSending(t, answer, opts, llms.WithTemperature(0), llms.WithTopP(0.9))
+		sampling := body
+		if converse {
+			sampling, _ = body["inferenceConfig"].(map[string]any)
+		}
+		require.Contains(t, sampling, "temperature", "converse=%v", converse)
+		require.InDelta(t, 0, sampling["temperature"], 0, "converse=%v", converse)
+		require.NotContains(t, sampling, "top_p", "converse=%v", converse)
+		require.NotContains(t, sampling, "topP", "converse=%v", converse)
+		_, reported := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
+		require.True(t, reported, "converse=%v: %v", converse, resp.Warnings)
+	}
+}

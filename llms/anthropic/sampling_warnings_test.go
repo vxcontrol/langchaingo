@@ -352,3 +352,18 @@ func TestTurningThinkingOffOnClaudeSonnet55SendsItsLowestSetting(t *testing.T) {
 		require.NotEqual(t, "WithReasoningDisabled", w.Option, "Claude Sonnet 5 takes disabled as asked")
 	}
 }
+
+func TestClaudeOpus41IsSentOnlyOneOfTemperatureAndTopP(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"claude-opus-4-1-20250805", "claude-opus-4-1"} {
+		resp, body := generateForModelSending(t, model, llms.WithTemperature(0.5), llms.WithTopP(0.9))
+		require.InDelta(t, 0.5, body["temperature"], 1e-9, model)
+		require.NotContains(t, body, "top_p", model)
+		var dropped bool
+		for _, w := range resp.Warnings {
+			dropped = dropped || w.Option == "WithTopP" && w.Kind == llms.WarningDrop
+		}
+		require.True(t, dropped, "%s: %v", model, resp.Warnings)
+	}
+}

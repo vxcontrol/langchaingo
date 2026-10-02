@@ -309,7 +309,7 @@ func ClaudeRejectsAssistantPrefill(model string) bool {
 // mutuallyExclusiveSamplingClaude models reject temperature and top_p set
 // together (only one may be provided).
 var mutuallyExclusiveSamplingClaude = []string{
-	"claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5",
+	"claude-opus-4-1", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5",
 	"claude-sonnet-4-6", "claude-opus-4-6",
 }
 
@@ -415,9 +415,6 @@ func ClaudeKeepsTopPWhileThinking(model string, topP float64) bool {
 		topP >= ClaudeThinkingTopPFloor
 }
 
-// ClaudeRejectsSampling reports whether the model rejects temperature/top_p
-// outright, so sampling params must be dropped even when no thinking is
-// requested.
 func ClaudeClampTemperature(model string, temperature float64) float64 {
 	if !isClaudeModel(model) {
 		return temperature
@@ -425,6 +422,9 @@ func ClaudeClampTemperature(model string, temperature float64) float64 {
 	return min(max(temperature, 0), 1)
 }
 
+// ClaudeRejectsSampling reports whether the model rejects temperature/top_p
+// outright, so sampling params must be dropped even when no thinking is
+// requested.
 func ClaudeRejectsSampling(model string) bool {
 	return containsAny(canonicalClaude(model), rejectsSamplingClaude)
 }
