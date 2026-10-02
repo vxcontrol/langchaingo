@@ -238,7 +238,6 @@ var answerCeilings = []struct {
 	{"ai21.jamba", 4096},
 	{"ai21.j2-mid", 8191},
 	{"ai21.j2-ultra", 8191},
-	{"ai21.j2-large", 8191},
 	{"ai21.j2", 2048},
 	{"meta.llama", 2048},
 	{"deepseek.r1", 32768},

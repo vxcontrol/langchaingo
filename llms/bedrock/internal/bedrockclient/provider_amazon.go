@@ -23,8 +23,7 @@ type amazonTextGenerationConfigInput struct {
 	// The maximum number of tokens to generate per result. Optional, default = 512
 	MaxTokens int `json:"maxTokenCount,omitempty"`
 	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
-	TopP float64 `json:"topP,omitempty"`
-	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
+	TopP        float64  `json:"topP,omitempty"`
 	Temperature *float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
