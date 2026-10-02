@@ -1,6 +1,7 @@
 package googleai
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -110,4 +111,22 @@ func TestRawClientOptionsTheSDKCannotCarryAreRefused(t *testing.T) {
 		require.ErrorAs(t, err, &notHonored, name)
 		assert.Contains(t, notHonored.Options, "ClientOptions", name)
 	}
+}
+
+func TestAnAPIKeyBesideAVertexProjectIsRefused(t *testing.T) {
+	t.Parallel()
+
+	_, err := New(t.Context(), WithAPIKey("key"), WithCloudProject("p"), WithCloudLocation("europe-west4"))
+	var notHonored *ErrOptionNotHonored
+	require.True(t, errors.As(err, &notHonored), "the Vertex backend would drop the key: %v", err)
+	assert.Equal(t, []string{"WithAPIKey"}, notHonored.Options)
+}
+
+func TestTheEnvironmentsAPIKeyLeavesAVertexProjectAlone(t *testing.T) {
+	t.Setenv("GOOGLE_API_KEY", "from-the-environment")
+
+	client, err := New(t.Context(), WithCloudProject("p"), WithCloudLocation("europe-west4"),
+		WithHTTPClient(&http.Client{}))
+	require.NoError(t, err)
+	require.NotNil(t, client)
 }

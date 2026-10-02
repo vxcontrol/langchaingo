@@ -30,8 +30,9 @@ type Options struct {
 
 	BaseURL string
 
-	credentialsFile string
-	credentialsJSON []byte
+	credentialsFile       string
+	credentialsJSON       []byte
+	apiKeyFromEnvironment bool
 
 	unhonoredOnREST []string
 
@@ -63,6 +64,7 @@ func (o *Options) EnsureAuthPresent() {
 	if o.APIKey == "" && !hasAuthOptions(o.ClientOptions) {
 		if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
 			WithAPIKey(key)(o)
+			o.apiKeyFromEnvironment = true
 		}
 	}
 }

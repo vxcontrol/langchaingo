@@ -3,6 +3,7 @@
 package googleai
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -44,6 +45,12 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 
 	// Determine if we should use Vertex AI or Gemini API
 	if clientOptions.CloudProject != "" && clientOptions.CloudLocation != "" {
+		if clientOptions.APIKey != "" && !clientOptions.apiKeyFromEnvironment {
+			return gi, &ErrOptionNotHonored{
+				Options: []string{"WithAPIKey"},
+				Reason:  "WithCloudProject and WithCloudLocation select the Vertex AI backend, which takes Google credentials, not an API key",
+			}
+		}
 		config.Backend = genai.BackendVertexAI
 		config.Project = clientOptions.CloudProject
 		config.Location = clientOptions.CloudLocation
@@ -90,14 +97,13 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 	return gi, nil
 }
 
-// ErrOptionNotHonored reports options this door cannot carry. Shape the
-// transport with WithHTTPClient.
+// ErrOptionNotHonored reports options this door cannot carry.
 type ErrOptionNotHonored struct {
 	Options []string
+	Reason  string
 }
 
 func (e *ErrOptionNotHonored) Error() string {
-	return fmt.Sprintf(
-		"googleai: this client cannot honor %s; shape the transport with WithHTTPClient instead",
-		strings.Join(e.Options, ", "))
+	return fmt.Sprintf("googleai: this client cannot honor %s; %s",
+		strings.Join(e.Options, ", "), cmp.Or(e.Reason, "shape the transport with WithHTTPClient instead"))
 }
