@@ -133,10 +133,15 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 
 	t.Run("a generation that rejects prefill is refused", func(t *testing.T) {
 		t.Parallel()
-		err := turnLimitErr(t, "claude-opus-4-6", endingOnAssistant())
-		var target *reasoning.ErrAssistantPrefillUnsupported
-		if !errors.As(err, &target) {
-			t.Errorf("want ErrAssistantPrefillUnsupported, got %v", err)
+		for _, model := range []string{
+			"claude-opus-4-6", "anthropic/claude-opus-4.6:nitro", "anthropic/claude-sonnet-4.6:online",
+			"anthropic/claude-opus-5:floor",
+		} {
+			err := turnLimitErr(t, model, endingOnAssistant())
+			var target *reasoning.ErrAssistantPrefillUnsupported
+			if !errors.As(err, &target) {
+				t.Errorf("%s: want ErrAssistantPrefillUnsupported, got %v", model, err)
+			}
 		}
 	})
 

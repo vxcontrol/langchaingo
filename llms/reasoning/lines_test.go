@@ -187,6 +187,7 @@ func TestAVersionIsReadTheWayItsVendorWritesIt(t *testing.T) {
 	for name, want := range map[string]string{
 		"grok-4.35": "grok-4.3", "grok-4.65": "grok-4.6", "grok-4.8": "grok-4.7", "grok-4.8-latest": "grok-4.7",
 		"kimi-k4:free": "kimi-k3", "moonshotai/kimi-k4:free": "kimi-k3", "kimi-k4:cloud": "kimi-k3",
+		"anthropic/claude-sonnet-6:nitro": "claude-sonnet-5-5", "anthropic/claude-opus-4.9:online": "claude-opus-4-8",
 		"gemini-4-flash-preview-05-20": "gemini-3.8-flash", "gemini-4-flash-001": "gemini-3.8-flash",
 	} {
 		documented, inherited := InheritedModel(name)
@@ -195,7 +196,8 @@ func TestAVersionIsReadTheWayItsVendorWritesIt(t *testing.T) {
 	}
 	for _, own := range []string{
 		"grok-4.25", "grok-4.20", "grok-4.30", "grok-4.7-latest", "kimi-k3:free", "gemini-2.0-flash-001",
-		"qwen3:32b", "deepseek-v3.1:671b-cloud",
+		"qwen3:32b", "deepseek-v3.1:671b-cloud", "qwen3:30b-a3b", "qwen3:8b-q4_K_M", "qwen3.5:397b-a17b",
+		"qwen3", "qwen3.5", "qwen3:latest", "qwen3.9",
 	} {
 		documented, inherited := InheritedModel(own)
 		assert.False(t, inherited, "%s reads as %s", own, documented)

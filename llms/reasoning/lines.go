@@ -36,6 +36,7 @@ var claudeReleases = map[string][]generation{
 }
 
 func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
+	canonical, _, _ = strings.Cut(canonical, ":")
 	rest, ok := strings.CutPrefix(canonical, "claude-")
 	if !ok {
 		return "", 0, 0, false
@@ -43,6 +44,10 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 	parts := strings.Split(rest, "-")
 	if len(parts) < 2 {
 		return "", 0, 0, false
+	}
+	if line := claudeReleases[parts[0]]; parts[1] == "latest" && len(line) > 0 {
+		newest := slices.MaxFunc(line, compareVersions)
+		return parts[0], newest.major, newest.minor, true
 	}
 	major, err := strconv.Atoi(parts[1])
 	if err != nil {
@@ -81,6 +86,10 @@ func (g generation) before(major, minor int) bool {
 	return g.major < major || g.major == major && g.minor < minor
 }
 
+func compareVersions(a, b generation) int {
+	return cmp.Or(cmp.Compare(a.major, b.major), cmp.Compare(a.minor, b.minor))
+}
+
 func nearest(line []generation, major, minor int) (g generation, listed, found bool) {
 	for _, candidate := range line {
 		if candidate.major == major && candidate.minor == minor {
@@ -100,9 +109,7 @@ func atOrBelow(line []generation, top generation) []generation {
 			below = append(below, g)
 		}
 	}
-	slices.SortFunc(below, func(a, b generation) int {
-		return cmp.Or(cmp.Compare(b.major, a.major), cmp.Compare(b.minor, a.minor))
-	})
+	slices.SortFunc(below, func(a, b generation) int { return compareVersions(b, a) })
 	return below
 }
 
@@ -311,7 +318,7 @@ func (f *lineFamily) parse(name string) (parsedName, bool) {
 
 func untagged(name string) string {
 	name, tag, tagged := strings.Cut(name, ":")
-	if tagged && parameterCount.MatchString(tag) {
+	if size, _, _ := strings.Cut(tag, "-"); tagged && parameterCount.MatchString(size) {
 		return name + "-" + tag
 	}
 	return name
@@ -347,7 +354,7 @@ func (f *lineFamily) inherit(name string) (string, bool) {
 		return "", false
 	}
 	documented := p.spell(g)
-	if release, _ := f.parse(documented); documented == name || release.core == p.core {
+	if release, _ := f.parse(documented); documented == "" || documented == name || release.core == p.core {
 		return "", false
 	}
 	return documented, true
@@ -365,7 +372,7 @@ func (g generation) member(qualifier string) string {
 	if id, ok := g.members[qualifier]; ok {
 		return id
 	}
-	if id, ok := g.members[""]; ok {
+	if id, ok := g.members[""]; ok || qualifier == "" {
 		return id
 	}
 	for _, preferred := range []string{"max", "pro", "plus", "flash"} {

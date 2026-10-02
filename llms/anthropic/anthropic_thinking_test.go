@@ -1126,7 +1126,7 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 	t.Run("rejected on 4.6 and later without a round trip", func(t *testing.T) {
 		t.Parallel()
 
-		for _, model := range []string{"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7"} {
+		for _, model := range []string{"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7", "claude-opus-latest"} {
 			llm, hits := newLLM(t, model)
 			_, err := llm.GenerateContent(t.Context(), prefilled)
 
@@ -1140,11 +1140,13 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 	t.Run("still allowed on the 4.5 generation", func(t *testing.T) {
 		t.Parallel()
 
-		llm, hits := newLLM(t, "claude-sonnet-4-5")
-		_, err := llm.GenerateContent(t.Context(), prefilled)
+		for _, model := range []string{"claude-sonnet-4-5", "claude-haiku-latest"} {
+			llm, hits := newLLM(t, model)
+			_, err := llm.GenerateContent(t.Context(), prefilled)
 
-		require.NoError(t, err)
-		require.Equal(t, int32(1), hits.Load())
+			require.NoError(t, err, model)
+			require.Equal(t, int32(1), hits.Load(), model)
+		}
 	})
 
 	t.Run("a trailing user turn is untouched on 4.6 and later", func(t *testing.T) {
