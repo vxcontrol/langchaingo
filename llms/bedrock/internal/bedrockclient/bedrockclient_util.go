@@ -129,7 +129,7 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerBedrock,
 			Model:    input.ModelID,
-			Reason:   bedrockClaudeStructuredOutputReason,
+			Reason:   claudeStructuredOutputRefusal(model),
 		}
 	}
 	if named && !isAnthropicModelID(model) && !reasoning.BedrockSupportsStructuredOutput(model) {
@@ -174,7 +174,15 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	return nil
 }
 
+func claudeStructuredOutputRefusal(model string) string {
+	if reasoning.ClaudeStructuredOutputBlockedByProfile(model) {
+		return bedrockProfileStructuredOutputReason
+	}
+	return bedrockClaudeStructuredOutputReason
+}
+
 const (
+	bedrockProfileStructuredOutputReason   = "Amazon Bedrock serves structured output for this Claude model through other inference profiles, not this one"
 	bedrockClaudeStructuredOutputReason    = "Amazon Bedrock serves structured output for this Claude model on neither API"
 	bedrockModelCardStructuredOutputReason = "the model's Amazon Bedrock model card does not list structured outputs"
 	bedrockStreamedSchemaReason            = "the model's Amazon Bedrock model card documents a schema on non-streaming calls only"
@@ -190,7 +198,7 @@ func applyAnthropicStructuredOutput(input *anthropicTextGenerationInput, modelID
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerBedrock,
 			Model:    modelID,
-			Reason:   bedrockClaudeStructuredOutputReason,
+			Reason:   claudeStructuredOutputRefusal(modelID),
 		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;

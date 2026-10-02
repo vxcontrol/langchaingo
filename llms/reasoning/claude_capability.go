@@ -345,10 +345,11 @@ var bedrockStructuredClaude = []string{
 // ClaudeSupportsStructuredOutputOnBedrock reports whether Amazon Bedrock serves
 // schema constrained output for the Claude model.
 func ClaudeSupportsStructuredOutputOnBedrock(model string) bool {
-	if strings.HasPrefix(baseModelName(model), "in.") && claudeNamedIn(model, []string{"claude-haiku-4-5"}) {
-		return false
-	}
-	return claudeNamedIn(model, bedrockStructuredClaude)
+	return !ClaudeStructuredOutputBlockedByProfile(model) && claudeNamedIn(model, bedrockStructuredClaude)
+}
+
+func ClaudeStructuredOutputBlockedByProfile(model string) bool {
+	return strings.HasPrefix(baseModelName(model), "in.") && claudeNamedIn(model, []string{"claude-haiku-4-5"})
 }
 
 // ResolveClaudeAdaptive returns whether to send adaptive thinking (true) or
