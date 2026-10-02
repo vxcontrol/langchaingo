@@ -423,7 +423,7 @@ WithRunnerNumBatch(256)   // Smaller batches (lower memory usage)
 **Temperature Control**:
 ```go
 llms.WithTemperature(0.0)   // Deterministic output
-llms.WithTemperature(0.7)   // Balanced creativity (default)
+llms.WithTemperature(0.7)   // Balanced creativity; unset, the server uses its own default
 llms.WithTemperature(1.0)   // More creative/random
 ```
 
