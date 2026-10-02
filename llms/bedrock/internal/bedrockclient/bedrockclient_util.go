@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/document"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -143,6 +144,21 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	if err := structuredoutput.RequireClosedObjects(so.Schema); err != nil {
 		return err
 	}
+	if named && reasoning.BedrockStructuredOutputNeedsStrict(model) {
+		if input.StreamingFunc != nil {
+			return &llms.ErrStructuredOutputUnsupported{
+				Provider: providerBedrock,
+				Model:    input.ModelID,
+				Reason:   bedrockStreamedSchemaReason,
+			}
+		}
+		fields := converseAdditionalFields(converseInput)
+		if fields == nil {
+			fields = map[string]any{}
+		}
+		fields["text"] = map[string]any{"format": map[string]any{"strict": true}}
+		converseInput.AdditionalModelRequestFields = document.NewLazyDocument(fields)
+	}
 	converseInput.OutputConfig = &types.OutputConfig{
 		TextFormat: &types.OutputFormat{
 			Type: types.OutputFormatTypeJsonSchema,
@@ -161,6 +177,7 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 const (
 	bedrockClaudeStructuredOutputReason    = "Amazon Bedrock serves structured output for this Claude model on neither API"
 	bedrockModelCardStructuredOutputReason = "the model's Amazon Bedrock model card does not list structured outputs"
+	bedrockStreamedSchemaReason            = "the model's Amazon Bedrock model card documents a schema on non-streaming calls only"
 )
 
 // applyAnthropicStructuredOutput folds a per-call schema into the legacy Anthropic
