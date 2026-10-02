@@ -184,6 +184,22 @@ func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) 
 	})
 }
 
+const novaMaxTopK = 128
+
+func novaTopK(topK int) int {
+	return min(max(topK, 0), novaMaxTopK)
+}
+
+func reportTopKClamp(warn *llms.Warnings, modelID string, asked, sent int) {
+	if asked == sent {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTopK", Model: modelID,
+		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: "Nova takes a topK from 0 to 128",
+	})
+}
+
 func reportLegacyFloat(warn *llms.Warnings, option, modelID, reason string, asked, sent float64) {
 	if asked == sent {
 		return

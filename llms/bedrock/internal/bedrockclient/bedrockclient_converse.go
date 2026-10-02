@@ -323,8 +323,9 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		additionalModelFields.TopK = input.TopK
 	}
 	if input.TopK != nil && GetProvider(input.ModelID) == "nova" && !novaClearsSampling {
+		topK := novaTopK(*input.TopK)
 		fields, _ := familyFields.(converseNovaFields)
-		fields.InferenceConfig = &converseNovaInferenceConfig{TopK: input.TopK}
+		fields.InferenceConfig = &converseNovaInferenceConfig{TopK: &topK}
 		familyFields = fields
 	}
 	switch {
