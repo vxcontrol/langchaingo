@@ -33,6 +33,10 @@ type ReasoningSupport struct {
 	Mechanism ReasoningMechanism
 	// DefaultOn reports whether thinking runs when reasoning is unset; nil when unknown.
 	DefaultOn *bool
+	// Inherited names the documented model whose row answers for this one, set when
+	// the tables do not list the model's own version. The other fields are that
+	// row's, as strict as for the documented model.
+	Inherited string
 }
 
 // ReasoningMechanism describes how a model takes its thinking instruction.
@@ -87,7 +91,14 @@ func ReasoningSupportFor(model string, p reasoning.Provider) ReasoningSupport {
 	if s, ok := lookupReasoningOverride(model); ok {
 		return s
 	}
+	s := tableReasoningSupport(model, p)
+	if documented, ok := reasoning.InheritedModel(model); ok {
+		s.Inherited = documented
+	}
+	return s
+}
 
+func tableReasoningSupport(model string, p reasoning.Provider) ReasoningSupport {
 	if reasoning.ClaudeSupportsThinking(model) {
 		return ReasoningSupport{
 			Supported:       true,

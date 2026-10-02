@@ -436,6 +436,16 @@ func ClaudeRejectsSampling(model string) bool {
 // canonicalClaude reduces a Claude identifier to the dashed form every table in
 // this file is keyed on. A dotted entry added to one of them never matches.
 func canonicalClaude(model string) string {
+	m := claudeName(model)
+	if idx := strings.Index(m, "claude-"); idx != -1 {
+		if documented, ok := inheritClaude(m[idx:]); ok {
+			return m[:idx] + documented
+		}
+	}
+	return m
+}
+
+func claudeName(model string) string {
 	m := strings.ToLower(model)
 	m = strings.ReplaceAll(m, "@", "-")
 	var b strings.Builder

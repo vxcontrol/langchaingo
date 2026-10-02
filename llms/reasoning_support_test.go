@@ -5,6 +5,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
@@ -16,7 +18,6 @@ func TestReasoningSupportForNewerGeneration(t *testing.T) {
 		want     bool
 	}{
 		{"gpt-6", reasoning.ProviderOpenAI, true},
-		{"claude-opus-6", reasoning.ProviderAnthropic, true},
 		{"gemini-4-pro", reasoning.ProviderGoogleAI, true},
 		{"gpt-4o", reasoning.ProviderOpenAI, false},
 		{"claude-3-5-sonnet-latest", reasoning.ProviderAnthropic, false},
@@ -30,6 +31,17 @@ func TestReasoningSupportForNewerGeneration(t *testing.T) {
 			t.Errorf("ReasoningSupportFor(%q).Known = true, want false: the tiers are a guess, not a fact", tc.model)
 		}
 	}
+}
+
+func TestAnUnlistedClaudeVersionIsAnsweredStrictlyByTheReleaseItFollows(t *testing.T) {
+	t.Parallel()
+
+	got := ReasoningSupportFor("claude-opus-6", reasoning.ProviderAnthropic)
+	want := ReasoningSupportFor("claude-opus-5-5", reasoning.ProviderAnthropic)
+	require.Equal(t, "claude-opus-5-5", got.Inherited)
+	require.Empty(t, want.Inherited)
+	want.Inherited = got.Inherited
+	require.Equal(t, want, got)
 }
 
 func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven test
