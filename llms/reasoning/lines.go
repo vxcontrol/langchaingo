@@ -270,7 +270,10 @@ type parsedName struct {
 }
 
 func (f *lineFamily) parse(name string) (parsedName, bool) {
-	name, _, _ = strings.Cut(name, ":")
+	name, tag, tagged := strings.Cut(name, ":")
+	if tagged && parameterCount.MatchString(tag) {
+		name += "-" + tag
+	}
 	rest, ok := strings.CutPrefix(name, f.prefix)
 	if !ok {
 		return parsedName{}, false

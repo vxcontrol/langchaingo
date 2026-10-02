@@ -194,6 +194,7 @@ func TestAVersionIsReadTheWayItsVendorWritesIt(t *testing.T) {
 	}
 	for _, own := range []string{
 		"grok-4.25", "grok-4.20", "grok-4.30", "grok-4.7-latest", "kimi-k3:free", "gemini-2.0-flash-001",
+		"qwen3:32b", "deepseek-v3.1:671b-cloud",
 	} {
 		documented, inherited := InheritedModel(own)
 		assert.False(t, inherited, "%s reads as %s", own, documented)
