@@ -32,7 +32,7 @@ func DownloadImageData(url string) (string, []byte, error) {
 		mediaType, _, _ = mime.ParseMediaType(http.DetectContentType(urlData))
 	}
 	subtype, isImage := strings.CutPrefix(mediaType, "image/")
-	if !isImage || subtype == "" {
+	if !isImage {
 		return "", nil, fmt.Errorf("url does not point to an image: content type %q, content sniffed as %q",
 			header, mediaType)
 	}
