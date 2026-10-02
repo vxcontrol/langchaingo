@@ -77,6 +77,7 @@ type novaInferenceConfigInput struct {
 	TopP float64 `json:"topP,omitempty"`
 	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
 	Temperature *float64 `json:"temperature,omitempty"`
+	TopK        *int     `json:"topK,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
 	StopSequences   []string                  `json:"stopSequences,omitempty"`
@@ -174,6 +175,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		MaxTokens:     options.GetMaxTokens(),
 		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
+		TopK:          options.TopK,
 		StopSequences: options.StopWords,
 	}
 	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
@@ -191,6 +193,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 			inferenceConfig.MaxTokens = 0
 			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = 0
+			inferenceConfig.TopK = nil
 		}
 		reportNovaReasoning(warn, modelID, options, effort)
 	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {

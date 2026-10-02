@@ -108,8 +108,13 @@ type converseNovaReasoningConfig struct {
 	MaxReasoningEffort string `json:"maxReasoningEffort,omitempty" document:"maxReasoningEffort,omitempty"`
 }
 
+type converseNovaInferenceConfig struct {
+	TopK *int `json:"topK,omitempty" document:"topK,omitempty"`
+}
+
 type converseNovaFields struct {
 	ReasoningConfig *converseNovaReasoningConfig `json:"reasoningConfig,omitempty" document:"reasoningConfig,omitempty"`
+	InferenceConfig *converseNovaInferenceConfig `json:"inferenceConfig,omitempty" document:"inferenceConfig,omitempty"`
 }
 
 type converseGrokReasoning struct {
@@ -187,6 +192,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Add additional model fields
 	additionalModelFields := converseAdditionalModelRequestFields{}
 	var familyFields any
+	novaClearsSampling := false
 	switch input.ReasoningConfig.ResolveMode() {
 	case llms.ReasoningOn:
 		maxTokens := 0 // Use 0 to let it use default maxTokens
@@ -245,6 +251,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				inferenceConfig.MaxTokens = nil
 				inferenceConfig.Temperature = nil
 				inferenceConfig.TopP = nil
+				novaClearsSampling = true
 			}
 		}
 		setGrok := func() {
@@ -309,6 +316,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		additionalModelFields.Thinking == nil &&
 		!reasoning.ClaudeRejectsSampling(input.ModelID) {
 		additionalModelFields.TopK = input.TopK
+	}
+	if input.TopK != nil && GetProvider(input.ModelID) == "nova" && !novaClearsSampling {
+		fields, _ := familyFields.(converseNovaFields)
+		fields.InferenceConfig = &converseNovaInferenceConfig{TopK: input.TopK}
+		familyFields = fields
 	}
 	switch {
 	case familyFields != nil:

@@ -181,7 +181,12 @@ func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
 }
 
 func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
-	_, carried := converseAdditionalFields(built)["top_k"]
+	fields := converseAdditionalFields(built)
+	if _, carried := fields["top_k"]; carried {
+		return true
+	}
+	novaConfig, _ := fields["inferenceConfig"].(map[string]any)
+	_, carried := novaConfig["topK"]
 	return carried
 }
 

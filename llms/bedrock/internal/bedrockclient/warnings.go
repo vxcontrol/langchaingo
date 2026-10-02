@@ -12,7 +12,7 @@ import (
 // not where the vendor supports the option.
 var (
 	legacyCarriesTools     = map[string]bool{"anthropic": true}
-	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true}
+	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true, "nova": true}
 	legacyCarriesStopWords = map[string]bool{"meta": false}
 	legacyCarriesThinking  = map[string]bool{"anthropic": true, "nova": true}
 )
@@ -292,6 +292,12 @@ func reportNovaReasoning(warn *llms.Warnings, modelID string, options llms.CallO
 	}
 	reportLegacyFloatDrop(warn, "WithTemperature", modelID, cleared, options.Temperature)
 	reportLegacyFloatDrop(warn, "WithTopP", modelID, cleared, options.TopP)
+	if options.TopK != nil && *options.TopK != 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithTopK", Model: modelID,
+			Asked: strconv.Itoa(*options.TopK), Reason: cleared,
+		})
+	}
 }
 
 func reportLegacyFloatDrop(warn *llms.Warnings, option, modelID, reason string, asked *float64) {
