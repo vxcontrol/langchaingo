@@ -45,7 +45,8 @@ var _ llms.Model = &Vertex{}
 // GOOGLE_CLOUD_LOCATION, GOOGLE_CLOUD_REGION or CLOUD_ML_REGION, else
 // us-central1. Authentication comes from googleai.WithCredentialsFile or
 // googleai.WithCredentialsJSON, and from application default credentials when
-// neither is given.
+// neither is given; a client passed with googleai.WithHTTPClient authenticates
+// its own requests instead, and googleai.WithAPIKey is refused.
 func New(ctx context.Context, opts ...googleai.Option) (*Vertex, error) {
 	resolved := googleai.DefaultOptions()
 	for _, opt := range opts {
