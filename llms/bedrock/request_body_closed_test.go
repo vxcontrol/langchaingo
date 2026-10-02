@@ -43,20 +43,20 @@ func (c *bodyHoldingConn) Close() error {
 	return c.Conn.Close()
 }
 
-func TestALegacyStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
-	t.Parallel()
+func streamWithTheRequestBodyHeld(
+	t *testing.T, firstHalf, secondHalf func(http.ResponseWriter, *eventstream.Encoder), opts ...bedrock.Option,
+) (*llms.ContentResponse, error) {
+	t.Helper()
 
-	resume, secondHalf := make(chan struct{}), make(chan struct{})
+	resume, rest := make(chan struct{}), make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.Header().Set("Content-Type", "application/vnd.amazon.eventstream")
 		enc := eventstream.NewEncoder()
-		writeLegacyChunk(t, w, enc, `{"type":"message_start","message":{"id":"x","type":"message",`+
-			`"role":"assistant","model":"m","content":[],"stop_reason":null,"usage":{"input_tokens":1,"output_tokens":1}}}`)
-		writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"first "}}`)
-		<-secondHalf
-		writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"second"}}`)
-		writeLegacyChunk(t, w, enc, `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}`)
+		firstHalf(w, enc)
+		w.(http.Flusher).Flush()
+		<-rest
+		secondHalf(w, enc)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -81,11 +81,11 @@ func TestALegacyStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
 		Credentials: credentials.NewStaticCredentialsProvider("unit", "test", ""),
 		HTTPClient:  httpClient,
 	}, func(o *bedrockruntime.Options) { o.BaseEndpoint = aws.String(srv.URL) }, signWithSigV4)
-	llm, err := bedrock.New(bedrock.WithClient(client), bedrock.WithModel("anthropic.claude-sonnet-4-5-20250929-v1:0"))
+	llm, err := bedrock.New(append([]bedrock.Option{bedrock.WithClient(client)}, opts...)...)
 	require.NoError(t, err)
 
 	var firstChunk sync.Once
-	resp, err := llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+	return llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error {
 			firstChunk.Do(func() {
 				close(resume)
@@ -93,10 +93,45 @@ func TestALegacyStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
 				case <-(<-conns).closed:
 				case <-time.After(200 * time.Millisecond):
 				}
-				close(secondHalf)
+				close(rest)
 			})
 			return nil
 		}))
+}
+
+func TestALegacyStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamWithTheRequestBodyHeld(t,
+		func(w http.ResponseWriter, enc *eventstream.Encoder) {
+			writeLegacyChunk(t, w, enc, `{"type":"message_start","message":{"id":"x","type":"message",`+
+				`"role":"assistant","model":"m","content":[],"stop_reason":null,"usage":{"input_tokens":1,"output_tokens":1}}}`)
+			writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"first "}}`)
+		},
+		func(w http.ResponseWriter, enc *eventstream.Encoder) {
+			writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"second"}}`)
+			writeLegacyChunk(t, w, enc, `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}`)
+		},
+		bedrock.WithModel("anthropic.claude-sonnet-4-5-20250929-v1:0"))
+	require.NoError(t, err)
+	require.Equal(t, "first second", resp.Choices[0].Content)
+}
+
+func TestAConverseStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
+	t.Parallel()
+
+	resp, err := streamWithTheRequestBodyHeld(t,
+		func(w http.ResponseWriter, enc *eventstream.Encoder) {
+			writeConverseEvent(t, w, enc, "messageStart", `{"role":"assistant"}`)
+			writeConverseEvent(t, w, enc, "contentBlockDelta", `{"contentBlockIndex":0,"delta":{"text":"first "}}`)
+		},
+		func(w http.ResponseWriter, enc *eventstream.Encoder) {
+			writeConverseEvent(t, w, enc, "contentBlockDelta", `{"contentBlockIndex":0,"delta":{"text":"second"}}`)
+			writeConverseEvent(t, w, enc, "contentBlockStop", `{"contentBlockIndex":0}`)
+			writeConverseEvent(t, w, enc, "messageStop", `{"stopReason":"end_turn"}`)
+			writeConverseEvent(t, w, enc, "metadata", `{"usage":{"inputTokens":1,"outputTokens":2,"totalTokens":3}}`)
+		},
+		bedrock.WithModel("anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI())
 	require.NoError(t, err)
 	require.Equal(t, "first second", resp.Choices[0].Content)
 }
