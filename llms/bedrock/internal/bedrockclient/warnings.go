@@ -12,7 +12,7 @@ import (
 // not where the vendor supports the option.
 var (
 	legacyCarriesTools     = map[string]bool{"anthropic": true}
-	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true}
+	legacyCarriesTopK      = map[string]bool{"anthropic": true, "cohere": true, "nova": true}
 	legacyCarriesStopWords = map[string]bool{"meta": false}
 	legacyCarriesThinking  = map[string]bool{"anthropic": true, "nova": true}
 )
@@ -152,16 +152,52 @@ func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked 
 		})
 	case *sent == asked:
 	case *sent == reasoning.ClaudeClampTemperature(modelID, asked):
-		warn.Add(llms.Warning{
-			Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
-			Asked: render(asked), Sent: render(*sent), Reason: "Claude takes a temperature from 0 to 1",
-		})
+		reportTemperatureClamp(warn, modelID, asked)
 	default:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithTemperature", Model: modelID,
 			Asked: render(asked), Sent: render(*sent), Reason: reason,
 		})
 	}
+}
+
+func clampTemperature(model string, temperature float64) (float64, string) {
+	if clamped := reasoning.ClaudeClampTemperature(model, temperature); clamped != temperature {
+		return clamped, "Claude takes a temperature from 0 to 1"
+	}
+	if clamped := reasoning.NovaClampTemperature(model, temperature); clamped != temperature {
+		return clamped, "Nova takes a temperature from 0.00001 to 1"
+	}
+	return temperature, ""
+}
+
+func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) {
+	sent, reason := clampTemperature(modelID, asked)
+	if reason == "" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
+		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
+		Reason: reason,
+	})
+}
+
+const novaMaxTopK = 128
+
+func novaTopK(topK int) int {
+	return min(max(topK, 0), novaMaxTopK)
+}
+
+func reportTopKClamp(warn *llms.Warnings, modelID string, asked, sent int) {
+	if asked == sent {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTopK", Model: modelID,
+		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: "Nova takes a topK from 0 to 128",
+	})
 }
 
 func reportLegacyFloat(warn *llms.Warnings, option, modelID, reason string, asked, sent float64) {
@@ -292,6 +328,12 @@ func reportNovaReasoning(warn *llms.Warnings, modelID string, options llms.CallO
 	}
 	reportLegacyFloatDrop(warn, "WithTemperature", modelID, cleared, options.Temperature)
 	reportLegacyFloatDrop(warn, "WithTopP", modelID, cleared, options.TopP)
+	if options.TopK != nil && *options.TopK != 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithTopK", Model: modelID,
+			Asked: strconv.Itoa(*options.TopK), Reason: cleared,
+		})
+	}
 }
 
 func reportLegacyFloatDrop(warn *llms.Warnings, option, modelID, reason string, asked *float64) {

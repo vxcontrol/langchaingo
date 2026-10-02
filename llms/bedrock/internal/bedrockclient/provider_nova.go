@@ -71,14 +71,10 @@ type novaReasoningConfigInput struct {
 
 // novaInferenceConfigInput is the input for the text generation configuration for Amazon Nova Models.
 type novaInferenceConfigInput struct {
-	// The maximum number of tokens to generate per result. Optional, default = 512
-	MaxTokens int `json:"maxTokens,omitempty"`
-	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
-	TopP float64 `json:"topP,omitempty"`
-	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
-	Temperature float64 `json:"temperature,omitempty"`
-	// Specify a character sequence to indicate where the model should stop.
-	// Currently only supports: ["|", "User:"]
+	MaxTokens       int                       `json:"maxTokens,omitempty"`
+	TopP            float64                   `json:"topP,omitempty"`
+	Temperature     *float64                  `json:"temperature,omitempty"`
+	TopK            *int                      `json:"topK,omitempty"`
 	StopSequences   []string                  `json:"stopSequences,omitempty"`
 	ReasoningConfig *novaReasoningConfigInput `json:"reasoningConfig,omitempty"`
 }
@@ -171,11 +167,19 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	options llms.CallOptions, warn *llms.Warnings,
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
-		MaxTokens:     options.GetMaxTokens(),
-		Temperature:   options.GetTemperature(),
+		MaxTokens:     answerLimit(modelID, options, 0),
 		TopP:          options.GetTopP(),
 		StopSequences: options.StopWords,
 	}
+	if options.TopK != nil {
+		topK := novaTopK(*options.TopK)
+		inferenceConfig.TopK = &topK
+	}
+	if options.Temperature != nil {
+		temperature, _ := clampTemperature(modelID, *options.Temperature)
+		inferenceConfig.Temperature = &temperature
+	}
+	cleared := false
 	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{
 			Type: "enabled", MaxReasoningEffort: reasoning.NovaDelegatedEffort,
@@ -189,12 +193,23 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}
 		if reasoning.NovaClearsInferenceConfigAt(effort) {
 			inferenceConfig.MaxTokens = 0
-			inferenceConfig.Temperature = 0
+			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = 0
+			inferenceConfig.TopK = nil
+			cleared = true
 		}
 		reportNovaReasoning(warn, modelID, options, effort)
 	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {
 		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+	if !cleared {
+		reportAnswerLimit(warn, modelID, options, inferenceConfig.MaxTokens)
+	}
+	if inferenceConfig.Temperature != nil {
+		reportTemperatureClamp(warn, modelID, *options.Temperature)
+	}
+	if inferenceConfig.TopK != nil {
+		reportTopKClamp(warn, modelID, *options.TopK, *inferenceConfig.TopK)
 	}
 
 	input := novaTextGenerationInput{
@@ -230,7 +245,7 @@ func parseNovaResponseBody(body []byte) (*novaTextGenerationOutput, error) {
 }
 
 func createNovaCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -420,7 +435,7 @@ func mimeTypeToFormat(mimeType string) string {
 	}
 }
 
-func parseNovaStreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+func parseNovaStreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
 	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err

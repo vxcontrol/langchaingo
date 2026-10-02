@@ -20,7 +20,7 @@ type ai21TextGenerationInput struct {
 	// The text which the model is requested to continue.
 	Prompt string `json:"prompt"`
 	// Modifies the distribution from which tokens are sampled. Optional, default = 0.7
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Sample tokens from the corresponding top percentile of probability mass. Optional, default = 1
 	TopP float64 `json:"topP,omitempty"`
 	// The maximum number of tokens to generate per result. Optional, default = 16
@@ -52,7 +52,7 @@ type ai21JambaInput struct {
 		Content string `json:"content"`
 	} `json:"messages"`
 	MaxTokens   int      `json:"max_tokens,omitempty"`
-	Temperature float64  `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	TopP        float64  `json:"top_p,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
 	N           int      `json:"n,omitempty"`
@@ -152,7 +152,7 @@ func getAi21Role(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
+func createAi21Completion(ctx context.Context, client legacyRuntime, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	// Check if this is a Jamba model (use messages API)
 	if IsAi21Jamba(modelID) {
 		return createAi21JambaCompletion(ctx, client, modelID, messages, options, warn)
@@ -162,7 +162,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 	txt := processInputMessagesGeneric(messages)
 	inputContent := ai21TextGenerationInput{
 		Prompt:        txt,
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 2048),
 		StopSequences: options.StopWords,
@@ -211,6 +211,9 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 		return nil, err
 	}
 
+	if len(output.Completions) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Completions))
 	for i, completion := range output.Completions {
 		choices[i] = &llms.ContentChoice{
@@ -232,7 +235,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 	return &llms.ContentResponse{Choices: choices}, nil
 }
 
-func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
+func createAi21JambaCompletion(ctx context.Context, client legacyRuntime, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	jambaMessages := make([]struct {
 		Role    string `json:"role"`
 		Content string `json:"content"`
@@ -250,7 +253,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 	inputContent := ai21JambaInput{
 		Messages:    jambaMessages,
 		MaxTokens:   maxTokensOnTheWire(warn, modelID, options, 4096),
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		Stop:        options.StopWords,
 		N:           options.GetCandidateCount(),
@@ -289,6 +292,9 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 		return nil, err
 	}
 
+	if len(output.Choices) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Choices))
 	for i, choice := range output.Choices {
 		choices[i] = &llms.ContentChoice{
@@ -309,7 +315,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 	return &llms.ContentResponse{Choices: choices}, nil
 }
 
-func parseAi21StreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+func parseAi21StreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
 	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err

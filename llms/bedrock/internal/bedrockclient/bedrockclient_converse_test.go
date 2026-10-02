@@ -38,7 +38,7 @@ func TestNewConverseClient(t *testing.T) {
 	client := NewConverseClient(mockClient)
 
 	assert.NotNil(t, client)
-	assert.Equal(t, mockClient, client.client)
+	assert.Equal(t, converseReadOnlyBodies{mockClient}, client.client)
 }
 
 func TestConverseClient_BasicTextCompletion(t *testing.T) {
@@ -1142,7 +1142,7 @@ func TestConverseMaxTokensSaturatesInsteadOfWrapping(t *testing.T) {
 
 	for _, tc := range []struct {
 		name string
-		in   int
+		in   int64
 		want int32
 	}{
 		{"ordinary", 16384, 16384},
@@ -1150,9 +1150,12 @@ func TestConverseMaxTokensSaturatesInsteadOfWrapping(t *testing.T) {
 		{"above the ceiling", math.MaxInt32 + 1, math.MaxInt32},
 		{"far above the ceiling", 3_000_000_000, math.MaxInt32},
 	} {
+		if tc.in > math.MaxInt {
+			continue
+		}
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			maxTokens := tc.in
+			maxTokens := int(tc.in)
 			got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 				ModelID:   "anthropic.claude-3-sonnet-20240229-v1:0",
 				Messages:  []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},

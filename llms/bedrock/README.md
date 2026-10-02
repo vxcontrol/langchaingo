@@ -137,36 +137,9 @@ Different providers use different formats for tool inputs in Converse API:
 
 **Solution**: Models with backend issues or instability are excluded from tool calling tests.
 
-### convertToolCallInput() Logic
+### Tool schemas on Converse
 
-**Why this function exists?**
-
-AWS SDK requires Smithy-compatible types for `document.NewLazyDocument()`. Standard Go types from `json.Unmarshal` aren't always compatible.
-
-```go
-func convertToolCallInput(args any) (any, error) {
-    // 1. Check Smithy compatibility (structs with `document` tags)
-    if isSmithyValidObject(args) {
-        return args, nil
-    }
-    
-    // 2. Re-encode to normalize types for Smithy SDK
-    // Uses UseNumber() to preserve numeric precision during JSON roundtrip
-    jsonBytes := bytes.NewBuffer(nil)
-    json.NewEncoder(jsonBytes).Encode(args)
-    
-    decoder := json.NewDecoder(jsonBytes)
-    decoder.UseNumber()  // Preserves large numbers accurately
-    
-    var jsonValue any
-    decoder.Decode(&jsonValue)
-    return jsonValue, nil
-}
-```
-
-**Why UseNumber()?**
-
-Preserves numeric precision for large integers that might overflow float64. The `json.Number` type is properly handled by Smithy SDK's document encoding.
+The AWS SDK writes a tool's `inputSchema` through its own document encoder, which writes a `json.Number` as a string and a byte slice (`json.RawMessage` included) as an array of bytes. A schema that is neither plain Go values nor a struct tagged for documents is therefore turned into plain values through `encoding/json` with exact numbers before it goes out, so `"maxItems": 5` stays a number and a raw schema stays an object; a struct tagged for documents goes as it is and keeps its field order.
 
 ### Document Marshal for Tool Responses
 
@@ -229,14 +202,14 @@ source of truth used by the first-party Anthropic provider):
   this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
   this door does not send it.
 
-Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1.
 
 ## Structured Output
 
 The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
 the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
-4.5; any other Claude model returns a typed `ErrStructuredOutputUnsupported` before
-the request. On the Converse API the other families get it only where their AWS model
+4.5 (not through the `in.` India inference profile); any other Claude model returns a
+typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model
 card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3,
 Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose
 card is silent return the same typed error. The final response is guaranteed to be a
@@ -257,7 +230,7 @@ resp, err := llm.GenerateContent(ctx, messages,
 ```
 
 **Wire mapping**:
-- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`.
+- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`, except for GPT-5.6 and GPT-6, whose model cards document the schema on non-streaming calls only and ask for `additionalModelRequestFields.text.format.strict`: the door adds that field and refuses a streamed schema with the typed error.
 - **Legacy (InvokeModel)**: Anthropic-compatible `output_config.format`, merged with reasoning `output_config.effort` when both are set.
 
 **Requirements and behavior**:
@@ -610,7 +583,7 @@ llms/bedrock/
     ├── bedrockclient_converse.go  # Converse API client
     ├── bedrockclient_util.go      # Smithy validation
     ├── bedrockclient_test.go      # Client tests
-    ├── bedrockclient_integration_test.go  # Client integration tests
+    ├── bedrockclient_integration_test.go  # Client construction test
     ├── provider_anthropic.go      # Anthropic-specific implementation
     ├── provider_nova.go           # Nova-specific implementation
     ├── provider_*.go              # Other providers
@@ -796,7 +769,7 @@ model IDs.
 | Claude Opus 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (not through `in.`) |
 | Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |

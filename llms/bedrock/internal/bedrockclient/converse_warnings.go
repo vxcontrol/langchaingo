@@ -28,14 +28,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.Temperature
 		}
-		clamped := float32(reasoning.ClaudeClampTemperature(model, *input.Temperature))
-		if sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
-			warn.Add(llms.Warning{
-				Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-				Asked:  strconv.FormatFloat(*input.Temperature, 'g', -1, 64),
-				Sent:   strconv.FormatFloat(float64(clamped), 'g', -1, 32),
-				Reason: "Claude takes a temperature from 0 to 1",
-			})
+		clampedTo, _ := clampTemperature(model, *input.Temperature)
+		if clamped := float32(clampedTo); sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
+			reportTemperatureClamp(warn, model, *input.Temperature)
 		} else {
 			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
 		}
@@ -72,11 +67,18 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
 		})
 	}
-	if input.TopK != nil && *input.TopK != 0 && !converseCarriesTopK(built) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithTopK", Model: model,
-			Asked: strconv.Itoa(*input.TopK), Reason: omitted,
-		})
+	if input.TopK != nil && *input.TopK != 0 {
+		if sent, carried := converseTopKOnTheWire(built); carried {
+			reportTopKClamp(warn, model, *input.TopK, sent)
+		} else {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithTopK", Model: model,
+				Asked: strconv.Itoa(*input.TopK), Reason: omitted,
+			})
+		}
+	}
+	if converseDropsDelegatedThinking(model, input.ReasoningConfig) {
+		reportThinkingUnsupported(warn, model, input.ReasoningConfig)
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
 		sent, thinkingSent := converseEffortOnTheWire(built)
@@ -180,9 +182,25 @@ func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
 	return ""
 }
 
-func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
-	_, carried := converseAdditionalFields(built)["top_k"]
-	return carried
+func converseDropsDelegatedThinking(model string, cfg *llms.ReasoningConfig) bool {
+	if !cfg.DelegatesDepth() {
+		return false
+	}
+	if reasoning.IsReasoningModel(model) && !reasoning.IsBedrockNonReasoningModel(model) {
+		return false
+	}
+	return reasoning.ResolveMechanism(model, cfg.Adaptive, isAnthropicModelID(model), false) == reasoning.MechanismNone
+}
+
+func converseTopKOnTheWire(built *bedrockruntime.ConverseInput) (int, bool) {
+	fields := converseAdditionalFields(built)
+	topK, carried := fields["top_k"]
+	if !carried {
+		novaConfig, _ := fields["inferenceConfig"].(map[string]any)
+		topK, carried = novaConfig["topK"]
+	}
+	value, _ := topK.(float64)
+	return int(value), carried
 }
 
 func converseThinkingBudget(built *bedrockruntime.ConverseInput) int {

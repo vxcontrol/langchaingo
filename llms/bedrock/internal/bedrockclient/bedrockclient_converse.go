@@ -1,9 +1,7 @@
 package bedrockclient
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -36,7 +34,7 @@ type BedrockRuntimeClientInterface interface {
 // NewConverseClient creates a new Converse API client
 func NewConverseClient(client BedrockRuntimeClientInterface) *ConverseClient {
 	return &ConverseClient{
-		client: client,
+		client: converseReadOnlyBodies{client},
 	}
 }
 
@@ -110,8 +108,13 @@ type converseNovaReasoningConfig struct {
 	MaxReasoningEffort string `json:"maxReasoningEffort,omitempty" document:"maxReasoningEffort,omitempty"`
 }
 
+type converseNovaInferenceConfig struct {
+	TopK *int `json:"topK,omitempty" document:"topK,omitempty"`
+}
+
 type converseNovaFields struct {
 	ReasoningConfig *converseNovaReasoningConfig `json:"reasoningConfig,omitempty" document:"reasoningConfig,omitempty"`
+	InferenceConfig *converseNovaInferenceConfig `json:"inferenceConfig,omitempty" document:"inferenceConfig,omitempty"`
 }
 
 type converseGrokReasoning struct {
@@ -128,8 +131,11 @@ type converseGptOssFields struct {
 
 // buildConverseInput converts our input to AWS Converse format
 func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockruntime.ConverseInput, error) {
-	// Convert messages
-	converseMessages, systemPrompts, err := c.convertMessages(input.Messages)
+	messages := input.Messages
+	if reasoning.BedrockRejectsReasoningReplay(input.ModelID) {
+		messages = withoutReasoning(messages)
+	}
+	converseMessages, systemPrompts, err := c.convertMessages(messages)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert messages: %w", err)
 	}
@@ -137,10 +143,15 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Build inference configuration
 	inferenceConfig := &types.InferenceConfiguration{}
 	if input.MaxTokens != nil && *input.MaxTokens > 0 {
-		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
+		maxTokens := *input.MaxTokens
+		if ceiling := answerCeiling(input.ModelID); ceiling != 0 && GetProvider(input.ModelID) == "nova" {
+			maxTokens = min(maxTokens, ceiling)
+		}
+		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(maxTokens))
 	}
 	if input.Temperature != nil {
-		inferenceConfig.Temperature = aws.Float32(float32(reasoning.ClaudeClampTemperature(input.ModelID, *input.Temperature)))
+		temperature, _ := clampTemperature(input.ModelID, *input.Temperature)
+		inferenceConfig.Temperature = aws.Float32(float32(temperature))
 	}
 	if input.TopP != nil {
 		inferenceConfig.TopP = aws.Float32(float32(*input.TopP))
@@ -189,6 +200,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	// Add additional model fields
 	additionalModelFields := converseAdditionalModelRequestFields{}
 	var familyFields any
+	novaClearsSampling := false
 	switch input.ReasoningConfig.ResolveMode() {
 	case llms.ReasoningOn:
 		maxTokens := 0 // Use 0 to let it use default maxTokens
@@ -247,6 +259,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				inferenceConfig.MaxTokens = nil
 				inferenceConfig.Temperature = nil
 				inferenceConfig.TopP = nil
+				novaClearsSampling = true
 			}
 		}
 		setGrok := func() {
@@ -311,6 +324,12 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		additionalModelFields.Thinking == nil &&
 		!reasoning.ClaudeRejectsSampling(input.ModelID) {
 		additionalModelFields.TopK = input.TopK
+	}
+	if input.TopK != nil && GetProvider(input.ModelID) == "nova" && !novaClearsSampling {
+		topK := novaTopK(*input.TopK)
+		fields, _ := familyFields.(converseNovaFields)
+		fields.InferenceConfig = &converseNovaInferenceConfig{TopK: &topK}
+		familyFields = fields
 	}
 	switch {
 	case familyFields != nil:
@@ -511,13 +530,18 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 
 	var humanBlocks []types.ContentBlock
 	flushHuman := func() {
-		if len(humanBlocks) > 0 {
+		if len(humanBlocks) == 0 {
+			return
+		}
+		if last := len(converseMessages) - 1; last >= 0 && converseMessages[last].Role == types.ConversationRoleUser {
+			converseMessages[last].Content = append(converseMessages[last].Content, humanBlocks...)
+		} else {
 			converseMessages = append(converseMessages, types.Message{
 				Role:    types.ConversationRoleUser,
 				Content: humanBlocks,
 			})
-			humanBlocks = nil
 		}
+		humanBlocks = nil
 	}
 
 	for i, msg := range messages {
@@ -660,8 +684,9 @@ func isEmptyAssistantPart(msg Message) bool {
 		len(msg.Reasoning.Sequence()) == 0
 }
 
-// ErrUnsupportedImageFormat reports a MIME type Converse has no image format for.
-var ErrUnsupportedImageFormat = errors.New("bedrock: unsupported image mime type")
+// ErrUnsupportedImageFormat reports a binary part whose MIME type is not an image
+// format the door sends; binary parts reach Bedrock only as images.
+var ErrUnsupportedImageFormat = errors.New("bedrock: a binary part must be an image this door can send")
 
 func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Message, error) {
 	var role types.ConversationRole
@@ -708,29 +733,6 @@ func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Messa
 	}, nil
 }
 
-func (c *ConverseClient) convertToolCallInput(args any) (any, error) {
-	if isSmithyValidObject(args) {
-		return args, nil
-	}
-
-	// Convert to Smithy-compatible format by re-encoding through JSON
-	// This handles types like map[string]any with interface{} values
-	jsonBytes := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonBytes).Encode(args); err != nil {
-		return nil, fmt.Errorf("failed to encode arguments: %w", err)
-	}
-
-	jsonDecoder := json.NewDecoder(jsonBytes)
-	jsonDecoder.UseNumber()
-
-	var jsonValue any
-	if err := jsonDecoder.Decode(&jsonValue); err != nil {
-		return nil, fmt.Errorf("failed to decode arguments: %w", err)
-	}
-
-	return jsonValue, nil
-}
-
 // convertToolsToToolConfig converts llms.Tool to Converse ToolConfiguration
 func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any) (*types.ToolConfiguration, error) {
 	var converseTools []types.Tool
@@ -745,9 +747,12 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 			Description: aws.String(tool.Function.Description),
 		}
 
-		parameters, err := c.convertToolCallInput(toolcall.Schema(tool.Function.Parameters))
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert tool call input: %w", err)
+		parameters := toolcall.Schema(tool.Function.Parameters)
+		if !isSmithyValidObject(parameters) {
+			var err error
+			if parameters, err = toolcall.SchemaValue(parameters); err != nil {
+				return nil, fmt.Errorf("failed to convert the parameters of tool %q: %w", tool.Function.Name, err)
+			}
 		}
 		toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
 			Value: document.NewLazyDocument(parameters),
@@ -762,6 +767,14 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 		Tools:      converseTools,
 		ToolChoice: converseToolChoice(choice),
 	}, nil
+}
+
+func withoutReasoning(messages []Message) []Message {
+	stripped := slices.Clone(messages)
+	for i := range stripped {
+		stripped[i].Reasoning = nil
+	}
+	return stripped
 }
 
 func carriesToolBlocks(messages []types.Message) bool {
@@ -847,7 +860,6 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 	return c.processStreamingResponse(ctx, response, callback)
 }
 
-// processStreamingResponse processes streaming events
 func deliverToolCall(
 	ctx context.Context, callback streaming.Callback, builder *converseToolCallBuilder,
 ) (llms.ToolCall, error) {

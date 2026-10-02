@@ -2,6 +2,7 @@
 package toolcall
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,6 +75,20 @@ func Schema(parameters any) any {
 		return map[string]any{"type": "object", "properties": map[string]any{}}
 	}
 	return parameters
+}
+
+func SchemaValue(parameters any) (any, error) {
+	encoded, err := json.Marshal(Schema(parameters))
+	if err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(encoded))
+	dec.UseNumber()
+	var value any
+	if err := dec.Decode(&value); err != nil {
+		return nil, err
+	}
+	return exactNumbers(value), nil
 }
 
 func NoParameters(parameters any) bool {

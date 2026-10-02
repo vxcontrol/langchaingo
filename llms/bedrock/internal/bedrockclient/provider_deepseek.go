@@ -17,7 +17,7 @@ import (
 
 type deepSeekTextGenerationInput struct {
 	Prompt      string   `json:"prompt"`
-	Temperature float64  `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	TopP        float64  `json:"top_p,omitempty"`
 	MaxTokens   int      `json:"max_tokens,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
@@ -38,7 +38,7 @@ type deepSeekStreamingResponseChunk struct {
 }
 
 func createDeepSeekCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -49,7 +49,7 @@ func createDeepSeekCompletion(ctx context.Context,
 
 	input := deepSeekTextGenerationInput{
 		Prompt:      prompt,
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		MaxTokens:   maxTokensOnTheWire(warn, modelID, options, 512),
 		Stop:        options.StopWords,
@@ -88,6 +88,9 @@ func createDeepSeekCompletion(ctx context.Context,
 		return nil, err
 	}
 
+	if len(output.Choices) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, 0, len(output.Choices))
 	for _, choice := range output.Choices {
 		choices = append(choices, &llms.ContentChoice{
@@ -135,7 +138,7 @@ func formatDeepSeekPrompt(messages []Message) string {
 	return sb.String()
 }
 
-func parseDeepSeekStreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+func parseDeepSeekStreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
 	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err

@@ -14,7 +14,7 @@ import (
 
 // Client is a Bedrock client.
 type Client struct {
-	client *bedrockruntime.Client
+	client legacyRuntime
 }
 
 // Message is a chunk of text or an data
@@ -94,7 +94,7 @@ func GetProvider(modelID string) string {
 // NewClient creates a new Bedrock client.
 func NewClient(client *bedrockruntime.Client) *Client {
 	return &Client{
-		client: client,
+		client: legacyReadOnlyBodies{client},
 	}
 }
 
@@ -184,15 +184,73 @@ func IsCohereCommandR(modelID string) bool {
 func maxTokensOnTheWire(
 	warn *llms.Warnings, modelID string, options llms.CallOptions, defaultValue int,
 ) int {
+	sent := answerLimit(modelID, options, defaultValue)
+	reportAnswerLimit(warn, modelID, options, sent)
+	return sent
+}
+
+func answerLimit(modelID string, options llms.CallOptions, defaultValue int) int {
 	sent := getMaxTokens(options.GetMaxTokens(), defaultValue)
-	if asked := options.MaxTokens; asked != nil && *asked <= 0 && sent != *asked {
+	if ceiling := answerCeiling(modelID); ceiling != 0 && sent > ceiling {
+		return ceiling
+	}
+	return sent
+}
+
+func reportAnswerLimit(warn *llms.Warnings, modelID string, options llms.CallOptions, sent int) {
+	asked := options.MaxTokens
+	switch {
+	case asked == nil || *asked == sent:
+	case sent == 0:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Reason: "the request names no answer limit, so the vendor's default applies",
+		})
+	case *asked <= 0:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithMaxTokens", Model: modelID,
 			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
 			Reason: "the legacy payload has to name an answer limit, so the door named one",
 		})
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithMaxTokens", Model: modelID,
+			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
+			Reason: "the model's documented answer limit is lower",
+		})
 	}
-	return sent
+}
+
+var answerCeilings = []struct {
+	family  string
+	ceiling int
+}{
+	{"amazon.titan-text-lite", 4096},
+	{"amazon.titan-text-express", 8192},
+	{"amazon.titan-text-premier", 3072},
+	{"amazon.nova-micro", 5000},
+	{"amazon.nova-lite", 5000},
+	{"amazon.nova-pro", 5000},
+	{"amazon.nova-premier", 5000},
+	{"amazon.nova-2-lite", 64000},
+	{"cohere.command-text", 4096},
+	{"cohere.command-light-text", 4096},
+	{"ai21.jamba", 4096},
+	{"ai21.j2-mid", 8191},
+	{"ai21.j2-ultra", 8191},
+	{"ai21.j2", 2048},
+	{"meta.llama", 2048},
+	{"deepseek.r1", 32768},
+}
+
+func answerCeiling(modelID string) int {
+	id := strings.ToLower(modelID)
+	for _, entry := range answerCeilings {
+		if strings.Contains(id, entry.family) {
+			return entry.ceiling
+		}
+	}
+	return 0
 }
 
 func getMaxTokens(maxTokens, defaultValue int) int {

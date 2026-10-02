@@ -59,11 +59,11 @@ func TestClaudeOnBedrockTakesATemperatureFromZeroToOne(t *testing.T) {
 	}
 }
 
-func TestConverseLeavesANonClaudeTemperatureAlone(t *testing.T) {
+func TestConverseSendsGptOssTheTemperatureAsAsked(t *testing.T) {
 	t.Parallel()
 
 	resp, body := bedrockWarningsSending(t, converseAnswer,
-		[]bedrock.Option{bedrock.WithModel("us.amazon.nova-pro-v1:0"), bedrock.WithConverseAPI()},
+		[]bedrock.Option{bedrock.WithModel("openai.gpt-oss-120b-1:0"), bedrock.WithConverseAPI()},
 		llms.WithTemperature(1.5))
 
 	cfg, _ := body["inferenceConfig"].(map[string]any)

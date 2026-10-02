@@ -33,6 +33,18 @@ func NovaClearsInferenceConfigAt(effort string) bool {
 	return NovaEffort(effort) == "high"
 }
 
+const NovaMinTemperature = 0.00001
+
+func NovaClampTemperature(model string, temperature float64) float64 {
+	m := bedrockModelWithoutRegion(model)
+	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier", "amazon.nova-2-"} {
+		if strings.HasPrefix(m, family) {
+			return min(max(temperature, NovaMinTemperature), 1)
+		}
+	}
+	return temperature
+}
+
 // IsBedrockAlwaysReasoningModel reports whether the Bedrock family reasons on
 // every request and takes no thinking configuration alongside it.
 func IsBedrockAlwaysReasoningModel(model string) bool {
@@ -62,17 +74,25 @@ var bedrockStructuredOutputModels = []string{
 	"mistral.devstral-2-123b", "mistral.magistral-small-2509", "mistral.ministral-3-14b-instruct",
 	"mistral.ministral-3-8b-instruct", "mistral.ministral-3-3b-instruct", "mistral.mistral-large-3-675b-instruct",
 	"mistral.voxtral-mini-3b-2507", "mistral.voxtral-small-24b-2507",
-	"moonshot.kimi-k2-thinking", "moonshotai.kimi-k2-thinking", "moonshotai.kimi-k2.5",
+	"moonshot.kimi-k2-thinking", "moonshotai.kimi-k2-thinking", "moonshotai.kimi-k2.5", "moonshotai.kimi-k3",
 	"nvidia.nemotron-nano-12b-v2", "nvidia.nemotron-nano-3-30b", "nvidia.nemotron-nano-9b-v2",
 	"nvidia.nemotron-super-3-120b",
-	"openai.gpt-5.6-luna", "openai.gpt-oss-120b", "openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b",
+	"openai.gpt-5.6-luna", "openai.gpt-5.6-sol", "openai.gpt-5.6-terra",
+	"openai.gpt-6-astra", "openai.gpt-6-luna", "openai.gpt-6-sol", "openai.gpt-6.1-sol",
+	"openai.gpt-oss-120b", "openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b",
 	"openai.gpt-oss-20b-1:0", "openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
 	"qwen.qwen3-235b-a22b-2507", "qwen.qwen3-235b-a22b-2507-v1:0", "qwen.qwen3-32b", "qwen.qwen3-32b-v1:0",
 	"qwen.qwen3-coder-30b-a3b-instruct", "qwen.qwen3-coder-30b-a3b-v1:0", "qwen.qwen3-coder-480b-a35b-instruct",
 	"qwen.qwen3-coder-480b-a35b-v1:0", "qwen.qwen3-coder-next", "qwen.qwen3-next-80b-a3b",
 	"qwen.qwen3-next-80b-a3b-instruct",
 	"writer.palmyra-vision-7b",
+	"xai.grok-4.7",
 	"zai.glm-4.7", "zai.glm-4.7-flash", "zai.glm-5",
+}
+
+func BedrockStructuredOutputNeedsStrict(model string) bool {
+	m := bedrockModelWithoutRegion(model)
+	return strings.HasPrefix(m, "openai.gpt-5.6-") || strings.HasPrefix(m, "openai.gpt-6")
 }
 
 var bedrockRegionPrefixes = []string{"us-gov.", "apac.", "global.", "us.", "eu.", "au.", "jp.", "in.", "ca."}
@@ -139,4 +159,8 @@ func GrokEffort(model, effort string) string {
 	default:
 		return ""
 	}
+}
+
+func BedrockRejectsReasoningReplay(model string) bool {
+	return strings.HasPrefix(bedrockModelWithoutRegion(model), "moonshotai.kimi-k3")
 }

@@ -21,7 +21,7 @@ type cohereTextGenerationInput struct {
 	// The prompt that you want to pass to the model. Required
 	Prompt string `json:"prompt"`
 	// Use a lower value to decrease randomness in the response. Optional, default = 0.9
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Use a lower value to ignore less probable options. Optional, default = 0.75
 	P float64 `json:"p,omitempty"`
 	// Specify the number of token choices the model uses to generate the next token.
@@ -46,7 +46,7 @@ type cohereCommandRInput struct {
 		Message string `json:"message"`
 	} `json:"chat_history,omitempty"`
 	MaxTokens     int      `json:"max_tokens,omitempty"`
-	Temperature   float64  `json:"temperature,omitempty"`
+	Temperature   *float64 `json:"temperature,omitempty"`
 	P             float64  `json:"p,omitempty"`
 	K             int      `json:"k,omitempty"`
 	StopSequences []string `json:"stop_sequences,omitempty"`
@@ -119,7 +119,7 @@ type cohereStreamingResponseChunk struct {
 }
 
 func createCohereCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -135,7 +135,7 @@ func createCohereCompletion(ctx context.Context,
 
 	input := &cohereTextGenerationInput{
 		Prompt:         txt,
-		Temperature:    options.GetTemperature(),
+		Temperature:    options.Temperature,
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
 		MaxTokens:      maxTokensOnTheWire(warn, modelID, options, 20),
@@ -176,6 +176,9 @@ func createCohereCompletion(ctx context.Context,
 		return nil, err
 	}
 
+	if len(output.Generations) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Generations))
 
 	for i, gen := range output.Generations {
@@ -196,7 +199,7 @@ func createCohereCompletion(ctx context.Context,
 }
 
 func createCohereCommandRCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -236,7 +239,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 		Message:       currentMessage,
 		ChatHistory:   chatHistory,
 		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 512),
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		P:             options.GetTopP(),
 		K:             options.GetTopK(),
 		StopSequences: options.StopWords,
@@ -291,7 +294,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 	}, nil
 }
 
-func parseCohereStreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+func parseCohereStreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
 	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err

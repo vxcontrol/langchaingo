@@ -35,11 +35,15 @@ func getProvider(modelID string) string {
 // EmbedDocuments implements embeddings.Embedder
 // and generates embeddings for the supplied texts.
 func (b *Bedrock) EmbedDocuments(ctx context.Context, texts []string) ([][]float32, error) {
+	provider := getProvider(b.ModelID)
+	batchSize := b.BatchSize
+	if provider == "cohere" {
+		batchSize = min(batchSize, cohereMaxTextsPerCall)
+	}
 	batchedTexts := embeddings.BatchTexts(
 		embeddings.MaybeRemoveNewLines(texts, b.StripNewLines),
-		b.BatchSize,
+		batchSize,
 	)
-	provider := getProvider(b.ModelID)
 
 	allEmbeds := make([][]float32, 0, len(texts))
 	var embs [][]float32

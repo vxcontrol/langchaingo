@@ -1,6 +1,8 @@
 package bedrock_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -75,4 +77,51 @@ func TestEmbedDocumentsKeepsAFullAnswer(t *testing.T) {
 	emb, err := b.EmbedDocuments(t.Context(), []string{"one", "two"})
 	require.NoError(t, err)
 	require.Len(t, emb, 2)
+}
+
+func TestCohereIsSentAtMost96TextsPerCall(t *testing.T) {
+	t.Parallel()
+
+	var perCall []int
+	httpClient := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		var in struct {
+			Texts []string `json:"texts"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
+			return nil, err
+		}
+		perCall = append(perCall, len(in.Texts))
+		vectors := make([]string, len(in.Texts))
+		for i, text := range in.Texts {
+			vectors[i] = "[" + strings.TrimPrefix(text, "t") + "]"
+		}
+		body := `{"response_type":"embeddings_floats","embeddings":[` + strings.Join(vectors, ",") + `]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    req,
+		}, nil
+	})}
+	cfg, err := config.LoadDefaultConfig(t.Context(),
+		config.WithHTTPClient(httpClient),
+		config.WithRegion(replayRegion),
+		config.WithCredentialsProvider(&fakeCredentialsProvider{}),
+	)
+	require.NoError(t, err)
+	client := bedrockruntime.NewFromConfig(cfg, func(o *bedrockruntime.Options) {
+		o.AuthSchemePreference = []string{"sigv4"}
+	})
+	b, err := bedrock.NewBedrock(bedrock.WithClient(client), bedrock.WithModel(bedrock.ModelCohereEn))
+	require.NoError(t, err)
+
+	texts := make([]string, 200)
+	for i := range texts {
+		texts[i] = fmt.Sprintf("t%d", i)
+	}
+	emb, err := b.EmbedDocuments(t.Context(), texts)
+	require.NoError(t, err)
+	require.Equal(t, []int{96, 96, 8}, perCall)
+	require.Len(t, emb, 200)
+	require.InDelta(t, 199, emb[199][0], 0)
 }
