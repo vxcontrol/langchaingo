@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"io"
@@ -14,15 +15,20 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-type bodyDoer struct{ body []byte }
+type bodyDoer struct {
+	body    []byte
+	content string
+}
 
 func (d *bodyDoer) Do(req *http.Request) (*http.Response, error) {
 	d.body, _ = io.ReadAll(req.Body)
+	content, _ := json.Marshal(cmp.Or(d.content, "ok"))
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body: io.NopCloser(strings.NewReader(`{"id":"x","object":"chat.completion","created":1,"model":"m",` +
-			`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)),
+			`"choices":[{"index":0,"message":{"role":"assistant","content":` + string(content) + `},` +
+			`"finish_reason":"stop"}]}`)),
 	}, nil
 }
 

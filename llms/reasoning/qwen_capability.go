@@ -27,6 +27,15 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
+func qwenTakesJSONSchema(m string) bool {
+	for _, family := range []string{"qwen3.7-plus", "qwen3.7-flash", "qwen3.7-max", "qwen3.8-max", "qwen3.8-flash"} {
+		if strings.HasPrefix(m, family) {
+			return true
+		}
+	}
+	return false
+}
+
 func QVQStreamsOnly(model string) bool {
 	return strings.HasPrefix(dashScopeSpelling(model), "qvq")
 }
