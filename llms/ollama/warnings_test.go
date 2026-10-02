@@ -54,8 +54,9 @@ func TestOptionsWithNoFieldOnThisDoorAreReported(t *testing.T) {
 		}))
 
 	got := ollamaWarningsByOption(resp.Warnings)
+	require.NotContains(t, got, "WithMinP", "min_p reaches the wire")
 	for option, asked := range map[string]string{
-		"WithMinP": "0.05", "WithLogProbs": "true", "WithTopLogProbs": "2",
+		"WithLogProbs": "true", "WithTopLogProbs": "2",
 		"WithN": "2", "WithCandidateCount": "3", "WithToolChoice": "get_weather",
 	} {
 		w, ok := got[option]
@@ -148,7 +149,7 @@ func TestTheOllamaDoorReportsEachOptionOnce(t *testing.T) {
 	t.Parallel()
 
 	resp := generateForWarnings(t,
-		llms.WithMinP(0.05), llms.WithN(2), llms.WithCandidateCount(3),
+		llms.WithN(2), llms.WithCandidateCount(3),
 		llms.WithLogProbs(true), llms.WithTopLogProbs(5),
 		llms.WithMinLength(10), llms.WithMaxLength(20),
 		llms.WithVerbosity("low"), llms.WithResponseMIMEType("application/json"))
@@ -160,7 +161,6 @@ func TestTheOllamaDoorReportsEachOptionOnce(t *testing.T) {
 	for option, count := range seen {
 		require.Equal(t, 1, count, "%s reported %d times: %v", option, count, resp.Warnings)
 	}
-	require.Contains(t, seen, "WithMinP", "the door sends only the client's min-p")
 }
 
 func TestTheCloudReportsTheFormatItCannotSend(t *testing.T) {
