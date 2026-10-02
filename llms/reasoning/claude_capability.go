@@ -284,11 +284,7 @@ func ClaudeSupportsEffortWithBudget(model string, p Provider) bool {
 	return p != ProviderBedrock || !containsAny(m, bedrockRejectsBudgetEffortClaude)
 }
 
-var noPrefillClaude = []string{
-	"claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview",
-	"claude-opus-4-7", "claude-opus-4-8",
-	"claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-mythos-5",
-}
+var noPrefillClaude = []string{"claude-mythos-preview"}
 
 var noForcedToolClaude = []string{
 	"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1",
@@ -301,9 +297,17 @@ func ClaudeRejectsForcedToolUse(model string) bool {
 }
 
 // ClaudeRejectsAssistantPrefill reports whether the model rejects a prefilled
-// assistant response outright, so the request must not be sent.
+// assistant response outright, so the request must not be sent: every Claude the
+// name asks for at 4.6 or later, whatever release the tables answer it with.
 func ClaudeRejectsAssistantPrefill(model string) bool {
-	return containsAny(canonicalClaude(model), noPrefillClaude)
+	m := claudeName(model)
+	if idx := strings.Index(m, "claude-"); idx != -1 {
+		tier, major, minor, ok := claudeVersion(m[idx:])
+		if ok && claudeReleases[tier] != nil && (major > 4 || major == 4 && minor >= 6) {
+			return true
+		}
+	}
+	return containsAny(m, noPrefillClaude)
 }
 
 // mutuallyExclusiveSamplingClaude models reject temperature and top_p set

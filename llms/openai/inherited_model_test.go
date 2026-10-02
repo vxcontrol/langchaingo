@@ -57,8 +57,7 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Len(t, body["tools"], 1)
 	inherited(warnings, "WithReasoning")
 
-	body, warnings = hostCall(t, "https://api.deepseek.com", "deepseek-v5", tools,
-		llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithToolChoice("required"))
+	body, warnings = hostCall(t, "https://api.moonshot.ai/v1", "kimi-k2.8", tools, llms.WithToolChoice("required"))
 	require.Equal(t, "required", body["tool_choice"])
 	inherited(warnings, "WithToolChoice")
 
@@ -89,4 +88,23 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	require.ErrorAs(t, call("https://api.minimax.io/v1", "MiniMax-M2.7", llms.WithReasoningDisabled()), &off)
 	var cyber *reasoning.ErrChatCompletionsUnsupported
 	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-5.6-cyber"), &cyber)
+}
+
+func TestAHostThatRejectsAForcedToolWhileThinkingRefusesItForEveryVersion(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object"},
+	}}})
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://api.deepseek.com", "deepseek-v5"},
+		{"https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "qwen3.9-max"},
+	} {
+		llm := newUnitLLM(t, WithBaseURL(route.baseURL), WithModel(route.model), WithHTTPClient(&bodyDoer{}))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			tools, llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithToolChoice("required"))
+		var refusal *reasoning.ErrForcedToolChoiceUnsupported
+		require.ErrorAs(t, err, &refusal, route.model)
+	}
 }

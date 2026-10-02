@@ -1126,13 +1126,15 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 	t.Run("rejected on 4.6 and later without a round trip", func(t *testing.T) {
 		t.Parallel()
 
-		llm, hits := newLLM(t, "claude-opus-4-6")
-		_, err := llm.GenerateContent(t.Context(), prefilled)
+		for _, model := range []string{"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7"} {
+			llm, hits := newLLM(t, model)
+			_, err := llm.GenerateContent(t.Context(), prefilled)
 
-		var unsupported *anthropic.ErrAssistantPrefillUnsupported
-		require.ErrorAs(t, err, &unsupported)
-		require.Equal(t, "claude-opus-4-6", unsupported.Model)
-		require.Zero(t, hits.Load(), "the request must not be sent")
+			var unsupported *anthropic.ErrAssistantPrefillUnsupported
+			require.ErrorAs(t, err, &unsupported, model)
+			require.Equal(t, model, unsupported.Model)
+			require.Zero(t, hits.Load(), "%s: the request must not be sent", model)
+		}
 	})
 
 	t.Run("still allowed on the 4.5 generation", func(t *testing.T) {

@@ -114,7 +114,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	sendsBudget := (o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()) ||
 		o.sendsClaudeBudget(o.effectiveModel(opts), opts)
-	if err := llms.CheckClaudeTurnLimitsOnWire(o.effectiveModel(opts), opts, messages, sendsBudget); err != nil {
+	if err := llms.CheckClaudeTurnLimitsOnWire(o.effectiveModel(opts), opts, messages, sendsBudget, warn); err != nil {
 		return nil, err
 	}
 
@@ -386,10 +386,10 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	named := name != ""
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
-	case reasoning.ServedByZAI(model, o.host):
-		return refusal
-	case !named && reasoning.RejectsRequiredToolChoice(model, o.host),
+	case reasoning.ServedByZAI(model, o.host),
 		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
+		return refusal
+	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
 		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
 			return refusal
 		}

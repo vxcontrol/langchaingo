@@ -78,3 +78,18 @@ func TestAnUnlistedClaudeOnBedrockIsSentTheDisableAndEffortItsLineDocuments(t *t
 		require.Equal(t, "low", inherited.Sent, "%s: %v", door.name, resp.Warnings)
 	}
 }
+
+func TestAnUnlistedClaudeOnBedrockIsSentAForcedToolChoiceWithAWarning(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object"},
+	}}})
+	opts := []bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-6-v1:0"), bedrock.WithConverseAPI()}
+	resp, body := bedrockWarningsSending(t, converseAnswer, opts, tools, llms.WithToolChoice("required"))
+	config, _ := body["toolConfig"].(map[string]any)
+	require.Contains(t, config["toolChoice"], "any", "%v", body)
+	warning := bedrockWarningsByOption(resp.Warnings)["WithToolChoice"]
+	require.Equal(t, llms.WarningInherit, warning.Kind, "%v", resp.Warnings)
+	require.Equal(t, "any", warning.Sent)
+}

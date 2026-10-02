@@ -89,29 +89,29 @@ func TestAForcedChoiceIsRefusedOnAClaudeModelThatRejectsIt(t *testing.T) {
 	tools := []Tool{{Type: "function", Function: &FunctionDefinition{Name: "echo"}}}
 	for _, choice := range []any{"required", map[string]any{"type": "tool", "name": "echo"}} {
 		err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1",
-			CallOptions{Tools: tools, ToolChoice: choice}, nil)
+			CallOptions{Tools: tools, ToolChoice: choice}, nil, nil)
 		var refused *reasoning.ErrForcedToolChoiceUnsupported
 		if !errors.As(err, &refused) {
 			t.Errorf("%v: got %v, want ErrForcedToolChoiceUnsupported", choice, err)
 		}
 	}
-	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{Tools: tools, ToolChoice: "auto"}, nil); err != nil {
+	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{Tools: tools, ToolChoice: "auto"}, nil, nil); err != nil {
 		t.Errorf("auto must pass, got %v", err)
 	}
-	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{ToolChoice: "required"}, nil); err != nil {
+	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{ToolChoice: "required"}, nil, nil); err != nil {
 		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
 	}
 	thinking := &ReasoningConfig{Mode: ReasoningOn, Tokens: 2048}
-	if err := CheckClaudeTurnLimits("claude-sonnet-4-5", CallOptions{Reasoning: thinking, ToolChoice: "required"}, nil); err != nil {
+	if err := CheckClaudeTurnLimits("claude-sonnet-4-5", CallOptions{Reasoning: thinking, ToolChoice: "required"}, nil, nil); err != nil {
 		t.Errorf("budget thinking with no tools sends no choice to refuse, got %v", err)
 	}
 	var withThinking *reasoning.ErrForcedToolUseWithThinking
 	if err := CheckClaudeTurnLimits("claude-sonnet-4-5",
-		CallOptions{Reasoning: thinking, Tools: tools, ToolChoice: "required"}, nil); !errors.As(err, &withThinking) {
+		CallOptions{Reasoning: thinking, Tools: tools, ToolChoice: "required"}, nil, nil); !errors.As(err, &withThinking) {
 		t.Errorf("budget thinking with a tool to force, got %v, want ErrForcedToolUseWithThinking", err)
 	}
 	functions := []FunctionDefinition{{Name: "echo"}}
-	err := CheckClaudeTurnLimits("claude-opus-5-5", CallOptions{Functions: functions, ToolChoice: "required"}, nil)
+	err := CheckClaudeTurnLimits("claude-opus-5-5", CallOptions{Functions: functions, ToolChoice: "required"}, nil, nil)
 	var refused *reasoning.ErrForcedToolChoiceUnsupported
 	if !errors.As(err, &refused) {
 		t.Errorf("the openai door sends legacy functions as tools, got %v", err)

@@ -76,13 +76,14 @@ func TestAnUnlistedClaudeVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
 		Name: "lookup", Parameters: map[string]any{"type": "object"},
 	}}
-	body, _, err = generateRecording(t, "claude-sonnet-6",
+	body, resp, err = generateRecording(t, "claude-sonnet-6",
 		llms.WithTools([]llms.Tool{tool}), llms.WithToolChoice(llms.ToolChoice{
 			Type: "function", Function: &llms.FunctionReference{Name: "lookup"},
 		}))
 	require.NoError(t, err)
 	choice, _ := body["tool_choice"].(map[string]any)
 	require.Equal(t, "lookup", choice["name"], "%v", body)
+	require.Equal(t, "lookup", inheritWarnings(resp)["WithToolChoice"].Sent)
 
 	_, _, err = generateRecording(t, "claude-opus-5-5", llms.WithReasoningDisabled())
 	var refusal *reasoning.ErrReasoningOffUnsupported
