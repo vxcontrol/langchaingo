@@ -28,6 +28,8 @@ const (
 	ModelCohereMulti = "cohere.embed-multilingual-v3"
 )
 
+const cohereMaxTextsPerCall = 96
+
 const (
 	// CohereInputTypeText is the input type for text embeddings.
 	CohereInputTypeText = "search_document"
