@@ -102,7 +102,8 @@ func TestTheModelsWhoseCardsListAConverseSchemaAreSentOne(t *testing.T) {
 	for model, strict := range map[string]bool{
 		"openai.gpt-6-sol": true, "us.openai.gpt-5.6-sol": true, "global.openai.gpt-6.1-sol": true,
 		"in.openai.gpt-5.6-terra": true, "openai.gpt-6-astra": true, "openai.gpt-6-luna": true,
-		"moonshotai.kimi-k3": false, "us.xai.grok-4.7": false, "openai.gpt-oss-120b-1:0": false,
+		"us.openai.gpt-5.6-luna": true,
+		"moonshotai.kimi-k3":     false, "us.xai.grok-4.7": false, "openai.gpt-oss-120b-1:0": false,
 	} {
 		_, body := bedrockWarningsSending(t, converseSchemaAnswer,
 			[]bedrock.Option{bedrock.WithModel(model), bedrock.WithConverseAPI()}, schema)
@@ -119,18 +120,22 @@ func TestTheModelsWhoseCardsListAConverseSchemaAreSentOne(t *testing.T) {
 func TestAStreamedSchemaIsRefusedWhereTheCardDocumentsItForNonStreamingCallsOnly(t *testing.T) {
 	t.Parallel()
 
+	for _, model := range []string{"us.openai.gpt-6-sol", "global.openai.gpt-5.6-luna"} {
+		llm, sent := legacyLLMCapturing(t, converseSchemaAnswer, bedrock.WithModel(model), bedrock.WithConverseAPI())
+		_, err := llm.GenerateContent(t.Context(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)}),
+			llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+		var refused *llms.ErrStructuredOutputUnsupported
+		require.ErrorAs(t, err, &refused, model)
+		require.Contains(t, refused.Reason, "non-streaming", model)
+		require.Empty(t, *sent, "%s: refused before the network", model)
+	}
+
 	llm, sent := legacyLLMCapturing(t, converseSchemaAnswer,
 		bedrock.WithModel("us.openai.gpt-6-sol"), bedrock.WithConverseAPI())
-	_, err := llm.GenerateContent(t.Context(),
-		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)}),
-		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
-	var refused *llms.ErrStructuredOutputUnsupported
-	require.ErrorAs(t, err, &refused)
-	require.Contains(t, refused.Reason, "non-streaming")
-	require.Empty(t, *sent, "refused before the network")
 
-	_, err = llm.GenerateContent(t.Context(),
+	_, err := llm.GenerateContent(t.Context(),
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)}))
 	require.NoError(t, err, "the same model takes the schema on a non-streaming call")
