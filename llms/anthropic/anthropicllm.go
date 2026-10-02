@@ -203,8 +203,10 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 				Type:    "adaptive",
 				Display: "summarized",
 			}
-			outputConfig = &anthropicclient.OutputConfig{
-				Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+			if !opts.Reasoning.DelegatesDepth() {
+				outputConfig = &anthropicclient.OutputConfig{
+					Effort: reasoning.ClaudeClampEffort(model, string(opts.Reasoning.GetEffort(opts.GetMaxTokens())), reasoning.ProviderAnthropic),
+				}
 			}
 		} else if budget := reasoning.ClaudeClampBudget(model,
 			opts.Reasoning.GetTokens(opts.GetMaxTokens())); budget > 0 {
@@ -229,12 +231,14 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		switch reasoning.ResolveOff(model, reasoning.ProviderAnthropic) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
 		case reasoning.OffDisableClaude:
 			thinking = &anthropicclient.ThinkingPayload{Type: "disabled"}
+		case reasoning.OffBetweenToolsClaude:
+			thinking = &anthropicclient.ThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
 	}
 
-	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) {
+	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) && len(opts.Tools) > 0 {
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
 	if err := llms.CheckForcedToolUse(model, *opts); err != nil {
@@ -313,6 +317,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	}
 
 	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
+	temperature = clampClaudeTemperature(warn, model, temperature)
 
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),

@@ -82,8 +82,12 @@ func reportLegacyAnthropic(
 ) {
 	const reshaped = "the door reshaped the legacy anthropic payload for this model"
 
+	if input.Thinking != nil {
+		reportClaudeOffFloor(warn, modelID, input.Thinking.Type)
+	}
+
 	if options.Temperature != nil {
-		reportLegacyFloat(warn, "WithTemperature", modelID, reshaped, *options.Temperature, input.Temperature)
+		reportClaudeTemperature(warn, modelID, reshaped, *options.Temperature, input.Temperature)
 	}
 	if options.TopP != nil {
 		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
@@ -123,6 +127,39 @@ func reportLegacyAnthropic(
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithStopWords", Model: modelID,
 			Asked: strings.Join(options.StopWords, ","), Reason: reshaped,
+		})
+	}
+}
+
+func reportClaudeOffFloor(warn *llms.Warnings, modelID, sentThinking string) {
+	if sentThinking != "between_tools" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: modelID,
+		Asked: "off", Sent: "between_tools",
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
+}
+
+func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked float64, sent *float64) {
+	render := func(v float64) string { return strconv.FormatFloat(v, 'g', -1, 64) }
+	switch {
+	case sent == nil:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithTemperature", Model: modelID,
+			Asked: render(asked), Reason: reason,
+		})
+	case *sent == asked:
+	case *sent == reasoning.ClaudeClampTemperature(modelID, asked):
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
+			Asked: render(asked), Sent: render(*sent), Reason: "Claude takes a temperature from 0 to 1",
+		})
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithTemperature", Model: modelID,
+			Asked: render(asked), Sent: render(*sent), Reason: reason,
 		})
 	}
 }

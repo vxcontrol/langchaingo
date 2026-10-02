@@ -23,7 +23,7 @@ func TestApplyAnthropicReasoning_Adaptive(t *testing.T) {
 
 	input := anthropicTextGenerationInput{
 		MaxTokens:   2048,
-		Temperature: 0.8,
+		Temperature: ptr(0.8),
 		TopP:        0.9,
 		TopK:        40,
 	}
@@ -76,7 +76,7 @@ func TestApplyAnthropicReasoning_AdaptiveOnPreAdaptiveModelIsGated(t *testing.T)
 	assert.Nil(t, input.Thinking, "pre-adaptive model must not receive adaptive thinking")
 }
 
-func TestApplyAnthropicReasoning_AdaptiveEmptyEffortDefaultsToHigh(t *testing.T) {
+func TestApplyAnthropicReasoning_AdaptiveWithoutAnEffortLeavesTheDepthToTheVendor(t *testing.T) {
 	t.Parallel()
 
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
@@ -84,8 +84,9 @@ func TestApplyAnthropicReasoning_AdaptiveEmptyEffortDefaultsToHigh(t *testing.T)
 		&llms.ReasoningConfig{Adaptive: true},
 		"anthropic.claude-opus-4-7-v1:0", 2048)
 
-	require.NotNil(t, input.OutputConfig)
-	assert.Equal(t, "high", input.OutputConfig.Effort)
+	require.NotNil(t, input.Thinking)
+	assert.Equal(t, "adaptive", input.Thinking.Type)
+	assert.Nil(t, input.OutputConfig)
 }
 
 func TestApplyAnthropicReasoning_NoBudgetEffortForOpus45OnBedrock(t *testing.T) {
@@ -110,7 +111,7 @@ func TestApplyAnthropicReasoning_Budget(t *testing.T) {
 
 	input := anthropicTextGenerationInput{
 		MaxTokens:   8000,
-		Temperature: 0.8,
+		Temperature: ptr(0.8),
 		TopP:        0.9,
 		TopK:        40,
 	}
@@ -152,23 +153,23 @@ func TestApplyAnthropicReasoning_NilConfig(t *testing.T) {
 	t.Parallel()
 
 	// Budget-capable model: nil config is a no-op, sampling untouched.
-	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: 0.8}
+	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.8)}
 	applyAnthropicReasoning(&input, nil, "us.anthropic.claude-sonnet-4-5-20250929-v1:0", 2048)
 
 	assert.Nil(t, input.Thinking)
 	assert.Nil(t, input.OutputConfig)
-	assert.EqualValues(t, 0.8, input.Temperature)
+	assert.Equal(t, ptr(0.8), input.Temperature)
 }
 
 func TestApplyAnthropicReasoning_AdaptiveOnlyDropsSamplingWithoutConfig(t *testing.T) {
 	t.Parallel()
 
 	// Adaptive-only model rejects sampling params even with no reasoning config.
-	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: 0.8, TopP: 0.9, TopK: 40}
+	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
 	applyAnthropicReasoning(&input, nil, "anthropic.claude-opus-4-7-v1:0", 2048)
 
 	assert.Nil(t, input.Thinking)
-	assert.EqualValues(t, 0, input.Temperature)
+	assert.Nil(t, input.Temperature)
 	assert.EqualValues(t, 0, input.TopP)
 	assert.EqualValues(t, 0, input.TopK)
 }
@@ -257,7 +258,7 @@ func TestApplyAnthropicReasoning_DropsTopPWhenBothSamplingParamsSet(t *testing.T
 		"us.anthropic.claude-opus-4-6-v1",
 	} {
 		t.Run(model, func(t *testing.T) {
-			input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: 0.5, TopP: 0.9}
+			input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.5), TopP: 0.9}
 			require.NoError(t, applyAnthropicReasoning(&input, &llms.ReasoningConfig{}, model, 2048))
 			fields := marshalAnthropicInput(t, input)
 			_, hasTemp := fields["temperature"]
@@ -272,7 +273,7 @@ func TestApplyAnthropicReasoning_DropsTopPWhenBothSamplingParamsSet(t *testing.T
 func TestApplyAnthropicReasoning_BudgetKeepsTheSamplingRefusal(t *testing.T) {
 	t.Parallel()
 
-	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: 0.8, TopP: 0.9, TopK: 40}
+	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
 	applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
 		"anthropic.claude-mythos-preview-v1:0", 4096)
@@ -289,7 +290,7 @@ func TestApplyAnthropicReasoning_BudgetKeepsTheSamplingRefusal(t *testing.T) {
 func TestApplyAnthropicReasoning_BudgetStillPinsWhereSamplingIsAccepted(t *testing.T) {
 	t.Parallel()
 
-	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: 0.8, TopP: 0.9, TopK: 40}
+	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
 	applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
 		"anthropic.claude-opus-4-6-v1:0", 4096)

@@ -45,15 +45,31 @@ func endingOnAssistant() []llms.MessageContent {
 	}
 }
 
+var turnLimitTools = llms.WithTools([]llms.Tool{{
+	Type:     "function",
+	Function: &llms.FunctionDefinition{Name: "calc", Parameters: map[string]any{"type": "object"}},
+}})
+
+func TestABudgetWithAForcedChoiceAndNoToolsIsNotRefusedOnTheOpenAITransport(t *testing.T) {
+	t.Parallel()
+
+	err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"),
+		llms.WithReasoning(llms.ReasoningLow, 0), llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+	if err != nil {
+		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
+	}
+}
+
 func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 	t.Parallel()
 
 	forced := llms.WithToolChoice(llms.ToolChoice{Type: "any"})
 	thinking := llms.WithReasoning(llms.ReasoningLow, 0)
+	tools := turnLimitTools
 
 	t.Run("budget thinking with a forced tool is refused", func(t *testing.T) {
 		t.Parallel()
-		err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"), thinking, forced)
+		err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"), thinking, tools, forced)
 		var target *reasoning.ErrForcedToolUseWithThinking
 		if !errors.As(err, &target) {
 			t.Errorf("want ErrForcedToolUseWithThinking, got %v", err)
@@ -62,7 +78,7 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 
 	t.Run("a generation that also thinks adaptively is not refused", func(t *testing.T) {
 		t.Parallel()
-		if err := turnLimitErr(t, "claude-opus-4-6", askedFor("hi"), thinking, forced); err != nil {
+		if err := turnLimitErr(t, "claude-opus-4-6", askedFor("hi"), thinking, tools, forced); err != nil {
 			t.Errorf("this generation answers an effort adaptively, so a forced tool is fine, got %v", err)
 		}
 	})
@@ -70,7 +86,7 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 	t.Run("a budget sent as the thinking object is refused with a forced tool", func(t *testing.T) {
 		t.Parallel()
 		err := turnLimitErr(t, "claude-opus-4-6", askedFor("hi"),
-			llms.WithReasoning(llms.ReasoningNone, 2048), forced)
+			llms.WithReasoning(llms.ReasoningNone, 2048), tools, forced)
 		var target *reasoning.ErrForcedToolUseWithThinking
 		if !errors.As(err, &target) {
 			t.Errorf("want ErrForcedToolUseWithThinking, got %v", err)
@@ -80,7 +96,7 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 	t.Run("an effort with no budget is not refused", func(t *testing.T) {
 		t.Parallel()
 		if err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"),
-			llms.WithReasoning(llms.ReasoningEffort("minimal"), 0), forced); err != nil {
+			llms.WithReasoning(llms.ReasoningEffort("minimal"), 0), tools, forced); err != nil {
 			t.Errorf("an effort the budget mapper rejects sends no thinking, so nothing is refused, got %v", err)
 		}
 	})
@@ -93,7 +109,7 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 			map[string]any{"type": "function", "function": map[string]any{"name": "calc"}},
 		} {
 			err := turnLimitErr(t, "claude-sonnet-4-5", askedFor("hi"),
-				thinking, llms.WithToolChoice(choice))
+				thinking, tools, llms.WithToolChoice(choice))
 			var target *reasoning.ErrForcedToolUseWithThinking
 			if !errors.As(err, &target) {
 				t.Errorf("%#v demands a tool, want ErrForcedToolUseWithThinking, got %v", choice, err)
@@ -103,14 +119,14 @@ func TestClaudeTurnLimitsOnTheOpenAITransport(t *testing.T) {
 
 	t.Run("adaptive thinking carries no such limit", func(t *testing.T) {
 		t.Parallel()
-		if err := turnLimitErr(t, "claude-sonnet-5", askedFor("hi"), thinking, forced); err != nil {
+		if err := turnLimitErr(t, "claude-sonnet-5", askedFor("hi"), thinking, tools, forced); err != nil {
 			t.Errorf("an adaptive generation takes a forced tool alongside thinking, got %v", err)
 		}
 	})
 
 	t.Run("a non-Claude model is not refused", func(t *testing.T) {
 		t.Parallel()
-		if err := turnLimitErr(t, "gpt-5.2", askedFor("hi"), thinking, forced); err != nil {
+		if err := turnLimitErr(t, "gpt-5.2", askedFor("hi"), thinking, tools, forced); err != nil {
 			t.Errorf("the rule is Anthropic's, got %v", err)
 		}
 	})

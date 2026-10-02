@@ -89,7 +89,8 @@ var (
 		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview", "claude-opus-5-5",
 		"claude-fable-latest",
 	}
-	defaultOnClaude = []string{
+	betweenToolsOffClaude = []string{"claude-sonnet-5-5"}
+	defaultOnClaude       = []string{
 		"claude-opus-5", "claude-sonnet-5",
 		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview",
 		"claude-opus-latest", "claude-sonnet-latest", "claude-fable-latest",
@@ -100,6 +101,10 @@ var (
 // so an explicit disable has to be refused rather than sent.
 func ClaudeThinkingAlwaysOn(model string) bool {
 	return containsAny(canonicalClaude(model), alwaysOnClaude)
+}
+
+func ClaudeTurnsOffBetweenTools(model string) bool {
+	return containsAny(canonicalClaude(model), betweenToolsOffClaude)
 }
 
 // ClaudeThinkingDefaultsOn reports whether the model thinks when thinking is
@@ -304,7 +309,7 @@ func ClaudeRejectsAssistantPrefill(model string) bool {
 // mutuallyExclusiveSamplingClaude models reject temperature and top_p set
 // together (only one may be provided).
 var mutuallyExclusiveSamplingClaude = []string{
-	"claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5",
+	"claude-opus-4-1", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5",
 	"claude-sonnet-4-6", "claude-opus-4-6",
 }
 
@@ -408,6 +413,13 @@ func ClaudeKeepsTopPWhileThinking(model string, topP float64) bool {
 	return ClaudeSupportsThinking(model) &&
 		!ClaudeRejectsSampling(model) &&
 		topP >= ClaudeThinkingTopPFloor
+}
+
+func ClaudeClampTemperature(model string, temperature float64) float64 {
+	if !isClaudeModel(model) {
+		return temperature
+	}
+	return min(max(temperature, 0), 1)
 }
 
 // ClaudeRejectsSampling reports whether the model rejects temperature/top_p

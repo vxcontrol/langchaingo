@@ -101,6 +101,15 @@ func TestAForcedChoiceIsRefusedOnAClaudeModelThatRejectsIt(t *testing.T) {
 	if err := CheckClaudeTurnLimits("us.anthropic.claude-fable-5-1", CallOptions{ToolChoice: "required"}, nil); err != nil {
 		t.Errorf("with no tools the choice never reaches the wire, got %v", err)
 	}
+	thinking := &ReasoningConfig{Mode: ReasoningOn, Tokens: 2048}
+	if err := CheckClaudeTurnLimits("claude-sonnet-4-5", CallOptions{Reasoning: thinking, ToolChoice: "required"}, nil); err != nil {
+		t.Errorf("budget thinking with no tools sends no choice to refuse, got %v", err)
+	}
+	var withThinking *reasoning.ErrForcedToolUseWithThinking
+	if err := CheckClaudeTurnLimits("claude-sonnet-4-5",
+		CallOptions{Reasoning: thinking, Tools: tools, ToolChoice: "required"}, nil); !errors.As(err, &withThinking) {
+		t.Errorf("budget thinking with a tool to force, got %v, want ErrForcedToolUseWithThinking", err)
+	}
 	functions := []FunctionDefinition{{Name: "echo"}}
 	err := CheckClaudeTurnLimits("claude-opus-5-5", CallOptions{Functions: functions, ToolChoice: "required"}, nil)
 	var refused *reasoning.ErrForcedToolChoiceUnsupported

@@ -277,6 +277,7 @@ func TestClaudeMutuallyExclusiveSampling(t *testing.T) {
 		model string
 		want  bool
 	}{
+		{"claude-opus-4-1-20250805", true},
 		{"claude-haiku-4-5-20251001", true},
 		{"claude-sonnet-4-5-20250929", true},
 		{"claude-opus-4-5-20251101", true},
@@ -284,6 +285,9 @@ func TestClaudeMutuallyExclusiveSampling(t *testing.T) {
 		{"claude-opus-4-6", true},
 		{"us.anthropic.claude-opus-4-6-v1", true},
 		{"anthropic/claude-sonnet-4.5", true},
+		{"claude-opus-4-20250514", false},
+		{"claude-opus-4-0", false},
+		{"anthropic.claude-opus-4-20250514-v1:0", false},
 		{"claude-opus-4-7", false},
 		{"claude-opus-5", false},
 		{"gpt-5.4-mini", false},

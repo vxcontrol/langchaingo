@@ -78,14 +78,18 @@ func (r *ContentReasoning) UnmarshalJSON(data []byte) error {
 	type Alias ContentReasoning
 	aux := &struct {
 		*Alias
-		Redacted json.RawMessage `json:"redacted,omitempty"`
+		Redacted        json.RawMessage `json:"redacted,omitempty"`
+		RedactedContent json.RawMessage `json:"redacted_content,omitempty"`
 	}{
 		Alias: (*Alias)(r),
 	}
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
-	return r.readStoredRedacted(aux.Redacted)
+	if err := r.readStoredRedacted(aux.Redacted); err != nil {
+		return err
+	}
+	return r.readStoredRedacted(aux.RedactedContent)
 }
 
 func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {

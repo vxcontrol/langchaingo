@@ -941,7 +941,7 @@ func testCreateAnthropicCompletionWithMock(ctx context.Context, client *mockBedr
 		MaxTokens:        getMaxTokens(options.GetMaxTokens(), 2048),
 		System:           systemPrompt,
 		Messages:         inputContents,
-		Temperature:      options.GetTemperature(),
+		Temperature:      options.Temperature,
 		TopP:             options.GetTopP(),
 		TopK:             options.GetTopK(),
 		StopSequences:    options.StopWords,

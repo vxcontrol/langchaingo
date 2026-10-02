@@ -137,6 +137,11 @@ func TestStoredReasoningReadsInEveryShapeItWasWrittenIn(t *testing.T) {
 			want:   []Block{{Text: "step", Signature: []byte("sig")}, {Redacted: []byte("red")}},
 		},
 		{
+			name:   "one encrypted block under the key update.2 wrote",
+			stored: `{"content":"step","signature":"c2ln","redacted_content":"cmVk"}`,
+			want:   []Block{{Text: "step", Signature: []byte("sig")}, {Redacted: []byte("red")}},
+		},
+		{
 			name:   "encrypted blocks as an array",
 			stored: `{"redacted":["cjE=","cjI="]}`,
 			want:   []Block{{Redacted: []byte("r1")}, {Redacted: []byte("r2")}},

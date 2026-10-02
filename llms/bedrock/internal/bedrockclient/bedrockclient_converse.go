@@ -140,7 +140,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
 	}
 	if input.Temperature != nil {
-		inferenceConfig.Temperature = aws.Float32(float32(*input.Temperature))
+		inferenceConfig.Temperature = aws.Float32(float32(reasoning.ClaudeClampTemperature(input.ModelID, *input.Temperature)))
 	}
 	if input.TopP != nil {
 		inferenceConfig.TopP = aws.Float32(float32(*input.TopP))
@@ -196,9 +196,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 			maxTokens = *input.MaxTokens
 		}
 		setAdaptive := func() {
-			effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "adaptive", Display: "summarized"}
-			additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
+			if !input.ReasoningConfig.DelegatesDepth() {
+				effort := reasoning.ClaudeClampEffort(input.ModelID, string(input.ReasoningConfig.GetEffort(maxTokens)), reasoning.ProviderBedrock)
+				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
+			}
 			// Adaptive models reject sampling params.
 			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = nil
@@ -217,8 +219,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			}
 			if isAnthropicModelID(input.ModelID) {
-				keepTopP := input.Temperature == nil && inferenceConfig.TopP != nil &&
-					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, float64(*inferenceConfig.TopP))
+				keepTopP := input.Temperature == nil && input.TopP != nil &&
+					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, *input.TopP)
 				inferenceConfig.Temperature = aws.Float32(1.0)
 				if keepTopP {
 					inferenceConfig.Temperature = nil
@@ -288,6 +290,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		switch reasoning.ResolveOff(input.ModelID, reasoning.ProviderBedrock) {
 		case reasoning.OffDisableClaude:
 			additionalModelFields.Thinking = &converseThinkingPayload{Type: "disabled"}
+		case reasoning.OffBetweenToolsClaude:
+			additionalModelFields.Thinking = &converseThinkingPayload{Type: "between_tools"}
 		case reasoning.OffUnsupported:
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: input.ModelID}
 		}

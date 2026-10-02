@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedrockruntime.ConverseInput) {
@@ -15,6 +16,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		return
 	}
 	model := input.ModelID
+	reportClaudeOffFloor(warn, model, converseMechanismOnTheWire(built))
 	const (
 		omitted   = "the door left it off the converse request"
 		different = "the door put a different value on the converse request"
@@ -26,7 +28,17 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.Temperature
 		}
-		reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
+		clamped := float32(reasoning.ClaudeClampTemperature(model, *input.Temperature))
+		if sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
+				Asked:  strconv.FormatFloat(*input.Temperature, 'g', -1, 64),
+				Sent:   strconv.FormatFloat(float64(clamped), 'g', -1, 32),
+				Reason: "Claude takes a temperature from 0 to 1",
+			})
+		} else {
+			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
+		}
 	}
 	if input.TopP != nil {
 		sent := (*float32)(nil)

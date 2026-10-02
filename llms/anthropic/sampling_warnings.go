@@ -83,6 +83,17 @@ func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallO
 	})
 }
 
+func reportClaudeOffFloor(warn *llms.Warnings, model string, thinking *anthropicclient.ThinkingPayload) {
+	if thinking == nil || thinking.Type != "between_tools" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+		Asked: "off", Sent: thinking.Type,
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
+}
+
 func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
 	cfg := opts.Reasoning
 	if cfg == nil || !cfg.HasExplicitTokens() {
@@ -118,6 +129,7 @@ func reportAnthropicSampling(
 	reportAnthropicUnread(warn, model, opts)
 	reportAnthropicBudget(warn, model, opts, thinking)
 	reportAnthropicMechanism(warn, model, opts, thinking)
+	reportClaudeOffFloor(warn, model, thinking)
 	reportAnthropicEffort(warn, model, opts, thinking, outputConfig)
 
 	reason := anthropicSamplingReason(model, thinking)
@@ -134,6 +146,23 @@ func reportAnthropicSampling(
 			Reason: "the answer limit was raised to leave room for the thinking budget",
 		})
 	}
+}
+
+func clampClaudeTemperature(warn *llms.Warnings, model string, temperature *float64) *float64 {
+	if temperature == nil {
+		return nil
+	}
+	clamped := reasoning.ClaudeClampTemperature(model, *temperature)
+	if clamped == *temperature {
+		return temperature
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
+		Asked:  strconv.FormatFloat(*temperature, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(clamped, 'g', -1, 64),
+		Reason: "Claude takes a temperature from 0 to 1",
+	})
+	return &clamped
 }
 
 func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPayload) string {

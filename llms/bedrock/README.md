@@ -222,28 +222,14 @@ Claude thinking is not a single flag — the generation resolves adaptive vs. bu
 thinking from the model via the shared `llms/reasoning` capability tables (the same
 source of truth used by the first-party Anthropic provider):
 
-- **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` +
-  `output_config.effort`; budget thinking and sampling params are rejected. Bedrock
-  serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher
-  effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5,
-  Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8,
-  which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to
-  Opus 5 and Sonnet 5 and no effort beside it; Fable 5 cannot be disabled. Opus 4.7/4.8
-  default off, so omitting thinking already yields off.
+- **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` + `output_config.effort` when the call names an effort (without one the model's own default applies); budget thinking and sampling params are rejected. Bedrock serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5, Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8, which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to Opus 5 and Sonnet 5 and no effort beside it; Sonnet 5.5, which rejects `disabled`, gets its lowest level `thinking.type=between_tools` with no effort and a `WarningSubstitute`; Fable 5 cannot be disabled. Opus 4.7/4.8 default off, so omitting thinking already yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
 - **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` +
   `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on
   this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
   this door does not send it.
 
-Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and
-its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses
-beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no
-effort goes out as `medium` and is reported in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only
-`reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and
-`max` fall to `high`. `WithReasoningDisabled()` returns a typed
-`ErrReasoningOffUnsupported` for a model whose thinking cannot be turned off, such as
-Fable, Mythos, GPT OSS or DeepSeek R1.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature` and `topP`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1.
 
 ## Structured Output
 

@@ -15,14 +15,15 @@ func TestLegacyThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		name  string
 		model string
 		topP  float64
-		temp  float64
+		temp  *float64
 		want  float64
 	}{
-		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0, 0.97},
-		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, 0.3, 0},
-		{"exactly at the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.95, 0, 0.95},
-		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, 0, 0},
-		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, 0, 0},
+		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, 0.97},
+		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), 0},
+		{"a caller's temperature of 0 is set too", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.0), 0},
+		{"exactly at the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.95, nil, 0.95},
+		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, 0},
+		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

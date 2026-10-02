@@ -103,7 +103,7 @@ type anthropicTextGenerationInput struct {
 	// The messages to use. Required
 	Messages []*anthropicTextGenerationInputMessage `json:"messages"`
 	// The amount of randomness injected into the response. Optional, default = 1
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// The probability mass from which tokens are sampled. Optional, default = 1
 	TopP float64 `json:"top_p,omitempty"`
 	// Only sample from the top K options for each subsequent token.
@@ -259,7 +259,7 @@ func createAnthropicCompletion(ctx context.Context,
 		MaxTokens:        maxTokens,
 		System:           system,
 		Messages:         inputContents,
-		Temperature:      options.GetTemperature(),
+		Temperature:      claudeTemperature(modelID, options.Temperature),
 		TopP:             options.GetTopP(),
 		TopK:             options.GetTopK(),
 		StopSequences:    options.StopWords,
@@ -835,6 +835,14 @@ func getAnthropicInputContent(message Message) (anthropicTextGenerationInputCont
 	return c, nil
 }
 
+func claudeTemperature(modelID string, asked *float64) *float64 {
+	if asked == nil {
+		return nil
+	}
+	temperature := reasoning.ClaudeClampTemperature(modelID, *asked)
+	return &temperature
+}
+
 // applyAnthropicReasoning resolves the thinking mechanism from the model via the
 // reasoning capability resolver: an adaptive-only generation gets adaptive
 // thinking and drops sampling params, a budget-only generation gets budget
@@ -845,11 +853,11 @@ func applyAnthropicReasoning(
 	callerTemperature := input.Temperature
 	// Adaptive-only models reject sampling params even without thinking.
 	if reasoning.ClaudeRejectsSampling(modelID) {
-		input.Temperature = 0
+		input.Temperature = nil
 		input.TopP = 0
 		input.TopK = 0
 	}
-	if reasoning.ClaudeMutuallyExclusiveSampling(modelID) && input.Temperature != 0 && input.TopP != 0 {
+	if reasoning.ClaudeMutuallyExclusiveSampling(modelID) && input.Temperature != nil && input.TopP != 0 {
 		input.TopP = 0
 	}
 
@@ -857,16 +865,21 @@ func applyAnthropicReasoning(
 	case llms.ReasoningDefault:
 		return nil
 	case llms.ReasoningOff:
-		if reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) == reasoning.OffDisableClaude {
+		switch reasoning.ResolveOff(modelID, reasoning.ProviderBedrock) {
+		case reasoning.OffDisableClaude:
 			input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
+		case reasoning.OffBetweenToolsClaude:
+			input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
 		}
 		return nil
 	}
 
 	setAdaptive := func() {
 		input.Thinking = &anthropicThinkingPayload{Type: "adaptive", Display: "summarized"}
-		input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
-		input.Temperature = 0
+		if !cfg.DelegatesDepth() {
+			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
+		}
+		input.Temperature = nil
 		input.TopP = 0
 		input.TopK = 0
 	}
@@ -879,13 +892,14 @@ func applyAnthropicReasoning(
 		if reasoning.ClaudeSupportsEffortWithBudget(modelID, reasoning.ProviderBedrock) {
 			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
 		}
-		keepTopP := callerTemperature == 0 &&
+		keepTopP := callerTemperature == nil &&
 			reasoning.ClaudeKeepsTopPWhileThinking(modelID, input.TopP)
 		switch {
 		case reasoning.ClaudeRejectsSampling(modelID), keepTopP:
-			input.Temperature = 0
+			input.Temperature = nil
 		default:
-			input.Temperature = 1.0
+			thinkingTemperature := 1.0
+			input.Temperature = &thinkingTemperature
 		}
 		if !keepTopP {
 			input.TopP = 0

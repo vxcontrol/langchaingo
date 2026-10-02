@@ -113,13 +113,17 @@ func ForcedToolName(choice any) (name string, forced bool) {
 // rejects one.
 func CheckForcedToolUse(model string, opts CallOptions) error {
 	name, forced := ForcedToolName(opts.ToolChoice)
-	if !forced || (len(opts.Tools) == 0 && len(opts.Functions) == 0) || !reasoning.ClaudeRejectsForcedToolUse(model) {
+	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
 	if name == "" {
 		name = "any"
 	}
 	return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
+}
+
+func offersTools(opts CallOptions) bool {
+	return len(opts.Tools) > 0 || len(opts.Functions) > 0
 }
 
 func functionName(fn *FunctionReference) string {
@@ -161,7 +165,7 @@ func CheckClaudeTurnLimitsOnWire(
 		reasoning.ClaudeSupportsThinking(model) &&
 		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive) &&
 		budget > 0
-	if budgetThinking && ForcesToolUse(opts.ToolChoice) {
+	if budgetThinking && ForcesToolUse(opts.ToolChoice) && offersTools(opts) {
 		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
 	}
 	if err := CheckForcedToolUse(model, opts); err != nil {

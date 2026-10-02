@@ -27,8 +27,9 @@
 //     sampling rules, effort-with-budget, structured-output support),
 //     OpenAIReasoningCapsFor / ClampEffort, and the Gemini* helpers.
 //   - ResolveOff: the single, provider-aware decision of how to disable thinking
-//     (an explicit disable wire, a zero budget, or ErrReasoningOffUnsupported for
-//     models that cannot be disabled, e.g. always-on Claude or Bedrock defaults).
+//     (an explicit disable wire, a zero budget, the lowest thinking level of a
+//     model with no off switch, or ErrReasoningOffUnsupported for models that
+//     cannot be disabled, e.g. always-on Claude or Bedrock defaults).
 //
 // Unrecognized models are treated as optimistic pass-through: the provider API,
 // not a local table, is the final arbiter, so a newer model never regresses.

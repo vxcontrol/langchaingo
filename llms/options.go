@@ -824,8 +824,10 @@ func WithAdaptiveReasoning(effort ReasoningEffort) CallOption {
 // WithReasoningDisabled explicitly turns thinking off. Unlike omitting reasoning
 // (which defers to the model default), this forces the provider's disable wire on
 // models that support disabling — needed for models that think by default (e.g.
-// Gemini 2.5, Claude 4.6). Models that cannot be disabled (adaptive-only Claude
-// such as Fable 5, and OpenAI o-series) return a typed error from the provider.
+// Gemini 2.5, Claude 4.6). A model with no off switch but a lowest thinking level
+// (Claude Sonnet 5.5) gets that level and a WarningSubstitute. Models that cannot be
+// disabled (adaptive-only Claude such as Fable 5, and OpenAI o-series) return a
+// typed error from the provider.
 func WithReasoningDisabled() CallOption {
 	return func(o *CallOptions) {
 		o.Reasoning = &ReasoningConfig{Mode: ReasoningOff}

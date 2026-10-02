@@ -841,16 +841,18 @@ func TestAnthropic_AdaptiveThinkingRequest(t *testing.T) {
 		assert.False(t, hasTopP, "adaptive must omit top_p even when WithTopP is set")
 	})
 
-	t.Run("empty adaptive effort defaults to high", func(t *testing.T) {
+	t.Run("an adaptive call without an effort leaves the depth to the vendor", func(t *testing.T) {
 		t.Parallel()
 
-		payload, _ := captureMessagesRequest(t,
+		payload, _ := captureMessagesRequestModel(t, "claude-opus-5-5",
 			llms.WithAdaptiveReasoning(llms.ReasoningNone),
 			llms.WithMaxTokens(4096),
 		)
 
+		thinking, _ := payload["thinking"].(map[string]any)
+		assert.Equal(t, "adaptive", thinking["type"])
 		outputConfig, _ := payload["output_config"].(map[string]any)
-		assert.Equal(t, "high", outputConfig["effort"])
+		assert.NotContains(t, outputConfig, "effort")
 	})
 
 	t.Run("xhigh flows through where the generation takes it", func(t *testing.T) {
@@ -1219,6 +1221,19 @@ func TestAnthropic_ForcedToolChoiceWithBudgetThinking(t *testing.T) {
 		)
 
 		require.NoError(t, err)
+		require.Equal(t, int32(1), hits.Load())
+	})
+
+	t.Run("budget thinking with a forced choice and no tools goes out", func(t *testing.T) {
+		t.Parallel()
+
+		llm, hits := newLLM(t, "claude-sonnet-4-5")
+		_, err := llm.GenerateContent(t.Context(), messages,
+			llms.WithReasoning(llms.ReasoningMedium, 0),
+			llms.WithToolChoice(map[string]any{"type": "any"}),
+		)
+
+		require.NoError(t, err, "with no tools the choice never reaches the wire")
 		require.Equal(t, int32(1), hits.Load())
 	})
 
