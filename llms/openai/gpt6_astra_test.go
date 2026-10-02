@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -17,15 +18,30 @@ func astraTool() llms.Tool {
 	}}
 }
 
-func TestAstraRefusesFunctionToolsBeforeTheNetwork(t *testing.T) {
+func TestToolsAreRefusedOnOpenAIsChatCompletionsWhereTheModelPageSaysSo(t *testing.T) {
 	t.Parallel()
 
-	_, err := wireBodyOf(t, "gpt-6-astra", nil, llms.WithTools([]llms.Tool{astraTool()}))
-	require.Error(t, err)
-
-	var unsupported *reasoning.ErrChatToolsUnsupported
-	require.True(t, errors.As(err, &unsupported), "want ErrChatToolsUnsupported, got %v", err)
-	assert.Equal(t, "gpt-6-astra", unsupported.Model)
+	send := func(baseURL, model string) (bool, error) {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithTools([]llms.Tool{astraTool()}))
+		return doer.body != nil, err
+	}
+	for _, model := range []string{"gpt-6-astra", "gpt-6.1-sol"} {
+		for _, baseURL := range []string{"", "https://api.openai.com/v1", "https://eu.api.openai.com/v1"} {
+			sent, err := send(baseURL, model)
+			var unsupported *reasoning.ErrChatToolsUnsupported
+			require.True(t, errors.As(err, &unsupported), "%s on %q: %v", model, baseURL, err)
+			assert.Equal(t, model, unsupported.Model)
+			assert.False(t, sent, "%s on %q", model, baseURL)
+		}
+		for _, baseURL := range []string{"https://openrouter.ai/api/v1", "http://litellm.internal/v1"} {
+			sent, err := send(baseURL, "openai/"+model)
+			require.NoError(t, err, "a gateway decides for itself: %s on %s", model, baseURL)
+			assert.True(t, sent, "%s on %s", model, baseURL)
+		}
+	}
 }
 
 func TestAstraRefusesAnExplicitDisableBeforeTheNetwork(t *testing.T) {

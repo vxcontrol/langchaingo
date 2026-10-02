@@ -27,6 +27,42 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
+func DashScopeTakesNoJSONSchema(route string) bool {
+	if guest := dashScopeGuestSpelling(route); strings.HasPrefix(guest, "kimi") || strings.HasPrefix(guest, "moonshot-kimi") {
+		return true
+	}
+	name, ok := dashScopeRouteName(route)
+	switch {
+	case !ok:
+		return false
+	case strings.HasPrefix(name, "qwq"), strings.HasPrefix(name, "qvq"):
+		return true
+	case !strings.HasPrefix(name, "qwen"):
+		return false
+	}
+	for _, family := range []string{"qwen3.7-plus", "qwen3.7-flash", "qwen3.7-max", "qwen3.8-max", "qwen3.8-flash"} {
+		if strings.HasPrefix(name, family) {
+			return false
+		}
+	}
+	major, minor, versioned := generationAfter("qwen", name)
+	return !versioned || major < 3 || major == 3 && minor <= 8
+}
+
+func QVQStreamsOnly(route string) bool {
+	name, ok := dashScopeRouteName(route)
+	return ok && strings.HasPrefix(name, "qvq")
+}
+
+func dashScopeRouteName(route string) (string, bool) {
+	name, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
+	return name, ok && !strings.Contains(name, "/")
+}
+
+func onDashScope(model, host string) (string, bool) {
+	return dashScopeRouteName(DashScopeRoute(model, host))
+}
+
 func dashScopeSpelling(model string) string {
 	m := strings.TrimPrefix(strings.ToLower(model), "dashscope/")
 	if strings.Contains(m, "/") {
@@ -67,6 +103,19 @@ var dashScopeGuestBudget = []string{
 }
 
 var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-0731"}
+
+func DashScopeGuestEffort(route, effort string) string {
+	rest, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
+	switch {
+	case !ok:
+		return effort
+	case rest == "kimi/kimi-k3":
+		return "max"
+	case strings.HasPrefix(rest, "deepseek-v4") && effort == "minimal":
+		return "low"
+	}
+	return effort
+}
 
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")

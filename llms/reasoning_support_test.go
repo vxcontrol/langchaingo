@@ -416,6 +416,7 @@ func TestTheHintDoesNotOfferOffOnAModelThatAlwaysReasons(t *testing.T) {
 		{"kimi-k2.7-code", true},
 		{"kimi-k2-thinking", true},
 		{"kimi-k2.6", false},
+		{"grok-4.5", true},
 	} {
 		s := ReasoningSupportFor(tc.model, reasoning.ProviderOpenAI)
 		if !s.Supported {

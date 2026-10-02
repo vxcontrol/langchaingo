@@ -90,10 +90,18 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
 	case hasGeneration(m, "gpt-6-astra"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh"}}
+	case hasGeneration(m, "gpt-6.1-sol"):
+		return OpenAIReasoningCaps{
+			Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh", "max"},
+		}
 	case hasGeneration(m, "gpt-6-sol") || hasGeneration(m, "gpt-6-luna"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
 	case openAIXHighCeiling(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
+	case hasGeneration(m, "grok-4.6") || hasGeneration(m, "grok-4.7"):
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh"}}
+	case hasGeneration(m, "grok-4.5"):
+		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high"}}
 	case nonOpenAILowHighMax(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "high", "max"}}
 	case mistralReasons(m):
@@ -145,17 +153,34 @@ func OpenAIThinkingOptIn(model string) bool {
 // which is the empty string and instead omits the field.
 const OpenAIDisableEffort = "none"
 
-// ChatToolsUnsupported reports whether the vendor serves no function tools for
-// the model on /chat/completions. OpenAI states it for GPT-6 Astra: tools ride
-// on the responses API only, and the model has no effort level that turns
-// thinking off to trade for them.
+// ChatToolsUnsupported reports whether OpenAI serves the model's function tools
+// on the Responses API only.
 func ChatToolsUnsupported(model string) bool {
 	for _, form := range modelSpellings(model) {
-		if hasGeneration(form, "gpt-6-astra") {
+		if hasGeneration(form, "gpt-6-astra") || hasGeneration(form, "gpt-6.1-sol") {
 			return true
 		}
 	}
 	return false
+}
+
+func ChatCompletionsUnsupported(model string) bool {
+	for _, form := range modelSpellings(model) {
+		for _, family := range []string{"gpt-5.6-cyber", "gpt-daybreak-red", "gpt-daybreak-blue"} {
+			if hasGeneration(form, family) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type ErrChatCompletionsUnsupported struct {
+	Model string
+}
+
+func (e *ErrChatCompletionsUnsupported) Error() string {
+	return fmt.Sprintf("model %q is served only by the responses API, not by chat completions", e.Model)
 }
 
 // ErrChatToolsUnsupported reports a request that carries function tools for a

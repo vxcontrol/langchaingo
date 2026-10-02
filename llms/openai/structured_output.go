@@ -102,7 +102,7 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 	}
 	model := o.effectiveModel(opts)
 	emulated := o.emulatesStructuredOutput(model, opts)
-	if reason := openAIStructuredOutputUnsupported(model); reason != "" && !emulated {
+	if reason := openAIStructuredOutputUnsupported(model, o.host); reason != "" && !emulated {
 		return &llms.ErrStructuredOutputUnsupported{
 			Provider: providerOpenAI,
 			Model:    model,
@@ -139,7 +139,7 @@ func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool
 	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
 		return false
 	}
-	return (reasoning.TakesNoJSONSchema(model) && noJSONObjectReason(model) == "") ||
+	return (takesNoJSONSchema(model, o.host) && noJSONObjectReason(model) == "") ||
 		reasoning.TakesNoResponseFormat(model)
 }
 
@@ -224,7 +224,7 @@ func (o *LLM) validateStructuredResponse(result *openaiclient.ChatCompletionResp
 // openAIStructuredOutputUnsupported names why a model KNOWN to lack Structured
 // Outputs (json_schema) cannot take one, or returns "". Unknown or newer names
 // pass through so the local table never blocks a future model.
-func openAIStructuredOutputUnsupported(model string) string {
+func openAIStructuredOutputUnsupported(model, host string) string {
 	const predates = "model predates Structured Outputs (json_schema)"
 
 	m := strings.ToLower(model)
@@ -232,7 +232,7 @@ func openAIStructuredOutputUnsupported(model string) string {
 		m = m[idx+1:]
 	}
 	switch {
-	case reasoning.TakesNoJSONSchema(model):
+	case takesNoJSONSchema(model, host):
 		return "the vendor's chat completions response_format takes only text and json_object"
 	case reasoning.TakesNoResponseFormat(model):
 		return takesNoResponseFormat
@@ -325,4 +325,8 @@ func openAISubschemas(node map[string]any) []any {
 		}
 	}
 	return out
+}
+
+func takesNoJSONSchema(model, host string) bool {
+	return reasoning.TakesNoJSONSchema(model) || reasoning.DashScopeTakesNoJSONSchema(reasoning.DashScopeRoute(model, host))
 }

@@ -24,9 +24,83 @@ var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-
 
 const deepSeekAPIHost = "api.deepseek.com"
 
+func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
+	if ServedByDeepSeek(model, host) {
+		return true
+	}
+	if name, ok := onDashScope(model, host); ok {
+		return strings.HasPrefix(name, "qwen") || strings.HasPrefix(name, "qwq")
+	}
+	if !servedByMoonshot(model, host) {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "kimi-") {
+			return named
+		}
+	}
+	return false
+}
+
+func RejectsRequiredToolChoice(model, host string) bool {
+	if !servedByMoonshot(model, host) {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "kimi-k2.6") || hasGeneration(form, "kimi-k2.7-code") {
+			return true
+		}
+	}
+	return false
+}
+
+func servedByMoonshot(model, host string) bool {
+	return host == "api.moonshot.ai" || host == "api.moonshot.cn" ||
+		strings.HasPrefix(strings.ToLower(model), "moonshot/")
+}
+
+type ErrStopWordsUnsupported struct{ Model string }
+
+func (e *ErrStopWordsUnsupported) Error() string {
+	return fmt.Sprintf("model %q refuses stop sequences, which bound the answer, so the request cannot go out as asked", e.Model)
+}
+
+func RejectsStop(model string) bool {
+	if GrokFamily(model) && IsReasoningModel(model) {
+		return true
+	}
+	for _, form := range modelSpellings(model) {
+		if form == "o3" || strings.HasPrefix(form, "o3-20") || form == "o4-mini" || strings.HasPrefix(form, "o4-mini-20") {
+			return true
+		}
+	}
+	return false
+}
+
+func GrokFamily(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "grok-") {
+			return true
+		}
+	}
+	return false
+}
+
+func ServedByZAI(model, host string) bool {
+	if host != "api.z.ai" && host != "open.bigmodel.cn" && !strings.HasPrefix(strings.ToLower(model), "zai/") {
+		return false
+	}
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "glm-") {
+			return true
+		}
+	}
+	return false
+}
+
 func ServedByDeepSeek(model, host string) bool {
 	m := strings.ToLower(model)
-	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok {
+	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok && host != "openrouter.ai" {
 		return slices.Contains(deepSeekAPIModels, rest)
 	}
 	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, m)
@@ -182,7 +256,7 @@ func AcceptsEffortWire(model string) bool {
 		if hasGeneration(form, "qwen3.8") {
 			return true
 		}
-		if strings.HasPrefix(form, "qwen") || strings.HasPrefix(form, "qwq") {
+		if strings.HasPrefix(form, "qwen") || strings.HasPrefix(form, "qwq") || strings.HasPrefix(form, "qvq") {
 			return false
 		}
 		if strings.HasPrefix(form, "gpt-3.5") || strings.HasPrefix(form, "gpt-4") {

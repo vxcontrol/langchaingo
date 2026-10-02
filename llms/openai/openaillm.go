@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -106,7 +107,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	if err := opts.ValidateReasoning(); err != nil {
+	if err := o.refuseBeforeTheNetwork(&opts); err != nil {
 		return nil, err
 	}
 
@@ -313,6 +314,9 @@ func (o *LLM) createChatRequest(
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
 
+	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
+		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
+	}
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
 		if opts.StreamingFunc == nil {
 			if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
@@ -330,7 +334,8 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOn
 	}
 
-	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) {
+	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) ||
+		reasoning.ServedByZAI(o.effectiveModel(opts), o.host) || o.host == "api.mistral.ai" {
 		req.MaxTokens = opts.MaxTokens
 	} else {
 		req.MaxCompletionTokens = opts.MaxTokens
@@ -355,9 +360,50 @@ func (o *LLM) createChatRequest(
 	if err != nil {
 		return nil, err
 	}
+	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, wireEffort); err != nil {
+		return nil, err
+	}
 	o.applySamplingPolicy(req, opts, wireEffort, warn)
 
 	return req, nil
+}
+
+func (o *LLM) refuseAForcedChoiceTheVendorRejects(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string,
+) error {
+	if len(req.Tools) == 0 {
+		return nil
+	}
+	choice := req.ToolChoice
+	if fromExtraBody, set := llms.ExtraBody(opts)["tool_choice"]; set {
+		choice = fromExtraBody
+	}
+	name, forced := llms.ForcedToolName(choice)
+	if !forced {
+		return nil
+	}
+	model := o.effectiveModel(opts)
+	named := name != ""
+	switch {
+	case reasoning.ServedByZAI(model, o.host),
+		!named && reasoning.RejectsRequiredToolChoice(model, o.host),
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
+		return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
+	}
+	return nil
+}
+
+func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
+	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+	case on:
+		return true
+	case off:
+		return false
+	}
+	if req.EnableThinking != nil {
+		return *req.EnableThinking
+	}
+	return thinkingRuns(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -410,7 +456,7 @@ func (o *LLM) setReasoning(
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if len(opts.Tools) > 0 {
+	if len(req.Tools) > 0 {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
@@ -429,6 +475,7 @@ func (o *LLM) setReasoning(
 	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
+	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
@@ -552,6 +599,31 @@ func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
 
 const anthropicAPIHost = "api.anthropic.com"
 
+func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions) error {
+	if err := opts.ValidateReasoning(); err != nil {
+		return err
+	}
+	model := o.effectiveModel(*opts)
+	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
+		return &reasoning.ErrChatCompletionsUnsupported{Model: model}
+	}
+	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
+		return &reasoning.ErrStopWordsUnsupported{Model: model}
+	}
+	return nil
+}
+
+func (o *LLM) servedByOpenAI() bool {
+	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+}
+
+func (o *LLM) servedByTheModelsVendor(model string) bool {
+	if reasoning.GrokFamily(model) {
+		return o.host == "api.x.ai" || strings.HasPrefix(strings.ToLower(model), "xai/")
+	}
+	return o.servedByOpenAI()
+}
+
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
 	return !o.client.ModernReasoningFormat &&
 		!publicProviderHost(o.host) &&
@@ -651,6 +723,15 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
+	if t := req.Temperature; t != nil && *t > 1 && reasoning.ServedByZAI(model, o.host) {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
+			Asked: strconv.FormatFloat(*t, 'g', -1, 64), Sent: "1",
+			Reason: "Z.ai takes a temperature from 0 to 1",
+		})
+		ceiling := 1.0
+		req.Temperature = &ceiling
+	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, opts, wireEffort)
 	o.enforceSamplingPolicy(req, opts, wireEffort)
@@ -692,7 +773,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.LogProbs = false
 		req.TopLogProbs = 0
 	case reasoning.ServedByDeepSeek(model, o.host):
-		if deepSeekThinks(model, opts, wireEffort) {
+		if thinkingRuns(model, opts, wireEffort) {
 			req.Temperature = nil
 		} else {
 			req.TopP = nil
@@ -709,22 +790,17 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
 }
 
-func deepSeekThinks(model string, opts llms.CallOptions, wireEffort string) bool {
-	return thinkingRuns(model, opts, wireEffort) && !extraBodyStopsThinking(opts)
-}
-
-func extraBodyStopsThinking(opts llms.CallOptions) bool {
-	extra := llms.ExtraBody(opts)
-	if thinking, ok := extra["thinking"].(map[string]any); ok && thinking["type"] == "disabled" {
-		return true
-	}
-	return extra["reasoning_effort"] == reasoning.OpenAIDisableEffort
-}
-
-// thinkingRuns reports whether the model reasons on this request: an effort
-// reached the wire, or none did and the model reasons until told otherwise.
 func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
-	if opts.Reasoning.IsDisabled() || !reasoning.IsReasoningModel(model) {
+	if !reasoning.IsReasoningModel(model) {
+		return false
+	}
+	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+	case on:
+		return true
+	case off:
+		return false
+	}
+	if opts.Reasoning.IsDisabled() {
 		return false
 	}
 	if isThinkingOnTheWire(wireEffort) || reasoning.ThinkingMarkedInName(model) {
@@ -746,7 +822,7 @@ func isThinkingOnTheWire(wireEffort string) bool {
 // addToolsToRequest adds tools to the request from functions and tool definitions.
 func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions) error {
 	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
-		if model := o.effectiveModel(opts); reasoning.ChatToolsUnsupported(model) {
+		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
 			return &reasoning.ErrChatToolsUnsupported{Model: model}
 		}
 	}
@@ -832,8 +908,13 @@ func (o *LLM) processResponse(
 }
 
 func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
+	completion := usage.CompletionTokens
+	if thoughts := usage.CompletionTokensDetails.ReasoningTokens; thoughts > 0 &&
+		usage.TotalTokens == usage.PromptTokens+usage.CompletionTokens+thoughts {
+		completion += thoughts
+	}
 	info := map[string]any{
-		"CompletionTokens":  usage.CompletionTokens,
+		"CompletionTokens":  completion,
 		"PromptTokens":      usage.PromptTokens,
 		"TotalTokens":       usage.TotalTokens,
 		"ReasoningTokens":   usage.CompletionTokensDetails.ReasoningTokens,

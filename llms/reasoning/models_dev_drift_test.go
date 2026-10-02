@@ -22,7 +22,6 @@ var knownDrift = map[string]string{
 
 	"amazon-bedrock/deepseek.v3-v1:0": "name is not on Bedrock: The provided model identifier is invalid; the V3 line was measured as non-reasoning",
 
-	"alibaba/qvq-max":                                       "not measured",
 	"alibaba/qwen3-omni-flash":                              "not measured",
 	"alibaba/qwen3-vl-235b-a22b":                            "not measured",
 	"alibaba/qwen3-vl-30b-a3b":                              "not measured",
