@@ -363,11 +363,15 @@ func endsOnTheModel(messages []llms.MessageContent) bool {
 func carriesAPart(parts []llms.ContentPart) bool {
 	for _, part := range parts {
 		text, isText := part.(llms.TextContent)
-		if !isText || text.Text != "" || !text.Reasoning.IsEmpty() {
+		if !isText || sendsTextPart(text) {
 			return true
 		}
 	}
 	return false
+}
+
+func sendsTextPart(text llms.TextContent) bool {
+	return text.Text != "" || len(extractThoughtSignature(text.Reasoning)) > 0
 }
 
 // geminiSignaturePlaceholder is the value Google documents for a function call
@@ -716,7 +720,7 @@ func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
 
 		switch p := part.(type) {
 		case llms.TextContent:
-			if p.Text == "" && len(extractThoughtSignature(p.Reasoning)) == 0 {
+			if !sendsTextPart(p) {
 				continue
 			}
 

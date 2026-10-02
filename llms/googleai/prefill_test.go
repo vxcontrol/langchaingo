@@ -93,6 +93,13 @@ func TestAConversationEndingOnTheModelIsRefusedWhereGeminiRejectsIt(t *testing.T
 		[]llms.MessageContent{human, llms.TextParts(llms.ChatMessageTypeAI, "")})
 	require.NoError(t, err, "a model turn with nothing in it is not the last non-empty turn")
 	assert.Equal(t, []string{"user", "model"}, roles)
+
+	unsignedThought := llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+		llms.TextPartWithReasoning("", &reasoning.ContentReasoning{Content: "thinking"}),
+	}}
+	roles, err = sendConversation(t, "gemini-3.8-flash", []llms.MessageContent{human, unsignedThought})
+	require.NoError(t, err, "a thought without text or signature sends nothing, so the turn is empty")
+	assert.Equal(t, []string{"user", "model"}, roles)
 }
 
 func TestAModelTurnOfAToolCallOrASignedThoughtIsNotEmpty(t *testing.T) {
