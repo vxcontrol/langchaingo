@@ -56,7 +56,9 @@ func TestKimiK3IsSentAHistoryWithoutTheReasoningOfEarlierTurns(t *testing.T) {
 		return blocks
 	}
 
-	for _, model := range []string{"moonshotai.kimi-k3", "us.moonshotai.kimi-k3", "global.moonshotai.kimi-k3"} {
+	for _, model := range []string{
+		"moonshotai.kimi-k3", "us.moonshotai.kimi-k3", "global.moonshotai.kimi-k3", "us.moonshotai.kimi-k4",
+	} {
 		require.Equal(t, []string{"text"}, assistantBlocks(model), model)
 	}
 	require.Equal(t, []string{"reasoningContent", "text"}, assistantBlocks("moonshotai.kimi-k2.5"),

@@ -1,6 +1,10 @@
 package llms
 
-import "github.com/vxcontrol/langchaingo/llms/reasoning"
+import (
+	"cmp"
+
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
+)
 
 // ToolChoiceKind is what a tool choice asks of the model, apart from the
 // spelling the door expects. Doors translate it into their own wire shape.
@@ -110,16 +114,33 @@ func ForcedToolName(choice any) (name string, forced bool) {
 }
 
 // CheckForcedToolUse refuses a forced tool choice on a Claude model that
-// rejects one.
-func CheckForcedToolUse(model string, opts CallOptions) error {
+// rejects one; a model that only inherits the refusal goes out, recorded in warn.
+func CheckForcedToolUse(model string, opts CallOptions, warn *Warnings) error {
 	name, forced := ForcedToolName(opts.ToolChoice)
 	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
-	if name == "" {
-		name = "any"
+	asked := cmp.Or(name, spelledChoice(opts.ToolChoice), "any")
+	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "any")}
+	if warn.KeepRefusal(model, "WithToolChoice", asked, asked, refusal) {
+		return refusal
 	}
-	return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
+	return nil
+}
+
+func spelledChoice(choice any) string {
+	switch c := choice.(type) {
+	case string:
+		return c
+	case ToolChoice:
+		return c.Type
+	case *ToolChoice:
+		return c.Type
+	case map[string]any:
+		spelled, _ := c["type"].(string)
+		return spelled
+	}
+	return ""
 }
 
 func offersTools(opts CallOptions) bool {
@@ -145,8 +166,8 @@ func HasAssistantPrefill(messages []MessageContent) bool {
 // CheckClaudeTurnLimits refuses the two turns a Claude model rejects on the
 // wire: manual (budget) thinking combined with a forced tool choice, and a
 // conversation that ends on an assistant turn.
-func CheckClaudeTurnLimits(model string, opts CallOptions, messages []MessageContent) error {
-	return CheckClaudeTurnLimitsOnWire(model, opts, messages, true)
+func CheckClaudeTurnLimits(model string, opts CallOptions, messages []MessageContent, warn *Warnings) error {
+	return CheckClaudeTurnLimitsOnWire(model, opts, messages, true, warn)
 }
 
 // CheckClaudeTurnLimitsOnWire is CheckClaudeTurnLimits for a door that knows
@@ -157,6 +178,7 @@ func CheckClaudeTurnLimitsOnWire(
 	opts CallOptions,
 	messages []MessageContent,
 	sendsManualThinking bool,
+	warn *Warnings,
 ) error {
 	budget := reasoning.ClaudeClampBudget(model, opts.Reasoning.GetTokens(opts.GetMaxTokens()))
 	budgetOnly := reasoning.ClaudeReasoningKindFor(model) == reasoning.ClaudeReasoningBudgetOnly
@@ -168,7 +190,7 @@ func CheckClaudeTurnLimitsOnWire(
 	if budgetThinking && ForcesToolUse(opts.ToolChoice) && offersTools(opts) {
 		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
 	}
-	if err := CheckForcedToolUse(model, opts); err != nil {
+	if err := CheckForcedToolUse(model, opts, warn); err != nil {
 		return err
 	}
 

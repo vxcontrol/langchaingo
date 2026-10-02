@@ -241,7 +241,7 @@ func TestReasoningEffortClampedPerModel(t *testing.T) {
 	})
 
 	t.Run("unknown model passes max through", func(t *testing.T) {
-		body := capture(t, "gpt-5.7", llms.ReasoningMax)
+		body := capture(t, "gpt-5.3-codex", llms.ReasoningMax)
 		if !strings.Contains(body, `"reasoning_effort":"max"`) {
 			t.Fatalf("unknown model must pass max through, got body: %s", body)
 		}

@@ -20,7 +20,7 @@ func TestQwenCommercialHybridsThinkOnlyWhenAsked(t *testing.T) {
 		{"qwen3-vl-plus", true},
 		{"qwen3-vl-flash", true},
 		{"openrouter/qwen/qwen-plus", false},
-		{"qwen-plus-latest", false},
+		{"qwen-plus-latest", true},
 	}
 	for _, tc := range cases {
 		if got := QwenThinkingEnabledByFlag(tc.model); got != tc.want {

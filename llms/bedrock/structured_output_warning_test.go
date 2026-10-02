@@ -102,8 +102,9 @@ func TestTheModelsWhoseCardsListAConverseSchemaAreSentOne(t *testing.T) {
 	for model, strict := range map[string]bool{
 		"openai.gpt-6-sol": true, "us.openai.gpt-5.6-sol": true, "global.openai.gpt-6.1-sol": true,
 		"in.openai.gpt-5.6-terra": true, "openai.gpt-6-astra": true, "openai.gpt-6-luna": true,
-		"us.openai.gpt-5.6-luna": true,
-		"moonshotai.kimi-k3":     false, "us.xai.grok-4.7": false, "openai.gpt-oss-120b-1:0": false,
+		"us.openai.gpt-5.6-luna": true, "openai.gpt-6.2-sol": true, "us.openai.gpt-7-sol": true,
+		"moonshotai.kimi-k3": false, "us.xai.grok-4.7": false, "openai.gpt-oss-120b-1:0": false,
+		"moonshotai.kimi-k4": false, "xai.grok-4.8": false,
 	} {
 		_, body := bedrockWarningsSending(t, converseSchemaAnswer,
 			[]bedrock.Option{bedrock.WithModel(model), bedrock.WithConverseAPI()}, schema)

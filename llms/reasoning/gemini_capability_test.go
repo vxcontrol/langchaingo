@@ -84,16 +84,16 @@ func TestGeminiFamilyBoundary(t *testing.T) {
 	}{
 		{"gemini-1.0-pro", true, false, false, OffOmit},
 		{"gemini-1.5-pro", true, false, false, OffOmit},
-		{"gemini-10-pro", false, false, false, OffZeroBudget},
-		{"gemini-15-flash", false, false, false, OffZeroBudget},
+		{"gemini-10-pro", false, true, true, OffUnsupported},
+		{"gemini-15-flash", false, true, true, OffUnsupported},
 		{"gemini-2.0-flash", true, false, false, OffOmit},
-		{"gemini-20-flash", false, false, false, OffZeroBudget},
+		{"gemini-20-flash", false, true, true, OffUnsupported},
 		{"gemma-3-27b", true, false, false, OffOmit},
 		{"gemma-30b", false, false, false, OffZeroBudget},
 		{"gemini-3-pro", false, true, true, OffUnsupported},
-		{"gemini-30-pro", false, false, false, OffZeroBudget},
+		{"gemini-30-pro", false, true, true, OffUnsupported},
 		{"gemini-2.5-flash", false, true, false, OffZeroBudget},
-		{"gemini-25-flash", false, false, false, OffZeroBudget},
+		{"gemini-25-flash", false, true, true, OffUnsupported},
 	}
 	for _, tc := range cases {
 		if got := geminiKnownNonThinking(tc.model); got != tc.nonThinking {

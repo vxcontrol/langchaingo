@@ -29,7 +29,7 @@ func TestApplyAnthropicReasoning_Adaptive(t *testing.T) {
 	}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningXHigh, Adaptive: true},
-		"anthropic.claude-opus-4-7-v1:0", 2048))
+		"anthropic.claude-opus-4-7-v1:0", 2048, nil))
 
 	fields := marshalAnthropicInput(t, input)
 
@@ -55,7 +55,7 @@ func TestApplyAnthropicReasoning_AdaptiveBypassesVersionGate(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningHigh, Adaptive: true},
-		"us.anthropic.claude-sonnet-5-v1:0", 2048))
+		"us.anthropic.claude-sonnet-5-v1:0", 2048, nil))
 
 	require.NotNil(t, input.Thinking)
 	assert.Equal(t, "adaptive", input.Thinking.Type)
@@ -71,7 +71,7 @@ func TestApplyAnthropicReasoning_AdaptiveOnPreAdaptiveModelIsGated(t *testing.T)
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningHigh, Adaptive: true},
-		"us.anthropic.claude-3-5-haiku-20241022-v1:0", 2048))
+		"us.anthropic.claude-3-5-haiku-20241022-v1:0", 2048, nil))
 
 	assert.Nil(t, input.Thinking, "pre-adaptive model must not receive adaptive thinking")
 }
@@ -82,7 +82,7 @@ func TestApplyAnthropicReasoning_AdaptiveWithoutAnEffortLeavesTheDepthToTheVendo
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Adaptive: true},
-		"anthropic.claude-opus-4-7-v1:0", 2048))
+		"anthropic.claude-opus-4-7-v1:0", 2048, nil))
 
 	require.NotNil(t, input.Thinking)
 	assert.Equal(t, "adaptive", input.Thinking.Type)
@@ -95,7 +95,7 @@ func TestApplyAnthropicReasoning_NoBudgetEffortForOpus45OnBedrock(t *testing.T) 
 	input := anthropicTextGenerationInput{MaxTokens: 8000}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningHigh},
-		"us.anthropic.claude-opus-4-5-20251101-v1:0", 8000))
+		"us.anthropic.claude-opus-4-5-20251101-v1:0", 8000, nil))
 
 	fields := marshalAnthropicInput(t, input)
 
@@ -117,7 +117,7 @@ func TestApplyAnthropicReasoning_Budget(t *testing.T) {
 	}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium},
-		"anthropic.claude-opus-4-6-v1:0", 8000))
+		"anthropic.claude-opus-4-6-v1:0", 8000, nil))
 
 	fields := marshalAnthropicInput(t, input)
 
@@ -144,7 +144,7 @@ func TestApplyAnthropicReasoning_BudgetKeepsVersionGate(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium},
-		"anthropic.claude-v2", 2048))
+		"anthropic.claude-v2", 2048, nil))
 
 	assert.Nil(t, input.Thinking, "budget thinking stays gated to the reasoning allowlist")
 }
@@ -154,7 +154,7 @@ func TestApplyAnthropicReasoning_NilConfig(t *testing.T) {
 
 	// Budget-capable model: nil config is a no-op, sampling untouched.
 	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.8)}
-	require.NoError(t, applyAnthropicReasoning(&input, nil, "us.anthropic.claude-sonnet-4-5-20250929-v1:0", 2048))
+	require.NoError(t, applyAnthropicReasoning(&input, nil, "us.anthropic.claude-sonnet-4-5-20250929-v1:0", 2048, nil))
 
 	assert.Nil(t, input.Thinking)
 	assert.Nil(t, input.OutputConfig)
@@ -166,7 +166,7 @@ func TestApplyAnthropicReasoning_AdaptiveOnlyDropsSamplingWithoutConfig(t *testi
 
 	// Adaptive-only model rejects sampling params even with no reasoning config.
 	input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
-	require.NoError(t, applyAnthropicReasoning(&input, nil, "anthropic.claude-opus-4-7-v1:0", 2048))
+	require.NoError(t, applyAnthropicReasoning(&input, nil, "anthropic.claude-opus-4-7-v1:0", 2048, nil))
 
 	assert.Nil(t, input.Thinking)
 	assert.Nil(t, input.Temperature)
@@ -181,7 +181,7 @@ func TestApplyAnthropicReasoning_BudgetOnAdaptiveOnlyUpgrades(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 4096}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium}, // budget preference
-		"anthropic.claude-opus-4-8-v1:0", 4096))
+		"anthropic.claude-opus-4-8-v1:0", 4096, nil))
 
 	require.NotNil(t, input.Thinking)
 	assert.Equal(t, "adaptive", input.Thinking.Type)
@@ -195,7 +195,7 @@ func TestApplyAnthropicReasoning_AdaptiveOnBudgetOnlyDowngrades(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 4096}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningHigh, Adaptive: true},
-		"us.anthropic.claude-haiku-4-5-20251001-v1:0", 4096))
+		"us.anthropic.claude-haiku-4-5-20251001-v1:0", 4096, nil))
 
 	require.NotNil(t, input.Thinking)
 	assert.Equal(t, "enabled", input.Thinking.Type)
@@ -211,7 +211,7 @@ func TestApplyAnthropicReasoning_OffDefaultOnSendsDisabled(t *testing.T) {
 
 			input := anthropicTextGenerationInput{MaxTokens: 2048}
 			err := applyAnthropicReasoning(&input,
-				&llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh}, model, 2048)
+				&llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh}, model, 2048, nil)
 			require.NoError(t, err)
 
 			fields := marshalAnthropicInput(t, input)
@@ -228,7 +228,7 @@ func TestApplyAnthropicReasoning_OffDefaultOffOmits(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	err := applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Mode: llms.ReasoningOff},
-		"anthropic.claude-opus-4-8-v1:0", 2048)
+		"anthropic.claude-opus-4-8-v1:0", 2048, nil)
 
 	require.NoError(t, err)
 	assert.Nil(t, input.Thinking, "off on a default-off model omits thinking")
@@ -240,7 +240,7 @@ func TestApplyAnthropicReasoning_OffAlwaysOnSendsNoThinking(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 2048}
 	err := applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Mode: llms.ReasoningOff},
-		"us.anthropic.claude-fable-5-v1:0", 2048)
+		"us.anthropic.claude-fable-5-v1:0", 2048, nil)
 
 	require.NoError(t, err)
 	assert.Nil(t, input.Thinking,
@@ -259,7 +259,7 @@ func TestApplyAnthropicReasoning_DropsTopPWhenBothSamplingParamsSet(t *testing.T
 	} {
 		t.Run(model, func(t *testing.T) {
 			input := anthropicTextGenerationInput{MaxTokens: 2048, Temperature: ptr(0.5), TopP: 0.9}
-			require.NoError(t, applyAnthropicReasoning(&input, &llms.ReasoningConfig{}, model, 2048))
+			require.NoError(t, applyAnthropicReasoning(&input, &llms.ReasoningConfig{}, model, 2048, nil))
 			fields := marshalAnthropicInput(t, input)
 			_, hasTemp := fields["temperature"]
 			_, hasTopP := fields["top_p"]
@@ -276,7 +276,7 @@ func TestApplyAnthropicReasoning_BudgetKeepsTheSamplingRefusal(t *testing.T) {
 	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
-		"anthropic.claude-mythos-preview-v1:0", 4096))
+		"anthropic.claude-mythos-preview-v1:0", 4096, nil))
 
 	fields := marshalAnthropicInput(t, input)
 
@@ -293,7 +293,7 @@ func TestApplyAnthropicReasoning_BudgetStillPinsWhereSamplingIsAccepted(t *testi
 	input := anthropicTextGenerationInput{MaxTokens: 4096, Temperature: ptr(0.8), TopP: 0.9, TopK: 40}
 	require.NoError(t, applyAnthropicReasoning(&input,
 		&llms.ReasoningConfig{Effort: llms.ReasoningMedium, Tokens: 2048},
-		"anthropic.claude-opus-4-6-v1:0", 4096))
+		"anthropic.claude-opus-4-6-v1:0", 4096, nil))
 
 	fields := marshalAnthropicInput(t, input)
 
@@ -307,7 +307,7 @@ func TestApplyAnthropicReasoning_UnsetMaxTokensUsesTheSharedDefault(t *testing.T
 
 	cfg := &llms.ReasoningConfig{Effort: llms.ReasoningMedium}
 	input := anthropicTextGenerationInput{}
-	require.NoError(t, applyAnthropicReasoning(&input, cfg, "anthropic.claude-sonnet-4-5-v1:0", 0))
+	require.NoError(t, applyAnthropicReasoning(&input, cfg, "anthropic.claude-sonnet-4-5-v1:0", 0, nil))
 
 	fields := marshalAnthropicInput(t, input)
 	thinking, ok := fields["thinking"].(map[string]any)
@@ -332,7 +332,7 @@ func TestApplyAnthropicReasoning_ReachesTheClaude5Generation(t *testing.T) {
 			input := anthropicTextGenerationInput{MaxTokens: 8000}
 			require.NoError(t, applyAnthropicReasoning(&input,
 				&llms.ReasoningConfig{Effort: llms.ReasoningMedium},
-				modelID, 8000))
+				modelID, 8000, nil))
 
 			fields := marshalAnthropicInput(t, input)
 			thinking, _ := fields["thinking"].(map[string]any)

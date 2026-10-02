@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -116,7 +117,8 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	if err := checkAnthropicTurnLimits(&opts, messages); err != nil {
+	turn := &llms.Warnings{}
+	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), opts, messages, turn); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +129,7 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		resp, err = l.generateContentWithLegacyAPI(ctx, messages, opts)
 	}
 	if resp != nil {
-		resp.Warnings = append(resp.Warnings, unreadBedrockOptions(opts.GetModel(), l.useConverseAPI, opts)...)
+		resp.Warnings = slices.Concat(resp.Warnings, turn.List(), unreadBedrockOptions(opts.GetModel(), l.useConverseAPI, opts))
 	}
 	if err != nil {
 		return resp, err
@@ -392,7 +394,3 @@ func (l *LLM) supportsCaching(modelID string) bool {
 }
 
 var _ llms.Model = (*LLM)(nil)
-
-func checkAnthropicTurnLimits(opts *llms.CallOptions, messages []llms.MessageContent) error {
-	return llms.CheckClaudeTurnLimits(opts.GetModel(), *opts, messages)
-}

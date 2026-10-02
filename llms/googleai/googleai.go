@@ -141,8 +141,18 @@ func (g *GoogleAI) GenerateContent(
 		return nil, err
 	}
 
+	warn := &llms.Warnings{}
+	warn.AddInherited(opts.GetModel())
+
 	// Handle thinking configuration for reasoning models
 	tc, err := resolveThinkingConfig(opts.GetModel(), opts.Reasoning, opts.GetMaxTokens())
+	var refusal *reasoning.ErrReasoningOffUnsupported
+	if errors.As(err, &refusal) {
+		off := reasoning.InheritedOffWire(opts.GetModel(), reasoning.ProviderGoogleAI)
+		if !warn.KeepOffRefusal(opts.GetModel(), off) {
+			tc, err = offThinkingConfig(off), nil
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +192,6 @@ func (g *GoogleAI) GenerateContent(
 		},
 	}
 
-	warn := &llms.Warnings{}
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
 	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config,
 		g.client.ClientConfig().Backend == genai.BackendVertexAI)
@@ -1243,17 +1252,24 @@ func resolveThinkingConfig(model string, cfg *llms.ReasoningConfig, maxTokens in
 		}
 		return nil, &reasoning.ErrEffortHasNoBudget{Model: model, Effort: string(cfg.GetEffort(maxTokens))}
 	case llms.ReasoningOff:
-		switch reasoning.ResolveOff(model, reasoning.ProviderGoogleAI) {
-		case reasoning.OffZeroBudget:
-			zero := int32(0)
-			return &genai.ThinkingConfig{ThinkingBudget: &zero}, nil
-		case reasoning.OffMinimalLevel:
-			return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelMinimal}, nil
-		case reasoning.OffUnsupported:
+		off := reasoning.ResolveOff(model, reasoning.ProviderGoogleAI)
+		if off == reasoning.OffUnsupported {
 			return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
+		return offThinkingConfig(off), nil
 	}
 	return nil, nil
+}
+
+func offThinkingConfig(off reasoning.OffWire) *genai.ThinkingConfig {
+	switch off { //nolint:exhaustive // only the Google wires carry a disable
+	case reasoning.OffZeroBudget:
+		zero := int32(0)
+		return &genai.ThinkingConfig{ThinkingBudget: &zero}
+	case reasoning.OffMinimalLevel:
+		return &genai.ThinkingConfig{ThinkingLevel: genai.ThinkingLevelMinimal}
+	}
+	return nil
 }
 
 const geminiDynamicBudget = -1

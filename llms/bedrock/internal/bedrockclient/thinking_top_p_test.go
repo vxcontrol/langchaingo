@@ -29,7 +29,7 @@ func TestLegacyThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 			t.Parallel()
 			input := anthropicTextGenerationInput{MaxTokens: 4096, TopP: tc.topP, Temperature: tc.temp}
 			require.NoError(t, applyAnthropicReasoning(&input,
-				&llms.ReasoningConfig{Tokens: 1024}, tc.model, 4096))
+				&llms.ReasoningConfig{Tokens: 1024}, tc.model, 4096, nil))
 			assert.InDelta(t, tc.want, input.TopP, 1e-9)
 		})
 	}

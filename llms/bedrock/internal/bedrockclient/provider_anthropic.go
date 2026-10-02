@@ -270,7 +270,7 @@ func createAnthropicCompletion(ctx context.Context,
 		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice, len(tools) > 0),
 	}
 
-	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens); err != nil {
+	if err := applyAnthropicReasoning(&input, options.Reasoning, modelID, maxTokens, warn); err != nil {
 		return nil, err
 	}
 	if input.Thinking != nil {
@@ -851,7 +851,7 @@ func claudeTemperature(modelID string, asked *float64) *float64 {
 // thinking and drops sampling params, a budget-only generation gets budget
 // thinking, and the caller's preference is honored where the model supports both.
 func applyAnthropicReasoning(
-	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int,
+	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int, warn *llms.Warnings,
 ) error {
 	callerTemperature := input.Temperature
 	// Adaptive-only models reject sampling params even without thinking.
@@ -873,6 +873,13 @@ func applyAnthropicReasoning(
 			input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
 		case reasoning.OffBetweenToolsClaude:
 			input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
+		case reasoning.OffUnsupported:
+			switch reasoning.InheritedOffWire(modelID, reasoning.ProviderBedrock) { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
+			case reasoning.OffDisableClaude:
+				input.Thinking = &anthropicThinkingPayload{Type: "disabled"}
+			case reasoning.OffBetweenToolsClaude:
+				input.Thinking = &anthropicThinkingPayload{Type: "between_tools"}
+			}
 		}
 		return nil
 	}
@@ -915,7 +922,13 @@ func applyAnthropicReasoning(
 	case reasoning.MechanismAdaptive:
 		setAdaptive()
 	case reasoning.MechanismBudget:
-		return setBudget()
+		err := setBudget()
+		var noBudget *reasoning.ErrEffortHasNoBudget
+		if !errors.As(err, &noBudget) || warn.KeepRefusal(modelID, "WithReasoning", noBudget.Effort,
+			reasoning.ClaudeClampEffort(modelID, noBudget.Effort, reasoning.ProviderBedrock), err) {
+			return err
+		}
+		setAdaptive()
 	}
 	return nil
 }

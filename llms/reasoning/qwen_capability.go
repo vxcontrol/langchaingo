@@ -68,7 +68,7 @@ func dashScopeSpelling(model string) string {
 	if strings.Contains(m, "/") {
 		return ""
 	}
-	return m
+	return inheritedOrSelf(documentedAlias(m))
 }
 
 // ErrThinkingRequiresStream reports thinking asked of a stream-only model
@@ -93,8 +93,8 @@ func QwenThinkingEnabledByFlag(model string) bool {
 // DashScopeGuestThinkingEnabledByFlag reports whether a guest model DashScope
 // serves leaves its thinking off until enable_thinking:true asks for it.
 func DashScopeGuestThinkingEnabledByFlag(model string) bool {
-	guest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
-	return ok && (guest == "kimi-k2.6" || guest == "kimi-k2.5")
+	guest := dashScopeGuestRoute(model)
+	return guest == "kimi-k2.6" || guest == "kimi-k2.5"
 }
 
 var dashScopeGuestBudget = []string{
@@ -109,12 +109,21 @@ func DashScopeGuestEffort(route, effort string) string {
 	switch {
 	case !ok:
 		return effort
-	case rest == "kimi/kimi-k3":
+	case dashScopeGuestRoute(route) == "kimi/kimi-k3":
 		return "max"
 	case strings.HasPrefix(rest, "deepseek-v4") && effort == "minimal":
 		return "low"
 	}
 	return effort
+}
+
+func dashScopeGuestRoute(model string) string {
+	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	if !ok {
+		return ""
+	}
+	slash := strings.LastIndex(rest, "/") + 1
+	return rest[:slash] + inheritedOrSelf(rest[slash:])
 }
 
 func dashScopeGuestSpelling(model string) string {
@@ -123,7 +132,7 @@ func dashScopeGuestSpelling(model string) string {
 	if !ok || strings.Contains(rest, "/") {
 		return ""
 	}
-	return rest
+	return inheritedOrSelf(rest)
 }
 
 var dashScopeHosts = []string{

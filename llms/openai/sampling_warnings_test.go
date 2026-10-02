@@ -628,7 +628,7 @@ func TestKimiModelsWithFixedSamplingGetNoneOfIt(t *testing.T) {
 func TestKimiModelsOutsideTheFixedListKeepTheirSampling(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"kimi-k2-thinking", "kimi-k2.7", "kimi-k30"} {
+	for _, model := range []string{"kimi-k2-thinking", "kimi-k2-turbo-preview"} {
 		body := sendForWire(t, model, llms.WithTemperature(0.3), llms.WithTopP(0.5))
 		if !strings.Contains(body, `"temperature":0.3`) || !strings.Contains(body, `"top_p":0.5`) {
 			t.Errorf("%s: sampling the vendor does not fix must reach the wire: %s", model, body)

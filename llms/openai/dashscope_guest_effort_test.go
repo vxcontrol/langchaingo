@@ -19,6 +19,7 @@ func TestDashScopeGuestsAreSentTheEffortsModelStudioTakes(t *testing.T) {
 	}{
 		{"kimi/kimi-k3", llms.ReasoningHigh, "max"},
 		{"kimi/kimi-k3", llms.ReasoningLow, "max"},
+		{"kimi/kimi-k4", llms.ReasoningHigh, "max"},
 		{"deepseek-v4-pro", llms.ReasoningMinimal, "low"},
 		{"deepseek-v4.1-flash", llms.ReasoningMinimal, "low"},
 		{"deepseek-v4-pro", llms.ReasoningHigh, "high"},

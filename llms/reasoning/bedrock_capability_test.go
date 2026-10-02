@@ -1,6 +1,9 @@
 package reasoning
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestOnlyNovaLiteTakesReasoningConfig(t *testing.T) {
 	for _, model := range []string{
@@ -72,21 +75,27 @@ func TestGrokEffortFollowsTheGeneration(t *testing.T) {
 	}
 }
 
-func TestGptOssIsRecognisedOnlyByItsBedrockNames(t *testing.T) {
+func TestGptOssIsOneRowInEveryHostsSpelling(t *testing.T) {
 	for _, model := range []string{
 		"openai.gpt-oss-120b-1:0", "openai.gpt-oss-20b-1:0",
 		"openai.gpt-oss-safeguard-120b", "openai.gpt-oss-safeguard-20b",
+		"gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss:120b", "groq/openai/gpt-oss-120b",
 	} {
 		if !IsGptOssModel(model) {
 			t.Errorf("%s is gpt-oss", model)
 		}
-	}
-	for _, model := range []string{
-		"gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss:120b", "us.amazon.nova-2-lite-v1:0",
-	} {
-		if IsGptOssModel(model) {
-			t.Errorf("%s does not take the Bedrock gpt-oss effort field", model)
+		caps := OpenAIReasoningCapsFor(model)
+		if !caps.Known || caps.CanDisable || !slices.Equal(caps.Efforts, []string{"low", "medium", "high"}) {
+			t.Errorf("%s caps = %+v, want low, medium and high with no disable", model, caps)
 		}
+		for _, p := range []Provider{ProviderOpenAI, ProviderBedrock, ProviderOllama} {
+			if off := ResolveOff(model, p); off != OffUnsupported {
+				t.Errorf("%s on %v: off = %v, want a refusal", model, p, off)
+			}
+		}
+	}
+	if IsGptOssModel("us.amazon.nova-2-lite-v1:0") {
+		t.Error("nova is not gpt-oss")
 	}
 }
 

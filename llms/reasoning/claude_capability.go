@@ -13,11 +13,10 @@ import (
 type ClaudeReasoningKind int
 
 const (
-	// ClaudeReasoningUnknown is any model not explicitly classified below — a
-	// non-Claude model, a Claude model without extended thinking, or a Claude
-	// generation newer than this table. It is handled as literal pass-through
-	// (the caller's requested mechanism is sent unchanged), preserving prior
-	// behavior so an unclassified model never regresses.
+	// ClaudeReasoningUnknown is a non-Claude model or a Claude model without
+	// extended thinking; an unlisted version of a listed tier answers as the
+	// release it follows. It is handled as literal pass-through (the caller's
+	// requested mechanism is sent unchanged).
 	ClaudeReasoningUnknown ClaudeReasoningKind = iota
 	// ClaudeReasoningAdaptiveOnly is the newest generation (Opus 4.7/4.8/5,
 	// Sonnet 5, Fable 5, Mythos 5): it is sent thinking.type=adaptive and never
@@ -35,7 +34,7 @@ const (
 // adaptiveOnlyClaude, dualClaude, and budgetOnlyClaude are the explicit model
 // sets. Substrings match both the first-party IDs (claude-opus-4-7) and the
 // Bedrock IDs (us.anthropic.claude-opus-4-7). Add a new model to exactly one
-// set when it launches; anything absent is treated as ClaudeReasoningUnknown.
+// set when it launches; until then it answers as the release it follows.
 var (
 	adaptiveOnlyClaude = []string{
 		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5",
@@ -284,11 +283,7 @@ func ClaudeSupportsEffortWithBudget(model string, p Provider) bool {
 	return p != ProviderBedrock || !containsAny(m, bedrockRejectsBudgetEffortClaude)
 }
 
-var noPrefillClaude = []string{
-	"claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview",
-	"claude-opus-4-7", "claude-opus-4-8",
-	"claude-opus-5", "claude-sonnet-5", "claude-fable-5", "claude-mythos-5",
-}
+var noPrefillClaude = []string{"claude-mythos-preview"}
 
 var noForcedToolClaude = []string{
 	"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "claude-mythos-5-1",
@@ -301,9 +296,17 @@ func ClaudeRejectsForcedToolUse(model string) bool {
 }
 
 // ClaudeRejectsAssistantPrefill reports whether the model rejects a prefilled
-// assistant response outright, so the request must not be sent.
+// assistant response outright, so the request must not be sent: every Claude the
+// name asks for at 4.6 or later, whatever release the tables answer it with.
 func ClaudeRejectsAssistantPrefill(model string) bool {
-	return containsAny(canonicalClaude(model), noPrefillClaude)
+	m := claudeName(model)
+	if idx := strings.Index(m, "claude-"); idx != -1 {
+		tier, major, minor, ok := claudeVersion(m[idx:])
+		if ok && claudeReleases[tier] != nil && (major > 4 || major == 4 && minor >= 6) {
+			return true
+		}
+	}
+	return containsAny(m, noPrefillClaude)
 }
 
 // mutuallyExclusiveSamplingClaude models reject temperature and top_p set
@@ -436,6 +439,16 @@ func ClaudeRejectsSampling(model string) bool {
 // canonicalClaude reduces a Claude identifier to the dashed form every table in
 // this file is keyed on. A dotted entry added to one of them never matches.
 func canonicalClaude(model string) string {
+	m := claudeName(model)
+	if idx := strings.Index(m, "claude-"); idx != -1 {
+		if documented, ok := inheritClaude(m[idx:]); ok {
+			return m[:idx] + documented
+		}
+	}
+	return m
+}
+
+func claudeName(model string) string {
 	m := strings.ToLower(model)
 	m = strings.ReplaceAll(m, "@", "-")
 	var b strings.Builder
