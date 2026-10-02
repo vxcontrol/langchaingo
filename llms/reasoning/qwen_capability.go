@@ -81,6 +81,19 @@ var dashScopeGuestBudget = []string{
 
 var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-0731"}
 
+func DashScopeGuestEffort(route, effort string) string {
+	rest, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
+	switch {
+	case !ok:
+		return effort
+	case rest == "kimi/kimi-k3":
+		return "max"
+	case strings.HasPrefix(rest, "deepseek-v4") && effort == "minimal":
+		return "low"
+	}
+	return effort
+}
+
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
 	rest = strings.TrimPrefix(rest, "kimi/")

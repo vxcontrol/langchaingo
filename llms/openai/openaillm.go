@@ -458,6 +458,7 @@ func (o *LLM) setReasoning(
 	if grok := reasoning.GrokEffort(model, askedEffort); grok != "" && reasoning.GrokFamily(model) {
 		effort = grok
 	}
+	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
 	sendsEffort := acceptsEffort && reasoningEffort != llms.ReasoningNone
