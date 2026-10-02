@@ -124,14 +124,10 @@ func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 	}
 }
 
-// WithEndpoint append a ClientOption that uses the provided endpoint to
-// make requests.
-// This is useful for gemini clients.
+// WithEndpoint sends the requests of both backends to endpoint.
 func WithEndpoint(endpoint string) Option {
 	return func(opts *Options) {
 		opts.BaseURL = endpoint
-		opts.ClientOptions = append(opts.ClientOptions, option.WithEndpoint(endpoint))
-		opts.ownClientOptions++
 	}
 }
 

@@ -1023,16 +1023,25 @@ func TestMaxTokensAboveInt32DoesNotGoNegative(t *testing.T) {
 	}
 }
 
-func TestWithEndpointFeedsBothDoors(t *testing.T) {
+func TestWithEndpointAddressesTheVertexBackendToo(t *testing.T) {
 	t.Parallel()
 
-	opts := DefaultOptions()
-	WithEndpoint("https://llm.example.net/gemini")(&opts)
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"candidates":[{"content":{"role":"model","parts":[{"text":"hi"}]},` +
+			`"finishReason":"STOP"}],"usageMetadata":{}}`))
+	}))
+	defer server.Close()
 
-	assert.Equal(t, "https://llm.example.net/gemini", opts.BaseURL,
-		"the Gemini API client reads BaseURL")
-	assert.Len(t, opts.ClientOptions, 1,
-		"the vertex door reads the same endpoint out of ClientOptions")
+	llm, err := New(t.Context(), WithCloudProject("hotel-desk"), WithCloudLocation("europe-west4"),
+		WithEndpoint(server.URL), WithHTTPClient(server.Client()), WithDefaultModel("gemini-2.5-flash"))
+	require.NoError(t, err)
+
+	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hello")})
+	require.NoError(t, err)
+	assert.Contains(t, gotPath, "/projects/hotel-desk/locations/europe-west4/")
 }
 
 func TestTheCallersEndpointReachesTheRequest(t *testing.T) {
