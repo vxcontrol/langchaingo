@@ -24,6 +24,27 @@ var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-
 
 const deepSeekAPIHost = "api.deepseek.com"
 
+func RejectsForcedToolChoiceWhileThinking(model string, named bool) bool {
+	for _, form := range modelSpellings(model) {
+		switch {
+		case strings.HasPrefix(form, "deepseek-"), strings.HasPrefix(form, "qwen"), strings.HasPrefix(form, "qwq"):
+			return true
+		case strings.HasPrefix(form, "kimi-"):
+			return named
+		}
+	}
+	return false
+}
+
+func RejectsRequiredToolChoice(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "kimi-k2.6") || hasGeneration(form, "kimi-k2.7-code") {
+			return true
+		}
+	}
+	return false
+}
+
 func ServedByZAI(model, host string) bool {
 	if host != "api.z.ai" && host != "open.bigmodel.cn" {
 		return false

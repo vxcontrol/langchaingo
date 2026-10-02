@@ -359,9 +359,31 @@ func (o *LLM) createChatRequest(
 	if err != nil {
 		return nil, err
 	}
+	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, wireEffort); err != nil {
+		return nil, err
+	}
 	o.applySamplingPolicy(req, opts, wireEffort, warn)
 
 	return req, nil
+}
+
+func (o *LLM) refuseAForcedChoiceTheVendorRejects(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string,
+) error {
+	kind, name := llms.ClassifyToolChoice(opts.ToolChoice)
+	if len(req.Tools) == 0 || kind != llms.ToolChoiceAny && kind != llms.ToolChoiceNamed {
+		return nil
+	}
+	model := o.effectiveModel(opts)
+	named := kind == llms.ToolChoiceNamed
+	if reasoning.ServedByZAI(model, o.host) || !named && reasoning.RejectsRequiredToolChoice(model) ||
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, named) && thinkingRuns(model, opts, wireEffort) {
+		if !named {
+			name = "required"
+		}
+		return &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: name}
+	}
+	return nil
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
