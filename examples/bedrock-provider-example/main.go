@@ -50,7 +50,7 @@ func main() {
 
 	// Test 1: Simple Call
 	fmt.Println("Testing Call method:")
-	response, err := llm.Call(ctx, *prompt, llms.WithMaxTokens(512))
+	response, err := llm.Call(ctx, *prompt, llms.WithMaxTokens(4096))
 	if err != nil {
 		log.Printf("Error calling model: %v", err)
 	} else {
@@ -74,7 +74,7 @@ func main() {
 		},
 	}
 
-	resp, err := llm.GenerateContent(ctx, messages, llms.WithMaxTokens(512))
+	resp, err := llm.GenerateContent(ctx, messages, llms.WithMaxTokens(4096))
 	if err != nil {
 		log.Printf("Error generating content: %v", err)
 	} else {

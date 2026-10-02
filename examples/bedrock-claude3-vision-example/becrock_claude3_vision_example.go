@@ -40,7 +40,6 @@ func main() {
 		},
 		llms.WithMaxTokens(1000),
 		llms.WithTemperature(0.1),
-		llms.WithTopP(1.0),
 		llms.WithTopK(100),
 	)
 	if err != nil {

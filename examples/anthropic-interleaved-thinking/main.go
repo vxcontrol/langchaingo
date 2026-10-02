@@ -329,6 +329,8 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 	fmt.Println("    - calculate: Mathematical calculations")
 	fmt.Println("    - search_knowledge: Information retrieval")
 	fmt.Println("    - analyze_data: Statistical analysis")
+	fmt.Println("    - make_prediction: Predictions from calculated metrics")
+	fmt.Println("    - generate_report: Strategic report from the analysis")
 	fmt.Println()
 
 	// Cache analytics tracking

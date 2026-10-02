@@ -16,7 +16,6 @@ Here's what it does in a nutshell:
 ## Cool features:
 
 - 🔀 Supports multiple AI backends (OpenAI, Ollama, Google AI)
-- 🌡️ Sets the temperature to 0 for more deterministic responses
 - 🧠 Uses JSON mode for structured output
 - 🚀 Easy to run and experiment with!
 
