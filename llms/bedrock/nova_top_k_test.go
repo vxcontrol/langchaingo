@@ -64,6 +64,16 @@ func TestNovaCarriesTopKWhereTheNovaSchemaPutsItOnBothDoors(t *testing.T) {
 				value, _ = topKSent(body, door.converse)
 				require.InDelta(t, 128, value, 0, model)
 				require.NotContains(t, bedrockWarningsByOption(resp.Warnings), "WithTopK", model)
+
+				resp, body = call(model, llms.WithTopK(-5))
+				value, sent = topKSent(body, door.converse)
+				require.True(t, sent, "%s: %v", model, body)
+				require.InDelta(t, 0, value, 0, model)
+				clamped, reported = bedrockWarningsByOption(resp.Warnings)["WithTopK"]
+				require.True(t, reported, "%s: %v", model, resp.Warnings)
+				require.Equal(t, llms.WarningClamp, clamped.Kind)
+				require.Equal(t, "-5", clamped.Asked)
+				require.Equal(t, "0", clamped.Sent)
 			}
 
 			_, body := call("amazon.nova-2-lite-v1:0", llms.WithTopK(40), llms.WithReasoning(llms.ReasoningLow, 0))

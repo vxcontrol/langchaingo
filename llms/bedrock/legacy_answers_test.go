@@ -71,6 +71,8 @@ func TestABrokenLegacyStreamChunkEndsTheStreamWithAnErrorAndTheTextSoFar(t *test
 			`"role":"assistant","model":"m","content":[],"stop_reason":null,"usage":{"input_tokens":1,"output_tokens":1}}}`)
 		writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"first "}}`)
 		writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":`)
+		writeLegacyChunk(t, w, enc, `{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"second"}}`)
+		writeLegacyChunk(t, w, enc, `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}`)
 	}))
 	t.Cleanup(srv.Close)
 
