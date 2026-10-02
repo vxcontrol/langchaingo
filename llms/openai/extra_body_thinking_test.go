@@ -36,3 +36,26 @@ func TestThinkingSwitchedOnInTheExtraBodyDropsTheSamplingItRefuses(t *testing.T)
 	assert.InDelta(t, 0.7, body["temperature"], 1e-9, "thinking switched off keeps the caller's sampling")
 	assert.InDelta(t, 0.4, body["top_p"], 1e-9)
 }
+
+func TestTheExtraBodyDecidesThinkingBecauseItWinsOnTheWire(t *testing.T) {
+	t.Parallel()
+
+	sampling := []llms.CallOption{llms.WithTemperature(0.7), llms.WithTopP(0.4)}
+	body, err := wireBodyOf(t, "gpt-5.4", nil, append(sampling, llms.WithReasoningDisabled(),
+		llms.WithExtraBody(map[string]any{"reasoning_effort": "high"}))...)
+	require.NoError(t, err)
+	assert.NotContains(t, body, "temperature", "the extra body's effort reaches the wire over the door's none")
+	assert.NotContains(t, body, "top_p")
+
+	const deepSeek = "https://api.deepseek.com"
+	body, _ = hostCall(t, deepSeek, "deepseek-v4-pro", llms.WithTemperature(0.7))
+	assert.NotContains(t, body, "temperature", "DeepSeek V4 thinks unless told otherwise")
+
+	for name, extra := range map[string]map[string]any{
+		"thinking disabled":     {"thinking": map[string]any{"type": "disabled"}},
+		"enable_thinking false": {"enable_thinking": false},
+	} {
+		body, _ = hostCall(t, deepSeek, "deepseek-v4-pro", llms.WithTemperature(0.7), llms.WithExtraBody(extra))
+		assert.InDelta(t, 0.7, body["temperature"], 1e-9, name)
+	}
+}

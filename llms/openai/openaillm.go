@@ -766,7 +766,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.LogProbs = false
 		req.TopLogProbs = 0
 	case reasoning.ServedByDeepSeek(model, o.host):
-		if deepSeekThinks(model, opts, wireEffort) {
+		if thinkingRuns(model, opts, wireEffort) {
 			req.Temperature = nil
 		} else {
 			req.TopP = nil
@@ -783,20 +783,17 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
 }
 
-func deepSeekThinks(model string, opts llms.CallOptions, wireEffort string) bool {
-	return thinkingRuns(model, opts, wireEffort)
-}
-
-// thinkingRuns reports whether the model reasons on this request: an effort
-// reached the wire, or none did and the model reasons until told otherwise.
 func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
-	if opts.Reasoning.IsDisabled() || !reasoning.IsReasoningModel(model) {
+	if !reasoning.IsReasoningModel(model) {
 		return false
 	}
 	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
 	case on:
 		return true
 	case off:
+		return false
+	}
+	if opts.Reasoning.IsDisabled() {
 		return false
 	}
 	if isThinkingOnTheWire(wireEffort) || reasoning.ThinkingMarkedInName(model) {
