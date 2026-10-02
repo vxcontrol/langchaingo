@@ -1,5 +1,5 @@
 httprr trace v1
-763 994
+763 1173
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -11,17 +11,21 @@ X-Goog-Api-Key: test-api-key
 {"contents":[{"parts":[{"text":"Count from 1 to 5"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":100,"temperature":0.1},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
 Content-Length: 583
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:55:06 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=437
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 20:47:25 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=545
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -52,5 +56,5 @@ X-Xss-Protection: 0
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-2.5-flash",
-  "responseId": "-bZxas_cJpf_vdIPivqtmQ8"
+  "responseId": "XRjAavjAAuiqxN8PtaWJmQ0"
 }

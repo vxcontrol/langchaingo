@@ -1,5 +1,5 @@
 httprr trace v1
-47828 1265
+47828 1264
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -13,9 +13,9 @@ Content-Length: 674
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Fri, 21 Aug 2026 08:58:03 GMT
+Date: Fri, 02 Oct 2026 20:47:51 GMT
 Server: nginx
-Server-Timing: gfet4t7; dur=1348
+Server-Timing: gfet4t7; dur=962
 Strict-Transport-Security: max-age=31536000
 Vary: Accept-Encoding
 Vary: Origin, X-Origin, Referer
@@ -60,5 +60,5 @@ X-Xss-Protection: 1; mode=block
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-2.5-flash",
-  "responseId": "GROIao2cN7jT28oP4NTsyA8"
+  "responseId": "dhjAatKHPJmF28oP1IeIwAE"
 }

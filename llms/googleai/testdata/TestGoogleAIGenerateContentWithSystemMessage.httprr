@@ -1,5 +1,5 @@
 httprr trace v1
-878 1247
+878 1253
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -9,13 +9,13 @@ X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
 {"contents":[{"parts":[{"text":"Tell me about the ocean"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"systemInstruction":{"parts":[{"text":"You are a helpful assistant that always responds in haiku format."}],"role":"system"}}HTTP/2.0 200 OK
-Content-Length: 656
+Content-Length: 662
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Fri, 21 Aug 2026 08:57:37 GMT
+Date: Fri, 02 Oct 2026 20:47:19 GMT
 Server: nginx
-Server-Timing: gfet4t7; dur=1028
+Server-Timing: gfet4t7; dur=1027
 Strict-Transport-Security: max-age=31536000
 Vary: Accept-Encoding
 Vary: Origin, X-Origin, Referer
@@ -33,7 +33,7 @@ X-Xss-Protection: 1; mode=block
       "content": {
         "parts": [
           {
-            "text": "Deep blue, vast and wide,\nLife teems in its salty depths,\nAncient secrets sleep."
+            "text": "Vast, deep blue expanse,\nHome to creatures, great and small,\nWaves crash on the shore."
           }
         ],
         "role": "model"
@@ -44,17 +44,17 @@ X-Xss-Protection: 1; mode=block
   ],
   "usageMetadata": {
     "promptTokenCount": 20,
-    "candidatesTokenCount": 21,
-    "totalTokenCount": 110,
+    "candidatesTokenCount": 23,
+    "totalTokenCount": 117,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 20
       }
     ],
-    "thoughtsTokenCount": 69,
+    "thoughtsTokenCount": 74,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-2.5-flash",
-  "responseId": "ABOIasOGGvi0xN8Pof3qiAQ"
+  "responseId": "VhjAavOcNabtxN8P8qGByAg"
 }

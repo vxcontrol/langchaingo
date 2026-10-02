@@ -1,5 +1,5 @@
 httprr trace v1
-10242 6690023
+10242 6690202
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -11,16 +11,20 @@ X-Goog-Api-Key: test-api-key
 {"requests":[{"content":{"parts":[{"text":"test text a"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text b"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text c"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text d"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text e"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text f"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text g"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text h"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text i"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text j"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text k"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text l"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text m"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text n"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text o"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text p"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text q"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text r"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text s"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text t"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text u"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text v"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text w"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text x"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text y"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text z"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text a"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text b"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text c"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text d"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text e"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text f"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text g"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text h"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text i"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text j"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text k"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text l"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text m"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text n"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text o"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text p"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text q"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text r"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text s"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text t"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text u"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text v"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text w"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text x"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text y"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text z"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text a"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text b"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text c"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text d"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text e"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text f"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text g"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text h"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text i"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text j"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text k"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text l"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text m"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text n"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text o"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text p"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text q"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text r"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text s"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text t"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text u"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text v"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text w"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text x"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text y"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text z"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text a"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text b"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text c"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text d"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text e"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text f"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text g"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text h"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text i"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text j"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text k"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text l"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text m"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text n"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text o"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text p"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text q"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text r"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text s"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text t"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text u"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text v"}],"role":"user"},"model":"models/gemini-embedding-001"}]}HTTP/2.0 200 OK
 Content-Length: 6689640
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:55:32 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=1155
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 20:47:54 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1187
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
+X-Content-Type-Options: nosniff
 X-Content-Type-Options: nosniff
 X-Frame-Options: SAMEORIGIN
+X-Frame-Options: SAMEORIGIN
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "embeddings": [
@@ -307626,7 +307630,7 @@ X-Xss-Protection: 0
     }
   ]
 }
-836 334789
+836 334968
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -307638,16 +307642,20 @@ X-Goog-Api-Key: test-api-key
 {"requests":[{"content":{"parts":[{"text":"test text w"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text x"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text y"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text z"}],"role":"user"},"model":"models/gemini-embedding-001"},{"content":{"parts":[{"text":"test text a"}],"role":"user"},"model":"models/gemini-embedding-001"}]}HTTP/2.0 200 OK
 Content-Length: 334408
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:55:35 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=281
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 20:47:59 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=283
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
+X-Content-Type-Options: nosniff
 X-Content-Type-Options: nosniff
 X-Frame-Options: SAMEORIGIN
+X-Frame-Options: SAMEORIGIN
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "embeddings": [

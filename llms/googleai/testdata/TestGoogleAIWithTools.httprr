@@ -1,5 +1,5 @@
 httprr trace v1
-1014 1733
+1014 1757
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -9,13 +9,13 @@ X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
 {"contents":[{"parts":[{"text":"What's the weather in New York?"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":16384},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get the weather for a location","name":"getWeather","parameters":{"properties":{"location":{"description":"The location to get weather for","type":"STRING"}},"required":["location"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
-Content-Length: 1142
+Content-Length: 1166
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
 Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Fri, 21 Aug 2026 08:57:50 GMT
+Date: Fri, 02 Oct 2026 20:47:37 GMT
 Server: nginx
-Server-Timing: gfet4t7; dur=772
+Server-Timing: gfet4t7; dur=626
 Strict-Transport-Security: max-age=31536000
 Vary: Accept-Encoding
 Vary: Origin, X-Origin, Referer
@@ -39,7 +39,7 @@ X-Xss-Protection: 1; mode=block
                 "location": "New York"
               }
             },
-            "thoughtSignature": "CvgBARFNMg/IJaDHKIpOE/OhqNyTGiuV/N10EP8onKuRG3uc+7wpjuqB7LOxZtG/jpGrPEdduo1LGq8UaY/OKjqPiVOVGWH8KgIf7GIrj6ZIPZ5SXEAflPSMf9G5Jtxgd6fJ+k2DodwX0cQbJf4TjzL756EybNEn3UwnpNOlyRE+qqWYIdzDD6TdoPuYJi4C7/MM/fCPUkuXn1rcyrl5aoONvrcL1FA2CnRHo4Ul34oGLNh/TmyeGNPg2TnENEL7xLgrWj+OLEl9x/FK99iuymTLGkmLu1CD0eXIVH2oYN9iOSrqbGXrB+sy34ObtDJGZhjohi+ueQOPpxs="
+            "thoughtSignature": "CokCAWkUfRNuPe1cRdP5zo3SkbeI/UYuiMcIlL2eKfsFdrhxnqmBNmPM/K1tSn4fACURaS0ju5NMUt+cmxZoYS4xdj7q7HxGG9ZAFV11zDrOcANOCsVWV/RKGGmAhrI3X1ZCSCq6z4RQmRr4AXTx+DWOjMfznjUYz0sr/NAtqyC4Gf2pFOzh9gN7gx6IenXoxph92tXmdYIi76DRJzM7BVixzrgCnERTaG+2J1YyA9Tt/ch9zroewib+oZOCX+Zbl9yh1p3N17ChUUoYSVQzZvmEm6l596nlS+08V8qpbECZxj3vSLbWuM5jPmy6ThdbQd+CnOQJ5yZ7+IgOwCKkWq8aDyWfohc8tUqn9g=="
           }
         ],
         "role": "model"
@@ -52,16 +52,16 @@ X-Xss-Protection: 1; mode=block
   "usageMetadata": {
     "promptTokenCount": 51,
     "candidatesTokenCount": 15,
-    "totalTokenCount": 116,
+    "totalTokenCount": 118,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 51
       }
     ],
-    "thoughtsTokenCount": 50,
+    "thoughtsTokenCount": 52,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-2.5-flash",
-  "responseId": "DROIapuDE7_8vdIP2f6XyQY"
+  "responseId": "aRjAary7B4qDxN8P4NCWgAo"
 }

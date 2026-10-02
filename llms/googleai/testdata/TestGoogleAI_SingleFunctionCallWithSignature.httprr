@@ -1,5 +1,5 @@
 httprr trace v1
-1056 1595
+1056 1825
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
@@ -9,19 +9,23 @@ X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
 {"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Multiply two numbers together","name":"multiply","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
-Content-Length: 1182
+Content-Length: 1233
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:53:54 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=1031
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 20:47:03 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1103
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -32,12 +36,12 @@ X-Xss-Protection: 0
             "functionCall": {
               "name": "multiply",
               "args": {
-                "a": 7,
-                "b": 9
+                "b": 9,
+                "a": 7
               },
-              "id": "n5u72jdq"
+              "id": "call_459874"
             },
-            "thoughtSignature": "EvQBCvEBARFNMg+DspE09ruHIitzO7Rtj6iul3YH7KKQoEXyKfo7w8/KtUpPI1e21bLS4HXmejeLtRoHIXVdbNMws/7g0dM288dfRw9VeGqygB+ecVeBqKBvsS/V0TgoCDLQKN4jWA5VEY7g/04IpcwfaT9FX/knJtSwWzWI+ybxZ9HcdbeyrHGa2J8UVhdaWMPC0bN1+7xnlfFPv6YYN0eQpbZInobATWoCHDuPt5xcv/cXZZtckE99zJAf+RTvSr1sSJbFwQ6/t3MBNKyZQ48AZOarHbqcx9iw+wBWWrptT2o6/d/8Klx6KWBaYwK+TmVmDNEWdg=="
+            "thoughtSignature": "EpoCCpcCAWkUfRPQmvA+tXRV0EqKM3+9T6j6v6flIcbj9eGAYY6ybUdpPQN6XQN3v0nCqsD+SfiOvqsamMR645gLH/NRLz89G+N3vqfWM3C7BqGhJdDwiX5w48I5xS2stGV7fRrsCbkd9ErJczx1tDn9/tOuloXtLW2GHGJJbhQAsND6ym0HEZSHSz78m5MvAR7Wt7H0OHbUCz3qaWUThL87NGQvfdFMyD8vcSWhEzrXq4tHVAhrKvYEueKhunxhqaGjLSxLpEyya7ujothbe77pgITL+4QEu1Qi2AbO62npUFCvJDQDU8kccSgWWaJGZxdObOFqfT31TuoMOYfg7G1Rhfom+drwdeHloZRnZzF1FR+DG/HJ5PgK7+YC"
           }
         ],
         "role": "model"
@@ -50,42 +54,46 @@ X-Xss-Protection: 0
   "usageMetadata": {
     "promptTokenCount": 77,
     "candidatesTokenCount": 16,
-    "totalTokenCount": 152,
+    "totalTokenCount": 149,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 77
       }
     ],
-    "thoughtsTokenCount": 59,
+    "thoughtsTokenCount": 56,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "sbZxas7nCYX7vdIPwL6goQ4"
+  "responseId": "RhjAaun-Gfv1xN8Pn5q16Q0"
 }
-1350 1248
+1404 1518
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 1023
+Content-Length: 1077
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"},{"parts":[{"functionCall":{"args":{"a":7,"b":9},"id":"n5u72jdq","name":"multiply"},"thoughtSignature":"EvQBCvEBARFNMg+DspE09ruHIitzO7Rtj6iul3YH7KKQoEXyKfo7w8/KtUpPI1e21bLS4HXmejeLtRoHIXVdbNMws/7g0dM288dfRw9VeGqygB+ecVeBqKBvsS/V0TgoCDLQKN4jWA5VEY7g/04IpcwfaT9FX/knJtSwWzWI+ybxZ9HcdbeyrHGa2J8UVhdaWMPC0bN1+7xnlfFPv6YYN0eQpbZInobATWoCHDuPt5xcv/cXZZtckE99zJAf+RTvSr1sSJbFwQ6/t3MBNKyZQ48AZOarHbqcx9iw+wBWWrptT2o6/d/8Klx6KWBaYwK+TmVmDNEWdg=="}],"role":"model"},{"parts":[{"functionResponse":{"id":"n5u72jdq","name":"multiply","response":{"response":"63"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":512},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 837
+{"contents":[{"parts":[{"text":"Use the multiply function to calculate 7 times 9"}],"role":"user"},{"parts":[{"functionCall":{"args":{"a":7,"b":9},"id":"call_459874","name":"multiply"},"thoughtSignature":"EpoCCpcCAWkUfRPQmvA+tXRV0EqKM3+9T6j6v6flIcbj9eGAYY6ybUdpPQN6XQN3v0nCqsD+SfiOvqsamMR645gLH/NRLz89G+N3vqfWM3C7BqGhJdDwiX5w48I5xS2stGV7fRrsCbkd9ErJczx1tDn9/tOuloXtLW2GHGJJbhQAsND6ym0HEZSHSz78m5MvAR7Wt7H0OHbUCz3qaWUThL87NGQvfdFMyD8vcSWhEzrXq4tHVAhrKvYEueKhunxhqaGjLSxLpEyya7ujothbe77pgITL+4QEu1Qi2AbO62npUFCvJDQDU8kccSgWWaJGZxdObOFqfT31TuoMOYfg7G1Rhfom+drwdeHloZRnZzF1FR+DG/HJ5PgK7+YC"}],"role":"model"},{"parts":[{"functionResponse":{"id":"call_459874","name":"multiply","response":{"response":"63"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":512},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 927
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:53:56 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=895
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 20:47:05 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1187
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -94,7 +102,7 @@ X-Xss-Protection: 0
         "parts": [
           {
             "text": "7 times 9 is 63.",
-            "thoughtSignature": "EpUBCpIBARFNMg/PzoIAosIygeTzoXuHN+zT31drCpHa2EhrfyUpQS/FuJX7tSIRiq3oYuOokD4RQOeqrNZ20vMmrniVQSXPkcqJCBvKoWAVabCfTb6v8io9tsY0nh/Wc7thvY+c8zz7b5Mp48v6fd1JiQvMpWl/PR1Bu8qLL7sKhBwV1kONu9kfG8EwIyga7eXGa31u6gQ="
+            "thoughtSignature": "EtsBCtgBAWkUfRO6QyzFPYpBDxDz5ogHkzmZZczoX8YSy6YmwsxkcycxI7oUuM0xXKupGpAeV4fT8MSMfr9qA9V+h5OzmcTWbU6HQiQNlEQsIkeEUQ7oEHmjqVZ7LlU6bNlId0JhtzJDZbASdNmy1RQXqTSNiAR4ipzlIcqhTuYyTs4B+Qzx02nvW/uiQERBjnKlIFDBAbyIn/ApvztVIl+ZLBRSjTRZ9O1BJroCPHhvragTdwCZnbGt5IH57xGmho3gVD3XHSRVKpafK9HF5TPmYJsqEhrQx8oAS+21"
           }
         ],
         "role": "model"
@@ -104,18 +112,18 @@ X-Xss-Protection: 0
     }
   ],
   "usageMetadata": {
-    "promptTokenCount": 100,
+    "promptTokenCount": 97,
     "candidatesTokenCount": 9,
     "totalTokenCount": 134,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
-        "tokenCount": 100
+        "tokenCount": 97
       }
     ],
-    "thoughtsTokenCount": 25,
+    "thoughtsTokenCount": 28,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "s7ZxaqKwD7ayxN8PysrSgA4"
+  "responseId": "SBjAapiDNITnvdIPi576iAs"
 }
