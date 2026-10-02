@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -259,6 +260,16 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 	t.Fatalf("the dropped extra body went unreported: %v", resp.Warnings)
 }
 
+func temperatureWarnings(resp *llms.ContentResponse) []llms.Warning {
+	var found []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithTemperature" {
+			found = append(found, w)
+		}
+	}
+	return found
+}
+
 func TestATemperatureOutsideClaudesRangeIsClampedAndReported(t *testing.T) {
 	t.Parallel()
 
@@ -269,23 +280,45 @@ func TestATemperatureOutsideClaudesRangeIsClampedAndReported(t *testing.T) {
 		{asked: 1.5, sent: 1, reported: true},
 		{asked: -0.5, sent: 0, reported: true},
 		{asked: 0.7, sent: 0.7},
+		{asked: 0, sent: 0},
+		{asked: 1, sent: 1},
 	} {
 		resp, body := generateForModelSending(t, "claude-sonnet-4-5", llms.WithTemperature(tc.asked))
 
+		require.Contains(t, body, "temperature", "asked %v", tc.asked)
 		require.InDelta(t, tc.sent, body["temperature"], 1e-9, "asked %v", tc.asked)
-		var clamps []llms.Warning
-		for _, w := range resp.Warnings {
-			if w.Option == "WithTemperature" {
-				clamps = append(clamps, w)
-			}
-		}
+		clamps := temperatureWarnings(resp)
 		if !tc.reported {
 			require.Empty(t, clamps, "asked %v", tc.asked)
 			continue
 		}
 		require.Len(t, clamps, 1, "asked %v", tc.asked)
 		require.Equal(t, llms.WarningClamp, clamps[0].Kind)
+		require.Equal(t, strconv.FormatFloat(tc.asked, 'g', -1, 64), clamps[0].Asked)
+		require.Equal(t, strconv.FormatFloat(tc.sent, 'g', -1, 64), clamps[0].Sent)
 	}
+}
+
+func TestATemperatureADoorRuleDropsIsReportedOnceWithTheCallersValue(t *testing.T) {
+	t.Parallel()
+
+	resp, body := generateForModelSending(t, "claude-opus-5-5", llms.WithTemperature(1.5))
+
+	require.NotContains(t, body, "temperature")
+	reported := temperatureWarnings(resp)
+	require.Len(t, reported, 1, "%v", reported)
+	require.Equal(t, llms.WarningDrop, reported[0].Kind)
+	require.Equal(t, "1.5", reported[0].Asked)
+	require.Empty(t, reported[0].Sent)
+}
+
+func TestTheClaudeRangeLeavesAnotherModelsTemperatureAlone(t *testing.T) {
+	t.Parallel()
+
+	resp, body := generateForModelSending(t, "deepseek-chat", llms.WithTemperature(1.5))
+
+	require.InDelta(t, 1.5, body["temperature"], 1e-9)
+	require.Empty(t, temperatureWarnings(resp))
 }
 
 func TestTurningThinkingOffOnClaudeSonnet55SendsItsLowestSetting(t *testing.T) {

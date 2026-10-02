@@ -140,11 +140,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
 	}
 	if input.Temperature != nil {
-		temperature := *input.Temperature
-		if isAnthropicModelID(input.ModelID) {
-			temperature = min(max(temperature, 0), 1)
-		}
-		inferenceConfig.Temperature = aws.Float32(float32(temperature))
+		inferenceConfig.Temperature = aws.Float32(float32(reasoning.ClaudeClampTemperature(input.ModelID, *input.Temperature)))
 	}
 	if input.TopP != nil {
 		inferenceConfig.TopP = aws.Float32(float32(*input.TopP))
@@ -223,8 +219,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			}
 			if isAnthropicModelID(input.ModelID) {
-				keepTopP := input.Temperature == nil && inferenceConfig.TopP != nil &&
-					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, float64(*inferenceConfig.TopP))
+				keepTopP := input.Temperature == nil && input.TopP != nil &&
+					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, *input.TopP)
 				inferenceConfig.Temperature = aws.Float32(1.0)
 				if keepTopP {
 					inferenceConfig.Temperature = nil

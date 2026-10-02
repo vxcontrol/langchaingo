@@ -1,6 +1,7 @@
 package bedrock_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,13 +31,57 @@ func TestClaudeOnBedrockTakesATemperatureFromZeroToOne(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			resp, body := bedrockWarningsSending(t, tc.answer, tc.opts, llms.WithTemperature(1.5))
+			for _, c := range []struct {
+				asked, sent float64
+				reported    bool
+			}{
+				{asked: 1.5, sent: 1, reported: true},
+				{asked: -0.5, sent: 0, reported: true},
+				{asked: 0, sent: 0},
+				{asked: 1, sent: 1},
+			} {
+				resp, body := bedrockWarningsSending(t, tc.answer, tc.opts, llms.WithTemperature(c.asked))
 
-			require.InDelta(t, 1.0, tc.sent(body), 1e-9)
-			w, ok := bedrockWarningsByOption(resp.Warnings)["WithTemperature"]
-			require.True(t, ok, "the lowered temperature went unreported: %v", resp.Warnings)
-			require.Equal(t, "1.5", w.Asked)
-			require.Equal(t, "1", w.Sent)
+				sent := tc.sent(body)
+				require.NotNil(t, sent, "asked %v: no temperature on the wire", c.asked)
+				require.InDelta(t, c.sent, sent, 1e-6, "asked %v", c.asked)
+				w, ok := bedrockWarningsByOption(resp.Warnings)["WithTemperature"]
+				if !c.reported {
+					require.False(t, ok, "asked %v: %v", c.asked, resp.Warnings)
+					continue
+				}
+				require.True(t, ok, "asked %v: the clamp went unreported: %v", c.asked, resp.Warnings)
+				require.Equal(t, llms.WarningClamp, w.Kind)
+				require.Equal(t, strconv.FormatFloat(c.asked, 'g', -1, 64), w.Asked)
+				require.Equal(t, strconv.FormatFloat(c.sent, 'g', -1, 64), w.Sent)
+			}
 		})
 	}
+}
+
+func TestConverseLeavesANonClaudeTemperatureAlone(t *testing.T) {
+	t.Parallel()
+
+	resp, body := bedrockWarningsSending(t, converseAnswer,
+		[]bedrock.Option{bedrock.WithModel("us.amazon.nova-pro-v1:0"), bedrock.WithConverseAPI()},
+		llms.WithTemperature(1.5))
+
+	cfg, _ := body["inferenceConfig"].(map[string]any)
+	require.InDelta(t, 1.5, cfg["temperature"], 1e-6)
+	_, reported := bedrockWarningsByOption(resp.Warnings)["WithTemperature"]
+	require.False(t, reported, "%v", resp.Warnings)
+}
+
+func TestConverseKeepsATopPOfExactlyTheThinkingFloor(t *testing.T) {
+	t.Parallel()
+
+	resp, body := bedrockWarningsSending(t, converseAnswer,
+		[]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI()},
+		llms.WithReasoning(llms.ReasoningMedium, 2048), llms.WithTopP(0.95))
+
+	cfg, _ := body["inferenceConfig"].(map[string]any)
+	require.InDelta(t, 0.95, cfg["topP"], 1e-6)
+	require.NotContains(t, cfg, "temperature")
+	_, dropped := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
+	require.False(t, dropped, "%v", resp.Warnings)
 }

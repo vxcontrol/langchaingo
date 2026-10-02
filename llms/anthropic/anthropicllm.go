@@ -284,8 +284,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	}
 
 	warn := &llms.Warnings{}
-	requested := clampClaudeTemperature(warn, model, *opts)
-	temperature, topP, topK, maxTokens := requested.Temperature, requested.TopP, requested.TopK, requested.GetMaxTokens()
+	temperature, topP, topK, maxTokens := opts.Temperature, opts.TopP, opts.TopK, opts.GetMaxTokens()
 	switch {
 	case thinking != nil && thinking.Type == "adaptive":
 		temperature = nil
@@ -317,7 +316,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		topP = nil
 	}
 
-	reportAnthropicSampling(warn, model, requested, thinking, outputConfig, temperature, topP, topK, maxTokens)
+	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
+	temperature = clampClaudeTemperature(warn, model, temperature)
 
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),

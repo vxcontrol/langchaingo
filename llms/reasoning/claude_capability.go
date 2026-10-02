@@ -418,6 +418,13 @@ func ClaudeKeepsTopPWhileThinking(model string, topP float64) bool {
 // ClaudeRejectsSampling reports whether the model rejects temperature/top_p
 // outright, so sampling params must be dropped even when no thinking is
 // requested.
+func ClaudeClampTemperature(model string, temperature float64) float64 {
+	if !isClaudeModel(model) {
+		return temperature
+	}
+	return min(max(temperature, 0), 1)
+}
+
 func ClaudeRejectsSampling(model string) bool {
 	return containsAny(canonicalClaude(model), rejectsSamplingClaude)
 }
