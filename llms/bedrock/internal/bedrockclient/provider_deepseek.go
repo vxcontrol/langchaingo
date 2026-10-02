@@ -88,6 +88,9 @@ func createDeepSeekCompletion(ctx context.Context,
 		return nil, err
 	}
 
+	if len(output.Choices) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, 0, len(output.Choices))
 	for _, choice := range output.Choices {
 		choices = append(choices, &llms.ContentChoice{

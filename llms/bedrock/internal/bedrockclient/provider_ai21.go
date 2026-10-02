@@ -211,6 +211,9 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 		return nil, err
 	}
 
+	if len(output.Completions) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Completions))
 	for i, completion := range output.Completions {
 		choices[i] = &llms.ContentChoice{
@@ -289,6 +292,9 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 		return nil, err
 	}
 
+	if len(output.Choices) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Choices))
 	for i, choice := range output.Choices {
 		choices[i] = &llms.ContentChoice{

@@ -176,6 +176,9 @@ func createCohereCompletion(ctx context.Context,
 		return nil, err
 	}
 
+	if len(output.Generations) == 0 {
+		return nil, errors.New("no results")
+	}
 	choices := make([]*llms.ContentChoice, len(output.Generations))
 
 	for i, gen := range output.Generations {
