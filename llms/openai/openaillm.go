@@ -832,8 +832,13 @@ func (o *LLM) processResponse(
 }
 
 func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
+	completion := usage.CompletionTokens
+	if thoughts := usage.CompletionTokensDetails.ReasoningTokens; thoughts > 0 &&
+		usage.TotalTokens == usage.PromptTokens+usage.CompletionTokens+thoughts {
+		completion += thoughts
+	}
 	info := map[string]any{
-		"CompletionTokens":  usage.CompletionTokens,
+		"CompletionTokens":  completion,
 		"PromptTokens":      usage.PromptTokens,
 		"TotalTokens":       usage.TotalTokens,
 		"ReasoningTokens":   usage.CompletionTokensDetails.ReasoningTokens,
