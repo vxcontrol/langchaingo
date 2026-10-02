@@ -71,24 +71,6 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 			}
 		})
 
-		t.Run(name+"/a forced choice with manual thinking and no tools goes out without the choice", func(t *testing.T) {
-			t.Parallel()
-			answer := legacyAnswer
-			if converse {
-				answer = converseAnswer
-			}
-			_, body := bedrockWarningsSending(t, answer,
-				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}, opts...),
-				llms.WithReasoning(llms.ReasoningMedium, 2048),
-				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
-			if _, sent := body["tool_choice"]; sent {
-				t.Errorf("the legacy body carries a tool choice with no tools: %v", body)
-			}
-			if _, sent := body["toolConfig"]; sent {
-				t.Errorf("the converse body carries a tool config with no tools: %v", body)
-			}
-		})
-
 		t.Run(name+"/a forced tool with adaptive thinking is allowed", func(t *testing.T) {
 			t.Parallel()
 			llm := truncationLLMWithBody(t, `{}`,
@@ -114,5 +96,27 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 				t.Errorf("the Claude-only rule refused a family that never carries a thinking payload: %v", err)
 			}
 		})
+	}
+}
+
+func TestABedrockForcedChoiceWithABudgetAndNoToolsGoesOutWithoutTheChoice(t *testing.T) {
+	t.Parallel()
+
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}
+		answer := legacyAnswer
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+			answer = converseAnswer
+		}
+		_, body := bedrockWarningsSending(t, answer, opts,
+			llms.WithReasoning(llms.ReasoningMedium, 2048),
+			llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+		if _, sent := body["tool_choice"]; sent {
+			t.Errorf("converse=%v: the legacy body carries a tool choice with no tools: %v", converse, body)
+		}
+		if _, sent := body["toolConfig"]; sent {
+			t.Errorf("converse=%v: the converse body carries a tool config with no tools: %v", converse, body)
+		}
 	}
 }
