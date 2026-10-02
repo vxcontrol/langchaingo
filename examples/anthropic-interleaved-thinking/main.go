@@ -199,7 +199,7 @@ func main() {
 	ctx := context.Background()
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
-	fmt.Println("║      Claude 4 Interleaved Thinking Demo                   ║")
+	fmt.Println("║      Claude 5 Interleaved Thinking Demo                   ║")
 	fmt.Println("║     Demonstrating thinking between tool calls             ║")
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
 	fmt.Println()
@@ -220,13 +220,13 @@ func main() {
 	// Stage 1: Initialization
 	fmt.Println("🚀 STAGE 1: INITIALIZATION")
 	fmt.Println("─────────────────────────")
-	fmt.Println("  • Model: Claude Sonnet 4.5")
-	fmt.Println("  • Beta: interleaved-thinking-2025-05-14")
+	fmt.Println("  • Model: Claude Sonnet 5.5")
+	fmt.Println("  • Thinking: adaptive, interleaved with tool calls")
 	fmt.Println("  • Feature: Thinking between tool calls")
 
 	// Configure options for Anthropic client
 	anthropicOpts := []anthropic.Option{
-		anthropic.WithModel("claude-sonnet-4-5"),
+		anthropic.WithModel("claude-sonnet-5-5"),
 		// IMPORTANT: Set cache strategy at CLIENT level for automatic application to ALL requests
 		// This ensures caching works correctly across multi-turn conversations
 		anthropic.WithDefaultCacheStrategy(anthropic.CacheStrategy{
@@ -248,7 +248,6 @@ func main() {
 		anthropicOpts = append(anthropicOpts, anthropic.WithHTTPClient(httpClient))
 	}
 
-	// Using Claude Sonnet 4 for interleaved thinking
 	llm, err := anthropic.New(anthropicOpts...)
 	if err != nil {
 		fmt.Printf("  ❌ Error initializing Anthropic: %v\n", err)
@@ -320,8 +319,7 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 	fmt.Println("─────────────────────────")
 	fmt.Println("  • Thinking Mode: MEDIUM")
 	fmt.Println("  • Interleaved Thinking: ENABLED")
-	fmt.Println("  • Temperature: 1.0 (required for thinking)")
-	fmt.Println("  • Max Tokens: 4000")
+	fmt.Println("  • Max Tokens: 8000")
 	fmt.Println("  • Prompt Caching: ENABLED (1-hour TTL)")
 	fmt.Println("  • Cache Strategy:")
 	fmt.Println("    - Tools: CACHED (5 tools)")
@@ -331,6 +329,8 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 	fmt.Println("    - calculate: Mathematical calculations")
 	fmt.Println("    - search_knowledge: Information retrieval")
 	fmt.Println("    - analyze_data: Statistical analysis")
+	fmt.Println("    - make_prediction: Predictions from calculated metrics")
+	fmt.Println("    - generate_report: Strategic report from the analysis")
 	fmt.Println()
 
 	// Cache analytics tracking
@@ -354,15 +354,11 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 
 	opts := []llms.CallOption{
 		// Enable thinking mode for reasoning between tools
-		llms.WithReasoning(llms.ReasoningMedium, 4000),
-		// Add interleaved thinking beta header
-		anthropic.WithInterleavedThinking(),
+		llms.WithReasoning(llms.ReasoningMedium, 0),
 		// Enable prompt caching (CRITICAL for interleaved thinking with tools!)
 		anthropic.WithPromptCaching(),
 		// Note: Cache strategy is set at CLIENT level (see anthropic.New above)
 		// This ensures it applies to ALL requests automatically
-		// Temperature must be 1 when thinking is enabled
-		llms.WithTemperature(1.0),
 		// Provide tools
 		llms.WithTools([]llms.Tool{
 			calculateTool,

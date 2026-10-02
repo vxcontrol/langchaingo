@@ -1,5 +1,5 @@
 httprr trace v1
-664 2208
+664 2143
 POST https://api.anthropic.com/v1/messages HTTP/1.1
 Host: api.anthropic.com
 User-Agent: langchaingo-httprr
@@ -11,7 +11,6 @@ X-Api-Key: test-api-key
 
 {"model":"claude-sonnet-4-5","messages":[{"role":"user","content":[{"type":"text","text":"Calculate (5 + 3) and then multiply by 2"}]}],"max_tokens":4096,"temperature":1,"tools":[{"name":"calculate","description":"Perform a calculation","input_schema":{"properties":{"expression":{"type":"string"}},"required":["expression"],"type":"object"}}],"thinking":{"type":"enabled","budget_tokens":2048}}HTTP/2.0 200 OK
 Content-Length: 1194
-Anthropic-Organization-Id: 1904456a-cd64-476c-9cc8-db00cdf9d232
 Anthropic-Ratelimit-Input-Tokens-Limit: 2000000
 Anthropic-Ratelimit-Input-Tokens-Remaining: 2000000
 Anthropic-Ratelimit-Input-Tokens-Reset: 2026-01-26T23:34:11Z
@@ -33,7 +32,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 X-Envoy-Upstream-Service-Time: 2520
 X-Robots-Tag: none
 
-{"model":"claude-sonnet-4-5-20250929","id":"msg_01XX2qdoQ5WNBRd5WwDzfiLs","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to:\n1. Calculate (5 + 3)\n2. Then multiply that result by 2\n\nI can do this in one calculation: (5 + 3) * 2\n\nLet me use the calculate function to compute this.","signature":"EtgCCkYICxgCKkAQHixoPDQwD9Pf0GyoWSG0ipJjgnhRhUsWMGRf6PKykeA6Dz+EI8fa9yeKQttngwFibwjqFZ6qPhanqQsxKBpiEgwDxACbfTP4VcPm6uMaDA5NfLuUhm2y8Kn5iiIwcsRk7bxA1jiIwd8QyIuNKa9O+IiuYzRWaN7QBJ7bT0R4/eUyArB0Hks1BBLxt5+VKr8BlpFuctab4iX0xit2s9981lTBeMlQX3nDKyMo4GmL3OTz7lt2nfIEztifU6NEcydNopmlAgHr+650w4+050ALJx6V3EYSSHAK0FF9GJ4NhPxzbfgNn4zCvEmA9fLe6WstDP3U400FMiOq7NG8/1oKAjb94OWOlqnEUknqUwvaLmLKlWCr61L0v1GrOXFihQmuOeS+1uZttmaej0PvykrJVNJvVwOTzu56bYLJPxwrh+0V2P62ErV0WXmg5V6SOsIYAQ=="},{"type":"tool_use","id":"toolu_01DEbz4aVH2QyU3TVqydqZpN","name":"calculate","input":{"expression":"(5 + 3) * 2"}}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":745,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":125,"service_tier":"standard"}}1622 2446
+{"model":"claude-sonnet-4-5-20250929","id":"msg_01XX2qdoQ5WNBRd5WwDzfiLs","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to:\n1. Calculate (5 + 3)\n2. Then multiply that result by 2\n\nI can do this in one calculation: (5 + 3) * 2\n\nLet me use the calculate function to compute this.","signature":"EtgCCkYICxgCKkAQHixoPDQwD9Pf0GyoWSG0ipJjgnhRhUsWMGRf6PKykeA6Dz+EI8fa9yeKQttngwFibwjqFZ6qPhanqQsxKBpiEgwDxACbfTP4VcPm6uMaDA5NfLuUhm2y8Kn5iiIwcsRk7bxA1jiIwd8QyIuNKa9O+IiuYzRWaN7QBJ7bT0R4/eUyArB0Hks1BBLxt5+VKr8BlpFuctab4iX0xit2s9981lTBeMlQX3nDKyMo4GmL3OTz7lt2nfIEztifU6NEcydNopmlAgHr+650w4+050ALJx6V3EYSSHAK0FF9GJ4NhPxzbfgNn4zCvEmA9fLe6WstDP3U400FMiOq7NG8/1oKAjb94OWOlqnEUknqUwvaLmLKlWCr61L0v1GrOXFihQmuOeS+1uZttmaej0PvykrJVNJvVwOTzu56bYLJPxwrh+0V2P62ErV0WXmg5V6SOsIYAQ=="},{"type":"tool_use","id":"toolu_01DEbz4aVH2QyU3TVqydqZpN","name":"calculate","input":{"expression":"(5 + 3) * 2"}}],"stop_reason":"tool_use","stop_sequence":null,"usage":{"input_tokens":745,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":125,"service_tier":"standard"}}1622 2381
 POST https://api.anthropic.com/v1/messages HTTP/1.1
 Host: api.anthropic.com
 User-Agent: langchaingo-httprr
@@ -45,7 +44,6 @@ X-Api-Key: test-api-key
 
 {"model":"claude-sonnet-4-5","messages":[{"role":"user","content":[{"type":"text","text":"Calculate (5 + 3) and then multiply by 2"}]},{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to:\n1. Calculate (5 + 3)\n2. Then multiply that result by 2\n\nI can do this in one calculation: (5 + 3) * 2\n\nLet me use the calculate function to compute this.","signature":"EtgCCkYICxgCKkAQHixoPDQwD9Pf0GyoWSG0ipJjgnhRhUsWMGRf6PKykeA6Dz+EI8fa9yeKQttngwFibwjqFZ6qPhanqQsxKBpiEgwDxACbfTP4VcPm6uMaDA5NfLuUhm2y8Kn5iiIwcsRk7bxA1jiIwd8QyIuNKa9O+IiuYzRWaN7QBJ7bT0R4/eUyArB0Hks1BBLxt5+VKr8BlpFuctab4iX0xit2s9981lTBeMlQX3nDKyMo4GmL3OTz7lt2nfIEztifU6NEcydNopmlAgHr+650w4+050ALJx6V3EYSSHAK0FF9GJ4NhPxzbfgNn4zCvEmA9fLe6WstDP3U400FMiOq7NG8/1oKAjb94OWOlqnEUknqUwvaLmLKlWCr61L0v1GrOXFihQmuOeS+1uZttmaej0PvykrJVNJvVwOTzu56bYLJPxwrh+0V2P62ErV0WXmg5V6SOsIYAQ=="},{"type":"tool_use","id":"toolu_01DEbz4aVH2QyU3TVqydqZpN","name":"calculate","input":{"expression":"(5 + 3) * 2"}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01DEbz4aVH2QyU3TVqydqZpN","content":"8"}]}],"max_tokens":4096,"temperature":1,"tools":[{"name":"calculate","description":"Perform a calculation","input_schema":{"properties":{"expression":{"type":"string"}},"required":["expression"],"type":"object"}}],"thinking":{"type":"enabled","budget_tokens":2048}}HTTP/2.0 200 OK
 Content-Length: 1432
-Anthropic-Organization-Id: 1904456a-cd64-476c-9cc8-db00cdf9d232
 Anthropic-Ratelimit-Input-Tokens-Limit: 2000000
 Anthropic-Ratelimit-Input-Tokens-Remaining: 2000000
 Anthropic-Ratelimit-Input-Tokens-Reset: 2026-01-26T23:34:15Z

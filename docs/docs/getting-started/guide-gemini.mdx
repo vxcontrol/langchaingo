@@ -56,7 +56,7 @@ The `googleai` client reads the API key from the `GOOGLE_API_KEY` environment va
 ```go
 llm, err := googleai.New(ctx,
     googleai.WithAPIKey(os.Getenv("GOOGLE_API_KEY")),
-    googleai.WithDefaultModel("gemini-2.5-flash"),
+    googleai.WithDefaultModel("gemini-3.8-flash"),
 )
 ```
 

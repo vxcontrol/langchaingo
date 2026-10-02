@@ -1,14 +1,14 @@
 # Anthropic Vision Example
 
-Hello there! 👋 This example demonstrates how to use the Anthropic Claude 3 Claude 3 Sonnet model for image analysis using Go and the LangChain Go library. Let's break down what this exciting code does!
+Hello there! 👋 This example demonstrates how to use the Anthropic Claude Sonnet 5.5 model for image analysis using Go and the LangChain Go library. Let's break down what this exciting code does!
 
 ## What This Example Does
 
-1. **Sets Up Anthropic**: The code initializes an Anthropic client to interact with the Claude 3 Sonnet model.
+1. **Sets Up Anthropic**: The code initializes an Anthropic client to interact with the Claude Sonnet 5.5 model.
 
 2. **Loads an Image**: An image file (`image.png`) is embedded into the binary using Go's `embed` package. This image will be analyzed by the AI model.
 
-3. **Sends a Request**: The code constructs a request to the Claude 3 model, including:
+3. **Sends a Request**: The code constructs a request to the Claude model, including:
    - The image data in a base64 encoded string (in PNG format)
    - A text prompt asking to identify the string on a box in the image
 
@@ -31,4 +31,4 @@ To run this example, you'll need:
 
 Once everything is set up, simply run the Go file, and it should output the AI's interpretation of the text on the box in the image!
 
-Happy coding, and enjoy exploring the fascinating world of multimodal AI with Claude 3! 🚀🖼️🤖
+Happy coding, and enjoy exploring the fascinating world of multimodal AI with Claude! 🚀🖼️🤖

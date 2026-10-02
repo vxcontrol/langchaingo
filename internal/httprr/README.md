@@ -221,7 +221,7 @@ GOOGLE_API_KEY=<gateway key> GOOGLE_BASE_URL=https://gateway.example/gemini \
   go test ./llms/googleai/ -httprecord=. -run TestGoogleAIWithTools
 ```
 
-The recorded request still carries the vendor URL, because the rewrite happens below the recorder. Proxy-added `X-Litellm-*` response headers are scrubbed, one of which reports the key's accumulated spend; `TestRecordingsCarryNoProxyHeaders` fails if any reaches `testdata/`.
+The recorded request still carries the vendor URL, because the rewrite happens below the recorder. The recorder drops the gateway's `X-Litellm-*` headers (one reports the key's accumulated spend), the vendor headers the gateway forwards as `llm_provider-*`, and the headers that identify the account or the recording machine; `TestNoRecordingInThisRepositoryCarriesGatewayHeaders` fails if any of them reaches a cassette.
 
 ### Running with Recorded Data
 

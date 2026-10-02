@@ -3,6 +3,8 @@ package textsplitter
 import (
 	"testing"
 
+	"github.com/pkoukk/tiktoken-go"
+
 	"github.com/vxcontrol/langchaingo/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +13,7 @@ import (
 
 func TestTokenSplitter(t *testing.T) {
 	t.Parallel()
+	cl100kBase(t)
 	type testCase struct {
 		text         string
 		chunkOverlap int
@@ -86,4 +89,14 @@ Bye!
 		require.NoError(t, err)
 		assert.Equal(t, tc.expectedDocs, docs)
 	}
+}
+
+func cl100kBase(t *testing.T) *tiktoken.Tiktoken {
+	t.Helper()
+
+	encoding, err := tiktoken.GetEncoding("cl100k_base")
+	if err != nil {
+		t.Skipf("the cl100k_base encoding cannot be loaded: %v", err)
+	}
+	return encoding
 }

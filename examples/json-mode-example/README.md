@@ -9,14 +9,13 @@ This nifty little program demonstrates how to use different language model backe
 Here's what it does in a nutshell:
 
 1. It sets up a command-line flag to choose which AI backend you want to use.
-2. It initializes the chosen AI backend (OpenAI, Ollama, Anthropic, or Google AI).
+2. It initializes the chosen AI backend (OpenAI, Ollama, or Google AI).
 3. It sends a prompt asking "Who was the first man to walk on the moon?" and requests the response in JSON format.
 4. It prints out the JSON response from the AI model.
 
 ## Cool features:
 
-- 🔀 Supports multiple AI backends (OpenAI, Ollama, Anthropic, Google AI)
-- 🌡️ Sets the temperature to 0 for more deterministic responses
+- 🔀 Supports multiple AI backends (OpenAI, Ollama, Google AI)
 - 🧠 Uses JSON mode for structured output
 - 🚀 Easy to run and experiment with!
 
@@ -29,7 +28,7 @@ Here's what it does in a nutshell:
 go run json_mode_example.go -backend=openai
 ```
 
-Replace `openai` with `ollama`, `anthropic`, or `googleai` to try different backends!
+Replace `openai` with `ollama` or `googleai` to try different backends!
 
 ## Have fun!
 

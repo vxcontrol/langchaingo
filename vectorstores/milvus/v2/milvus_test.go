@@ -31,7 +31,11 @@ func createOpenAIEmbedder(t *testing.T) *embeddings.EmbedderImpl {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "OPENAI_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
-	llm, err := openai.New(openai.WithHTTPClient(rr.Client()))
+	opts := []openai.Option{openai.WithHTTPClient(rr.Client())}
+	if rr.Replaying() {
+		opts = append(opts, openai.WithToken("test-api-key"))
+	}
+	llm, err := openai.New(opts...)
 	require.NoError(t, err)
 
 	e, err := embeddings.NewEmbedder(llm)

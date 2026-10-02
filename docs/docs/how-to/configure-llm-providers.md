@@ -59,7 +59,7 @@ llm, err := anthropic.New(anthropic.WithToken("your-api-key"))
 
 ```go
 llm, err := anthropic.New(
-    anthropic.WithModel("claude-sonnet-4-5-20250929"),
+    anthropic.WithModel("claude-sonnet-5-5"),
     anthropic.WithToken("your-api-key"),
 )
 ```
@@ -89,7 +89,7 @@ llm, err := googleai.New(
 ```go
 llm, err := googleai.New(
     context.Background(),
-    googleai.WithDefaultModel("gemini-2.5-flash"),
+    googleai.WithDefaultModel("gemini-3.8-flash"),
     googleai.WithAPIKey("your-api-key"),
 )
 ```

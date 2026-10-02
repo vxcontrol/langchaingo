@@ -13,7 +13,7 @@ This directory contains a simple yet powerful example of how to use the Anthropi
 The `anthropic_completion_example.go` file showcases how to:
 
 - Initialize an Anthropic LLM (Language Model) client
-- Generate text completions using the Claude 3 Opus model
+- Generate text completions using the Claude Sonnet 5.5 model
 - Stream the generated text in real-time
 
 It even includes a fun prompt asking Claude to write a poem about Golang-powered AI systems! 🤖📝

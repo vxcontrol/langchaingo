@@ -1,5 +1,5 @@
 httprr trace v1
-845 2674
+845 2609
 POST https://api.anthropic.com/v1/messages HTTP/1.1
 Host: api.anthropic.com
 User-Agent: langchaingo-httprr
@@ -11,7 +11,6 @@ X-Api-Key: test-api-key
 
 {"model":"claude-sonnet-4-5","messages":[{"role":"user","content":[{"type":"text","text":"Search for the capital of France, then calculate its population density"}]}],"max_tokens":8192,"temperature":1,"tools":[{"name":"search","description":"Search for information","input_schema":{"properties":{"query":{"type":"string"}},"required":["query"],"type":"object"}},{"name":"calculate","description":"Perform calculation","input_schema":{"properties":{"expression":{"type":"string"}},"required":["expression"],"type":"object"}}],"thinking":{"type":"enabled","budget_tokens":4096}}HTTP/2.0 200 OK
 Content-Length: 1660
-Anthropic-Organization-Id: 1904456a-cd64-476c-9cc8-db00cdf9d232
 Anthropic-Ratelimit-Input-Tokens-Limit: 2000000
 Anthropic-Ratelimit-Input-Tokens-Remaining: 2000000
 Anthropic-Ratelimit-Input-Tokens-Reset: 2026-01-26T23:34:10Z

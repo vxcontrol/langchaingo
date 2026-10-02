@@ -15,6 +15,7 @@ import (
 type Client struct {
 	maxResults int
 	userAgent  string
+	httpClient *http.Client
 }
 
 // Result defines a search query result type.
@@ -41,7 +42,12 @@ func NewClient(maxResults int, userAgent string) *Client {
 	return &Client{
 		maxResults: maxResults,
 		userAgent:  userAgent,
+		httpClient: http.DefaultClient,
 	}
+}
+
+func (client *Client) SetHTTPClient(httpClient *http.Client) {
+	client.httpClient = httpClient
 }
 
 func (client *Client) newRequest(ctx context.Context, queryURL string) (*http.Request, error) {
@@ -68,7 +74,7 @@ func (client *Client) Search(ctx context.Context, query string) (string, error) 
 		return "", err
 	}
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := client.httpClient.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("get %s error: %w", queryURL, err)
 	}

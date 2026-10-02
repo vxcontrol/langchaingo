@@ -15,7 +15,7 @@ var image []byte
 
 func main() {
 	llm, err := anthropic.New(
-		anthropic.WithModel("claude-sonnet-4-5"),
+		anthropic.WithModel("claude-sonnet-5-5"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -35,10 +35,7 @@ func main() {
 				},
 			},
 		},
-		llms.WithMaxTokens(1000),
-		llms.WithTemperature(0.1),
-		llms.WithTopP(1.0),
-		llms.WithTopK(100),
+		llms.WithMaxTokens(4096),
 	)
 	if err != nil {
 		log.Fatal(err)

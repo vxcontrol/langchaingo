@@ -12,10 +12,10 @@ import (
 )
 
 func TestHuggingfaceEmbeddings(t *testing.T) {
-	t.Skip("temporary skip")
 	ctx := t.Context()
 
-	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN")
+	httprr.SkipIfRecordingMissing(t)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 
@@ -25,7 +25,11 @@ func TestHuggingfaceEmbeddings(t *testing.T) {
 	}
 
 	// Create HuggingFace client with httprr HTTP client
-	hfClient, err := huggingface.New(huggingface.WithHTTPClient(rr.Client()))
+	opts := []huggingface.Option{huggingface.WithHTTPClient(rr.Client())}
+	if rr.Replaying() {
+		opts = append(opts, huggingface.WithToken("test-api-key"))
+	}
+	hfClient, err := huggingface.New(opts...)
 	require.NoError(t, err)
 
 	e, err := NewHuggingface(WithClient(*hfClient))

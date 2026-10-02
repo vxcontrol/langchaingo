@@ -93,6 +93,7 @@ func TestErrEmptyEmbeddings(t *testing.T) {
 
 func TestMistralEmbed(t *testing.T) {
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "MISTRAL_API_KEY")
+	httprr.SkipIfRecordingMissing(t)
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	defer rr.Close()
@@ -104,12 +105,11 @@ func TestMistralEmbed(t *testing.T) {
 
 	ctx := t.Context()
 
-	// Skip test during replay mode since Mistral SDK doesn't support HTTP client injection
-	if !rr.Recording() {
-		t.Skip("Mistral SDK doesn't support HTTP client injection - skipping replay test")
+	opts := []Option{WithEmbeddingHTTPClient(rr.Client())}
+	if rr.Replaying() {
+		opts = append(opts, WithAPIKey("test-api-key"))
 	}
-
-	model, err := New()
+	model, err := New(opts...)
 	require.NoError(t, err)
 
 	e, err := embeddings.NewEmbedder(model)

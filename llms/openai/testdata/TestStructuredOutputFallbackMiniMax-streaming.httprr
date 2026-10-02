@@ -1,5 +1,5 @@
 httprr trace v1
-1136 6824
+1136 6769
 POST https://api.minimax.io/v1/chat/completions HTTP/1.1
 Host: api.minimax.io
 User-Agent: langchaingo-httprr
@@ -21,7 +21,6 @@ Pragma: no-cache
 Trace-Id: 0704ce7e5c25aec8c6789c745c1afe8d
 Vary: Accept-Encoding
 X-From: ak
-X-Mm-Request-Id: 2078484896493347777_1790286719s06zto
 X-Session-Id: e17187c5048bda17aa8387acb7d1492b
 
 data: {"id":"0704ce7e5c25aec8c6789c745c1afe8d","choices":[{"index":0,"delta":{"content":"<think>\nThe user","role":"assistant","reasoning":"The user"}}],"created":1790286718,"model":"MiniMax-M2.7","object":"chat.completion.chunk","usage":null}

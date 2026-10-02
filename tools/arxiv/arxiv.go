@@ -3,6 +3,7 @@ package arxiv
 import (
 	"context"
 	"errors"
+	"net/http"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/tools"
@@ -20,12 +21,24 @@ type Tool struct {
 
 var _ tools.Tool = Tool{}
 
+type Option func(*Tool)
+
+func WithHTTPClient(client *http.Client) Option {
+	return func(t *Tool) {
+		t.client.SetHTTPClient(client)
+	}
+}
+
 // New initializes a new arXiv Search tool with arguments for setting a
 // max results per search query and a value for the user agent header.
-func New(maxResults int, userAgent string) (*Tool, error) {
-	return &Tool{
+func New(maxResults int, userAgent string, opts ...Option) (*Tool, error) {
+	tool := &Tool{
 		client: internal.NewClient(maxResults, userAgent),
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(tool)
+	}
+	return tool, nil
 }
 
 // Name returns a name for the tool.

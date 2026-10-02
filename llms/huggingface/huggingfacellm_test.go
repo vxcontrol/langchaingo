@@ -63,12 +63,11 @@ func TestHuggingFaceLLMWithProvider(t *testing.T) {
 }
 
 func TestHuggingFaceLLMGenerateContent(t *testing.T) {
-	t.Skip("temporarily skip")
-
 	ctx := t.Context()
 
 	// Skip if no credentials and no recording
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN")
+	httprr.SkipIfRecordingMissing(t)
 
 	rr := httprr.OpenForTest(t, nil)
 	defer rr.Close()

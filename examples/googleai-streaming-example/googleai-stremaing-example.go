@@ -16,7 +16,7 @@ func main() {
 	ctx := context.Background()
 	apiKey := os.Getenv("GOOGLE_API_KEY")
 	// See https://ai.google.dev/gemini-api/docs/models/gemini for possible models
-	llm, err := googleai.New(ctx, googleai.WithAPIKey(apiKey), googleai.WithDefaultModel("gemini-1.5-pro"))
+	llm, err := googleai.New(ctx, googleai.WithAPIKey(apiKey), googleai.WithDefaultModel("gemini-3.8-flash"))
 	if err != nil {
 		log.Fatal(err)
 	}

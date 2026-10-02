@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -23,10 +22,7 @@ import (
 func newHTTPRRClient(t *testing.T, opts ...anthropic.Option) *anthropic.LLM {
 	t.Helper()
 
-	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey == "" {
-		t.Skip("ANTHROPIC_API_KEY not set")
-		return nil
-	}
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "ANTHROPIC_API_KEY")
 
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
 	t.Cleanup(func() { rr.Close() })
@@ -34,6 +30,9 @@ func newHTTPRRClient(t *testing.T, opts ...anthropic.Option) *anthropic.LLM {
 	allOpts := append([]anthropic.Option{
 		anthropic.WithHTTPClient(rr.Client()),
 	}, opts...)
+	if rr.Replaying() {
+		allOpts = append(allOpts, anthropic.WithToken("test-api-key"))
+	}
 
 	llm, err := anthropic.New(allOpts...)
 	require.NoError(t, err)

@@ -15,13 +15,11 @@ import (
 const testURL = "https://router.huggingface.co"
 
 func TestClient_CreateEmbedding(t *testing.T) {
-	t.Skip("temporary skip")
 	ctx := t.Context()
 
 	// Check both HF_TOKEN and HUGGINGFACEHUB_API_TOKEN
-	if os.Getenv("HF_TOKEN") == "" && os.Getenv("HUGGINGFACEHUB_API_TOKEN") == "" {
-		httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN")
-	}
+	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN")
+	httprr.SkipIfRecordingMissing(t)
 
 	rr := httprr.OpenForTest(t, httputil.DefaultTransport)
 	defer rr.Close()

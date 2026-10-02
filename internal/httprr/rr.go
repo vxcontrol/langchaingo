@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1002,6 +1003,20 @@ func hasExistingRecording(t *testing.T) bool {
 	return uncompressedErr == nil || compressedErr == nil
 }
 
+// SkipIfRecordingMissing skips a test that has no recording unless the test is
+// being recorded.
+func SkipIfRecordingMissing(t *testing.T) {
+	t.Helper()
+	if hasExistingRecording(t) {
+		return
+	}
+	recording, err := Recording(filepath.Join("testdata", CleanFileName(t.Name())+".httprr"))
+	if err == nil && recording {
+		return
+	}
+	t.Skip("no httprr recording available. Hint: Re-run tests with -httprecord=. and the vendor's key to record it")
+}
+
 func normalizeGoogleAPIClientHeader(header string) string {
 	versionPattern := regexp.MustCompile(`(/v?(?:go)?)(\d+\.\d+(?:\.\d+)?)`)
 
@@ -1164,15 +1179,22 @@ func getDefaultRequestScrubbers() []func(*http.Request) error {
 	}
 }
 
+var (
+	gatewayHeaderPrefixes = []string{"x-litellm-", "llm_provider-"}
+	identifyingHeaders    = []string{
+		"Anthropic-Organization-Id", "Anthropic-Workspace-Id",
+		"Msh-Project-Id", "Msh-Org-Id", "Msh-Uid", "Msh-Gid",
+		"X-Mm-Request-Id", "X-Client-Ip",
+	}
+)
+
 // getDefaultResponseScrubbers returns the default response scrubbing functions to remove
 // sensitive headers and tracing information from response recordings.
-const gatewayHeaderPrefix = "x-litellm-"
-
 func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 	return []func(*bytes.Buffer) error{
 		func(buf *bytes.Buffer) error {
 			// Parse the response from the buffer
-			resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(buf.Bytes())), nil)
+			resp, err := http.ReadResponse(bufio.NewReader(bytes.NewReader(bytes.Clone(buf.Bytes()))), nil)
 			if err != nil {
 				return nil // Ignore parse errors, just return the buffer as-is
 			}
@@ -1182,9 +1204,15 @@ func getDefaultResponseScrubbers() []func(*bytes.Buffer) error {
 			resp.Header.Del("cf-ray")
 
 			for name := range resp.Header {
-				if strings.HasPrefix(strings.ToLower(name), gatewayHeaderPrefix) {
+				lower := strings.ToLower(name)
+				if slices.ContainsFunc(gatewayHeaderPrefixes, func(prefix string) bool {
+					return strings.HasPrefix(lower, prefix)
+				}) {
 					resp.Header.Del(name)
 				}
+			}
+			for _, name := range identifyingHeaders {
+				resp.Header.Del(name)
 			}
 
 			// Remove Set-Cookie headers (session tokens, etc.)

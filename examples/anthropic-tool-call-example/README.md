@@ -16,7 +16,7 @@ This example showcases the following cool features:
 
 ## How It Works 🛠️
 
-1. The program starts by creating an Anthropic client using the Claude 3 Haiku model.
+1. The program starts by creating an Anthropic client using the Claude Haiku 4.5 model.
 
 2. It then initiates a conversation by asking about the weather in Boston.
 

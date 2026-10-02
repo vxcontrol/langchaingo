@@ -294,6 +294,15 @@ func TestDefaultResponseScrubbers(t *testing.T) {
 	resp.Header.Set("Set-Cookie", "session=secret")
 	resp.Header.Set("Openai-Organization", "org-123")
 	resp.Header.Set("Openai-Project", "proj_real-secret")
+	dropped := []string{
+		"Anthropic-Organization-Id", "Anthropic-Workspace-Id",
+		"Msh-Project-Id", "Msh-Org-Id", "Msh-Uid", "Msh-Gid",
+		"X-Mm-Request-Id", "X-Client-Ip",
+		"Llm_provider-Anthropic-Organization-Id",
+	}
+	for _, name := range dropped {
+		resp.Header.Set(name, "real-secret")
+	}
 
 	// Serialize response
 	var buf bytes.Buffer
@@ -313,6 +322,9 @@ func TestDefaultResponseScrubbers(t *testing.T) {
 	assert.Empty(t, scrubbedResp.Header.Get("Set-Cookie"))
 	assert.Equal(t, "lcgo-tst", scrubbedResp.Header.Get("Openai-Organization"))
 	assert.Equal(t, "proj_lcgo-tst", scrubbedResp.Header.Get("Openai-Project"))
+	for _, name := range dropped {
+		assert.Empty(t, scrubbedResp.Header.Get(name), name)
+	}
 }
 
 func TestEmbeddingJSONFormatter(t *testing.T) {

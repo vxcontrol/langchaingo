@@ -6,14 +6,13 @@ import (
 
 	"github.com/vxcontrol/langchaingo/schema"
 
-	"github.com/pkoukk/tiktoken-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 //nolint:dupword,funlen
 func TestRecursiveCharacterSplitter(t *testing.T) {
-	tokenEncoder, _ := tiktoken.GetEncoding("cl100k_base")
+	tokenEncoder := cl100kBase(t)
 
 	t.Parallel()
 	type testCase struct {

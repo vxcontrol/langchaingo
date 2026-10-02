@@ -1,6 +1,6 @@
 # Interleaved Thinking Example
 
-This example demonstrates Claude 3.7+'s interleaved thinking capability, which allows the model to use thinking tokens between tool calls for better multi-step reasoning.
+This example demonstrates Claude's interleaved thinking capability, which allows the model to use thinking tokens between tool calls for better multi-step reasoning.
 
 ## What is Interleaved Thinking?
 
@@ -31,11 +31,8 @@ go run .
 ```go
 // Enable interleaved thinking for tool use
 opts := []llms.CallOption{
-    // Thinking mode for reasoning
+    // Adaptive thinking interleaves with tool calls on its own
     llms.WithReasoning(llms.ReasoningMedium, 0),
-    
-    // Enable interleaved thinking beta feature
-    anthropic.WithInterleavedThinking(),
     
     // Provide tools for the model to use
     llms.WithTools(tools),
@@ -64,6 +61,5 @@ The example displays detailed token usage:
 
 ## Requirements
 
-- Claude Sonnet 4.5 model (`claude-sonnet-4-5`)
+- Claude Sonnet 5.5 model (`claude-sonnet-5-5`)
 - Valid Anthropic API key
-- Interleaved thinking feature access

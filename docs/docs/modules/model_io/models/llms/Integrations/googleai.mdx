@@ -19,7 +19,7 @@ Create an API key at [Google AI Studio](https://ai.google.dev/) and set it in
 ```go
 llm, err := googleai.New(ctx,
     googleai.WithAPIKey(os.Getenv("GOOGLE_API_KEY")),
-    googleai.WithDefaultModel("gemini-2.5-flash"),
+    googleai.WithDefaultModel("gemini-3.8-flash"),
 )
 ```
 

@@ -17,17 +17,14 @@ This example demonstrates how to use the Bedrock LLM with different model provid
 ## Usage
 
 ```bash
-# Using default Titan model
+# Using the default Nova Lite model
 go run main.go
-
-# Using Nova model
-go run main.go -model "amazon.nova-lite-v1:0"
 
 # Using inference profile
 go run main.go -model "us.amazon.nova-lite-v1:0"
 
 # Using Anthropic model with explicit provider (for edge cases)
-go run main.go -model "us.anthropic.claude-3-7-sonnet-20250219-v1:0" -provider "anthropic"
+go run main.go -model "us.anthropic.claude-sonnet-5-5" -provider "anthropic"
 
 # Custom prompt
 go run main.go -prompt "What is the capital of France?"
@@ -51,7 +48,7 @@ export AWS_REGION=us-east-1
 The Bedrock integration automatically detects the provider from the model ID:
 
 - **Nova**: Models containing `.nova-` (e.g., `amazon.nova-lite-v1:0`, `us.amazon.nova-pro-v1:0`)
-- **Anthropic**: Models containing `anthropic` (e.g., `anthropic.claude-3-sonnet-20240229-v1:0`)
+- **Anthropic**: Models containing `anthropic` (e.g., `anthropic.claude-sonnet-5-5`)
 - **Amazon**: Models containing `amazon` (excluding Nova)
 - **Meta**: Models containing `meta` (e.g., `meta.llama3-1-405b-instruct-v1:0`)
 - **Cohere**: Models containing `cohere` (e.g., `cohere.command-r-plus-v1:0`)

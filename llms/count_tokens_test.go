@@ -11,11 +11,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type piecesBpeLoader []string
+
+func (l piecesBpeLoader) LoadTiktokenBpe(string) (map[string]int, error) {
+	ranks := make(map[string]int, 256+len(l))
+	for b := range 256 {
+		ranks[string([]byte{byte(b)})] = b
+	}
+	for i, piece := range l {
+		ranks[piece] = 256 + i
+	}
+	return ranks, nil
+}
+
 func TestCountTokens(t *testing.T) {
-	t.Parallel()
-	numTokens := CountTokens("gpt-3.5-turbo", "test for counting tokens")
-	expectedNumTokens := 4
-	assert.Equal(t, expectedNumTokens, numTokens)
+	tiktoken.SetBpeLoader(piecesBpeLoader{"test", " for", " counting", " tokens"})
+	t.Cleanup(func() { tiktoken.SetBpeLoader(tiktoken.NewDefaultBpeLoader()) })
+
+	assert.Equal(t, 4, CountTokens("gpt-3.5-turbo", "test for counting tokens"))
 }
 
 // failingBpeLoader stands in for the download of an encoding.

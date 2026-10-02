@@ -12,7 +12,7 @@ import (
 
 func main() {
 	var (
-		modelID   = flag.String("model", "amazon.titan-text-lite-v1", "Model ID to use")
+		modelID   = flag.String("model", "amazon.nova-lite-v1:0", "Model ID to use")
 		provider  = flag.String("provider", "", "Explicit provider (optional)")
 		prompt    = flag.String("prompt", "Say hello in one word", "Prompt to send")
 		awsRegion = flag.String("region", "us-east-1", "AWS region")
@@ -50,7 +50,7 @@ func main() {
 
 	// Test 1: Simple Call
 	fmt.Println("Testing Call method:")
-	response, err := llm.Call(ctx, *prompt)
+	response, err := llm.Call(ctx, *prompt, llms.WithMaxTokens(4096))
 	if err != nil {
 		log.Printf("Error calling model: %v", err)
 	} else {
@@ -74,7 +74,7 @@ func main() {
 		},
 	}
 
-	resp, err := llm.GenerateContent(ctx, messages)
+	resp, err := llm.GenerateContent(ctx, messages, llms.WithMaxTokens(4096))
 	if err != nil {
 		log.Printf("Error generating content: %v", err)
 	} else {

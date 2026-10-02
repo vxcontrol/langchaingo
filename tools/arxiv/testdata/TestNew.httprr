@@ -1,0 +1,88 @@
+httprr trace v1
+150 4999
+GET https://export.arxiv.org/api/query?max_results=2&search_query=electron&start=0 HTTP/1.1
+Host: export.arxiv.org
+User-Agent: langchaingo-httprr
+
+HTTP/2.0 200 OK
+Content-Length: 4457
+Accept-Ranges: bytes
+Age: 0
+Content-Type: application/atom+xml; charset=utf-8
+Date: Thu, 01 Oct 2026 20:34:08 GMT
+Server: Google Frontend
+Strict-Transport-Security: max-age=300
+Via: 1.1 google, 1.1 varnish, 1.1 varnish, 1.1 varnish
+X-Cache: MISS, MISS, MISS
+X-Cache-Hits: 0, 0, 0
+X-Cloud-Trace-Context: 6757d9b85ae2e32e4423cf7b47f329c8
+X-Served-By: cache-lga-kjfk8660067-LGA, cache-lga-kjfk8660067-LGA, cache-lga-kjfk8660067-LGA, cache-bkk2280030-BKK
+X-Timer: S1790886848.827325,VS0,VE445
+
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/dcXCKtYUYdD3VKb/I1GDXjTZxR0</id>
+  <title>arXiv Query: search_query=all:electron&amp;id_list=&amp;start=0&amp;max_results=2</title>
+  <updated>2026-10-01T20:34:08Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:electron&amp;start=0&amp;max_results=2&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>2</opensearch:itemsPerPage>
+  <opensearch:totalResults>186974</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/cond-mat/0011267v1</id>
+    <title>The electronic structure of cuprates from high energy spectroscopy</title>
+    <updated>2000-11-15T16:19:15Z</updated>
+    <link href="https://arxiv.org/abs/cond-mat/0011267v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/cond-mat/0011267v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  We report studies of the electronic structure and elementary excitations of doped and undoped cuprate chains, ladders and planes. Using high energy spectroscopies such as x-ray absorption, core level photoemission and angle resolved photoemission spectroscopy, important information regarding the charge distribution and hole dynamics can be obtained. The comparison of the experimental data with suitable theoretical models sets constraints on the parameters entering into the model calculations, and offers insight into the important physical quantities governing the electronic structure of these materials. Recurring themes include the importance of the dimensionality of the Cu-O network (1D-&gt;2D) and the crucial role played by the spin-background in determining the dynamics of low-lying excitations in these strongly correlated systems.</summary>
+    <category term="cond-mat.supr-con" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cond-mat.str-el" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2000-11-15T16:19:15Z</published>
+    <arxiv:comment>J. Electron Spec. Relat. Phenom.: special issue on electron correlation, in press</arxiv:comment>
+    <arxiv:primary_category term="cond-mat.supr-con"/>
+    <arxiv:journal_ref>J. Electron Spectr. Relat. Phenom. 117-118, 203 (2001)</arxiv:journal_ref>
+    <author>
+      <name>Mark S. Golden</name>
+    </author>
+    <author>
+      <name>Christian Duerr</name>
+    </author>
+    <author>
+      <name>Andreas Koitzsch</name>
+    </author>
+    <author>
+      <name>Sibylle Legner</name>
+    </author>
+    <author>
+      <name>Zhiwei Hu</name>
+    </author>
+    <author>
+      <name>Sergey Borisenko</name>
+    </author>
+    <author>
+      <name>Martin Knupfer</name>
+    </author>
+    <author>
+      <name>Joerg Fink</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/cond-mat/0211289v1</id>
+    <title>Surface effects on the electronic energy loss of charged particles entering a metal surface</title>
+    <updated>2002-11-14T15:23:14Z</updated>
+    <link href="https://arxiv.org/abs/cond-mat/0211289v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/cond-mat/0211289v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  Surface effects on the electronic energy loss of charged particles entering a metal surface are investigated within linear-response theory, in the framework of time-dependent density functional theory. Interesting phenomena occur in the loss spectra originated by the boundary (bregenzung) effect, which is as a consequence of the orthogonality of surface and bulk excitation modes. Our calculations indicate that the presence of a non-abrupt electron-density profile at the surface severely affects the nature of surface excitations, as deduced from comparison with simplified models.</summary>
+    <category term="cond-mat.mtrl-sci" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2002-11-14T15:23:14Z</published>
+    <arxiv:comment>7 pages, 3 figures, to appear in J. Electron Spectrosc</arxiv:comment>
+    <arxiv:primary_category term="cond-mat.mtrl-sci"/>
+    <arxiv:journal_ref>J. Electron Spectrosc. 129, 223 (2003)</arxiv:journal_ref>
+    <author>
+      <name>A. Garcia-Lekue</name>
+    </author>
+    <author>
+      <name>J. M. Pitarke</name>
+    </author>
+  </entry>
+</feed>

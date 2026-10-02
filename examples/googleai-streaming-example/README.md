@@ -7,7 +7,7 @@ Hello there, Go enthusiasts and AI adventurers! 👋 Welcome to this exciting ex
 This nifty little program does the following:
 
 1. 🔑 It uses your Google API key to authenticate with Google AI services.
-2. 🤖 It sets up a connection to the Gemini 1.5 Pro model.
+2. 🤖 It sets up a connection to the Gemini 3.8 Flash model.
 3. 🧙‍♂️ It creates a fun scenario where the AI acts as a "company branding design wizard".
 4. 💬 It asks the AI to suggest a good company name for a business that produces Go-backed LLM tools.
 5. 🌊 It streams the AI's response in real-time, printing each chunk as it arrives.
