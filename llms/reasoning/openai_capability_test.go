@@ -267,3 +267,17 @@ func TestTheClosedEnumReachesALaterGenerationOnlyThroughTheReleaseItFollows(t *t
 		t.Error("kimi-k2.6 is classified, but no vendor documentation covers its efforts")
 	}
 }
+
+func TestTheGptOssCapsACallerChangesStayTheCallers(t *testing.T) {
+	t.Parallel()
+
+	caps := OpenAIReasoningCapsFor("gpt-oss-120b")
+	caps.Efforts[0] = "max"
+	want := []string{"low", "medium", "high"}
+	if got := OpenAIReasoningCapsFor("gpt-oss-20b").Efforts; !slices.Equal(got, want) {
+		t.Errorf("OpenAIReasoningCapsFor(gpt-oss-20b).Efforts = %v after a caller changed its copy, want %v", got, want)
+	}
+	if got := GptOssEfforts(); !slices.Equal(got, want) {
+		t.Errorf("GptOssEfforts() = %v after a caller changed its copy, want %v", got, want)
+	}
+}

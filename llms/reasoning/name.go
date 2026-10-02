@@ -7,25 +7,21 @@ import "strings"
 // a model the bare name would not. A version missing from lines.go arrives as the
 // release it follows, so a table row keyed on that version never fires until it is listed there.
 func modelSpellings(model string) []string {
-	vendor, dashVendor, bare := splitModelName(model)
-	switch {
-	case bare == "":
+	vendor, bare := splitModelName(model)
+	if bare == "" {
 		return nil
-	case dashVendor != "":
-		bare = inheritedOrSelf(bare)
-		return []string{bare, dashVendor + "-" + bare}
-	case vendor == "":
-		if earlier, ok := earlierNames[bare]; ok {
-			return []string{earlier, bare}
-		}
-		return []string{inheritedOrSelf(bare)}
-	default:
-		bare = inheritedOrSelf(bare)
-		return []string{bare, vendor + "-" + bare}
 	}
+	if earlier, ok := earlierNames[bare]; ok && vendor == "" {
+		return []string{earlier, bare}
+	}
+	bare = inheritedOrSelf(bare)
+	if vendor == "" {
+		return []string{bare}
+	}
+	return []string{bare, vendor + "-" + bare}
 }
 
-func splitModelName(model string) (vendor, dashVendor, bare string) {
+func splitModelName(model string) (vendor, bare string) {
 	m := strings.ToLower(model)
 	if idx := strings.LastIndex(m, "/"); idx != -1 {
 		m = m[idx+1:]
@@ -37,15 +33,16 @@ func splitModelName(model string) (vendor, dashVendor, bare string) {
 	bare = documentedAlias(bare)
 	if vendor == "" {
 		if dashVendor, stripped, ok := stripDashWrittenVendor(bare); ok {
-			return "", dashVendor, stripped
+			return dashVendor, stripped
 		}
 	}
-	return vendor, "", bare
+	return vendor, bare
 }
 
 // vendorAliases entries must be backed by a vendor page that serves both names with one model.
 var vendorAliases = map[string]string{
-	"zai-glm-5": "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3",
+	"gemini-pro-latest": "gemini-3.1-pro-preview",
+	"zai-glm-5":         "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3",
 	"qwen-plus-latest": "qwen-plus", "qwen-turbo-latest": "qwen-turbo",
 	"qwen3-max-2026-01-23": "qwen3-max", "qwen3-max-preview": "qwen3-max",
 	"qwen3-vl-plus-2025-12-19": "qwen3-vl-plus",

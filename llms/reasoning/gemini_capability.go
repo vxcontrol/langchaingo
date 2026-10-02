@@ -12,18 +12,12 @@ import (
 // (thinking_level mapping, the temperature value) stay in the googleai adapter.
 
 func baseModelName(model string) string {
-	m := namedModel(model)
-	if alias, ok := googleAliases[m]; ok {
-		return alias
-	}
+	m := documentedAlias(namedModel(model))
 	if strings.HasPrefix(m, "gemini-") || strings.HasPrefix(m, "gemma-") {
 		return inheritedOrSelf(m)
 	}
 	return m
 }
-
-// googleAliases entries must be backed by the Gemini changelog naming the model behind the alias.
-var googleAliases = map[string]string{"gemini-pro-latest": "gemini-3.1-pro-preview"}
 
 func namedModel(model string) string {
 	m := strings.ToLower(model)

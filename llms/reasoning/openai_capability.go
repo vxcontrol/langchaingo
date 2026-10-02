@@ -78,7 +78,9 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 	}
 	switch {
 	case strings.HasPrefix(m, "gpt-oss"):
-		return gptOssCaps
+		caps := gptOssCaps
+		caps.Efforts = GptOssEfforts()
+		return caps
 	case openAIProVariant(m):
 		if openAIXHighCeiling(m) {
 			return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"medium", "high", "xhigh"}}

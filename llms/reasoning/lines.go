@@ -16,7 +16,7 @@ func InheritedModel(model string) (string, bool) {
 	if idx := strings.Index(m, "claude-"); idx != -1 {
 		return inheritClaude(m[idx:])
 	}
-	_, _, bare := splitModelName(model)
+	_, bare := splitModelName(model)
 	return inheritLine(bare)
 }
 
@@ -404,7 +404,7 @@ func releasesBelow(model string) []string {
 	if !inherited {
 		return nil
 	}
-	_, _, bare := splitModelName(model)
+	_, bare := splitModelName(model)
 	frame, framed := strings.CutSuffix(strings.ToLower(model), bare)
 	if !framed {
 		frame = model[:strings.LastIndex(model, "/")+1]
