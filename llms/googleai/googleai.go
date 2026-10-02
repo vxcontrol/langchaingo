@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
@@ -178,6 +179,7 @@ func (g *GoogleAI) GenerateContent(
 
 	warn := &llms.Warnings{}
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config)
 
 	var response *llms.ContentResponse
 
@@ -1128,6 +1130,18 @@ func newGenerationConfig(opts llms.CallOptions) *genai.GenerateContentConfig {
 		FrequencyPenalty: convertToFloat32Pointer(opts.FrequencyPenalty),
 		PresencePenalty:  convertToFloat32Pointer(opts.PresencePenalty),
 	}
+}
+
+func dropCandidatesTheModelCannotReturn(warn *llms.Warnings, model string, config *genai.GenerateContentConfig) {
+	if config.CandidateCount <= 1 || !reasoning.GeminiTakesNoCandidateCount(model) {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithCandidateCount", Model: model,
+		Asked: strconv.Itoa(int(config.CandidateCount)), Sent: "1",
+		Reason: "Google returns one candidate on this model",
+	})
+	config.CandidateCount = 1
 }
 
 func convertToFloat32Pointer(f *float64) *float32 {

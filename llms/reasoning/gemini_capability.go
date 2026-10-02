@@ -1,6 +1,10 @@
 package reasoning
 
-import "strings"
+import (
+	"regexp"
+	"strconv"
+	"strings"
+)
 
 // This file is the single source of truth for Google (Gemini / Gemma) reasoning
 // classification, so the enable path, the disable path, the reasoning-model
@@ -14,6 +18,30 @@ func baseModelName(model string) string {
 		m = m[idx+1:]
 	}
 	return m
+}
+
+var geminiVersionPattern = regexp.MustCompile(`^gemini-(\d+)(?:\.\d+)?(?:-|$)`)
+
+func geminiMajor(model string) (int, bool) {
+	m := geminiVersionPattern.FindStringSubmatch(model)
+	if m == nil {
+		return 0, false
+	}
+	major, err := strconv.Atoi(m[1])
+	return major, err == nil
+}
+
+func geminiLatestAlias(model string) bool {
+	return strings.HasPrefix(model, "gemini-") && strings.HasSuffix(model, "-latest")
+}
+
+func GeminiTakesNoCandidateCount(model string) bool {
+	m := baseModelName(model)
+	if geminiLatestAlias(m) {
+		return true
+	}
+	major, ok := geminiMajor(m)
+	return ok && major >= 3
 }
 
 func hasFamily(model, family string) bool {
