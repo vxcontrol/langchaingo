@@ -121,6 +121,9 @@ func (g *GoogleAI) GenerateContent(
 	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
 		opts.Temperature = &temperature
 	}
+	if reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) && llms.HasAssistantPrefill(messages) {
+		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
+	}
 
 	config := newGenerationConfig(opts)
 

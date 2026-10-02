@@ -20,19 +20,41 @@ func baseModelName(model string) string {
 	return m
 }
 
-var geminiVersionPattern = regexp.MustCompile(`^gemini-(\d+)(?:\.\d+)?(?:-|$)`)
+var geminiVersionPattern = regexp.MustCompile(`^gemini-(\d+)(?:\.(\d+))?(?:-|$)`)
 
-func geminiMajor(model string) (int, bool) {
+func geminiVersion(model string) (major, minor int, ok bool) {
 	m := geminiVersionPattern.FindStringSubmatch(model)
 	if m == nil {
-		return 0, false
+		return 0, 0, false
 	}
-	major, err := strconv.Atoi(m[1])
-	return major, err == nil
+	major, _ = strconv.Atoi(m[1])
+	if m[2] != "" {
+		minor, _ = strconv.Atoi(m[2])
+	}
+	return major, minor, true
 }
 
 func geminiLatestAlias(model string) bool {
 	return strings.HasPrefix(model, "gemini-") && strings.HasSuffix(model, "-latest")
+}
+
+func geminiLatestAPIGeneration(model string) bool {
+	if geminiLatestAlias(model) {
+		return true
+	}
+	major, minor, ok := geminiVersion(model)
+	switch {
+	case !ok:
+		return false
+	case major > 3 || major == 3 && minor >= 6:
+		return true
+	default:
+		return major == 3 && minor == 5 && strings.Contains(model, "flash-lite")
+	}
+}
+
+func GeminiRejectsAssistantPrefill(model string) bool {
+	return geminiLatestAPIGeneration(baseModelName(model))
 }
 
 func GeminiTakesNoCandidateCount(model string) bool {
@@ -40,7 +62,7 @@ func GeminiTakesNoCandidateCount(model string) bool {
 	if geminiLatestAlias(m) {
 		return true
 	}
-	major, ok := geminiMajor(m)
+	major, _, ok := geminiVersion(m)
 	return ok && major >= 3
 }
 
