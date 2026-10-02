@@ -1,5 +1,5 @@
 httprr trace v1
-366 1977
+366 1641
 POST https://api.x.ai/v1/chat/completions HTTP/1.1
 Host: api.x.ai
 User-Agent: langchaingo-httprr
@@ -8,27 +8,21 @@ Authorization: Bearer test-api-key
 Content-Type: application/json
 
 {"model":"grok-4.3","messages":[{"role":"user","content":"What is the factorial of 5? Show your work. Think before you answer."}],"max_tokens":8192,"reasoning_effort":"medium"}HTTP/2.0 200 OK
-Content-Length: 1133
-Access-Control-Allow-Origin: *
-Access-Control-Expose-Headers: *
-Cf-Cache-Status: DYNAMIC
+Content-Length: 1100
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json
-Date: Mon, 03 Aug 2026 20:11:05 GMT
-Server: cloudflare
-Server-Timing: cfCacheStatus;desc="DYNAMIC"
-Server-Timing: cfEdge;dur=173,cfOrigin;dur=5694
+Date: Fri, 02 Oct 2026 21:53:57 GMT
+Server: nginx
 Strict-Transport-Security: max-age=31536000
-Traceparent: 00-4529492481c6c9eafbabb8a2a89a20d8-7823e13e0001a2e2-01
-Vary: origin, access-control-request-method, access-control-request-headers
-X-Data-Retention: general
-X-Metrics-E2e-Ms: 5688.4
-X-Metrics-Mean-Itl-Ms: 7.6
-X-Metrics-Ttft-Ms: 248.0
-X-Ratelimit-Limit-Requests: 1800
-X-Ratelimit-Limit-Tokens: 10000000
-X-Ratelimit-Remaining-Requests: 1800
-X-Ratelimit-Remaining-Tokens: 9999344
-X-Request-Id: d5d610b6-4788-9b52-8a10-5973d0d726cd
-X-Zero-Data-Retention: false
+Vary: Accept-Encoding
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Ratelimit-Limit-Requests: 2400
+X-Ratelimit-Limit-Tokens: 15000000
+X-Ratelimit-Remaining-Requests: 2398
+X-Ratelimit-Remaining-Tokens: 15000000
+X-Xss-Protection: 1; mode=block
 
-{"id":"d5d610b6-4788-9b52-8a10-5973d0d726cd","object":"chat.completion","created":1785787860,"model":"grok-4.3","choices":[{"index":0,"message":{"role":"assistant","content":"The factorial of a non-negative integer \\(n\\), written \\(n!\\), is the product of all positive integers from 1 up to \\(n\\).\n\nTo compute \\(5!\\):\n\n\\[\n5! = 5 \\times 4 \\times 3 \\times 2 \\times 1\n\\]\n\nBreak it down step by step:\n\n- \\(5 \\times 4 = 20\\)\n- \\(20 \\times 3 = 60\\)\n- \\(60 \\times 2 = 120\\)\n- \\(120 \\times 1 = 120\\)\n\nThus, \\(5! = 120\\).","reasoning_content":"The question is: \"What is the factorial of 5? Show your work. Think before you answer.\"\n","refusal":null},"finish_reason":"stop"}],"usage":{"prompt_tokens":209,"completion_tokens":126,"total_tokens":904,"prompt_tokens_details":{"text_tokens":209,"audio_tokens":0,"image_tokens":0,"cached_tokens":128},"completion_tokens_details":{"reasoning_tokens":569,"audio_tokens":0,"accepted_prediction_tokens":0,"rejected_prediction_tokens":0},"num_sources_used":0,"cost_in_usd_ticks":18643500},"system_fingerprint":"fp_eb3c003fc66c14ed","service_tier":"default"}
+{"id":"71a0dba9-4342-9e94-99b2-810ee63fc2e5","created":1790978030,"model":"xai/grok-4.3","object":"chat.completion","system_fingerprint":"fp_eb3c003fc66c14ed","choices":[{"finish_reason":"stop","index":0,"message":{"content":"5! = 5 × 4 × 3 × 2 × 1 = 120\n**Step-by-step calculation:**\n- 5 × 4 = 20\n- 20 × 3 = 60\n- 60 × 2 = 120\n- 120 × 1 = 120\nThus, the factorial of 5 is 120.\n(The definition of n! as the product of all positive integers ≤ n is a standard mathematical fact with no ambiguity here.)","role":"assistant","reasoning_content":"Calculating the factorial of 5.\n\n5! = 5 × 4 × 3 × 2 × 1 = 120.","provider_specific_fields":{"refusal":null}},"provider_specific_fields":{}}],"usage":{"completion_tokens":659,"prompt_tokens":209,"total_tokens":868,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":557,"rejected_prediction_tokens":0},"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":192,"text_tokens":209,"image_tokens":0},"cost":0.00170715,"num_sources_used":0,"cost_in_usd_ticks":17071500},"service_tier":"default"}

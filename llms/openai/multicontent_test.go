@@ -135,7 +135,11 @@ func newTestXAIClient(t *testing.T, opts ...Option) *LLM {
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "XAI_API_KEY")
 
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	transport := http.DefaultTransport
+	if gateway := os.Getenv("XAI_GATEWAY_URL"); gateway != "" {
+		transport = gatewayRoute{base: gateway, modelPrefix: "xai/"}
+	}
+	rr := httprr.OpenForTest(t, transport)
 
 	// Configure xAI client based on recording vs replay mode
 	clientOpts := []Option{
