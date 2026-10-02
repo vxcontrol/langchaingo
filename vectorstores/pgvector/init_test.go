@@ -205,7 +205,7 @@ func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	cfg, err := pgxpool.ParseConfig(url)
 	require.NoError(t, err)
 	cfg.MaxConns = 1
-	cfg.ConnConfig.RuntimeParams["statement_timeout"] = "500"
+	cfg.ConnConfig.RuntimeParams["lock_timeout"] = "500"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -250,9 +250,8 @@ func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Error(t, open(ctx), "init must time out while a writer holds the table")
+	require.Zero(t, pool.Stat().AcquiredConns(), "the failed init still holds the pool's only connection")
 	require.NoError(t, held.Rollback(ctx))
 
-	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	require.NoError(t, open(bounded), "the failed init still holds the pool's only connection")
+	require.NoError(t, open(ctx))
 }
