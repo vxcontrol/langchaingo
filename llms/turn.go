@@ -120,15 +120,27 @@ func CheckForcedToolUse(model string, opts CallOptions, warn *Warnings) error {
 	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
-	asked := name
-	if spelled, ok := opts.ToolChoice.(string); ok && asked == "" {
-		asked = spelled
-	}
+	asked := cmp.Or(name, spelledChoice(opts.ToolChoice), "any")
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "any")}
-	if warn.KeepRefusal(model, "WithToolChoice", cmp.Or(asked, "any"), cmp.Or(asked, "any"), refusal) {
+	if warn.KeepRefusal(model, "WithToolChoice", asked, asked, refusal) {
 		return refusal
 	}
 	return nil
+}
+
+func spelledChoice(choice any) string {
+	switch c := choice.(type) {
+	case string:
+		return c
+	case ToolChoice:
+		return c.Type
+	case *ToolChoice:
+		return c.Type
+	case map[string]any:
+		spelled, _ := c["type"].(string)
+		return spelled
+	}
+	return ""
 }
 
 func offersTools(opts CallOptions) bool {

@@ -84,11 +84,13 @@ func TestAnUnlistedClaudeOnTheOpenAIDoorIsSentWhatItsReleaseWouldRefuse(t *testi
 		require.Empty(t, warnings["WithReasoningDisabled"].Sent, route.model)
 	}
 
-	body, warnings := hostCall(t, "http://litellm.internal/v1", "anthropic/claude-sonnet-6", lookupTool,
-		llms.WithToolChoice("required"))
-	require.Equal(t, "required", body["tool_choice"])
-	requireInherited(t, warnings, "WithToolChoice")
-	require.Equal(t, "required", warnings["WithToolChoice"].Sent)
+	for _, choice := range []any{"required", llms.ToolChoice{Type: "required"}, map[string]any{"type": "required"}} {
+		body, warnings := hostCall(t, "http://litellm.internal/v1", "anthropic/claude-sonnet-6", lookupTool,
+			llms.WithToolChoice(choice))
+		require.Equal(t, "required", body["tool_choice"], "%#v", choice)
+		requireInherited(t, warnings, "WithToolChoice")
+		require.Equal(t, "required", warnings["WithToolChoice"].Sent, "%#v", choice)
+	}
 }
 
 func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
