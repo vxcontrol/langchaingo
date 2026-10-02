@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/imageutil"
@@ -120,7 +121,9 @@ func (g *GoogleAI) GenerateContent(
 	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
 		opts.Temperature = &temperature
 	}
-
+	if endsOnTheModel(messages) && reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) {
+		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
+	}
 	config := newGenerationConfig(opts)
 
 	// Check for cached content
@@ -178,6 +181,8 @@ func (g *GoogleAI) GenerateContent(
 
 	warn := &llms.Warnings{}
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config,
+		g.client.ClientConfig().Backend == genai.BackendVertexAI)
 
 	var response *llms.ContentResponse
 
@@ -331,6 +336,26 @@ func (g *GoogleAI) generateFromMessages(
 	}
 
 	return g.generateStreamingContent(ctx, model, contents, config, opts)
+}
+
+func endsOnTheModel(messages []llms.MessageContent) bool {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == llms.ChatMessageTypeSystem || !carriesAPart(messages[i].Parts) {
+			continue
+		}
+		return messages[i].Role == llms.ChatMessageTypeAI
+	}
+	return false
+}
+
+func carriesAPart(parts []llms.ContentPart) bool {
+	for _, part := range parts {
+		text, isText := part.(llms.TextContent)
+		if !isText || text.Text != "" || !text.Reasoning.IsEmpty() {
+			return true
+		}
+	}
+	return false
 }
 
 // geminiSignaturePlaceholder is the value Google documents for a function call
@@ -488,21 +513,7 @@ StreamEnd:
 		metadata[SAFETY] = lastCandidate.SafetyRatings
 	}
 
-	if lastUsageMetadata != nil {
-		metadata["input_tokens"] = int(lastUsageMetadata.PromptTokenCount)
-		metadata["output_tokens"] = int(lastUsageMetadata.CandidatesTokenCount)
-		metadata["total_tokens"] = int(lastUsageMetadata.TotalTokenCount)
-
-		// Standardized field names for cross-provider compatibility
-		metadata["PromptTokens"] = int(lastUsageMetadata.PromptTokenCount)
-		metadata["CompletionTokens"] = int(lastUsageMetadata.CandidatesTokenCount)
-		metadata["TotalTokens"] = int(lastUsageMetadata.TotalTokenCount)
-		metadata["ReasoningTokens"] = int(lastUsageMetadata.ThoughtsTokenCount)
-		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
-		metadata["CacheReadInputTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
-
-		metadata["CacheCreationInputTokens"] = 0
-	}
+	applyGeminiUsage(metadata, lastUsageMetadata)
 
 	// Carry the finish reason so structured-output validation runs on a normal
 	// STOP (an empty reason would make the validator skip a streamed choice).
@@ -640,20 +651,7 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 		metadata[CITATIONS] = candidate.CitationMetadata
 		metadata[SAFETY] = candidate.SafetyRatings
 
-		if usage := resp.UsageMetadata; usage != nil {
-			metadata["input_tokens"] = usage.PromptTokenCount
-			metadata["output_tokens"] = usage.CandidatesTokenCount
-			metadata["total_tokens"] = usage.TotalTokenCount
-
-			// Standardized field names for cross-provider compatibility
-			metadata["PromptTokens"] = int(usage.PromptTokenCount)
-			metadata["CompletionTokens"] = int(usage.CandidatesTokenCount)
-			metadata["TotalTokens"] = int(usage.TotalTokenCount)
-			metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
-			metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
-			metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
-			metadata["CacheCreationInputTokens"] = 0
-		}
+		applyGeminiUsage(metadata, resp.UsageMetadata)
 
 		choices = append(choices, &llms.ContentChoice{
 			Content:        content.String(),
@@ -666,6 +664,23 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 	}
 
 	return &llms.ContentResponse{Choices: choices}, nil
+}
+
+func applyGeminiUsage(metadata map[string]any, usage *genai.GenerateContentResponseUsageMetadata) {
+	if usage == nil {
+		return
+	}
+	output := int(usage.CandidatesTokenCount + usage.ThoughtsTokenCount)
+	metadata["input_tokens"] = int(usage.PromptTokenCount)
+	metadata["output_tokens"] = output
+	metadata["total_tokens"] = int(usage.TotalTokenCount)
+	metadata["PromptTokens"] = int(usage.PromptTokenCount)
+	metadata["CompletionTokens"] = output
+	metadata["TotalTokens"] = int(usage.TotalTokenCount)
+	metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
+	metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
+	metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
+	metadata["CacheCreationInputTokens"] = 0
 }
 
 func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
@@ -1127,6 +1142,34 @@ func newGenerationConfig(opts llms.CallOptions) *genai.GenerateContentConfig {
 		Seed:             convertToInt32Pointer(opts.Seed),
 		FrequencyPenalty: convertToFloat32Pointer(opts.FrequencyPenalty),
 		PresencePenalty:  convertToFloat32Pointer(opts.PresencePenalty),
+	}
+}
+
+func dropCandidatesTheModelCannotReturn(
+	warn *llms.Warnings, model string, config *genai.GenerateContentConfig, vertex bool,
+) {
+	if config.CandidateCount == 0 || !reasoning.GeminiTakesNoCandidateCount(model) {
+		return
+	}
+	asked := config.CandidateCount
+	if vertex {
+		config.CandidateCount = 0
+	} else {
+		config.CandidateCount = 1
+	}
+	switch {
+	case asked <= 1:
+	case vertex:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
+			Asked: strconv.Itoa(int(asked)), Reason: "Vertex AI rejects a candidate count on this model",
+		})
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithCandidateCount", Model: model,
+			Asked: strconv.Itoa(int(asked)), Sent: "1",
+			Reason: "Google returns one candidate on this model",
+		})
 	}
 }
 

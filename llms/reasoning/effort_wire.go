@@ -237,7 +237,7 @@ func glmBeforeEffortField(model, form string) bool {
 	if ServedByMistral(model) {
 		return false
 	}
-	major, minor, ok := glmGeneration(form)
+	major, minor, ok := generationAfter("glm-", form)
 	if !ok {
 		return false
 	}
@@ -248,8 +248,8 @@ func glmBeforeEffortField(model, form string) bool {
 	return major < 5 || major == 5 && minor < firstMinor
 }
 
-func glmGeneration(form string) (major, minor int, ok bool) {
-	rest, found := strings.CutPrefix(form, "glm-")
+func generationAfter(prefix, form string) (major, minor int, ok bool) {
+	rest, found := strings.CutPrefix(form, prefix)
 	if !found {
 		return 0, 0, false
 	}

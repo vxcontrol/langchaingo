@@ -1,6 +1,8 @@
 package reasoning
 
-import "strings"
+import (
+	"strings"
+)
 
 // This file is the single source of truth for Google (Gemini / Gemma) reasoning
 // classification, so the enable path, the disable path, the reasoning-model
@@ -14,6 +16,27 @@ func baseModelName(model string) string {
 		m = m[idx+1:]
 	}
 	return m
+}
+
+func GeminiRejectsAssistantPrefill(model string) bool {
+	m := baseModelName(model)
+	major, minor, ok := generationAfter("gemini-", m)
+	switch {
+	case !ok:
+		return false
+	case major > 3 || major == 3 && minor >= 6:
+		return true
+	default:
+		return major == 3 && minor == 5 && strings.Contains(m, "flash-lite")
+	}
+}
+
+func GeminiTakesNoCandidateCount(model string) bool {
+	m := baseModelName(model)
+	if major, _, ok := generationAfter("gemini-", m); ok {
+		return major >= 3
+	}
+	return strings.HasPrefix(m, "gemini-") && strings.HasSuffix(m, "-latest")
 }
 
 func hasFamily(model, family string) bool {

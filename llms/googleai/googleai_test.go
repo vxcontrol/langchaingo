@@ -140,10 +140,18 @@ func TestGoogleAIGenerateContentWithSystemMessage(t *testing.T) {
 func TestGoogleAICall(t *testing.T) {
 	llm := newHTTPRRClient(t)
 
-	output, err := llm.Call(t.Context(), "What is 2 + 2?")
+	resp, err := llm.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "What is 2 + 2?")})
 	require.NoError(t, err)
-	assert.NotEmpty(t, output)
-	assert.Contains(t, output, "4")
+	require.Len(t, resp.Choices, 1)
+	assert.Contains(t, resp.Choices[0].Content, "4")
+
+	info := resp.Choices[0].GenerationInfo
+	assert.Equal(t, 17, info["ReasoningTokens"])
+	assert.Equal(t, 7+17, info["CompletionTokens"], "Google bills thinking as output")
+	assert.Equal(t, info["TotalTokens"], info["PromptTokens"].(int)+info["CompletionTokens"].(int))
+	assert.Equal(t, info["CompletionTokens"], info["output_tokens"])
+	assert.Equal(t, info["PromptTokens"], info["input_tokens"])
 }
 
 func TestGoogleAICreateEmbedding(t *testing.T) {
