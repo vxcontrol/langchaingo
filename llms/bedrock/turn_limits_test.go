@@ -71,16 +71,21 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 			}
 		})
 
-		t.Run(name+"/a forced choice with manual thinking and no tools goes out", func(t *testing.T) {
+		t.Run(name+"/a forced choice with manual thinking and no tools goes out without the choice", func(t *testing.T) {
 			t.Parallel()
-			llm := truncationLLMWithBody(t, `{}`,
-				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}, opts...)...)
-			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
+			answer := legacyAnswer
+			if converse {
+				answer = converseAnswer
+			}
+			_, body := bedrockWarningsSending(t, answer,
+				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-v1:0")}, opts...),
 				llms.WithReasoning(llms.ReasoningMedium, 2048),
 				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
-			var target *reasoning.ErrForcedToolUseWithThinking
-			if errors.As(err, &target) {
-				t.Errorf("with no tools the choice never reaches the wire, so nothing is refused: %v", err)
+			if _, sent := body["tool_choice"]; sent {
+				t.Errorf("the legacy body carries a tool choice with no tools: %v", body)
+			}
+			if _, sent := body["toolConfig"]; sent {
+				t.Errorf("the converse body carries a tool config with no tools: %v", body)
 			}
 		})
 
@@ -90,7 +95,7 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-5-v1:0")}, opts...)...)
 			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
 				llms.WithAdaptiveReasoning(llms.ReasoningMedium),
-				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+				turnLimitTools, llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
 			var target *reasoning.ErrForcedToolUseWithThinking
 			if errors.As(err, &target) {
 				t.Errorf("adaptive thinking carries no manual budget, so the rule must not fire: %v", err)
@@ -103,7 +108,7 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 				append([]bedrock.Option{bedrock.WithModel("us.amazon.nova-pro-v1:0")}, opts...)...)
 			_, err := llm.GenerateContent(context.Background(), turnLimitMessages(llms.ChatMessageTypeHuman),
 				llms.WithReasoning(llms.ReasoningMedium, 2048),
-				llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
+				turnLimitTools, llms.WithToolChoice(llms.ToolChoice{Type: "any"}))
 			var target *reasoning.ErrForcedToolUseWithThinking
 			if errors.As(err, &target) {
 				t.Errorf("the Claude-only rule refused a family that never carries a thinking payload: %v", err)
