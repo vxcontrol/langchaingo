@@ -531,13 +531,18 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 
 	var humanBlocks []types.ContentBlock
 	flushHuman := func() {
-		if len(humanBlocks) > 0 {
+		if len(humanBlocks) == 0 {
+			return
+		}
+		if last := len(converseMessages) - 1; last >= 0 && converseMessages[last].Role == types.ConversationRoleUser {
+			converseMessages[last].Content = append(converseMessages[last].Content, humanBlocks...)
+		} else {
 			converseMessages = append(converseMessages, types.Message{
 				Role:    types.ConversationRoleUser,
 				Content: humanBlocks,
 			})
-			humanBlocks = nil
 		}
+		humanBlocks = nil
 	}
 
 	for i, msg := range messages {
