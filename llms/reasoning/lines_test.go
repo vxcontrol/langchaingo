@@ -216,3 +216,52 @@ func TestTheReleasesBelowAreWrittenInTheCallersSpelling(t *testing.T) {
 	require.Equal(t, OffOmit, InheritedOffWire("zai-glm-6", ProviderOpenAI), "Mistral turns GLM thinking off by omission")
 	require.Equal(t, OffDisableThinkingObject, InheritedOffWire("glm-6", ProviderOpenAI))
 }
+
+func TestEveryWordALineReadsChangesWhatTheNameFollows(t *testing.T) {
+	t.Parallel()
+
+	for name, want := range map[string]string{
+		"gemini-3.2-pro-preview-customtools": "gemini-3.1-pro-preview-customtools",
+		"gemini-4-pro-preview":               "gemini-3.1-pro-preview",
+		"gemini-3.9-flash-lite":              "gemini-3.5-flash-lite",
+		"gemma-5-27b-it":                     "gemma-4-26b-a4b-it",
+		"gpt-6.2-sol":                        "gpt-6.1-sol",
+		"gpt-6.2-luna":                       "gpt-6-luna",
+		"gpt-5.7-terra":                      "gpt-5.6-terra",
+		"gpt-6.1-astra":                      "gpt-6-astra",
+		"gpt-5.7-cyber":                      "gpt-5.6-cyber",
+		"gpt-5.6-pro":                        "gpt-5.5-pro",
+		"gpt-5.7-mini":                       "gpt-5.6",
+		"gpt-5.7-nano":                       "gpt-5.6",
+		"glm-5.4-air":                        "glm-5.3",
+		"glm-5.4-airx":                       "glm-5.3",
+		"glm-5.4-x":                          "glm-5.3",
+		"glm-5.4-flash":                      "glm-5.3-flash",
+		"glm-5.4-flashx":                     "glm-5.3-flashx",
+		"glm-5.4-turbo":                      "glm-5.3",
+		"glm-5.4-fast":                       "glm-5.3",
+		"glm-5.4-prime":                      "glm-5.3",
+		"glm-5.4-preview":                    "glm-5.3",
+		"kimi-k2.1-thinking":                 "kimi-k2-thinking",
+		"kimi-k2.8-code":                     "kimi-k2.7-code",
+		"kimi-k3.1-highspeed":                "kimi-k3",
+		"kimi-k3.1-preview":                  "kimi-k3",
+		"deepseek-v4.2-flash":                "deepseek-v4.1-flash",
+		"deepseek-v4.2-pro":                  "deepseek-flash",
+		"deepseek-v4.2-preview":              "deepseek-flash",
+		"deepseek-v4.2-exp":                  "deepseek-flash",
+		"minimax-m3.2-flash":                 "minimax-m3.1-flash-preview",
+		"minimax-m2.8-highspeed":             "minimax-m2.7",
+		"minimax-m2.8-stable":                "minimax-m2.7",
+		"minimax-m3.2-preview":               "minimax-m3",
+		"qwen3.9-max":                        "qwen3.8-max",
+		"qwen3.9-plus":                       "qwen3.8-max",
+		"qwen3.9-flash":                      "qwen3.8-flash",
+		"qwen3.9-turbo":                      "qwen3.8-max",
+		"qwen3.9-max-preview":                "qwen3.8-max",
+	} {
+		documented, inherited := InheritedModel(name)
+		assert.True(t, inherited, name)
+		assert.Equal(t, want, documented, name)
+	}
+}

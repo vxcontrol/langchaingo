@@ -44,7 +44,7 @@ func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(server.Close)
-	for _, model := range []string{"gemini-3.1-pro-preview", "gemini-3.1-pro"} {
+	for _, model := range []string{"gemini-3.1-pro-preview", "gemini-3.1-pro", "gemini-pro-latest"} {
 		llm, err := New(context.Background(),
 			WithAPIKey("unit-test-key"), WithEndpoint(server.URL), WithDefaultModel(model))
 		require.NoError(t, err)
