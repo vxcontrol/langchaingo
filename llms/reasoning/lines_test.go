@@ -1,11 +1,13 @@
 package reasoning
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,6 +57,91 @@ func TestEveryClaudeVersionATableKeysOnIsAListedRelease(t *testing.T) {
 			}
 			documented, inherited := inheritClaude(entry)
 			require.False(t, inherited, "%s is keyed on by a table, yet would be read as %s", entry, documented)
+		}
+	}
+}
+
+func tableAnswers(model string) map[string]any {
+	answers := map[string]any{}
+	for name, rule := range map[string]func(string) bool{
+		"AcceptsEffortWire": AcceptsEffortWire, "ChatCompletionsUnsupported": ChatCompletionsUnsupported,
+		"ChatToolsUnsupported": ChatToolsUnsupported, "ClaudeRejectsAssistantPrefill": ClaudeRejectsAssistantPrefill,
+		"ClaudeRejectsForcedToolUse": ClaudeRejectsForcedToolUse, "ClaudeRejectsSampling": ClaudeRejectsSampling,
+		"ClaudeSupportsThinking": ClaudeSupportsThinking, "ClaudeThinkingAlwaysOn": ClaudeThinkingAlwaysOn,
+		"ClaudeThinkingDefaultsOn": ClaudeThinkingDefaultsOn, "ClaudeTurnsOffBetweenTools": ClaudeTurnsOffBetweenTools,
+		"DashScopeBudgetSharesAnswerLimit": DashScopeBudgetSharesAnswerLimit, "DashScopeTakesNoTopK": DashScopeTakesNoTopK,
+		"DashScopeTakesThinkingBudget": DashScopeTakesThinkingBudget, "FixesSampling": FixesSampling,
+		"GeminiCanDisable": GeminiCanDisable, "GeminiSupportsThinking": GeminiSupportsThinking,
+		"GeminiUsesThinkingLevel": GeminiUsesThinkingLevel, "GrokFamily": GrokFamily, "IsReasoningModel": IsReasoningModel,
+		"LikelyReasoningModel": LikelyReasoningModel, "OpenAIThinkingOptIn": OpenAIThinkingOptIn,
+		"QwenThinkingEnabledByFlag": QwenThinkingEnabledByFlag, "QwenThinkingOffByFlag": QwenThinkingOffByFlag,
+		"QwenThinkingRequiresStream": QwenThinkingRequiresStream, "RejectsMinP": RejectsMinP,
+		"RejectsPenalties": RejectsPenalties, "RejectsRepetitionPenalty": RejectsRepetitionPenalty,
+		"RejectsSamplingWhileThinking": RejectsSamplingWhileThinking, "RejectsStop": RejectsStop,
+		"RejectsTopK": RejectsTopK, "ReplaysEmptyReasoning": ReplaysEmptyReasoning,
+		"ReplaysReasoningOnEveryTurn": ReplaysReasoningOnEveryTurn, "ReplaysThinkingInContent": ReplaysThinkingInContent,
+		"ServedByMistral": ServedByMistral, "TakesNoJSONObject": TakesNoJSONObject, "TakesNoJSONSchema": TakesNoJSONSchema,
+		"TakesNoResponseFormat": TakesNoResponseFormat, "TakesNoThinkingDepth": TakesNoThinkingDepth,
+		"TakesNoTopK": TakesNoTopK, "ThinkingOptIn": ThinkingOptIn, "UsesLegacyMaxTokens": UsesLegacyMaxTokens,
+	} {
+		answers[name] = rule(model)
+	}
+	answers["ClaudeReasoningKindFor"] = ClaudeReasoningKindFor(model)
+	answers["EffortWithTools"] = EffortWithTools(model)
+	answers["OpenAIReasoningCapsFor"] = OpenAIReasoningCapsFor(model)
+	answers["GeminiThinkingLevels"] = GeminiThinkingLevels(model)
+	for _, p := range []Provider{ProviderOpenAI, ProviderAnthropic, ProviderBedrock, ProviderGoogleAI, ProviderOllama} {
+		answers[fmt.Sprint("ResolveOff/", p)] = ResolveOff(model, p)
+		answers[fmt.Sprint("ClaudeEffortsFor/", p)] = ClaudeEffortsFor(model, p)
+	}
+	for _, host := range []string{"api.deepseek.com", "api.z.ai", "api.moonshot.ai", "dashscope-intl.aliyuncs.com", "api.x.ai", "api.openai.com"} {
+		answers["ServedByDeepSeek/"+host] = ServedByDeepSeek(model, host)
+		answers["ServedByZAI/"+host] = ServedByZAI(model, host)
+		answers["RejectsRequiredToolChoice/"+host] = RejectsRequiredToolChoice(model, host)
+		answers["RejectsForcedToolChoiceWhileThinking/"+host] = RejectsForcedToolChoiceWhileThinking(model, host, true)
+	}
+	return answers
+}
+
+func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T) {
+	t.Parallel()
+
+	for name, documented := range map[string]string{
+		"gpt-5.7": "gpt-5.6-sol", "gpt-6.1": "gpt-6.1-sol", "gpt-6.2-sol": "gpt-6.1-sol", "gpt-6.2-astra": "gpt-6-astra",
+		"gpt-5.7-pro": "gpt-5.5-pro", "openai/gpt-5.7": "gpt-5.6-sol",
+		"glm-5.4": "glm-5.3", "glm-6": "glm-5.3", "glm-5.31": "glm-5.3", "glm-5.4-flash": "glm-5.3-flash",
+		"zai-glm-5-4": "zai-glm-5-3", "zai-glm-5": "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3",
+		"kimi-k4": "kimi-k3", "kimi-k2.8": "kimi-k2.6", "moonshot/kimi-k4": "moonshot/kimi-k3",
+		"deepseek-v5": "deepseek-flash", "deepseek-v5-pro": "deepseek-flash", "deepseek/deepseek-v5": "deepseek/deepseek-flash",
+		"minimax-m4": "minimax-m3", "MiniMax-M4": "MiniMax-M3",
+		"qwen3.9-max": "qwen3.8-max", "qwen4-max": "qwen3.8-max", "dashscope/qwen3.9-max": "dashscope/qwen3.8-max",
+		"grok-4.8": "grok-4.7", "grok-5": "grok-4.7",
+		"claude-opus-6": "claude-opus-5-5", "claude-opus-4-10": "claude-opus-4-8",
+	} {
+		got, want := tableAnswers(name), tableAnswers(documented)
+		for key := range want {
+			assert.Equal(t, want[key], got[key], "%s should answer %s like %s", name, key, documented)
+		}
+	}
+}
+
+func TestEveryListedReleaseReadsAsItself(t *testing.T) {
+	t.Parallel()
+
+	for _, f := range lineFamilies {
+		for _, line := range f.lines {
+			for _, g := range line {
+				for _, id := range g.members {
+					documented, inherited := inheritLine(id)
+					require.False(t, inherited, "%s reads as %s", id, documented)
+				}
+			}
+		}
+	}
+	for _, releases := range claudeReleases {
+		for _, r := range releases {
+			documented, inherited := inheritClaude(r.id)
+			require.False(t, inherited, "%s reads as %s", r.id, documented)
 		}
 	}
 }

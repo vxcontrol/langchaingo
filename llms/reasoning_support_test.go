@@ -17,7 +17,7 @@ func TestReasoningSupportForNewerGeneration(t *testing.T) {
 		provider reasoning.Provider
 		want     bool
 	}{
-		{"gpt-6", reasoning.ProviderOpenAI, true},
+		{"gpt-5.3-codex", reasoning.ProviderOpenAI, true},
 		{"gemini-4-pro", reasoning.ProviderGoogleAI, true},
 		{"gpt-4o", reasoning.ProviderOpenAI, false},
 		{"claude-3-5-sonnet-latest", reasoning.ProviderAnthropic, false},
@@ -33,15 +33,25 @@ func TestReasoningSupportForNewerGeneration(t *testing.T) {
 	}
 }
 
-func TestAnUnlistedClaudeVersionIsAnsweredStrictlyByTheReleaseItFollows(t *testing.T) {
+func TestAnUnlistedVersionIsAnsweredStrictlyByTheReleaseItFollows(t *testing.T) {
 	t.Parallel()
 
-	got := ReasoningSupportFor("claude-opus-6", reasoning.ProviderAnthropic)
-	want := ReasoningSupportFor("claude-opus-5-5", reasoning.ProviderAnthropic)
-	require.Equal(t, "claude-opus-5-5", got.Inherited)
-	require.Empty(t, want.Inherited)
-	want.Inherited = got.Inherited
-	require.Equal(t, want, got)
+	for _, tc := range []struct {
+		model, documented string
+		provider          reasoning.Provider
+	}{
+		{"claude-opus-6", "claude-opus-5-5", reasoning.ProviderAnthropic},
+		{"gpt-6", "gpt-6-sol", reasoning.ProviderOpenAI},
+		{"gpt-5.7", "gpt-5.6", reasoning.ProviderOpenAI},
+		{"kimi-k4", "kimi-k3", reasoning.ProviderOpenAI},
+	} {
+		got := ReasoningSupportFor(tc.model, tc.provider)
+		want := ReasoningSupportFor(tc.documented, tc.provider)
+		require.Equal(t, tc.documented, got.Inherited, tc.model)
+		require.Empty(t, want.Inherited, tc.documented)
+		want.Inherited = got.Inherited
+		require.Equal(t, want, got, tc.model)
+	}
 }
 
 func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven test
@@ -128,10 +138,10 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 	})
 
 	t.Run("an unclassified OpenAI model names no effort tiers", func(t *testing.T) {
-		s := ReasoningSupportFor("gpt-5.7", reasoning.ProviderOpenAI)
+		s := ReasoningSupportFor("gpt-5.3-codex", reasoning.ProviderOpenAI)
 		eq(t, "Supported", s.Supported, true)
 		if s.Efforts != nil {
-			t.Errorf("Efforts = %v, want nil: the tiers of gpt-5.7 are not classified", s.Efforts)
+			t.Errorf("Efforts = %v, want nil: the tiers of gpt-5.3-codex are not classified", s.Efforts)
 		}
 	})
 
@@ -163,7 +173,7 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		eq(t, "gpt-5.5 Mechanism",
 			ReasoningSupportFor("gpt-5.5", reasoning.ProviderOpenAI).Mechanism, ReasoningMechanismAdaptive)
 		eq(t, "unclassified model Mechanism",
-			ReasoningSupportFor("gpt-5.3", reasoning.ProviderOpenAI).Mechanism, ReasoningMechanismUnknown)
+			ReasoningSupportFor("gpt-5.3-codex", reasoning.ProviderOpenAI).Mechanism, ReasoningMechanismUnknown)
 	})
 
 	t.Run("a model outside the capability table is not reported as classified", func(t *testing.T) {
@@ -171,10 +181,10 @@ func TestReasoningSupportFor(t *testing.T) { //nolint:funlen // table-driven tes
 		eq(t, "gpt-5.5 Known", classified.Known, true)
 		eq(t, "gpt-5.5 Efforts present", len(classified.Efforts) > 0, true)
 
-		unclassified := ReasoningSupportFor("gpt-5.3", reasoning.ProviderOpenAI)
-		eq(t, "gpt-5.3 Supported", unclassified.Supported, true)
-		eq(t, "gpt-5.3 Known", unclassified.Known, false)
-		eq(t, "gpt-5.3 Efforts empty", len(unclassified.Efforts), 0)
+		unclassified := ReasoningSupportFor("gpt-5.3-codex", reasoning.ProviderOpenAI)
+		eq(t, "gpt-5.3-codex Supported", unclassified.Supported, true)
+		eq(t, "gpt-5.3-codex Known", unclassified.Known, false)
+		eq(t, "gpt-5.3-codex Efforts empty", len(unclassified.Efforts), 0)
 	})
 
 	t.Run("OpenAI effort set is model-dependent", func(t *testing.T) {

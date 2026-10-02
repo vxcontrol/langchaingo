@@ -68,7 +68,7 @@ func dashScopeSpelling(model string) string {
 	if strings.Contains(m, "/") {
 		return ""
 	}
-	return m
+	return inheritedOrSelf(m)
 }
 
 // ErrThinkingRequiresStream reports thinking asked of a stream-only model
@@ -123,7 +123,7 @@ func dashScopeGuestSpelling(model string) string {
 	if !ok || strings.Contains(rest, "/") {
 		return ""
 	}
-	return rest
+	return inheritedOrSelf(rest)
 }
 
 var dashScopeHosts = []string{

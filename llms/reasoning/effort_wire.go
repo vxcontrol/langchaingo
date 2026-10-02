@@ -101,9 +101,9 @@ func ServedByZAI(model, host string) bool {
 func ServedByDeepSeek(model, host string) bool {
 	m := strings.ToLower(model)
 	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok && host != "openrouter.ai" {
-		return slices.Contains(deepSeekAPIModels, rest)
+		return slices.Contains(deepSeekAPIModels, inheritedOrSelf(rest))
 	}
-	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, m)
+	return host == deepSeekAPIHost && slices.Contains(deepSeekAPIModels, inheritedOrSelf(m))
 }
 
 // RejectsTopK reports whether top_k must stay off the wire.

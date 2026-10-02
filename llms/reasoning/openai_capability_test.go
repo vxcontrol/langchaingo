@@ -2,6 +2,7 @@ package reasoning
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -31,7 +32,8 @@ func TestOpenAIReasoningCapsFor(t *testing.T) {
 		{"openai/gpt-5.4-mini", true, true, []string{"low", "medium", "high", "xhigh"}}, // proxy prefix stripped
 		{"gpt-5.5", true, true, []string{"low", "medium", "high", "xhigh"}},
 		{"gpt-5.6-terra", true, true, []string{"low", "medium", "high", "xhigh"}},
-		{"gpt-5.7", false, false, nil}, // unclassified -> optimistic
+		{"gpt-5.7", true, true, []string{"low", "medium", "high", "xhigh"}},
+		{"gpt-5.3-codex", false, false, nil},
 		{"gpt-4.1", false, false, nil},
 	}
 	for _, tc := range cases {
@@ -68,7 +70,7 @@ func TestOpenAIReasoningCaps_ClampEffort(t *testing.T) {
 		{"gpt-5.6-terra", "xhigh", "xhigh"},
 		{"gpt-5.4-mini", "medium", "medium"},
 		// Unknown model: unchanged (optimistic).
-		{"gpt-5.7", "max", "max"},
+		{"gpt-5.3-codex", "max", "max"},
 		// Empty effort untouched.
 		{"gpt-5-pro", "", ""},
 	}
@@ -135,11 +137,11 @@ func TestAGenerationDoesNotAnswerForALaterOne(t *testing.T) {
 		why   string
 	}{
 		{"gpt-5.1", true, "the generation itself"},
-		{"gpt-5.10", false, "a later generation whose name extends gpt-5.1"},
+		{"gpt-5.10", true, "a later generation, answered by gpt-5.6 rather than by the gpt-5.1 its name extends"},
 		{"gpt-5.2", true, "the generation itself"},
-		{"gpt-5.20", false, "a later generation whose name extends gpt-5.2"},
+		{"gpt-5.20", true, "a later generation, answered by gpt-5.6 rather than by the gpt-5.2 its name extends"},
 		{"gpt-5", true, "the generation itself"},
-		{"gpt-51", false, "a name that merely starts with gpt-5"},
+		{"gpt-51", true, "a later generation, answered by the newest release rather than by gpt-5"},
 		{"o1", true, "the generation itself"},
 		{"o10", false, "a later generation whose name extends o1"},
 		{"o3", true, "the generation itself"},
@@ -153,6 +155,9 @@ func TestAGenerationDoesNotAnswerForALaterOne(t *testing.T) {
 			if got := OpenAIReasoningCapsFor(tc.model).Known; got != tc.known {
 				t.Errorf("OpenAIReasoningCapsFor(%q).Known = %v, want %v — %s",
 					tc.model, got, tc.known, tc.why)
+			}
+			if documented, inherited := InheritedModel(tc.model); inherited && strings.HasPrefix(tc.model, documented) {
+				t.Errorf("%s follows %s, a release its name merely extends — %s", tc.model, documented, tc.why)
 			}
 		})
 	}
@@ -243,12 +248,22 @@ func TestAClosedVendorEnumClampsAndAMappedOneDoesNot(t *testing.T) {
 	}
 }
 
-func TestTheClosedEnumStopsAtItsOwnGeneration(t *testing.T) {
+func TestTheClosedEnumReachesALaterGenerationOnlyThroughTheReleaseItFollows(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"glm-5.31", "glm-5.4", "zai-glm-5-31", "zai-glm-5-4", "kimi-k30", "kimi-k4", "kimi-k2.6"} {
-		if OpenAIReasoningCapsFor(model).Known {
-			t.Errorf("%s is classified, but no vendor documentation covers it", model)
+	for model, documented := range map[string]string{
+		"glm-5.31": "glm-5.3", "glm-5.4": "glm-5.3", "zai-glm-5-31": "glm-5-3", "zai-glm-5-4": "glm-5-3",
+		"kimi-k30": "kimi-k3", "kimi-k4": "kimi-k3",
+	} {
+		got, inherited := InheritedModel(model)
+		if !inherited || got != documented {
+			t.Errorf("%s follows %q (%v), want %s", model, got, inherited, documented)
 		}
+		if !slices.Equal(OpenAIReasoningCapsFor(model).Efforts, []string{"low", "high", "max"}) {
+			t.Errorf("%s does not answer as %s", model, documented)
+		}
+	}
+	if OpenAIReasoningCapsFor("kimi-k2.6").Known {
+		t.Error("kimi-k2.6 is classified, but no vendor documentation covers its efforts")
 	}
 }
