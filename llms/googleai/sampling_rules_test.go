@@ -48,7 +48,9 @@ func generationConfigSent(t *testing.T, model string, opts ...llms.CallOption) (
 func TestAGemini3ModelIsAskedForOneCandidate(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"gemini-3.8-flash", "gemini-3-flash-preview", "gemini-4-flash", "gemini-flash-latest"} {
+	for _, model := range []string{
+		"gemini-3.8-flash", "gemini-3-flash-preview", "gemini-4-flash", "gemini-flash-latest", "models/gemini-3.8-flash",
+	} {
 		config, warnings := generationConfigSent(t, model, llms.WithCandidateCount(2))
 		assert.InDelta(t, 1, config["candidateCount"], 0, model)
 		if assert.Contains(t, warnings, "WithCandidateCount", model) {
@@ -62,7 +64,37 @@ func TestAGemini3ModelIsAskedForOneCandidate(t *testing.T) {
 		assert.NotContains(t, warnings, "WithCandidateCount", model)
 	}
 
-	config, warnings := generationConfigSent(t, "gemini-2.5-flash", llms.WithCandidateCount(2))
-	assert.InDelta(t, 2, config["candidateCount"], 0)
-	assert.NotContains(t, warnings, "WithCandidateCount")
+	config, warnings := generationConfigSent(t, "gemini-2.5-flash",
+		llms.WithModel("gemini-3.8-flash"), llms.WithCandidateCount(2))
+	assert.InDelta(t, 1, config["candidateCount"], 0, "the per-call model decides, not the client's default")
+	assert.Contains(t, warnings, "WithCandidateCount")
+
+	for _, model := range []string{"gemini-2.5-flash", "gemini-2.5-flash-native-audio-latest"} {
+		config, warnings := generationConfigSent(t, model, llms.WithCandidateCount(2))
+		assert.InDelta(t, 2, config["candidateCount"], 0, model)
+		assert.NotContains(t, warnings, "WithCandidateCount", model)
+	}
+}
+
+func TestVertexIsSentNoCandidateCountForAGemini3Model(t *testing.T) {
+	t.Parallel()
+
+	_, body, resp := vertexCall(t, llms.WithModel("gemini-3.8-flash"), llms.WithCandidateCount(2))
+	config, _ := body["generationConfig"].(map[string]any)
+	assert.NotContains(t, config, "candidateCount")
+	dropped, reported := googleWarningsByOption(resp.Warnings)["WithCandidateCount"]
+	if assert.True(t, reported, "%v", resp.Warnings) {
+		assert.Equal(t, llms.WarningDrop, dropped.Kind)
+		assert.Equal(t, "2", dropped.Asked)
+	}
+
+	_, body, resp = vertexCall(t, llms.WithModel("gemini-3.8-flash"))
+	config, _ = body["generationConfig"].(map[string]any)
+	assert.NotContains(t, config, "candidateCount")
+	assert.NotContains(t, googleWarningsByOption(resp.Warnings), "WithCandidateCount",
+		"the door's own default is not the caller's request")
+
+	_, body, _ = vertexCall(t, llms.WithCandidateCount(2))
+	config, _ = body["generationConfig"].(map[string]any)
+	assert.InDelta(t, 2, config["candidateCount"], 0, "Gemini 2.5 on Vertex keeps the count")
 }

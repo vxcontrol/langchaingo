@@ -178,7 +178,8 @@ func (g *GoogleAI) GenerateContent(
 
 	warn := &llms.Warnings{}
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
-	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config)
+	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config,
+		g.client.ClientConfig().Backend == genai.BackendVertexAI)
 
 	var response *llms.ContentResponse
 
@@ -1143,16 +1144,32 @@ func newGenerationConfig(opts llms.CallOptions) *genai.GenerateContentConfig {
 	}
 }
 
-func dropCandidatesTheModelCannotReturn(warn *llms.Warnings, model string, config *genai.GenerateContentConfig) {
-	if config.CandidateCount <= 1 || !reasoning.GeminiTakesNoCandidateCount(model) {
+func dropCandidatesTheModelCannotReturn(
+	warn *llms.Warnings, model string, config *genai.GenerateContentConfig, vertex bool,
+) {
+	if config.CandidateCount == 0 || !reasoning.GeminiTakesNoCandidateCount(model) {
 		return
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithCandidateCount", Model: model,
-		Asked: strconv.Itoa(int(config.CandidateCount)), Sent: "1",
-		Reason: "Google returns one candidate on this model",
-	})
-	config.CandidateCount = 1
+	asked := config.CandidateCount
+	if vertex {
+		config.CandidateCount = 0
+	} else {
+		config.CandidateCount = 1
+	}
+	switch {
+	case asked <= 1:
+	case vertex:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
+			Asked: strconv.Itoa(int(asked)), Reason: "Vertex AI rejects a candidate count on this model",
+		})
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithCandidateCount", Model: model,
+			Asked: strconv.Itoa(int(asked)), Sent: "1",
+			Reason: "Google returns one candidate on this model",
+		})
+	}
 }
 
 func convertToFloat32Pointer(f *float64) *float32 {
