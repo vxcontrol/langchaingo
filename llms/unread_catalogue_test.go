@@ -41,7 +41,10 @@ func catalogueOptions(t *testing.T) []reflect.StructField {
 
 	var fields []reflect.StructField
 	for _, field := range reflect.VisibleFields(reflect.TypeFor[llms.CallOptions]()) {
-		if field.IsExported() && !optionsOutsideTheCatalogue[field.Name] {
+		switch {
+		case !field.IsExported():
+			t.Errorf("CallOptions.%s is unexported, so no door outside llms can carry it", field.Name)
+		case !optionsOutsideTheCatalogue[field.Name]:
 			fields = append(fields, field)
 		}
 	}
