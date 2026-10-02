@@ -61,8 +61,17 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Equal(t, "required", body["tool_choice"])
 	inherited(warnings, "WithToolChoice")
 
-	_, warnings = hostCall(t, "https://api.openai.com/v1", "gpt-5.7-cyber")
-	inherited(warnings, "WithModel")
+	llm := newUnitLLM(t, WithBaseURL("https://api.openai.com/v1"), WithModel("gpt-5.7-cyber"), WithHTTPClient(&bodyDoer{}))
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+	require.NoError(t, err)
+	var model []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Kind == llms.WarningInherit && w.Option == "WithModel" {
+			model = append(model, w)
+		}
+	}
+	require.Len(t, model, 2, "the release it follows, and its Chat Completions refusal: %v", resp.Warnings)
 }
 
 func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
