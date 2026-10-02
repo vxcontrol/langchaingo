@@ -46,6 +46,7 @@ func TestAForcedToolChoiceTheVendorRejectsIsRefusedBeforeTheNetwork(t *testing.T
 		"DeepSeek thinking, required":                   {deepSeek, "deepseek-v4-pro", []llms.CallOption{thinking, required}},
 		"DeepSeek thinking, required in the extra body": {deepSeek, "deepseek-v4-pro", []llms.CallOption{thinking, requiredInTheExtraBody}},
 		"Qwen thinking, named":                          {dashScope, "qwen3.6-plus", []llms.CallOption{thinking, named}},
+		"QwQ thinking, required":                        {dashScope, "qwq-plus", []llms.CallOption{thinking, required}},
 		"Qwen switched on by the door, required":        {dashScope, "qwen-plus", []llms.CallOption{thinking, required}},
 		"Qwen switched on by the extra body, required": {dashScope, "qwen-plus",
 			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": true}), required}},

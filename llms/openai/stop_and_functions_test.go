@@ -17,6 +17,8 @@ func TestStopWordsAreRefusedBeforeTheNetworkWhereTheVendorRefusesThem(t *testing
 
 	for _, tc := range []struct{ baseURL, model string }{
 		{"https://api.openai.com/v1", "o3"},
+		{"https://api.openai.com/v1", "o3-2025-04-16"},
+		{"https://api.openai.com/v1", "o4-mini"},
 		{"https://api.openai.com/v1", "o4-mini-2025-04-16"},
 		{"https://api.x.ai/v1", "grok-4.7"},
 		{"https://api.x.ai/v1", "grok-4.6"},
@@ -30,8 +32,15 @@ func TestStopWordsAreRefusedBeforeTheNetworkWhereTheVendorRefusesThem(t *testing
 		require.Nil(t, doer.body, "%s: refused before the network", tc.model)
 	}
 
-	body, _ := hostCall(t, "https://api.openai.com/v1", "gpt-4.1", llms.WithStopWords([]string{"END"}))
-	assert.Equal(t, []any{"END"}, body["stop"])
+	for _, tc := range []struct{ baseURL, model string }{
+		{"https://api.openai.com/v1", "gpt-4.1"},
+		{"https://api.openai.com/v1", "o3-mini"},
+		{"https://api.x.ai/v1", "grok-4-1-fast-non-reasoning"},
+		{"https://api.x.ai/v1", "grok-3"},
+	} {
+		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithStopWords([]string{"END"}))
+		assert.Equal(t, []any{"END"}, body["stop"], tc.model)
+	}
 }
 
 func TestFunctionsFollowTheEffortRuleForTools(t *testing.T) {
