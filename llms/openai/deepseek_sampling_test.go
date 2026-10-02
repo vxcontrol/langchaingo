@@ -79,9 +79,10 @@ func TestDeepSeekV32KeepsSamplingEvenWithAnEffortOnTheWire(t *testing.T) {
 }
 
 const (
-	deepSeekBaseURL  = "http://api.deepseek.com"
-	dashScopeBaseURL = "http://dashscope-us.aliyuncs.com/compatible-mode/v1"
-	gatewayBaseURL   = "http://litellm.example/v1"
+	deepSeekBaseURL   = "http://api.deepseek.com"
+	dashScopeBaseURL  = "http://dashscope-us.aliyuncs.com/compatible-mode/v1"
+	gatewayBaseURL    = "http://litellm.example/v1"
+	openRouterBaseURL = "http://openrouter.ai/api/v1"
 )
 
 func sendToHost(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map[string]any, *llms.ContentResponse) {
@@ -210,6 +211,10 @@ func TestDeepSeekOutOfThinkingLeavesOutTheTopPItIgnores(t *testing.T) {
 	if body, _ := sendToHost(t, dashScopeBaseURL, "deepseek-v4-pro", off, llms.WithTopP(0.9)); body["top_p"] != 0.9 {
 		t.Errorf("DashScope documents top_p as settable, got body: %v", body)
 	}
+	body, _ := sendToHost(t, openRouterBaseURL, "deepseek/deepseek-v4-pro", llms.WithReasoningDisabled(), llms.WithTopP(0.9))
+	if body["top_p"] != 0.9 {
+		t.Errorf("OpenRouter's deepseek/ ids are its catalog, not DeepSeek's API, got body: %v", body)
+	}
 }
 
 func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
@@ -220,12 +225,13 @@ func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
 		baseURL, model string
 		thinking       llms.CallOption
 	}{
-		"dashscope/deepseek-v4-pro":           {gatewayBaseURL, "dashscope/deepseek-v4-pro", effort},
-		"openrouter/deepseek/deepseek-v4-pro": {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", effort},
-		"deepseek-v4-pro on DashScope":        {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": true})},
-		"deepseek-v4-pro on DashScope, off":   {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": false})},
-		"deepseek-v4-flash on DashScope":      {dashScopeBaseURL, "deepseek-v4-flash", effort},
-		"deepseek-v4-pro on a gateway":        {gatewayBaseURL, "deepseek-v4-pro", effort},
+		"dashscope/deepseek-v4-pro":              {gatewayBaseURL, "dashscope/deepseek-v4-pro", effort},
+		"openrouter/deepseek/deepseek-v4-pro":    {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", effort},
+		"deepseek-v4-pro on DashScope":           {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": true})},
+		"deepseek-v4-pro on DashScope, off":      {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": false})},
+		"deepseek-v4-flash on DashScope":         {dashScopeBaseURL, "deepseek-v4-flash", effort},
+		"deepseek-v4-pro on a gateway":           {gatewayBaseURL, "deepseek-v4-pro", effort},
+		"deepseek/deepseek-v4-pro on OpenRouter": {openRouterBaseURL, "deepseek/deepseek-v4-pro", effort},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.thinking, llms.WithTemperature(0.4))
 		if body["temperature"] != 0.4 {
@@ -277,21 +283,22 @@ func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 		baseURL, model string
 		dropped        bool
 	}{
-		"deepseek-v4-pro on its own API":            {deepSeekBaseURL, "deepseek-v4-pro", true},
-		"deepseek/deepseek-v4-pro on a gateway":     {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
-		"deepseek-flash on its own API":             {deepSeekBaseURL, "deepseek-flash", true},
-		"dashscope/deepseek-v4-pro on a gateway":    {gatewayBaseURL, "dashscope/deepseek-v4-pro", true},
-		"deepseek-v4-pro on DashScope":              {dashScopeBaseURL, "deepseek-v4-pro", true},
-		"dashscope/kimi-k2.7-code on a gateway":     {gatewayBaseURL, "dashscope/kimi-k2.7-code", true},
-		"kimi-k2.6 on DashScope":                    {dashScopeBaseURL, "kimi-k2.6", true},
-		"kimi/kimi-k2.6 on DashScope":               {dashScopeBaseURL, "kimi/kimi-k2.6", true},
-		"dashscope/MiniMax-M2.5 on a gateway":       {gatewayBaseURL, "dashscope/MiniMax-M2.5", true},
-		"MiniMax/MiniMax-M3 on DashScope":           {dashScopeBaseURL, "MiniMax/MiniMax-M3", true},
-		"Moonshot-Kimi-K2-Instruct on DashScope":    {dashScopeBaseURL, "Moonshot-Kimi-K2-Instruct", true},
-		"dashscope/qwen3.7-plus keeps it":           {gatewayBaseURL, "dashscope/qwen3.7-plus", false},
-		"glm-5.2 on DashScope keeps it":             {dashScopeBaseURL, "glm-5.2", false},
-		"kimi-k2.6 on a gateway's other route":      {gatewayBaseURL, "moonshot/kimi-k2.6", false},
-		"deepseek-v4-pro on another route keeps it": {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", false},
+		"deepseek-v4-pro on its own API":                  {deepSeekBaseURL, "deepseek-v4-pro", true},
+		"deepseek/deepseek-v4-pro on a gateway":           {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
+		"deepseek-flash on its own API":                   {deepSeekBaseURL, "deepseek-flash", true},
+		"dashscope/deepseek-v4-pro on a gateway":          {gatewayBaseURL, "dashscope/deepseek-v4-pro", true},
+		"deepseek-v4-pro on DashScope":                    {dashScopeBaseURL, "deepseek-v4-pro", true},
+		"dashscope/kimi-k2.7-code on a gateway":           {gatewayBaseURL, "dashscope/kimi-k2.7-code", true},
+		"kimi-k2.6 on DashScope":                          {dashScopeBaseURL, "kimi-k2.6", true},
+		"kimi/kimi-k2.6 on DashScope":                     {dashScopeBaseURL, "kimi/kimi-k2.6", true},
+		"dashscope/MiniMax-M2.5 on a gateway":             {gatewayBaseURL, "dashscope/MiniMax-M2.5", true},
+		"MiniMax/MiniMax-M3 on DashScope":                 {dashScopeBaseURL, "MiniMax/MiniMax-M3", true},
+		"Moonshot-Kimi-K2-Instruct on DashScope":          {dashScopeBaseURL, "Moonshot-Kimi-K2-Instruct", true},
+		"dashscope/qwen3.7-plus keeps it":                 {gatewayBaseURL, "dashscope/qwen3.7-plus", false},
+		"glm-5.2 on DashScope keeps it":                   {dashScopeBaseURL, "glm-5.2", false},
+		"kimi-k2.6 on a gateway's other route":            {gatewayBaseURL, "moonshot/kimi-k2.6", false},
+		"deepseek-v4-pro on another route keeps it":       {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", false},
+		"deepseek/deepseek-v4-pro on OpenRouter keeps it": {openRouterBaseURL, "deepseek/deepseek-v4-pro", false},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithTopK(40))
 		_, present := body["top_k"]
