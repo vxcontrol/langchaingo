@@ -34,7 +34,6 @@ func TestTheLegacyDoorSendsAnExplicitZeroTemperatureAndNoneWhenUnasked(t *testin
 			`{"generation":"ok","stop_reason":"stop","prompt_token_count":1,"generation_token_count":1}`,
 			[]string{"temperature"}},
 		{"deepseek.r1-v1:0", `{"choices":[{"text":"ok","stop_reason":"stop"}]}`, []string{"temperature"}},
-		{"amazon.nova-2-lite-v1:0", novaAnswer, []string{"inferenceConfig", "temperature"}},
 	} {
 		t.Run(family.model, func(t *testing.T) {
 			t.Parallel()

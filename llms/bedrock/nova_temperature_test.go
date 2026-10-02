@@ -10,7 +10,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/bedrock"
 )
 
-func TestNovaUnderstandingModelsAreSentATemperatureFromTheFloorToOne(t *testing.T) {
+func TestNovaIsSentATemperatureFromTheFloorToOne(t *testing.T) {
 	t.Parallel()
 
 	novaTemperature := func(body map[string]any) any {
@@ -27,6 +27,8 @@ func TestNovaUnderstandingModelsAreSentATemperatureFromTheFloorToOne(t *testing.
 		{"us.amazon.nova-lite-v1:0", converseAnswer, []bedrock.Option{bedrock.WithConverseAPI()}},
 		{"arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.amazon.nova-premier-v1:0", converseAnswer,
 			[]bedrock.Option{bedrock.WithConverseAPI()}},
+		{"us.amazon.nova-2-lite-v1:0", novaAnswer, nil},
+		{"amazon.nova-2-lite-v1:0", converseAnswer, []bedrock.Option{bedrock.WithConverseAPI()}},
 	} {
 		for _, c := range []struct {
 			asked, sent float64
@@ -53,17 +55,5 @@ func TestNovaUnderstandingModelsAreSentATemperatureFromTheFloorToOne(t *testing.
 			require.Equal(t, strconv.FormatFloat(c.asked, 'g', -1, 64), w.Asked)
 			require.Equal(t, strconv.FormatFloat(c.sent, 'g', -1, 64), w.Sent)
 		}
-	}
-
-	for _, opts := range [][]bedrock.Option{nil, {bedrock.WithConverseAPI()}} {
-		answer := novaAnswer
-		if opts != nil {
-			answer = converseAnswer
-		}
-		resp, body := bedrockWarningsSending(t, answer,
-			append([]bedrock.Option{bedrock.WithModel("us.amazon.nova-2-lite-v1:0")}, opts...), llms.WithTemperature(0))
-		require.InDelta(t, 0, novaTemperature(body), 0, "Nova 2 is not one of the understanding models the floor names")
-		_, reported := bedrockWarningsByOption(resp.Warnings)["WithTemperature"]
-		require.False(t, reported, "%v", resp.Warnings)
 	}
 }

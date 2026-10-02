@@ -37,7 +37,7 @@ const NovaMinTemperature = 0.00001
 
 func NovaClampTemperature(model string, temperature float64) float64 {
 	m := bedrockModelWithoutRegion(model)
-	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier"} {
+	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier", "amazon.nova-2-"} {
 		if strings.HasPrefix(m, family) {
 			return min(max(temperature, NovaMinTemperature), 1)
 		}
