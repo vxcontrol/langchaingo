@@ -238,13 +238,16 @@ func createAnthropicCompletion(ctx context.Context,
 		return nil, err
 	}
 
-	tools := make([]anthropicTool, len(options.Tools))
-	for i, tool := range options.Tools {
-		tools[i] = anthropicTool{
+	tools := make([]anthropicTool, 0, len(options.Tools))
+	for _, tool := range options.Tools {
+		if tool.Function == nil {
+			continue
+		}
+		tools = append(tools, anthropicTool{
 			Name:        tool.Function.Name,
 			Description: tool.Function.Description,
 			InputSchema: toolcall.Schema(tool.Function.Parameters),
-		}
+		})
 	}
 
 	// Prepare system prompt - omit if empty
