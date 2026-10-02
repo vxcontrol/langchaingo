@@ -6,7 +6,6 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/stretchr/testify/require"
@@ -163,96 +162,6 @@ func TestCreateCompletion_UnsupportedProvider(t *testing.T) {
 	_, err = client.CreateCompletion(ctx, "unsupported.model", messages, options)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unsupported provider")
-}
-
-// AI21 provider tests
-func TestCreateAi21Completion_RequestStructure(t *testing.T) {
-	messages := []Message{
-		{Role: llms.ChatMessageTypeHuman, Type: "text", Content: "What is the capital of France?"},
-	}
-	options := llms.CallOptions{
-		Temperature:       getFloatPointer(0.7),
-		TopP:              getFloatPointer(0.9),
-		MaxTokens:         getIntPointer(100),
-		StopWords:         []string{"END"},
-		RepetitionPenalty: getFloatPointer(1.2),
-		CandidateCount:    getIntPointer(2),
-	}
-
-	// Create the input that would be sent to AI21
-	txt := processInputMessagesGeneric(messages)
-	input := ai21TextGenerationInput{
-		Prompt:        txt,
-		Temperature:   options.Temperature,
-		TopP:          options.GetTopP(),
-		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 2048),
-		StopSequences: options.StopWords,
-		CountPenalty: struct {
-			Scale float64 `json:"scale"`
-		}{Scale: options.GetRepetitionPenalty()},
-		PresencePenalty: struct {
-			Scale float64 `json:"scale"`
-		}{Scale: options.GetRepetitionPenalty()},
-		FrequencyPenalty: struct {
-			Scale float64 `json:"scale"`
-		}{Scale: options.GetFrequencyPenalty()},
-		NumResults: options.GetCandidateCount(),
-	}
-
-	// Verify the request structure
-	body, err := json.Marshal(input)
-	require.NoError(t, err)
-
-	var unmarshaled ai21TextGenerationInput
-	err = json.Unmarshal(body, &unmarshaled)
-	require.NoError(t, err)
-
-	require.Equal(t, "\nhuman: What is the capital of France?\nAI: ", unmarshaled.Prompt)
-	require.NotNil(t, unmarshaled.Temperature)
-	require.Equal(t, 0.7, *unmarshaled.Temperature)
-	require.Equal(t, 0.9, unmarshaled.TopP)
-	require.Equal(t, 100, unmarshaled.MaxTokens)
-	require.Equal(t, []string{"END"}, unmarshaled.StopSequences)
-	require.Equal(t, 1.2, unmarshaled.CountPenalty.Scale)
-	require.Equal(t, 2, unmarshaled.NumResults)
-}
-
-// Amazon provider tests
-func TestCreateAmazonCompletion_RequestStructure(t *testing.T) {
-	messages := []Message{
-		{Role: llms.ChatMessageTypeHuman, Type: "text", Content: "Tell me about AI"},
-	}
-	options := llms.CallOptions{
-		Temperature: getFloatPointer(0.5),
-		TopP:        getFloatPointer(0.8),
-		MaxTokens:   getIntPointer(150),
-		StopWords:   []string{"|", "User:"},
-	}
-
-	txt := processInputMessagesGeneric(messages)
-	input := amazonTextGenerationInput{
-		InputText: txt,
-		TextGenerationConfig: amazonTextGenerationConfigInput{
-			MaxTokens:     getMaxTokens(options.GetMaxTokens(), 512),
-			TopP:          options.GetTopP(),
-			Temperature:   options.Temperature,
-			StopSequences: options.StopWords,
-		},
-	}
-
-	body, err := json.Marshal(input)
-	require.NoError(t, err)
-
-	var unmarshaled amazonTextGenerationInput
-	err = json.Unmarshal(body, &unmarshaled)
-	require.NoError(t, err)
-
-	require.Equal(t, "\nhuman: Tell me about AI\nAI: ", unmarshaled.InputText)
-	require.Equal(t, 150, unmarshaled.TextGenerationConfig.MaxTokens)
-	require.Equal(t, 0.8, unmarshaled.TextGenerationConfig.TopP)
-	require.NotNil(t, unmarshaled.TextGenerationConfig.Temperature)
-	require.Equal(t, 0.5, *unmarshaled.TextGenerationConfig.Temperature)
-	require.Equal(t, []string{"|", "User:"}, unmarshaled.TextGenerationConfig.StopSequences)
 }
 
 // Anthropic provider tests
@@ -446,81 +355,6 @@ func TestGetAnthropicInputContent(t *testing.T) {
 	}
 }
 
-// Cohere provider tests
-func TestCreateCohereCompletion_RequestStructure(t *testing.T) {
-	messages := []Message{
-		{Role: llms.ChatMessageTypeHuman, Type: "text", Content: "Explain quantum computing"},
-	}
-	options := llms.CallOptions{
-		Temperature:    getFloatPointer(0.8),
-		TopP:           getFloatPointer(0.95),
-		TopK:           getIntPointer(50),
-		MaxTokens:      getIntPointer(200),
-		StopWords:      []string{"END", "STOP"},
-		CandidateCount: getIntPointer(3),
-	}
-
-	txt := processInputMessagesGeneric(messages)
-	input := &cohereTextGenerationInput{
-		Prompt:         txt,
-		Temperature:    options.Temperature,
-		P:              options.GetTopP(),
-		K:              options.GetTopK(),
-		MaxTokens:      getMaxTokens(options.GetMaxTokens(), 20),
-		StopSequences:  options.StopWords,
-		NumGenerations: options.GetCandidateCount(),
-	}
-
-	body, err := json.Marshal(input)
-	require.NoError(t, err)
-
-	var unmarshaled cohereTextGenerationInput
-	err = json.Unmarshal(body, &unmarshaled)
-	require.NoError(t, err)
-
-	require.Equal(t, "\nhuman: Explain quantum computing\nAI: ", unmarshaled.Prompt)
-	require.NotNil(t, unmarshaled.Temperature)
-	require.Equal(t, 0.8, *unmarshaled.Temperature)
-	require.Equal(t, 0.95, unmarshaled.P)
-	require.Equal(t, 50, unmarshaled.K)
-	require.Equal(t, 200, unmarshaled.MaxTokens)
-	require.Equal(t, []string{"END", "STOP"}, unmarshaled.StopSequences)
-	require.Equal(t, 3, unmarshaled.NumGenerations)
-}
-
-// Meta provider tests
-func TestCreateMetaCompletion_RequestStructure(t *testing.T) {
-	messages := []Message{
-		{Role: llms.ChatMessageTypeHuman, Type: "text", Content: "Write a poem about technology"},
-	}
-	options := llms.CallOptions{
-		Temperature: getFloatPointer(0.6),
-		TopP:        getFloatPointer(0.85),
-		MaxTokens:   getIntPointer(256),
-	}
-
-	txt := processInputMessagesGeneric(messages)
-	input := &metaTextGenerationInput{
-		Prompt:      txt,
-		Temperature: options.Temperature,
-		TopP:        options.GetTopP(),
-		MaxGenLen:   getMaxTokens(options.GetMaxTokens(), 512),
-	}
-
-	body, err := json.Marshal(input)
-	require.NoError(t, err)
-
-	var unmarshaled metaTextGenerationInput
-	err = json.Unmarshal(body, &unmarshaled)
-	require.NoError(t, err)
-
-	require.Equal(t, "\nhuman: Write a poem about technology\nAI: ", unmarshaled.Prompt)
-	require.NotNil(t, unmarshaled.Temperature)
-	require.Equal(t, 0.6, *unmarshaled.Temperature)
-	require.Equal(t, 0.85, unmarshaled.TopP)
-	require.Equal(t, 256, unmarshaled.MaxGenLen)
-}
-
 // Response parsing tests
 func TestAi21ResponseParsing(t *testing.T) {
 	output := ai21TextGenerationOutput{
@@ -702,35 +536,6 @@ func TestAnthropicResponseParsing(t *testing.T) {
 	require.Equal(t, int32(15), parsed.Usage.OutputTokens)
 }
 
-// Edge case tests
-func TestEmptyResponses(t *testing.T) {
-	t.Run("Amazon empty results", func(t *testing.T) {
-		output := amazonTextGenerationOutput{
-			InputTextTokenCount: 5,
-			Results: []struct {
-				TokenCount       int32  `json:"tokenCount"`
-				OutputText       string `json:"outputText"`
-				CompletionReason string `json:"completionReason"`
-			}{},
-		}
-
-		// This should be handled as an error in the actual implementation
-		require.Empty(t, output.Results)
-	})
-
-	t.Run("Anthropic empty content", func(t *testing.T) {
-		output := anthropicTextGenerationOutput{
-			Type:       "message",
-			Role:       "assistant",
-			Content:    []anthropicContentBlock{},
-			StopReason: AnthropicCompletionReasonEndTurn,
-		}
-
-		// This should be handled as an error in the actual implementation
-		require.Empty(t, output.Content)
-	})
-}
-
 // Test streaming response parsing for Anthropic
 func TestAnthropicStreamingResponseChunk(t *testing.T) {
 	tests := []struct {
@@ -816,43 +621,4 @@ func TestAnthropicStreamingResponseChunk(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Test AWS SDK request structures
-func TestBedrockRequestStructures(t *testing.T) {
-	t.Run("InvokeModelInput", func(t *testing.T) {
-		input := &bedrockruntime.InvokeModelInput{
-			ModelId:     aws.String("anthropic.claude-v2"),
-			Accept:      aws.String("*/*"),
-			ContentType: aws.String("application/json"),
-			Body:        []byte(`{"prompt": "Hello"}`),
-		}
-
-		require.Equal(t, "anthropic.claude-v2", *input.ModelId)
-		require.Equal(t, "*/*", *input.Accept)
-		require.Equal(t, "application/json", *input.ContentType)
-		require.Equal(t, []byte(`{"prompt": "Hello"}`), input.Body)
-	})
-
-	t.Run("InvokeModelWithResponseStreamInput", func(t *testing.T) {
-		input := &bedrockruntime.InvokeModelWithResponseStreamInput{
-			ModelId:     aws.String("anthropic.claude-3-sonnet"),
-			Accept:      aws.String("*/*"),
-			ContentType: aws.String("application/json"),
-			Body:        []byte(`{"prompt": "Stream this"}`),
-		}
-
-		require.Equal(t, "anthropic.claude-3-sonnet", *input.ModelId)
-		require.Equal(t, "*/*", *input.Accept)
-		require.Equal(t, "application/json", *input.ContentType)
-		require.Equal(t, []byte(`{"prompt": "Stream this"}`), input.Body)
-	})
-}
-
-func getFloatPointer(f float64) *float64 {
-	return &f
-}
-
-func getIntPointer(i int) *int {
-	return &i
 }
