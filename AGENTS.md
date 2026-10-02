@@ -15,7 +15,8 @@ Each package under `llms/<vendor>` is a door: it translates the caller's `llms.C
 - The vendor's official documentation is the source of truth. If it does not mention a parameter for a model, the parameter is unsupported. A measurement through a gateway (LiteLLM, OpenRouter) is not a vendor rule.
 - What the vendor accepts reaches the wire unchanged. What it rejects is never sent.
 - An option that cannot go out as asked is dropped, clamped or substituted and reported in `ContentResponse.Warnings` (`llms/warning.go`). An intent that cannot be honoured at all fails with a typed error before any request is sent.
-- A model name no table knows passes through as is: the vendor API decides, so a new model never regresses.
+- A version the tables do not list, of a product they know (`claude-opus-6`, `gpt-6.2-sol`, `glm-6`), follows the newest listed release of that product below it (`llms/reasoning/lines.go`): it gets that release's request shape, the door reports a `WarningInherit`, and a refusal that comes only through inheritance goes out as asked with a warning instead of an error. A qualifier (flash, mini, max) shares its generation's contract; a product (sol, astra, pro) is its own line. A name outside every known line passes through as is: the vendor API decides.
+- A rule a vendor declares for a version and every later one (Gemini from 3.6) reads the version the name asks for, not the release it follows.
 - The same model name means different APIs on different hosts (the vendor's own API, OpenRouter, vLLM, Azure, DashScope, a LiteLLM route). A rule about one vendor's API must check the host, as `reasoning.ServedByDeepSeek(model, host)` and `reasoning.DashScopeRoute(model, host)` do.
 
 ## Layout
@@ -67,8 +68,9 @@ CI (`.github/workflows/ci.yaml`) runs on pushes and PRs to `main-vxcontrol`: gol
 ## Changing model capabilities
 
 1. Find the vendor documentation line that states the rule. No line, no table change.
-2. Check which forms `modelSpellings` in `llms/reasoning/name.go` gives the tables: it drops the path prefix (`openrouter/…`, `anthropic/…`), `ft:` wrappers and Bedrock region prefixes (`us.`), returns both the bare and the prefixed form for platform prefixes (`anthropic.`) and the dash-written `zai-`, and maps the vendor-backed aliases listed in `earlierNames`. Other aliases (`-latest`), dated snapshots and `5-3` versus `5.3` are left to each table, so a table keyed on one spelling misses the others.
-3. Change the table, then add door-level tests on the wire body: one case per spelling and per host that behaves differently.
+2. Check which forms `modelSpellings` in `llms/reasoning/name.go` gives the tables: it drops the path prefix (`openrouter/…`, `anthropic/…`), `ft:` wrappers and Bedrock region prefixes (`us.`), returns both the bare and the prefixed form for platform prefixes (`anthropic.`) and the dash-written `zai-`, maps the vendor-backed aliases in `earlierNames` and `vendorAliases` and the Qwen snapshots in `qwenSnapshotsFrom`, and replaces a version missing from `lines.go` with the release it follows. Other aliases, dated snapshots and `5-3` versus `5.3` are left to each table, so a table keyed on one spelling misses the others.
+3. A new version goes into `llms/reasoning/lines.go` before any table row keys on it: until it is listed, the name arrives as the older release it follows and the new row never fires.
+4. Change the table, then add door-level tests on the wire body: one case per spelling and per host that behaves differently. `llms/testdata/pentagi_catalogues.tsv` records what PentAGI reads for every catalogue model; `go test ./llms -run TestPentagiCataloguesReadTheTablesAsRecorded -update-catalogue-snapshot` rewrites it, and the diff is part of the change.
 
 ## Style
 
