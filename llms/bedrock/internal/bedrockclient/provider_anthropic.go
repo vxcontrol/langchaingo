@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -228,7 +227,7 @@ const (
 )
 
 func createAnthropicCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -316,7 +315,7 @@ func createAnthropicCompletion(ctx context.Context,
 		ContentType: aws.String("application/json"),
 		Body:        body,
 	}
-	resp, err := client.InvokeModel(ctx, modelInput, awsbody.WithoutWriteTo)
+	resp, err := client.InvokeModel(ctx, modelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -510,8 +509,8 @@ type anthropicStreamMessage struct {
 	Usage        anthropicUsage `json:"usage"`
 }
 
-func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
-	output, err := client.InvokeModelWithResponseStream(ctx, modelInput, awsbody.WithoutWriteTo)
+func parseStreamingCompletionResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err
 	}

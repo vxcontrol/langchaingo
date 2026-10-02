@@ -14,7 +14,7 @@ import (
 
 // Client is a Bedrock client.
 type Client struct {
-	client *bedrockruntime.Client
+	client legacyRuntime
 }
 
 // Message is a chunk of text or an data
@@ -94,7 +94,7 @@ func GetProvider(modelID string) string {
 // NewClient creates a new Bedrock client.
 func NewClient(client *bedrockruntime.Client) *Client {
 	return &Client{
-		client: client,
+		client: legacyReadOnlyBodies{client},
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
@@ -39,7 +38,7 @@ type deepSeekStreamingResponseChunk struct {
 }
 
 func createDeepSeekCompletion(ctx context.Context,
-	client *bedrockruntime.Client,
+	client legacyRuntime,
 	modelID string,
 	messages []Message,
 	options llms.CallOptions,
@@ -78,7 +77,7 @@ func createDeepSeekCompletion(ctx context.Context,
 		Body:        body,
 	}
 
-	resp, err := client.InvokeModel(ctx, modelInput, awsbody.WithoutWriteTo)
+	resp, err := client.InvokeModel(ctx, modelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +138,8 @@ func formatDeepSeekPrompt(messages []Message) string {
 	return sb.String()
 }
 
-func parseDeepSeekStreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
-	output, err := client.InvokeModelWithResponseStream(ctx, modelInput, awsbody.WithoutWriteTo)
+func parseDeepSeekStreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err
 	}

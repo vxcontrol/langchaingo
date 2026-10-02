@@ -38,7 +38,7 @@ func TestNewConverseClient(t *testing.T) {
 	client := NewConverseClient(mockClient)
 
 	assert.NotNil(t, client)
-	assert.Equal(t, mockClient, client.client)
+	assert.Equal(t, converseReadOnlyBodies{mockClient}, client.client)
 }
 
 func TestConverseClient_BasicTextCompletion(t *testing.T) {

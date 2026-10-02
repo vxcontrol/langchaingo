@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/internal/numutil"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -35,7 +34,7 @@ type BedrockRuntimeClientInterface interface {
 // NewConverseClient creates a new Converse API client
 func NewConverseClient(client BedrockRuntimeClientInterface) *ConverseClient {
 	return &ConverseClient{
-		client: client,
+		client: converseReadOnlyBodies{client},
 	}
 }
 
@@ -831,7 +830,7 @@ func (b *converseToolCallBuilder) toolCall() llms.ToolCall {
 
 // handleNonStreamingResponse handles non-streaming responses
 func (c *ConverseClient) handleNonStreamingResponse(ctx context.Context, input *bedrockruntime.ConverseInput) (*llms.ContentResponse, error) {
-	response, err := c.client.Converse(ctx, input, awsbody.WithoutWriteTo)
+	response, err := c.client.Converse(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("converse API call failed: %w", err)
 	}
@@ -853,7 +852,7 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 		OutputConfig: input.OutputConfig,
 	}
 
-	response, err := c.client.ConverseStream(ctx, streamInput, awsbody.WithoutWriteTo)
+	response, err := c.client.ConverseStream(ctx, streamInput)
 	if err != nil {
 		return nil, fmt.Errorf("converse stream API call failed: %w", err)
 	}

@@ -13,5 +13,5 @@ func TestNewClient(t *testing.T) {
 	client := NewClient(bedrockClient)
 
 	require.NotNil(t, client)
-	assert.Equal(t, bedrockClient, client.client)
+	assert.Equal(t, legacyReadOnlyBodies{bedrockClient}, client.client)
 }

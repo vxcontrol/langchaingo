@@ -7,7 +7,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
@@ -153,7 +152,7 @@ func getAi21Role(role llms.ChatMessageType) (string, error) {
 	}
 }
 
-func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
+func createAi21Completion(ctx context.Context, client legacyRuntime, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	// Check if this is a Jamba model (use messages API)
 	if IsAi21Jamba(modelID) {
 		return createAi21JambaCompletion(ctx, client, modelID, messages, options, warn)
@@ -201,7 +200,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 		ContentType: aws.String("application/json"),
 	}
 
-	resp, err := client.InvokeModel(ctx, &modelInput, awsbody.WithoutWriteTo)
+	resp, err := client.InvokeModel(ctx, &modelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +235,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 	return &llms.ContentResponse{Choices: choices}, nil
 }
 
-func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Client, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
+func createAi21JambaCompletion(ctx context.Context, client legacyRuntime, modelID string, messages []Message, options llms.CallOptions, warn *llms.Warnings) (*llms.ContentResponse, error) {
 	jambaMessages := make([]struct {
 		Role    string `json:"role"`
 		Content string `json:"content"`
@@ -282,7 +281,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 		ContentType: aws.String("application/json"),
 	}
 
-	resp, err := client.InvokeModel(ctx, &modelInput, awsbody.WithoutWriteTo)
+	resp, err := client.InvokeModel(ctx, &modelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +315,8 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 	return &llms.ContentResponse{Choices: choices}, nil
 }
 
-func parseAi21StreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
-	output, err := client.InvokeModelWithResponseStream(ctx, modelInput, awsbody.WithoutWriteTo)
+func parseAi21StreamingResponse(ctx context.Context, client legacyRuntime, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
+	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
 	if err != nil {
 		return nil, err
 	}

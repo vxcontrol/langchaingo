@@ -3,9 +3,12 @@ package bedrock_test
 import (
 	"context"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -134,4 +137,72 @@ func TestAConverseStreamOutlivesTheSDKClosingItsRequestBody(t *testing.T) {
 		bedrock.WithModel("anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI())
 	require.NoError(t, err)
 	require.Equal(t, "first second", resp.Choices[0].Content)
+}
+
+type bodyKindRecorder struct {
+	mu       sync.Mutex
+	writerTo map[string]bool
+}
+
+func (r *bodyKindRecorder) Do(req *http.Request) (*http.Response, error) {
+	_, writerTo := req.Body.(io.WriterTo)
+	r.mu.Lock()
+	r.writerTo[req.URL.EscapedPath()] = writerTo
+	r.mu.Unlock()
+	return &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{"X-Amzn-Errortype": {"ValidationException"}, "Content-Type": {"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"message":"recorded"}`)),
+		Request:    req,
+	}, nil
+}
+
+func TestEveryCallOfTheDoorHandsTheTransportABodyWithoutWriteTo(t *testing.T) {
+	t.Parallel()
+
+	recorder := &bodyKindRecorder{writerTo: map[string]bool{}}
+	client := bedrockruntime.NewFromConfig(aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("unit", "test", ""),
+		HTTPClient:  recorder,
+	}, func(o *bedrockruntime.Options) { o.BaseEndpoint = aws.String("https://bedrock.test") }, signWithSigV4)
+
+	ask := func(model string, converse bool) {
+		opts := []bedrock.Option{bedrock.WithClient(client), bedrock.WithModel(model)}
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+		}
+		llm, err := bedrock.New(opts...)
+		require.NoError(t, err)
+		for _, callOpts := range [][]llms.CallOption{
+			nil, {llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })},
+		} {
+			_, err := llm.GenerateContent(t.Context(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, callOpts...)
+			require.ErrorContains(t, err, "recorded", model)
+		}
+	}
+	legacy := []string{
+		"ai21.j2-ultra-v1", "ai21.jamba-1-5-large-v1:0", "amazon.titan-text-express-v1", "amazon.nova-pro-v1:0",
+		"anthropic.claude-sonnet-4-5-20250929-v1:0", "cohere.command-text-v14", "cohere.command-r-v1:0",
+		"meta.llama3-70b-instruct-v1:0", "deepseek.r1-v1:0",
+	}
+	for _, model := range legacy {
+		ask(model, false)
+	}
+	ask("anthropic.claude-sonnet-4-5-20250929-v1:0", true)
+
+	want := make([]string, 0, 2+2*len(legacy))
+	want = append(want, "/model/anthropic.claude-sonnet-4-5-20250929-v1%3A0/converse",
+		"/model/anthropic.claude-sonnet-4-5-20250929-v1%3A0/converse-stream")
+	for _, model := range legacy {
+		escaped := strings.ReplaceAll(model, ":", "%3A")
+		want = append(want, "/model/"+escaped+"/invoke", "/model/"+escaped+"/invoke-with-response-stream")
+	}
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	require.ElementsMatch(t, want, slices.Collect(maps.Keys(recorder.writerTo)))
+	for call, writerTo := range recorder.writerTo {
+		require.False(t, writerTo, call)
+	}
 }
