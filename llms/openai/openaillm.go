@@ -761,19 +761,29 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
-	if t := req.Temperature; t != nil && *t > 1 && reasoning.ServedByZAI(model, o.host) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-			Asked: strconv.FormatFloat(*t, 'g', -1, 64), Sent: "1",
-			Reason: "Z.ai takes a temperature from 0 to 1",
-		})
-		ceiling := 1.0
-		req.Temperature = &ceiling
+	if t := req.Temperature; t != nil {
+		switch {
+		case *t > 1 && reasoning.ServedByZAI(model, o.host):
+			clampTemperature(req, warn, model, 1, "Z.ai takes a temperature from 0 to 1")
+		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort) &&
+			reasoning.ClaudeClampTemperature(model, *t) != *t:
+			clampTemperature(req, warn, model, reasoning.ClaudeClampTemperature(model, *t),
+				"Claude takes a temperature from 0 to 1")
+		}
 	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, opts, wireEffort)
 	o.enforceSamplingPolicy(req, opts, wireEffort)
 	before.report(req, model, reason, warn)
+}
+
+func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model string, sent float64, reason string) {
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
+		Asked: strconv.FormatFloat(*req.Temperature, 'g', -1, 64), Sent: strconv.FormatFloat(sent, 'g', -1, 64),
+		Reason: reason,
+	})
+	req.Temperature = &sent
 }
 
 func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string) {
