@@ -45,6 +45,15 @@ func RejectsRequiredToolChoice(model string) bool {
 	return false
 }
 
+func GrokFamily(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "grok-") {
+			return true
+		}
+	}
+	return false
+}
+
 func ServedByZAI(model, host string) bool {
 	if host != "api.z.ai" && host != "open.bigmodel.cn" {
 		return false
