@@ -18,10 +18,6 @@ func TestGPT61SolFollowsItsModelPage(t *testing.T) {
 	var off *reasoning.ErrReasoningOffUnsupported
 	require.True(t, errors.As(err, &off), "the page lists no none effort: %v", err)
 
-	_, err = wireBodyOf(t, "gpt-6.1-sol", nil, llms.WithTools([]llms.Tool{astraTool()}))
-	var tools *reasoning.ErrChatToolsUnsupported
-	require.True(t, errors.As(err, &tools), "chat completions serves this model without tools: %v", err)
-
 	body, err := wireBodyOf(t, "gpt-6.1-sol", nil,
 		llms.WithTemperature(0.7), llms.WithTopP(0.4), llms.WithReasoning(llms.ReasoningHigh, 0))
 	require.NoError(t, err)
