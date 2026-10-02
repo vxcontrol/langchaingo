@@ -321,6 +321,16 @@ func TestTheClaudeRangeLeavesAnotherModelsTemperatureAlone(t *testing.T) {
 	require.Empty(t, temperatureWarnings(resp))
 }
 
+func TestClaudeSonnet55TurnedOffSendsNoEffortBesideItsLowestSetting(t *testing.T) {
+	t.Parallel()
+
+	_, body := generateForModelSending(t, "claude-sonnet-5-5", func(o *llms.CallOptions) {
+		o.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh}
+	})
+	require.Equal(t, map[string]any{"type": "between_tools"}, body["thinking"])
+	require.NotContains(t, body, "output_config", "between_tools is refused above effort high")
+}
+
 func TestTurningThinkingOffOnClaudeSonnet55SendsItsLowestSetting(t *testing.T) {
 	t.Parallel()
 

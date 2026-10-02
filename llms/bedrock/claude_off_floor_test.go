@@ -40,3 +40,32 @@ func TestTurningThinkingOffOnClaudeSonnet55OnBedrockSendsItsLowestSetting(t *tes
 		})
 	}
 }
+
+func TestSonnet55OnBedrockReportsNoFloorWhileItThinksAndSendsNoEffortWithItsFloor(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-sonnet-5-5"
+	offAtXHigh := func(o *llms.CallOptions) {
+		o.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff, Effort: llms.ReasoningXHigh}
+	}
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{bedrock.WithModel(model)}
+		answer := legacyAnswer
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+			answer = converseAnswer
+		}
+
+		resp, _ := bedrockWarningsSending(t, answer, opts, llms.WithAdaptiveReasoning(llms.ReasoningHigh))
+		_, reported := bedrockWarningsByOption(resp.Warnings)["WithReasoningDisabled"]
+		require.False(t, reported, "converse=%v: thinking was on: %v", converse, resp.Warnings)
+
+		_, body := bedrockWarningsSending(t, answer, opts, offAtXHigh)
+		fields := body
+		if converse {
+			fields, _ = body["additionalModelRequestFields"].(map[string]any)
+		}
+		require.Equal(t, map[string]any{"type": "between_tools"}, fields["thinking"], "converse=%v", converse)
+		require.NotContains(t, fields, "output_config", "converse=%v: between_tools is refused above effort high", converse)
+	}
+}

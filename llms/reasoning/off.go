@@ -44,14 +44,15 @@ const (
 	OffDisableThinkingObject
 	// OffDisableThinkBool → Ollama think:false.
 	OffDisableThinkBool
+	OffBetweenToolsClaude
 	// OffUnsupported: a known mandatory-thinking model that cannot be disabled
 	// (adaptive-only Claude, OpenAI o-series). The adapter returns a typed error.
 	OffUnsupported
-	OffBetweenToolsClaude
 )
 
 // ErrReasoningOffUnsupported is returned when reasoning is explicitly disabled
-// (WithReasoningDisabled) on a model whose thinking cannot be turned off.
+// (WithReasoningDisabled) on a model whose thinking the serving host can neither
+// turn off nor lower to the model's lowest level.
 type ErrReasoningOffUnsupported struct{ Model string }
 
 func (e *ErrReasoningOffUnsupported) Error() string {
