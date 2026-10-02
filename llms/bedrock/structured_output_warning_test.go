@@ -50,3 +50,40 @@ func TestASchemaThatReachesTheBedrockWireIsNotReportedAsLost(t *testing.T) {
 		})
 	}
 }
+
+func TestHaiku45ThroughTheIndiaProfileIsRefusedASchemaBeforeTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)})
+	for _, converse := range []bool{false, true} {
+		answer := legacySchemaAnswer
+		if converse {
+			answer = converseSchemaAnswer
+		}
+		for _, model := range []string{
+			"in.anthropic.claude-haiku-4-5-20251001-v1:0",
+			"arn:aws:bedrock:ap-south-1:123456789012:inference-profile/in.anthropic.claude-haiku-4-5-20251001-v1:0",
+		} {
+			opts := []bedrock.Option{bedrock.WithModel(model)}
+			if converse {
+				opts = append(opts, bedrock.WithConverseAPI())
+			}
+			llm, sent := legacyLLMCapturing(t, answer, opts...)
+			_, err := llm.GenerateContent(t.Context(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, schema)
+			var refused *llms.ErrStructuredOutputUnsupported
+			require.ErrorAs(t, err, &refused, "converse=%v %s", converse, model)
+			require.Empty(t, *sent, "converse=%v %s: refused before the network", converse, model)
+		}
+
+		opts := []bedrock.Option{bedrock.WithModel("us.anthropic.claude-haiku-4-5-20251001-v1:0")}
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+		}
+		llm, sent := legacyLLMCapturing(t, answer, opts...)
+		_, err := llm.GenerateContent(t.Context(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, schema)
+		require.NoError(t, err, "converse=%v: the us. profile serves the schema", converse)
+		require.NotEmpty(t, *sent)
+	}
+}
