@@ -92,6 +92,8 @@ func TestDashScopeHostGetsTheGuestWireForNamesWithoutTheRoutePrefix(t *testing.T
 		{gatewayBaseURL, "dashscope/kimi/kimi-k2.6", budget, map[string]any{"thinking_budget": float64(2048)}},
 		{dashScopeBaseURL, "kimi-k2.6", budget,
 			map[string]any{"thinking_budget": float64(2048), "enable_thinking": true}},
+		{dashScopeBaseURL, "kimi-k2.8", budget,
+			map[string]any{"thinking_budget": float64(2048), "enable_thinking": true}},
 		{dashScopeBaseURL, "glm-5.1", llms.WithReasoning(llms.ReasoningHigh, 0),
 			map[string]any{"reasoning_effort": "high"}},
 		{zai, "glm-5.2", off, map[string]any{"thinking": map[string]any{"type": "disabled"}}},

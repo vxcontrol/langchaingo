@@ -101,7 +101,13 @@ func bedrockModelWithoutRegion(model string) string {
 	base := baseModelName(model)
 	for _, prefix := range bedrockRegionPrefixes {
 		if trimmed, found := strings.CutPrefix(base, prefix); found {
-			return trimmed
+			base = trimmed
+			break
+		}
+	}
+	if _, bare := splitPlatformPrefix(base); bare != base {
+		if documented, inherited := inheritLine(bare); inherited {
+			return strings.TrimSuffix(base, bare) + documented
 		}
 	}
 	return base
