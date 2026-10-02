@@ -151,10 +151,8 @@ func OpenAIThinkingOptIn(model string) bool {
 // which is the empty string and instead omits the field.
 const OpenAIDisableEffort = "none"
 
-// ChatToolsUnsupported reports whether the vendor serves no function tools for
-// the model on /chat/completions. OpenAI states it for GPT-6 Astra: tools ride
-// on the responses API only, and the model has no effort level that turns
-// thinking off to trade for them.
+// ChatToolsUnsupported reports whether OpenAI serves the model's function tools
+// on the Responses API only.
 func ChatToolsUnsupported(model string) bool {
 	for _, form := range modelSpellings(model) {
 		if hasGeneration(form, "gpt-6-astra") || hasGeneration(form, "gpt-6.1-sol") {

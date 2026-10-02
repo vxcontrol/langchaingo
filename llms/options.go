@@ -962,7 +962,6 @@ func ExtraBody(opts CallOptions) map[string]any {
 	return opts.ExtraBody
 }
 
-// ExtraBodyThinking reports whether extra body fields turn thinking on or off.
 func ExtraBodyThinking(extra map[string]any) (on, off bool) {
 	if enabled, ok := extra["enable_thinking"].(bool); ok {
 		on, off = enabled, !enabled
