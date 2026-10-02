@@ -21,7 +21,7 @@ type cohereTextGenerationInput struct {
 	// The prompt that you want to pass to the model. Required
 	Prompt string `json:"prompt"`
 	// Use a lower value to decrease randomness in the response. Optional, default = 0.9
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Use a lower value to ignore less probable options. Optional, default = 0.75
 	P float64 `json:"p,omitempty"`
 	// Specify the number of token choices the model uses to generate the next token.
@@ -46,7 +46,7 @@ type cohereCommandRInput struct {
 		Message string `json:"message"`
 	} `json:"chat_history,omitempty"`
 	MaxTokens     int      `json:"max_tokens,omitempty"`
-	Temperature   float64  `json:"temperature,omitempty"`
+	Temperature   *float64 `json:"temperature,omitempty"`
 	P             float64  `json:"p,omitempty"`
 	K             int      `json:"k,omitempty"`
 	StopSequences []string `json:"stop_sequences,omitempty"`
@@ -135,7 +135,7 @@ func createCohereCompletion(ctx context.Context,
 
 	input := &cohereTextGenerationInput{
 		Prompt:         txt,
-		Temperature:    options.GetTemperature(),
+		Temperature:    options.Temperature,
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
 		MaxTokens:      maxTokensOnTheWire(warn, modelID, options, 20),
@@ -236,7 +236,7 @@ func createCohereCommandRCompletion(ctx context.Context,
 		Message:       currentMessage,
 		ChatHistory:   chatHistory,
 		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 512),
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		P:             options.GetTopP(),
 		K:             options.GetTopK(),
 		StopSequences: options.StopWords,

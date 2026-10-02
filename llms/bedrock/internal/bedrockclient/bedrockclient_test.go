@@ -183,7 +183,7 @@ func TestCreateAi21Completion_RequestStructure(t *testing.T) {
 	txt := processInputMessagesGeneric(messages)
 	input := ai21TextGenerationInput{
 		Prompt:        txt,
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 2048),
 		StopSequences: options.StopWords,
@@ -208,7 +208,8 @@ func TestCreateAi21Completion_RequestStructure(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "\nhuman: What is the capital of France?\nAI: ", unmarshaled.Prompt)
-	require.Equal(t, 0.7, unmarshaled.Temperature)
+	require.NotNil(t, unmarshaled.Temperature)
+	require.Equal(t, 0.7, *unmarshaled.Temperature)
 	require.Equal(t, 0.9, unmarshaled.TopP)
 	require.Equal(t, 100, unmarshaled.MaxTokens)
 	require.Equal(t, []string{"END"}, unmarshaled.StopSequences)
@@ -234,7 +235,7 @@ func TestCreateAmazonCompletion_RequestStructure(t *testing.T) {
 		TextGenerationConfig: amazonTextGenerationConfigInput{
 			MaxTokens:     getMaxTokens(options.GetMaxTokens(), 512),
 			TopP:          options.GetTopP(),
-			Temperature:   options.GetTemperature(),
+			Temperature:   options.Temperature,
 			StopSequences: options.StopWords,
 		},
 	}
@@ -249,7 +250,8 @@ func TestCreateAmazonCompletion_RequestStructure(t *testing.T) {
 	require.Equal(t, "\nhuman: Tell me about AI\nAI: ", unmarshaled.InputText)
 	require.Equal(t, 150, unmarshaled.TextGenerationConfig.MaxTokens)
 	require.Equal(t, 0.8, unmarshaled.TextGenerationConfig.TopP)
-	require.Equal(t, 0.5, unmarshaled.TextGenerationConfig.Temperature)
+	require.NotNil(t, unmarshaled.TextGenerationConfig.Temperature)
+	require.Equal(t, 0.5, *unmarshaled.TextGenerationConfig.Temperature)
 	require.Equal(t, []string{"|", "User:"}, unmarshaled.TextGenerationConfig.StopSequences)
 }
 
@@ -461,7 +463,7 @@ func TestCreateCohereCompletion_RequestStructure(t *testing.T) {
 	txt := processInputMessagesGeneric(messages)
 	input := &cohereTextGenerationInput{
 		Prompt:         txt,
-		Temperature:    options.GetTemperature(),
+		Temperature:    options.Temperature,
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
 		MaxTokens:      getMaxTokens(options.GetMaxTokens(), 20),
@@ -477,7 +479,8 @@ func TestCreateCohereCompletion_RequestStructure(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "\nhuman: Explain quantum computing\nAI: ", unmarshaled.Prompt)
-	require.Equal(t, 0.8, unmarshaled.Temperature)
+	require.NotNil(t, unmarshaled.Temperature)
+	require.Equal(t, 0.8, *unmarshaled.Temperature)
 	require.Equal(t, 0.95, unmarshaled.P)
 	require.Equal(t, 50, unmarshaled.K)
 	require.Equal(t, 200, unmarshaled.MaxTokens)
@@ -499,7 +502,7 @@ func TestCreateMetaCompletion_RequestStructure(t *testing.T) {
 	txt := processInputMessagesGeneric(messages)
 	input := &metaTextGenerationInput{
 		Prompt:      txt,
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		MaxGenLen:   getMaxTokens(options.GetMaxTokens(), 512),
 	}
@@ -512,7 +515,8 @@ func TestCreateMetaCompletion_RequestStructure(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, "\nhuman: Write a poem about technology\nAI: ", unmarshaled.Prompt)
-	require.Equal(t, 0.6, unmarshaled.Temperature)
+	require.NotNil(t, unmarshaled.Temperature)
+	require.Equal(t, 0.6, *unmarshaled.Temperature)
 	require.Equal(t, 0.85, unmarshaled.TopP)
 	require.Equal(t, 256, unmarshaled.MaxGenLen)
 }

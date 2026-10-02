@@ -76,7 +76,7 @@ type novaInferenceConfigInput struct {
 	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
 	TopP float64 `json:"topP,omitempty"`
 	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
 	StopSequences   []string                  `json:"stopSequences,omitempty"`
@@ -172,7 +172,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
 		MaxTokens:     options.GetMaxTokens(),
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		StopSequences: options.StopWords,
 	}
@@ -189,7 +189,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{Type: "enabled", MaxReasoningEffort: effort}
 		if reasoning.NovaClearsInferenceConfigAt(effort) {
 			inferenceConfig.MaxTokens = 0
-			inferenceConfig.Temperature = 0
+			inferenceConfig.Temperature = nil
 			inferenceConfig.TopP = 0
 		}
 		reportNovaReasoning(warn, modelID, options, effort)

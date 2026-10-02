@@ -24,7 +24,7 @@ type amazonTextGenerationConfigInput struct {
 	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
 	TopP float64 `json:"topP,omitempty"`
 	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
 	// Currently only supports: ["|", "User:"]
 	StopSequences []string `json:"stopSequences,omitempty"`
@@ -85,7 +85,7 @@ func createAmazonCompletion(ctx context.Context,
 		TextGenerationConfig: amazonTextGenerationConfigInput{
 			MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 512),
 			TopP:          options.GetTopP(),
-			Temperature:   options.GetTemperature(),
+			Temperature:   options.Temperature,
 			StopSequences: options.StopWords,
 		},
 	}

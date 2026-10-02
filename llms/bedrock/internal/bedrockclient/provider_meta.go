@@ -22,7 +22,7 @@ type metaTextGenerationInput struct {
 	// The prompt that you want to pass to the model. Required
 	Prompt string `json:"prompt"`
 	// Used to control the randomness of the generation. Optional, default = 0.5
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Used to lower value to ignore less probable options. Optional, default = 0.9
 	TopP float64 `json:"top_p,omitempty"`
 	// The maximum number of tokens to generate per result.
@@ -75,7 +75,7 @@ func createMetaCompletion(ctx context.Context,
 
 	input := &metaTextGenerationInput{
 		Prompt:      txt,
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		MaxGenLen:   maxTokensOnTheWire(warn, modelID, options, 512),
 	}

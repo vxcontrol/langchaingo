@@ -20,7 +20,7 @@ type ai21TextGenerationInput struct {
 	// The text which the model is requested to continue.
 	Prompt string `json:"prompt"`
 	// Modifies the distribution from which tokens are sampled. Optional, default = 0.7
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	// Sample tokens from the corresponding top percentile of probability mass. Optional, default = 1
 	TopP float64 `json:"topP,omitempty"`
 	// The maximum number of tokens to generate per result. Optional, default = 16
@@ -52,7 +52,7 @@ type ai21JambaInput struct {
 		Content string `json:"content"`
 	} `json:"messages"`
 	MaxTokens   int      `json:"max_tokens,omitempty"`
-	Temperature float64  `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	TopP        float64  `json:"top_p,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
 	N           int      `json:"n,omitempty"`
@@ -162,7 +162,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 	txt := processInputMessagesGeneric(messages)
 	inputContent := ai21TextGenerationInput{
 		Prompt:        txt,
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 2048),
 		StopSequences: options.StopWords,
@@ -250,7 +250,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 	inputContent := ai21JambaInput{
 		Messages:    jambaMessages,
 		MaxTokens:   maxTokensOnTheWire(warn, modelID, options, 4096),
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		Stop:        options.StopWords,
 		N:           options.GetCandidateCount(),

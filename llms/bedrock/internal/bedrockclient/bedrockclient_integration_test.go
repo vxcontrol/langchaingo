@@ -814,7 +814,7 @@ func testCreateAi21CompletionWithMock(ctx context.Context, client *mockBedrockCl
 	txt := processInputMessagesGeneric(messages)
 	input := ai21TextGenerationInput{
 		Prompt:        txt,
-		Temperature:   options.GetTemperature(),
+		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		MaxTokens:     getMaxTokens(options.GetMaxTokens(), 2048),
 		StopSequences: options.StopWords,
@@ -881,7 +881,7 @@ func testCreateAmazonCompletionWithMock(ctx context.Context, client *mockBedrock
 		TextGenerationConfig: amazonTextGenerationConfigInput{
 			MaxTokens:     getMaxTokens(options.GetMaxTokens(), 512),
 			TopP:          options.GetTopP(),
-			Temperature:   options.GetTemperature(),
+			Temperature:   options.Temperature,
 			StopSequences: options.GetStopWords(),
 		},
 	}
@@ -1002,7 +1002,7 @@ func testCreateCohereCompletionWithMock(ctx context.Context, client *mockBedrock
 	txt := processInputMessagesGeneric(messages)
 	input := &cohereTextGenerationInput{
 		Prompt:         txt,
-		Temperature:    options.GetTemperature(),
+		Temperature:    options.Temperature,
 		P:              options.GetTopP(),
 		K:              options.GetTopK(),
 		MaxTokens:      getMaxTokens(options.GetMaxTokens(), 20),
@@ -1054,7 +1054,7 @@ func testCreateMetaCompletionWithMock(ctx context.Context, client *mockBedrockCl
 	txt := processInputMessagesGeneric(messages)
 	input := &metaTextGenerationInput{
 		Prompt:      txt,
-		Temperature: options.GetTemperature(),
+		Temperature: options.Temperature,
 		TopP:        options.GetTopP(),
 		MaxGenLen:   getMaxTokens(options.GetMaxTokens(), 512),
 	}
