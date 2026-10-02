@@ -652,10 +652,10 @@ func testMaxTokensSetting(t *testing.T, llm llms.Model) {
 		resp, err := llm.GenerateContent(t.Context(), content, llms.WithMaxTokens(24))
 		require.NoError(t, err)
 
-		assert.NotEmpty(t, resp.Choices)
+		require.NotEmpty(t, resp.Choices)
 		c1 := resp.Choices[0]
-		// TODO: Google genai models may return "STOP" instead of "MAX_TOKENS".
-		assert.Regexp(t, "^(MAX_TOKENS|STOP)$", c1.StopReason)
+		assert.Equal(t, "MAX_TOKENS", c1.StopReason)
+		assert.True(t, c1.Truncated)
 	}
 
 	// Now, try it again with a much larger MaxTokens setting and expect to
