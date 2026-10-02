@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	pngSignature  = []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 0x0D}
+	jpegSignature = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, 'J', 'F', 'I', 'F'}
+)
+
 func TestDownloadImageData(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -49,31 +54,76 @@ func TestDownloadImageData(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name: "invalid mime type - missing slash",
+			name: "content type without a slash and bytes that are no image",
 			serverFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "imagepng")
 				w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
 			},
 			wantErr:    true,
-			wantErrMsg: "invalid mime type imagepng",
+			wantErrMsg: `url does not point to an image: content type "imagepng"`,
 		},
 		{
-			name: "invalid mime type - too many parts",
+			name: "content type with an extra part and bytes that are no image",
 			serverFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "image/png/extra")
 				w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
 			},
 			wantErr:    true,
-			wantErrMsg: "invalid mime type image/png/extra",
+			wantErrMsg: `url does not point to an image: content type "image/png/extra"`,
 		},
 		{
 			name: "server error",
 			serverFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 			},
-			wantType: "",
-			wantData: []byte{},
-			wantErr:  false, // http.Get doesn't return error for non-2xx status
+			wantErr:    true,
+			wantErrMsg: "failed to fetch image from url: 500 Internal Server Error",
+		},
+		{
+			name: "not found page",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte("<html>missing</html>"))
+			},
+			wantErr:    true,
+			wantErrMsg: "failed to fetch image from url: 404 Not Found",
+		},
+		{
+			name: "no content type, PNG bytes",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header()["Content-Type"] = nil
+				w.Write(pngSignature)
+			},
+			wantType: "png",
+			wantData: pngSignature,
+		},
+		{
+			name: "octet-stream content type, JPEG bytes",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/octet-stream")
+				w.Write(jpegSignature)
+			},
+			wantType: "jpeg",
+			wantData: jpegSignature,
+		},
+		{
+			name: "content type with parameters",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "image/PNG; charset=binary")
+				w.Write(pngSignature)
+			},
+			wantType: "png",
+			wantData: pngSignature,
+		},
+		{
+			name: "html page served as success",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write([]byte("<!DOCTYPE html><html>login</html>"))
+			},
+			wantErr:    true,
+			wantErrMsg: `url does not point to an image: content type "text/html; charset=utf-8", content sniffed as "text/html"`,
 		},
 		{
 			name: "empty response",
