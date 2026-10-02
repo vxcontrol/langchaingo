@@ -146,7 +146,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(*input.MaxTokens))
 	}
 	if input.Temperature != nil {
-		inferenceConfig.Temperature = aws.Float32(float32(reasoning.ClaudeClampTemperature(input.ModelID, *input.Temperature)))
+		temperature, _ := clampTemperature(input.ModelID, *input.Temperature)
+		inferenceConfig.Temperature = aws.Float32(float32(temperature))
 	}
 	if input.TopP != nil {
 		inferenceConfig.TopP = aws.Float32(float32(*input.TopP))

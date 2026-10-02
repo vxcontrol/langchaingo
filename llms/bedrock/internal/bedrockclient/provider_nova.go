@@ -71,15 +71,10 @@ type novaReasoningConfigInput struct {
 
 // novaInferenceConfigInput is the input for the text generation configuration for Amazon Nova Models.
 type novaInferenceConfigInput struct {
-	// The maximum number of tokens to generate per result. Optional, default = 512
-	MaxTokens int `json:"maxTokens,omitempty"`
-	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
-	TopP float64 `json:"topP,omitempty"`
-	// Use a lower value to decrease randomness in responses. Optional, default = 0.0
-	Temperature *float64 `json:"temperature,omitempty"`
-	TopK        *int     `json:"topK,omitempty"`
-	// Specify a character sequence to indicate where the model should stop.
-	// Currently only supports: ["|", "User:"]
+	MaxTokens       int                       `json:"maxTokens,omitempty"`
+	TopP            float64                   `json:"topP,omitempty"`
+	Temperature     *float64                  `json:"temperature,omitempty"`
+	TopK            *int                      `json:"topK,omitempty"`
 	StopSequences   []string                  `json:"stopSequences,omitempty"`
 	ReasoningConfig *novaReasoningConfigInput `json:"reasoningConfig,omitempty"`
 }
@@ -173,10 +168,13 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
 		MaxTokens:     maxTokensOnTheWire(warn, modelID, options, 0),
-		Temperature:   options.Temperature,
 		TopP:          options.GetTopP(),
 		TopK:          options.TopK,
 		StopSequences: options.StopWords,
+	}
+	if options.Temperature != nil {
+		temperature, _ := clampTemperature(modelID, *options.Temperature)
+		inferenceConfig.Temperature = &temperature
 	}
 	if options.Reasoning.DelegatesDepth() && reasoning.IsNovaReasoningModel(modelID) {
 		inferenceConfig.ReasoningConfig = &novaReasoningConfigInput{
@@ -198,6 +196,9 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		reportNovaReasoning(warn, modelID, options, effort)
 	} else if options.Reasoning.ResolveMode() == llms.ReasoningOn {
 		reportThinkingUnsupported(warn, modelID, options.Reasoning)
+	}
+	if inferenceConfig.Temperature != nil {
+		reportTemperatureClamp(warn, modelID, *options.Temperature)
 	}
 
 	input := novaTextGenerationInput{

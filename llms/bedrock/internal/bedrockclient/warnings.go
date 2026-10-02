@@ -152,16 +152,36 @@ func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked 
 		})
 	case *sent == asked:
 	case *sent == reasoning.ClaudeClampTemperature(modelID, asked):
-		warn.Add(llms.Warning{
-			Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
-			Asked: render(asked), Sent: render(*sent), Reason: "Claude takes a temperature from 0 to 1",
-		})
+		reportTemperatureClamp(warn, modelID, asked)
 	default:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithTemperature", Model: modelID,
 			Asked: render(asked), Sent: render(*sent), Reason: reason,
 		})
 	}
+}
+
+func clampTemperature(model string, temperature float64) (float64, string) {
+	if clamped := reasoning.ClaudeClampTemperature(model, temperature); clamped != temperature {
+		return clamped, "Claude takes a temperature from 0 to 1"
+	}
+	if clamped := reasoning.NovaClampTemperature(model, temperature); clamped != temperature {
+		return clamped, "Nova takes a temperature from 0.00001 to 1"
+	}
+	return temperature, ""
+}
+
+func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) {
+	sent, reason := clampTemperature(modelID, asked)
+	if reason == "" {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
+		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
+		Reason: reason,
+	})
 }
 
 func reportLegacyFloat(warn *llms.Warnings, option, modelID, reason string, asked, sent float64) {

@@ -28,14 +28,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.Temperature
 		}
-		clamped := float32(reasoning.ClaudeClampTemperature(model, *input.Temperature))
-		if sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
-			warn.Add(llms.Warning{
-				Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-				Asked:  strconv.FormatFloat(*input.Temperature, 'g', -1, 64),
-				Sent:   strconv.FormatFloat(float64(clamped), 'g', -1, 32),
-				Reason: "Claude takes a temperature from 0 to 1",
-			})
+		clampedTo, _ := clampTemperature(model, *input.Temperature)
+		if clamped := float32(clampedTo); sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
+			reportTemperatureClamp(warn, model, *input.Temperature)
 		} else {
 			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
 		}

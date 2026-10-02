@@ -33,6 +33,18 @@ func NovaClearsInferenceConfigAt(effort string) bool {
 	return NovaEffort(effort) == "high"
 }
 
+const NovaMinTemperature = 0.00001
+
+func NovaClampTemperature(model string, temperature float64) float64 {
+	m := bedrockModelWithoutRegion(model)
+	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier"} {
+		if strings.HasPrefix(m, family) {
+			return min(max(temperature, NovaMinTemperature), 1)
+		}
+	}
+	return temperature
+}
+
 // IsBedrockAlwaysReasoningModel reports whether the Bedrock family reasons on
 // every request and takes no thinking configuration alongside it.
 func IsBedrockAlwaysReasoningModel(model string) bool {
