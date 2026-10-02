@@ -67,6 +67,7 @@ func TestGoogleAI_ExplicitCaching(t *testing.T) { //nolint:funlen
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -197,6 +198,7 @@ func TestGoogleAI_ImplicitCaching(t *testing.T) {
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -287,6 +289,7 @@ func TestGoogleAI_ImplicitCaching_Streaming(t *testing.T) { //nolint:funlen
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -404,6 +407,7 @@ func TestGoogleAI_ImplicitCaching_ConversationContinuation(t *testing.T) { //nol
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 
@@ -551,6 +555,7 @@ func TestGoogleAI_ImplicitCaching_ConversationContinuation_Streaming(t *testing.
 		transport = &httputil.ApiKeyTransport{
 			Transport: transport,
 			APIKey:    apiKey,
+			BaseURL:   os.Getenv("GOOGLE_BASE_URL"),
 		}
 	}
 

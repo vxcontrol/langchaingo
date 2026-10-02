@@ -1,27 +1,31 @@
 httprr trace v1
-835 5354
+816 3873
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 509
+Content-Length: 490
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"What is 15 + 27? Think step by step."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":2048,"thinkingConfig":{"includeThoughts":true,"thinkingBudget":1024}},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 4941
+{"contents":[{"parts":[{"text":"What is 15 + 27? Think step by step."}],"role":"user"}],"generationConfig":{"maxOutputTokens":2048,"thinkingConfig":{"includeThoughts":true,"thinkingBudget":1024}},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 3281
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:53:40 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=6238
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:03:09 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=4464
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -29,12 +33,12 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "**Calculating the Sum of 15 and 27**\n\nOkay, so the task is straightforward: find the sum of 15 and 27, and provide a detailed explanation of the process. I need to be thorough. Let's break this down systematically.\n\nFirst, the numbers are 15 and 27, and the operation is addition. Simple enough.\n\nI could approach this in a few ways, but I'll focus on the most conventional methods suitable for a wide audience.\n\n*   **Method 1: Column Addition (Place Value)** This is the standard algorithm. I'll break it down step-by-step:\n    *   I'll start with the ones place, adding 5 and 7. That's 12.\n    *   I'll write down the '2' in the ones place of the result and carry the '1' (representing ten) over to the tens column.\n    *   Now, in the tens place, I have 1 (from 15), 2 (from 27), and the carried-over 1.\n    *   Adding those, 1 + 2 + 1 gives me 4. So I write that down in the tens place.\n    *   The result is 42.\n\n*   **Method 2: Expansion** This is another perfectly valid approach, more visually intuitive.\n    *   First, I'll decompose each number into its tens and ones components: 15 becomes 10 + 5, and 27 becomes 20 + 7.\n    *   Then, I'll add the tens: 10 plus 20 equals 30.\n    *   Next, I'll add the ones: 5 plus 7 equals 12.\n    *   Finally, I'll combine the results: 30 plus 12 equals 42.\n\n*   **Method 3: Making a Round Number:** An alternative approach using mental arithmetic:\n    *   Take 3 from 15 and give it to 27 to make 30.\n    *   15 - 3 = 12\n    *   27 + 3 = 30\n    *   12 + 30 = 42\n\nTherefore, the answer is 42. The column addition method and the expansion method both reach the same answer in a logical step-by-step manner. I should explicitly state the final answer and ensure a clear, detailed breakdown is provided using one of these methods.\n\n\n",
+            "text": "**My Mental Calculation Process for 15 + 27**\n\nOkay, the question is 15 + 27. I'm going to break this down step-by-step, just to be thorough. First, let's identify the numbers: 15 and 27. Alright, I've got a couple of approaches in mind. I could use place value addition, or go with the familiar column addition.\n\nIf I'm thinking about place value, I can see this as: 15 is $10 + 5$ and 27 is $20 + 7$. Now, add the tens: $10 + 20$ is 30. Then, add the ones: $5 + 7$ is 12. Finally, combine those: $30 + 12 = 42$. That seems solid.\n\nAlternatively, with column addition, I'd line them up vertically:\n\n```\n  15\n+ 27\n----\n```\n\nStarting with the units: $5 + 7 = 12$. Write down the '2' and carry over the '1'.\n\n```\n  1\n  15\n+ 27\n----\n   2\n```\n\nNow, the tens: $1 + 2 + 1$ (the carry-over) is 4.\n\n```\n  1\n  15\n+ 27\n----\n  42\n```\n\nSo, the result is 42.  Both methods yield the same answer, reinforcing my confidence. It's nice to verify that consistency.\n\n\n",
             "thought": true
           },
           {
-            "text": "To find the sum of **15 + 27**, we can break it down step by step:\n\n### Method 1: Adding by Place Value (Tens and Ones)\n1.  **Break the numbers apart:**\n    *   15 is **10 + 5**\n    *   27 is **20 + 7**\n2.  **Add the tens together:**\n    *   10 + 20 = **30**\n3.  **Add the ones together:**\n    *   5 + 7 = **12**\n4.  **Add the two results together:**\n    *   30 + 12 = **42**\n\n---\n\n### Method 2: Column Addition (Carrying)\n1.  **Add the ones column:** \n    *   5 + 7 = **12**\n    *   Write down the **2** and carry the **1** to the tens column.\n2.  **Add the tens column:** \n    *   1 (carried) + 1 + 2 = **4**\n3.  **Combine them:**\n    *   The result is **42**.\n\n**Final Answer:** 15 + 27 = **42**",
-            "thoughtSignature": "EoQKCoEKARFNMg+GIlHgyAx6VqYQbwvj4rpZlIzKvhRxrzJsIMoLxalgtxYPMpss/uW/wUgLIjFOw5K9IGKFOX9r0md0wVY2eix+dCBXd0CizY+zzoui5l5oeEfeJOOt7yTXmJ00pJxKKcVRYOTqa8PmXcCokLp7lkSbliKhsKjpG5vciZvsxHji9uf9+wFOezc+oqNeF6E8/Prq3HFJLrUble7JgXKc3DVKdS7ZKkaLniLZnQ0FsBWu8mNd7Vx9s6Bx1RFzIqJSTmp+9YJM1KsXy/8TgR7UP1pvCy/N2h3bg5NrEirMA+hJPtE5An23uEhMNWnDc034w9wCd1Ahpac2PIYS34P3SvtQcTUVDg6GSQKgRHSVQAtVFJd0+CQmN7caAVp1lVyekBeXT11CeHl+XOTTLN5oTqrvUARGLNNUcVZzBkiQ1DNHg8zi497f0uUN2bMAAJAvV2v5VYPEyv8CZH4dcXKAAtntifo6gtWDQT9Q+IDjMGytCeLZPVtYMm3G1erHzmahY2HUKN2cLFk7zDOdr6n9mQEVXk9iXbRWbPTM+2jPOIXVQf0cbLzTVXmPZ4lnhn3VqO84UBLqOGC4vw9Eupw+dYQYGnpAsNYAMCcDCxRCjUGTcdLzkPoKLnH2/oSV0aWJXf/d3xk2D/71eQnkcud6dgh0rk6H+FhHuF3AntMY5oRxkXTYNUf6P9CgA3sc6zptNvsaCIHi8MQlbyHN8HB5OKMfWFkwsZRDoX++UqGQ5aOrfiUwQy0Ghk8qU3oUpwDKzSAvKzeNmNnOlRW0X0KarW5rJPaBPhIwKM5g9gcfpdbjEWWMhphVQcGYIVWNPgv4sVDgICmfKppLS6ILorQIzjXY5dco/VQy1cJdSyqs6XEvMdlgWavITx2MLG6K/+5m2X5DKTNTHNyasOBWT+AFJkxo/0VRJTcWAWdQSfLCld8sFzZYERUoPTmkb3y21oFp62JtXj4mLMsyboBfIdf6vNln2hwT5d8FsrxzUDQ3NNft8bW0kRqATmKlr4IPdu7eea00ZKm6ix2F7Ybx83gGVBAJMh7GnwCHfmigoaxZAh3KtAvV0TGq7X1s8HXbUPIlF+7izOVziciL6w8dxTDyj7zOhA6aj9Jfq6tWBa7A/HvhFRYvRYOWm4WNMxxfLWanI4zgBI5vuouMQ4HGqAKUmM6un061X9oBPEWuLQh3W8BzB3EpC/07bd9wL1EHNTK5L1lK0MmxW/qGOwdjcRjwHYRNJGeqMQJUlN0NeLDF8C0PY7/t88q8iaeRki/axBZO7bEZW1dfTN5gckrB6XtR+S0L2owgp9z7ujyIcQTJ9u9Lsn4gOJrv+Gx53+jr/ng/FLnC2FOPu2kolmhItm/mMHI3KgbRMmEsnsyfVXkvQPk2dt+6REYQ/wqHIdYM3tK3fPwxjNkvLWA1clyykJCZiKXpQbFAO8VqktDbcX+ZQ1rBU6Cf0SGzh764lxR08O6AHxO09vm/U+SdceHJvVM2lvBHI32gvTEMvVEgGQgpAcVX1wNzu/FiX42n7afJBQGZ5cdouyUBdACkdH8f3OAN2X6CNrnh7cVPE0XMVv0jUZ6eGp6gMbmq/z0bkFIXqceQrGqmhSrzMIRllpq87FFCwd1mgQj9loDbBjmICC8NjB7jT1Hl2syuCqCntG5axWM7ITPBtao01wJV9cxhmEDoXuYrZZNnTxF+4aczsqde"
+            "text": "To find the sum of 15 + 27, we can break it down step by step:\n\n**Step 1: Break the numbers into tens and ones.**\n*   15 is **10 + 5**\n*   27 is **20 + 7**\n\n**Step 2: Add the tens together.**\n*   10 + 20 = **30**\n\n**Step 3: Add the ones together.**\n*   5 + 7 = **12**\n\n**Step 4: Add the two results together.**\n*   30 + 12 = **42**\n\n**Final Answer:**\n15 + 27 = **42**",
+            "thoughtSignature": "EowHCokHAWkUfRNxAPcCHinIthymAm7EMi5p2TKZj9yPnIaNPfOYZwf8CT/uwol/bLXTHARG+sP4R6J/ilMFL16PzSdG2Ni25hOKG1QU9XYYip3wwghysKYODaPmlXpP7rFJ2WHMsO1Z9f/qWnflFzX68RkDe1+cjqtlJPoZZQuB90up5PzfWJ2MOAH4cGsC8GLYPe7p493lYSwqToFrn5RqW79AmP+2txncJBGOt43ONAKXkGa0SvihROAFf9Bolkp3tosDRhRzNSqw4kAN1rW+10lQxkqCe8b5H3OOh4JL1xZ4cZ0b3pZvq5WqrNYfuMz/v9E+CRaWG1Y0Ea9jUkXkVNinJ7mE3TBImFUZwJfE6Q3Toj5YTxMU2MDtArsZoA1r52WgUswnWTyAfXbwatLXwFc96HJZYkGrq6AzjKuzyapdNDsg0rZJzZvnjfhrdDo9h8MGIcm1xRDdR38aoN7Jf/C7oav0b+A9nGa3ZcObw8TF9IB3rvOgo4xqe2zz61J7ALrJEgpZR3OZ2NUhU0+cmyWf1Pv02GVB8ESscp/cwcLX1aBMvW0M/L4hgEIl1bfaRFFR6HWOhcc8+Te3ptljvL+LXeam25AVp4z693rhwBy+TU7gyWMd9d3h7JeDrtvSGnWhX3SSDjNShkL83Q+lMt0SaXp6BJGfaOs0oC3fNb/41z4bwmbHwLwAElrBpK66jVFBqjNZpFHyRVwEhEL5Fpq+0wFRwtVRGoU4rORJKlEikuttV5eJXvOmxsuFBwSFv/dCDcPMqjUddon2HbWcLeGjl0Tknf8eKv32e8OqsvAw6iuUl9ICAjNW8UIiqfTvaFYnKBnPNjRwEpaOe9YRl7rE3woUUduT59jzAZlTVe0hqA+Yv2qAr0HkjdyJ6penZL0A7zzpqu3LEQkL+lL3G+lv+hCvmstz+WDjAAOLd4e2Dt4DR8WKPdMwl+pwvLQ3MtxbH9kC/6pDXRB6/KibvN1cD+S1kgBAGiGuLA285QnUQfEpQinZKvdqIaH9RwjAVDwVDKGjuXMJGLrf6gwk7n6p5EHygtm9Vd9Qs+GBBu/q3EOTybG6BvRBZsTXpdvhyMFwNH8xTyDp8HhIfcXiiG7mruzMqWR6LXeUe4cw4nxA4oQikfFUwBHacCZDqp1rKIWE+tKeQ5dFnnRL17b9Y5ua/j1gCi9WgQR5lbgvc54D7h5YkldMIw3FlxU="
           }
         ],
         "role": "model"
@@ -45,43 +49,47 @@ X-Xss-Protection: 0
   ],
   "usageMetadata": {
     "promptTokenCount": 16,
-    "candidatesTokenCount": 273,
-    "totalTokenCount": 743,
+    "candidatesTokenCount": 153,
+    "totalTokenCount": 495,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 16
       }
     ],
-    "thoughtsTokenCount": 454,
+    "thoughtsTokenCount": 326,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "nrZxaompHaLmxN8Pld_XgAE"
+  "responseId": "CRzAavqhGaKvxN8Po6XkiAc"
 }
-3338 2369
+2480 2080
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 3011
+Content-Length: 2153
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"What is 15 + 27? Think step by step."}],"role":"user"},{"parts":[{"text":"To find the sum of **15 + 27**, we can break it down step by step:\n\n### Method 1: Adding by Place Value (Tens and Ones)\n1.  **Break the numbers apart:**\n    *   15 is **10 + 5**\n    *   27 is **20 + 7**\n2.  **Add the tens together:**\n    *   10 + 20 = **30**\n3.  **Add the ones together:**\n    *   5 + 7 = **12**\n4.  **Add the two results together:**\n    *   30 + 12 = **42**\n\n---\n\n### Method 2: Column Addition (Carrying)\n1.  **Add the ones column:** \n    *   5 + 7 = **12**\n    *   Write down the **2** and carry the **1** to the tens column.\n2.  **Add the tens column:** \n    *   1 (carried) + 1 + 2 = **4**\n3.  **Combine them:**\n    *   The result is **42**.\n\n**Final Answer:** 15 + 27 = **42**","thoughtSignature":"EoQKCoEKARFNMg+GIlHgyAx6VqYQbwvj4rpZlIzKvhRxrzJsIMoLxalgtxYPMpss/uW/wUgLIjFOw5K9IGKFOX9r0md0wVY2eix+dCBXd0CizY+zzoui5l5oeEfeJOOt7yTXmJ00pJxKKcVRYOTqa8PmXcCokLp7lkSbliKhsKjpG5vciZvsxHji9uf9+wFOezc+oqNeF6E8/Prq3HFJLrUble7JgXKc3DVKdS7ZKkaLniLZnQ0FsBWu8mNd7Vx9s6Bx1RFzIqJSTmp+9YJM1KsXy/8TgR7UP1pvCy/N2h3bg5NrEirMA+hJPtE5An23uEhMNWnDc034w9wCd1Ahpac2PIYS34P3SvtQcTUVDg6GSQKgRHSVQAtVFJd0+CQmN7caAVp1lVyekBeXT11CeHl+XOTTLN5oTqrvUARGLNNUcVZzBkiQ1DNHg8zi497f0uUN2bMAAJAvV2v5VYPEyv8CZH4dcXKAAtntifo6gtWDQT9Q+IDjMGytCeLZPVtYMm3G1erHzmahY2HUKN2cLFk7zDOdr6n9mQEVXk9iXbRWbPTM+2jPOIXVQf0cbLzTVXmPZ4lnhn3VqO84UBLqOGC4vw9Eupw+dYQYGnpAsNYAMCcDCxRCjUGTcdLzkPoKLnH2/oSV0aWJXf/d3xk2D/71eQnkcud6dgh0rk6H+FhHuF3AntMY5oRxkXTYNUf6P9CgA3sc6zptNvsaCIHi8MQlbyHN8HB5OKMfWFkwsZRDoX++UqGQ5aOrfiUwQy0Ghk8qU3oUpwDKzSAvKzeNmNnOlRW0X0KarW5rJPaBPhIwKM5g9gcfpdbjEWWMhphVQcGYIVWNPgv4sVDgICmfKppLS6ILorQIzjXY5dco/VQy1cJdSyqs6XEvMdlgWavITx2MLG6K/+5m2X5DKTNTHNyasOBWT+AFJkxo/0VRJTcWAWdQSfLCld8sFzZYERUoPTmkb3y21oFp62JtXj4mLMsyboBfIdf6vNln2hwT5d8FsrxzUDQ3NNft8bW0kRqATmKlr4IPdu7eea00ZKm6ix2F7Ybx83gGVBAJMh7GnwCHfmigoaxZAh3KtAvV0TGq7X1s8HXbUPIlF+7izOVziciL6w8dxTDyj7zOhA6aj9Jfq6tWBa7A/HvhFRYvRYOWm4WNMxxfLWanI4zgBI5vuouMQ4HGqAKUmM6un061X9oBPEWuLQh3W8BzB3EpC/07bd9wL1EHNTK5L1lK0MmxW/qGOwdjcRjwHYRNJGeqMQJUlN0NeLDF8C0PY7/t88q8iaeRki/axBZO7bEZW1dfTN5gckrB6XtR+S0L2owgp9z7ujyIcQTJ9u9Lsn4gOJrv+Gx53+jr/ng/FLnC2FOPu2kolmhItm/mMHI3KgbRMmEsnsyfVXkvQPk2dt+6REYQ/wqHIdYM3tK3fPwxjNkvLWA1clyykJCZiKXpQbFAO8VqktDbcX+ZQ1rBU6Cf0SGzh764lxR08O6AHxO09vm/U+SdceHJvVM2lvBHI32gvTEMvVEgGQgpAcVX1wNzu/FiX42n7afJBQGZ5cdouyUBdACkdH8f3OAN2X6CNrnh7cVPE0XMVv0jUZ6eGp6gMbmq/z0bkFIXqceQrGqmhSrzMIRllpq87FFCwd1mgQj9loDbBjmICC8NjB7jT1Hl2syuCqCntG5axWM7ITPBtao01wJV9cxhmEDoXuYrZZNnTxF+4aczsqde"}],"role":"model"},{"parts":[{"text":"Now multiply that result by 2"}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
-Content-Length: 1956
+{"contents":[{"parts":[{"text":"What is 15 + 27? Think step by step."}],"role":"user"},{"parts":[{"text":"To find the sum of 15 + 27, we can break it down step by step:\n\n**Step 1: Break the numbers into tens and ones.**\n*   15 is **10 + 5**\n*   27 is **20 + 7**\n\n**Step 2: Add the tens together.**\n*   10 + 20 = **30**\n\n**Step 3: Add the ones together.**\n*   5 + 7 = **12**\n\n**Step 4: Add the two results together.**\n*   30 + 12 = **42**\n\n**Final Answer:**\n15 + 27 = **42**","thoughtSignature":"EowHCokHAWkUfRNxAPcCHinIthymAm7EMi5p2TKZj9yPnIaNPfOYZwf8CT/uwol/bLXTHARG+sP4R6J/ilMFL16PzSdG2Ni25hOKG1QU9XYYip3wwghysKYODaPmlXpP7rFJ2WHMsO1Z9f/qWnflFzX68RkDe1+cjqtlJPoZZQuB90up5PzfWJ2MOAH4cGsC8GLYPe7p493lYSwqToFrn5RqW79AmP+2txncJBGOt43ONAKXkGa0SvihROAFf9Bolkp3tosDRhRzNSqw4kAN1rW+10lQxkqCe8b5H3OOh4JL1xZ4cZ0b3pZvq5WqrNYfuMz/v9E+CRaWG1Y0Ea9jUkXkVNinJ7mE3TBImFUZwJfE6Q3Toj5YTxMU2MDtArsZoA1r52WgUswnWTyAfXbwatLXwFc96HJZYkGrq6AzjKuzyapdNDsg0rZJzZvnjfhrdDo9h8MGIcm1xRDdR38aoN7Jf/C7oav0b+A9nGa3ZcObw8TF9IB3rvOgo4xqe2zz61J7ALrJEgpZR3OZ2NUhU0+cmyWf1Pv02GVB8ESscp/cwcLX1aBMvW0M/L4hgEIl1bfaRFFR6HWOhcc8+Te3ptljvL+LXeam25AVp4z693rhwBy+TU7gyWMd9d3h7JeDrtvSGnWhX3SSDjNShkL83Q+lMt0SaXp6BJGfaOs0oC3fNb/41z4bwmbHwLwAElrBpK66jVFBqjNZpFHyRVwEhEL5Fpq+0wFRwtVRGoU4rORJKlEikuttV5eJXvOmxsuFBwSFv/dCDcPMqjUddon2HbWcLeGjl0Tknf8eKv32e8OqsvAw6iuUl9ICAjNW8UIiqfTvaFYnKBnPNjRwEpaOe9YRl7rE3woUUduT59jzAZlTVe0hqA+Yv2qAr0HkjdyJ6penZL0A7zzpqu3LEQkL+lL3G+lv+hCvmstz+WDjAAOLd4e2Dt4DR8WKPdMwl+pwvLQ3MtxbH9kC/6pDXRB6/KibvN1cD+S1kgBAGiGuLA285QnUQfEpQinZKvdqIaH9RwjAVDwVDKGjuXMJGLrf6gwk7n6p5EHygtm9Vd9Qs+GBBu/q3EOTybG6BvRBZsTXpdvhyMFwNH8xTyDp8HhIfcXiiG7mruzMqWR6LXeUe4cw4nxA4oQikfFUwBHacCZDqp1rKIWE+tKeQ5dFnnRL17b9Y5ua/j1gCi9WgQR5lbgvc54D7h5YkldMIw3FlxU="}],"role":"model"},{"parts":[{"text":"Now multiply that result by 2"}],"role":"user"}],"generationConfig":{"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}]}HTTP/2.0 200 OK
+Content-Length: 1488
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:53:44 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=2548
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:03:12 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1759
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -89,8 +97,8 @@ X-Xss-Protection: 0
       "content": {
         "parts": [
           {
-            "text": "To multiply the previous result (**42**) by **2**, we can do it step by step:\n\n**Method 1: Breaking it down by place value**\n1. Multiply the tens: **40 × 2 = 80**\n2. Multiply the ones: **2 × 2 = 4**\n3. Add the results together: **80 + 4 = 84**\n\n**Method 2: Addition**\n1. Multiplying by 2 is the same as adding the number to itself: **42 + 42**\n2. 42 + 40 = 82\n3. 82 + 2 = **84**\n\n**Final Answer:** 42 × 2 = **84**",
-            "thoughtSignature": "EqYFCqMFARFNMg/KUPzCn5IM2NxOooeulfgjKYBVhyFcXYJhGSqPAPnyHVUrSa4xIDOtAkiG/99KH30wLy3KOTp+5vGiJoP5Z6JIAAOEesyYNGaMR9LXfoWnjzDtGX/NdLnQ3/aW0a5inCHUhManxTHobW5cqN/Oae5nrqEJ4FSeOs8wy4AglUAntyVDQGsDV4tSnEErBXoXiJTdLMBIKsS2bL4lgfXYym5yOLRCq+D/hN9mZ7XiBWbUmJfbXzdY0MKA47G9cmLor+TIN8LWNi5T+rpvbKBK6GTuSLfabl17yATyMbm9MR2oZ3aBnKWMKBEx/eqoGyuEVRd9BC4gYchBiLR+ac8J9oG/Z8tg7uGTqv8QwzBMu0Wn8hoxWzv/vDY7ON06Y3I8MSFQciFAYLLfpk0+cf49QSnNwl42Ih7g8gq/nCOVg8MJjDhPGUh6zdudlR76sqzG5h8n1moUTIpSXkJqhiLotFhe9kPGoE4L23r8iPeq54neg8Dqe4uWoW5+UjmvvUFSYAN6Z1VgYYI8XCYTi7rhIELNeOnngNGvefh1ZmDOrtdU2GK8nI5AQPmgIQN/o1xdF+t+yv7UvK8bsk59UxYnGPbBdddnqcHE4nB+HFGgzH7U2lq94EQ/Rn14NN7zBw2N1V/lKMImqEnvpfjS89ykmdKHYiG3gL0g8kir0jOc9rmpj/tYP7urT0AjPPujrOqNHbpHhHZugnNE+6XTvINWbkrARb+8eRvPC42uZjOgFckxaBznjVJ7fGbTFNwo722iDTVg8c+jR6jLtL0SyiPvhJSaIt8bN4XYN9yWqDxAOozH4PQxWY48bIdTb2y6lCsdJa7lLEI33c/zUeUxk/PZvzzsyPRra6mKl5M7UfRjfAK+9sewGisOp6rJ1c5A/3ZK"
+            "text": "To multiply the previous result (**42**) by **2**, we can do it step by step:\n\n**Step 1: Break 42 into tens and ones.**\n*   42 is **40 + 2**\n\n**Step 2: Multiply the tens by 2.**\n*   40 × 2 = **80**\n\n**Step 3: Multiply the ones by 2.**\n*   2 × 2 = **4**\n\n**Step 4: Add the results together.**\n*   80 + 4 = **84**\n\n**Final Answer:**\n42 × 2 = **84**",
+            "thoughtSignature": "EvUCCvICAWkUfRNYUGs/MNNn8CyB5OOeV46L27lfodNNdf5F++u5uz3sqnVu0MLlhbtyPLlJhA+kJBjgTSb/3RlX8DO1oPwgmbcbddYsgHCZiJw76/YTx0wtDEiXC+AO+HeTAi8LP8RiBF1Bw8VQm6GwyNShA/XHlh7KS2MHGkFqiMgFlaSY6Iwe6GflzoLTBCW6XcRkY5PRGN0eArlBcUh+X7TZL/+uzl0T2YAIi6V0ia34bti7aIZNUFxW9iPhpA9yIbZSyZrgFyL1JJfF/xjtanKlZ2eSWuZ7QEhsOkbxekLSGhZwcKg0Ml6pbIaH7HqRqPrOWJAyQJxS9Wt9ZGMPumpi6zkQfgWoWYcwKmHiA1hX7k+ei8/VpChNLEKWb3RbcHPp4ejkQRrrVjQdXdeMivN3fskzPdeOMMOCbGNuyLAq3rSCFfTfa8/SUIQWudWbV1A5Qfs0XT7vKk4hYIauKBjmPvIPz9Ag5hzVNkOHZyJC/sKHrg=="
           }
         ],
         "role": "model"
@@ -100,18 +108,18 @@ X-Xss-Protection: 0
     }
   ],
   "usageMetadata": {
-    "promptTokenCount": 298,
-    "candidatesTokenCount": 165,
-    "totalTokenCount": 709,
+    "promptTokenCount": 178,
+    "candidatesTokenCount": 139,
+    "totalTokenCount": 427,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
-        "tokenCount": 298
+        "tokenCount": 178
       }
     ],
-    "thoughtsTokenCount": 246,
+    "thoughtsTokenCount": 110,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "pbZxauDGKLePxN8PhsasiQw"
+  "responseId": "DxzAaq-zDrOb28oPuafq0Ac"
 }

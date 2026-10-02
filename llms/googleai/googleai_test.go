@@ -147,8 +147,8 @@ func TestGoogleAICall(t *testing.T) {
 	assert.Contains(t, resp.Choices[0].Content, "4")
 
 	info := resp.Choices[0].GenerationInfo
-	assert.Equal(t, 17, info["ReasoningTokens"])
-	assert.Equal(t, 7+17, info["CompletionTokens"], "Google bills thinking as output")
+	assert.Equal(t, 20, info["ReasoningTokens"])
+	assert.Equal(t, 7+20, info["CompletionTokens"], "Google bills thinking as output")
 	assert.Equal(t, info["TotalTokens"], info["PromptTokens"].(int)+info["CompletionTokens"].(int))
 	assert.Equal(t, info["CompletionTokens"], info["output_tokens"])
 	assert.Equal(t, info["PromptTokens"], info["input_tokens"])

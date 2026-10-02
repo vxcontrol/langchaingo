@@ -1,27 +1,31 @@
 httprr trace v1
-1285 2614
+1266 3570
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 959
+Content-Length: 940
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"First get the number 10, then get the number 32, then add them together."}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get a specific number","name":"get_number","parameters":{"properties":{"which":{"description":"Which number to get (first or second)","type":"STRING"}},"required":["which"],"type":"OBJECT"}},{"description":"Add two numbers together","name":"add_numbers","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
-Content-Length: 2201
+{"contents":[{"parts":[{"text":"First get the number 10, then get the number 32, then add them together."}],"role":"user"}],"generationConfig":{"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get a specific number","name":"get_number","parameters":{"properties":{"which":{"description":"Which number to get (first or second)","type":"STRING"}},"required":["which"],"type":"OBJECT"}},{"description":"Add two numbers together","name":"add_numbers","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 2978
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:54:03 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=2153
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:03:36 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=2958
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -34,9 +38,18 @@ X-Xss-Protection: 0
               "args": {
                 "which": "first"
               },
-              "id": "sjtv17iq"
+              "id": "call_432031"
             },
-            "thoughtSignature": "EvcHCvQHARFNMg8CS384X5x2wGmq0N/mwEbUQuxnWWRXXwdOr2UmXzomX9rCmC2OcqUO3r/KcmC+1nwN5/39K+ijN64t7ooZiUkaHtI582aH9zk7Epry0OVcnpTBf4HLk5uk9Lk5pDs5l949QwWg3c2l/dtJSCBi7RjHev6BrWstPqP8CsDt9PIyQOWDrxy3+Hezs5yXeuKICGLyUylC15YGsPkJ8X+M100mkojK5GyEtdIoeQpAt/hwjF0y1ktPfU0jWRg84Or+Ex6Vnf1WQa9thOPgh5zC7a0+/oDzx/k3hTmw6CeHG3dlOGj9jZrRpmjAhzJFdGNzKIDVOdYFXM+PG+okP5GJHvBJx72R5owdSmGaEkqR+2V7Y/SS/GvnSE6mfyDVvQ4tNgebJSeP+OjojsL07MCwAFfoQSEFrQpIXMJw1t047JIXKDfTKM5qQUoKjaKuoX7JaP9RJ/OZONKpKA2iwKLxqE6Kok6h3Wda1mgzgagT6klwJDkE8k2iVWYgo0nb47PEqibdEO0ZtU2en+64cag0zULDfuT7r+w1clpSBljGsQieIBBzru+Phvm9/6iUDRwN1uaZrYld1WsWdMOlQp603sZ/RjW5RZ3biyAtnuR1dxOrk/vnPC8hKy60fZw4HgIgnQkhXSOOf3poeMnMToafAgnAkuJCzzh3JXaTWCzxebLB7B3kA+qwULwU8ZDVuBdhWfafB7rN+6WD4v3//XFCNy15n61TG0HPELOctKd13WCt2OqaDHRr9tIFjpV7L4kRcEtc0g52femhmB5lOo0K80XPkCxG/HQlPTuSKVODYyZ9/kW8Fe43041vEgxI4RkEn7myUzrWtFa0lvpkBwutEjZGKRh8+dffVhelaqhIBe6HktHrHdRmgkkadM+cOYMmIbUP/oy44zV2W94uPZ1Zh4OqegeCr35IAB89xGe57DkOAI3LB/cFcptpPWbrXoIQAZpsY3LRjo52Z7SR3QF+VcMQJTpWUbkJXXkhsDJDpZsytn8Xi1TfXhhk/Z7amMCHt5E0PbkujKdw8dCfRTw09DKI19lA54woBlasHnaKTNoDK6eZm2TuXV9Bnx4lKLRruvo9ku58DDyZg/QighNy3Blins9uBhvr5AMdMCT565WZqpRhE8hFRrAMPLSaVgY6BijrINTVf/K7Vmg9KZblcpRNFC6ZR/w/dhpOIqfBmUT7arBO9xF2uJHYQCcBFiXx2JxXKfwt9Ba+AA81PlFQoR4zsN7lvZBPWqrlwSeBAcAgLph8RBUmTpRvAqdUuxTn4ffxS6YadPXGEZfU6BH3oUfspxlSmI4rE+PgKoAfcf5uL+ujWYVPsMRsZOGUc/M8KQ=="
+            "thoughtSignature": "EpsLCpgLAWkUfRP2kw2h3nlOkxzer1stIYLJKMnBeTfvC/dXcgJ+LAABNJB6F6UWADO4bI2Q2eB0PNdWrOilcFpFeYIrt+QiMTdWZ+WhmqjOfn8u3QcH1bJo9ATnhysIEOndwqnzAhHCBLw5t64AJcGT1YVfKrt7AI0yXkLh7T6Y1yTUhDmVxayX020vppSvVnJazx0iSH0pSc6IVoPq8NhCu2HvJiHE0C6EjRNg8Bm55FqrBWu6FQhhnEvEtwaqhJ+o1aez6Yn3dlu9PXIOl4bywdm2WGN5eFu4AAJDgtYP2tSn1VPFqQ5YVuCBJz7HcCF5XSX++PUd7RoBZOpF25ddCrrwkzEZvQEbk9IAxs29etlkOOeHyt08hcM2UOSWPXDSKO1aa045CT6U8nvoVDKlIsURdshVT6L2XnFUrNKErf9M43VjT2QfirkrLJM1dxlV/ddvo3y1zKXLwwCrDUj8vJ+4A8iBNKanPWkm8N4nNZMnUnt0lbLlpoZQwcz1yy7dvlcypRf9Gk1bXppvSlC6I8hBDLTdeifYgQ8lL5Yo8K/28ogZbbJ4cJ+1EPrMBX4LaE8zoJ6D4FWcP2CmhjdkeA1lF4nQQxo2h7sKrvOtgunzPs7/sWecCDNFT2/B9E++xBGWrlEdi4ptbWlWTg2u9cJ37RrdQ5BasxFQj3b8i48RqpBS+vwiWfPoO71sDQhP9kHxNxvQeLLzfNKGn+CgwTxkN0DzmBwC/cTjJsStyJ8aH1ca3/3v824IqdfViXMDRNrLzwujc2HP3yOHkoPTa1I0cBgrz4ak4QeCzdP+aztFjzvPdd83krghVQeSQ4WLOQF4h8I824y+8CF2eKgM8r4SUBj38YeVpTqyGq2ttqk0bAGgARwz8+V13fMU1CSdXSo4yoAed6y/gdMq66QXfRh1P+ydUI1koplVGTE07onnKvsL47Isz0//B/tq78N31yJDi+DvIySV6U1huUyh6AKO+Ve/UPRxMzQ8e54F5KMy1W5Op9jE1Qbi7uOBO6EH/zFboWWLsHxW7UnNpaIidLOL3wnB3dHNR85bcDAig8xTOQas1+rA13v/Xk/jAF7z4cpsR67RFQ8f1+Ss23Lkc0dfXgSP5RMB8L7ZbF6KNzPkn0mhpcNoXNnWgIGF1k6lpCu2p4B0gpqTKs6pkrohAWxuX9LXo4ShrGKR8lXVX0lid+wTxs0J24rIM9udck9R9BVAaMATYe4dOpSk4pPlIZJlUpPXNoYl1gxI83ybTYGaXOsY5GWEz7AR3gtkgNj12CggkbG59wsfL0JtxV70eBIMx6lBTYgHKzIBtlEn0ATuFP17+CTn0xWSfHyC83WJHeNa5LKEb4UeUGyc5aQZFozStLlhdLgAzvo/+GcuQNAzUHrB+J23VDGryzJ0hB4HfjEBst0n6uSBEJ5TXt/pX+Lc/4dfnRvS0iPLapjKYCgzTk4tJ9a9D/er0G+FFu3S8rMxk2ebtgNsQiDlSTKIiYmxs1odsXskpcupAs/1FJzBi40VT79j0MEx8DbQu9o/MmdmDvXhpAL3AA545EwUpM62HbmMpnZpX5HwH+wGyxt+7V6M1OI/EJKpb4KbSV/DckKgqWTLEWNbJ+iTP0VbguruN3XcPsX8Yhb+CczKSIC771QHV9vKFsHbZK8ome4UyJmeq3chjzI6L+56BG28maBZkFNsOZw9U1CL7IQ/k8wLzWz/43bhuM1uSUuhXiUFk4IMiZPjPvAp9VhfXi2LhZSMP3K6EpxdKdk87ZHsAf/Uldru/fwql8QeFESP/2JCIMG+O9TGm3yE8dZC64fJOWFedFtcimpNKE8f0oxZNd7ogirhhxSMXoE47ZU06PuzJyjLqyDiyQbfNEvFjEWO+L3NhINYSGeLIrnsltE4oa4kldXd74vyucqStw=="
+          },
+          {
+            "functionCall": {
+              "name": "get_number",
+              "args": {
+                "which": "second"
+              },
+              "id": "call_432032"
+            }
           }
         ],
         "role": "model"
@@ -48,43 +61,47 @@ X-Xss-Protection: 0
   ],
   "usageMetadata": {
     "promptTokenCount": 144,
-    "candidatesTokenCount": 16,
-    "totalTokenCount": 422,
+    "candidatesTokenCount": 32,
+    "totalTokenCount": 562,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
         "tokenCount": 144
       }
     ],
-    "thoughtsTokenCount": 262,
+    "thoughtsTokenCount": 386,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "ubZxao3WFIWE28oP8LvymQM"
+  "responseId": "JRzAavquJ_7lxN8PrtW0mQ0"
 }
-2889 1392
+3436 1692
 POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent HTTP/1.1
 Host: generativelanguage.googleapis.com
 User-Agent: langchaingo-httprr
-Content-Length: 2562
+Content-Length: 3109
 Content-Type: application/json
 X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
 X-Goog-Api-Key: test-api-key
 
-{"contents":[{"parts":[{"text":"First get the number 10, then get the number 32, then add them together."}],"role":"user"},{"parts":[{"functionCall":{"args":{"which":"first"},"id":"sjtv17iq","name":"get_number"},"thoughtSignature":"EvcHCvQHARFNMg8CS384X5x2wGmq0N/mwEbUQuxnWWRXXwdOr2UmXzomX9rCmC2OcqUO3r/KcmC+1nwN5/39K+ijN64t7ooZiUkaHtI582aH9zk7Epry0OVcnpTBf4HLk5uk9Lk5pDs5l949QwWg3c2l/dtJSCBi7RjHev6BrWstPqP8CsDt9PIyQOWDrxy3+Hezs5yXeuKICGLyUylC15YGsPkJ8X+M100mkojK5GyEtdIoeQpAt/hwjF0y1ktPfU0jWRg84Or+Ex6Vnf1WQa9thOPgh5zC7a0+/oDzx/k3hTmw6CeHG3dlOGj9jZrRpmjAhzJFdGNzKIDVOdYFXM+PG+okP5GJHvBJx72R5owdSmGaEkqR+2V7Y/SS/GvnSE6mfyDVvQ4tNgebJSeP+OjojsL07MCwAFfoQSEFrQpIXMJw1t047JIXKDfTKM5qQUoKjaKuoX7JaP9RJ/OZONKpKA2iwKLxqE6Kok6h3Wda1mgzgagT6klwJDkE8k2iVWYgo0nb47PEqibdEO0ZtU2en+64cag0zULDfuT7r+w1clpSBljGsQieIBBzru+Phvm9/6iUDRwN1uaZrYld1WsWdMOlQp603sZ/RjW5RZ3biyAtnuR1dxOrk/vnPC8hKy60fZw4HgIgnQkhXSOOf3poeMnMToafAgnAkuJCzzh3JXaTWCzxebLB7B3kA+qwULwU8ZDVuBdhWfafB7rN+6WD4v3//XFCNy15n61TG0HPELOctKd13WCt2OqaDHRr9tIFjpV7L4kRcEtc0g52femhmB5lOo0K80XPkCxG/HQlPTuSKVODYyZ9/kW8Fe43041vEgxI4RkEn7myUzrWtFa0lvpkBwutEjZGKRh8+dffVhelaqhIBe6HktHrHdRmgkkadM+cOYMmIbUP/oy44zV2W94uPZ1Zh4OqegeCr35IAB89xGe57DkOAI3LB/cFcptpPWbrXoIQAZpsY3LRjo52Z7SR3QF+VcMQJTpWUbkJXXkhsDJDpZsytn8Xi1TfXhhk/Z7amMCHt5E0PbkujKdw8dCfRTw09DKI19lA54woBlasHnaKTNoDK6eZm2TuXV9Bnx4lKLRruvo9ku58DDyZg/QighNy3Blins9uBhvr5AMdMCT565WZqpRhE8hFRrAMPLSaVgY6BijrINTVf/K7Vmg9KZblcpRNFC6ZR/w/dhpOIqfBmUT7arBO9xF2uJHYQCcBFiXx2JxXKfwt9Ba+AA81PlFQoR4zsN7lvZBPWqrlwSeBAcAgLph8RBUmTpRvAqdUuxTn4ffxS6YadPXGEZfU6BH3oUfspxlSmI4rE+PgKoAfcf5uL+ujWYVPsMRsZOGUc/M8KQ=="}],"role":"model"},{"parts":[{"functionResponse":{"id":"sjtv17iq","name":"get_number","response":{"response":"10"}}}],"role":"user"}],"generationConfig":{"candidateCount":1,"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get a specific number","name":"get_number","parameters":{"properties":{"which":{"description":"Which number to get (first or second)","type":"STRING"}},"required":["which"],"type":"OBJECT"}},{"description":"Add two numbers together","name":"add_numbers","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
-Content-Length: 981
+{"contents":[{"parts":[{"text":"First get the number 10, then get the number 32, then add them together."}],"role":"user"},{"parts":[{"functionCall":{"args":{"which":"first"},"id":"call_432031","name":"get_number"},"thoughtSignature":"EpsLCpgLAWkUfRP2kw2h3nlOkxzer1stIYLJKMnBeTfvC/dXcgJ+LAABNJB6F6UWADO4bI2Q2eB0PNdWrOilcFpFeYIrt+QiMTdWZ+WhmqjOfn8u3QcH1bJo9ATnhysIEOndwqnzAhHCBLw5t64AJcGT1YVfKrt7AI0yXkLh7T6Y1yTUhDmVxayX020vppSvVnJazx0iSH0pSc6IVoPq8NhCu2HvJiHE0C6EjRNg8Bm55FqrBWu6FQhhnEvEtwaqhJ+o1aez6Yn3dlu9PXIOl4bywdm2WGN5eFu4AAJDgtYP2tSn1VPFqQ5YVuCBJz7HcCF5XSX++PUd7RoBZOpF25ddCrrwkzEZvQEbk9IAxs29etlkOOeHyt08hcM2UOSWPXDSKO1aa045CT6U8nvoVDKlIsURdshVT6L2XnFUrNKErf9M43VjT2QfirkrLJM1dxlV/ddvo3y1zKXLwwCrDUj8vJ+4A8iBNKanPWkm8N4nNZMnUnt0lbLlpoZQwcz1yy7dvlcypRf9Gk1bXppvSlC6I8hBDLTdeifYgQ8lL5Yo8K/28ogZbbJ4cJ+1EPrMBX4LaE8zoJ6D4FWcP2CmhjdkeA1lF4nQQxo2h7sKrvOtgunzPs7/sWecCDNFT2/B9E++xBGWrlEdi4ptbWlWTg2u9cJ37RrdQ5BasxFQj3b8i48RqpBS+vwiWfPoO71sDQhP9kHxNxvQeLLzfNKGn+CgwTxkN0DzmBwC/cTjJsStyJ8aH1ca3/3v824IqdfViXMDRNrLzwujc2HP3yOHkoPTa1I0cBgrz4ak4QeCzdP+aztFjzvPdd83krghVQeSQ4WLOQF4h8I824y+8CF2eKgM8r4SUBj38YeVpTqyGq2ttqk0bAGgARwz8+V13fMU1CSdXSo4yoAed6y/gdMq66QXfRh1P+ydUI1koplVGTE07onnKvsL47Isz0//B/tq78N31yJDi+DvIySV6U1huUyh6AKO+Ve/UPRxMzQ8e54F5KMy1W5Op9jE1Qbi7uOBO6EH/zFboWWLsHxW7UnNpaIidLOL3wnB3dHNR85bcDAig8xTOQas1+rA13v/Xk/jAF7z4cpsR67RFQ8f1+Ss23Lkc0dfXgSP5RMB8L7ZbF6KNzPkn0mhpcNoXNnWgIGF1k6lpCu2p4B0gpqTKs6pkrohAWxuX9LXo4ShrGKR8lXVX0lid+wTxs0J24rIM9udck9R9BVAaMATYe4dOpSk4pPlIZJlUpPXNoYl1gxI83ybTYGaXOsY5GWEz7AR3gtkgNj12CggkbG59wsfL0JtxV70eBIMx6lBTYgHKzIBtlEn0ATuFP17+CTn0xWSfHyC83WJHeNa5LKEb4UeUGyc5aQZFozStLlhdLgAzvo/+GcuQNAzUHrB+J23VDGryzJ0hB4HfjEBst0n6uSBEJ5TXt/pX+Lc/4dfnRvS0iPLapjKYCgzTk4tJ9a9D/er0G+FFu3S8rMxk2ebtgNsQiDlSTKIiYmxs1odsXskpcupAs/1FJzBi40VT79j0MEx8DbQu9o/MmdmDvXhpAL3AA545EwUpM62HbmMpnZpX5HwH+wGyxt+7V6M1OI/EJKpb4KbSV/DckKgqWTLEWNbJ+iTP0VbguruN3XcPsX8Yhb+CczKSIC771QHV9vKFsHbZK8ome4UyJmeq3chjzI6L+56BG28maBZkFNsOZw9U1CL7IQ/k8wLzWz/43bhuM1uSUuhXiUFk4IMiZPjPvAp9VhfXi2LhZSMP3K6EpxdKdk87ZHsAf/Uldru/fwql8QeFESP/2JCIMG+O9TGm3yE8dZC64fJOWFedFtcimpNKE8f0oxZNd7ogirhhxSMXoE47ZU06PuzJyjLqyDiyQbfNEvFjEWO+L3NhINYSGeLIrnsltE4oa4kldXd74vyucqStw=="}],"role":"model"},{"parts":[{"functionResponse":{"id":"call_432031","name":"get_number","response":{"response":"10"}}}],"role":"user"}],"generationConfig":{"maxOutputTokens":1024},"safetySettings":[{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HARASSMENT","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_NONE"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"BLOCK_NONE"}],"tools":[{"functionDeclarations":[{"description":"Get a specific number","name":"get_number","parameters":{"properties":{"which":{"description":"Which number to get (first or second)","type":"STRING"}},"required":["which"],"type":"OBJECT"}},{"description":"Add two numbers together","name":"add_numbers","parameters":{"properties":{"a":{"description":"First number","type":"NUMBER"},"b":{"description":"Second number","type":"NUMBER"}},"required":["a","b"],"type":"OBJECT"}}]}]}HTTP/2.0 200 OK
+Content-Length: 1100
 Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
 Content-Type: application/json; charset=UTF-8
-Date: Tue, 04 Aug 2026 09:54:05 GMT
-Server: scaffolding on HTTPServer2
-Server-Timing: gfet4t7; dur=772
-Vary: Origin
-Vary: X-Origin
-Vary: Referer
+Date: Fri, 02 Oct 2026 21:03:38 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=1084
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
 X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
 X-Frame-Options: SAMEORIGIN
 X-Gemini-Service-Tier: standard
 X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
 
 {
   "candidates": [
@@ -97,9 +114,9 @@ X-Xss-Protection: 0
               "args": {
                 "which": "second"
               },
-              "id": "z2e6lkni"
+              "id": "call_664260"
             },
-            "thoughtSignature": "EmUKYwERTTIPcpBevhwIIRR9CTYmfXux7tZe9bsimGYXhIiBTcORZFNq8dnawBdjyMs4MejsB/i1D9Lu/cEt9yzRJm8Eh0aXC8PH+JK3d/tdFhLvOQKc4NQtrpupuNuGXjSBFbyEcg=="
+            "thoughtSignature": "Er0BCroBAWkUfRPKlsAbP7SsjmIQY3XYU81bwJkVC/UhI5os3RncHrqmeZeAwGBfVGxrNYlAmNvHzwcDIXzuzPJTnn0IffbVxDNtXMZ7baMNoD8cuI8owKU5SgzFNArx90kDFhMqG9X9X+rACgFy7GoGdOXJJ3VU6Qg+iKzdwxFyHM4K7K2P6zaVGcYMpYbCW5Tk5scqtQV79pBgdLmYn27J0EOnIK6xW4g8AjoKPTAK0Gy157BUeidVN6q/AGuC"
           }
         ],
         "role": "model"
@@ -110,18 +127,18 @@ X-Xss-Protection: 0
     }
   ],
   "usageMetadata": {
-    "promptTokenCount": 437,
+    "promptTokenCount": 561,
     "candidatesTokenCount": 16,
-    "totalTokenCount": 468,
+    "totalTokenCount": 603,
     "promptTokensDetails": [
       {
         "modality": "TEXT",
-        "tokenCount": 437
+        "tokenCount": 561
       }
     ],
-    "thoughtsTokenCount": 15,
+    "thoughtsTokenCount": 26,
     "serviceTier": "standard"
   },
   "modelVersion": "gemini-3-flash-preview",
-  "responseId": "vLZxap_aIeWuxN8P-N2LoQ4"
+  "responseId": "KRzAasvcOpK-vdIPsKHvmAk"
 }

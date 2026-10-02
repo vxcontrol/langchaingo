@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/embeddings"
+	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/googleai"
@@ -41,7 +42,15 @@ func newGoogleAIClient(t *testing.T, opts ...googleai.Option) *googleai.GoogleAI
 
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, "GOOGLE_API_KEY")
 
-	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	transport := http.DefaultTransport
+	if baseURL := os.Getenv("GOOGLE_BASE_URL"); baseURL != "" {
+		transport = &httputil.ApiKeyTransport{
+			Transport: transport,
+			APIKey:    os.Getenv("GOOGLE_API_KEY"),
+			BaseURL:   baseURL,
+		}
+	}
+	rr := httprr.OpenForTest(t, transport)
 	if !rr.Recording() {
 		t.Parallel()
 	}
