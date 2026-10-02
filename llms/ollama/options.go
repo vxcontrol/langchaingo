@@ -209,9 +209,9 @@ func WithSeed(seed int) Option {
 }
 
 // WithNumPredict sets the maximum number of tokens to predict when generating text.
-// This parameter controls the maximum length of the response. Use -1 for infinite generation,
-// -2 to fill context, or a positive number to limit tokens. llms.WithMaxTokens on a call
-// overrides it; with neither set, the door sends llms.DefaultMaxTokens.
+// This parameter controls the maximum length of the response. Use -1 for infinite generation
+// or a positive number to limit tokens. llms.WithMaxTokens on a call overrides it; with
+// neither set, the door sends llms.DefaultMaxTokens.
 func WithNumPredict(num int) Option {
 	return func(opts *options) {
 		opts.ollamaOptions.NumPredict = num
