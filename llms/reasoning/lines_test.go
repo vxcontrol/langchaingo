@@ -148,8 +148,8 @@ func TestEveryListedReleaseReadsAsItself(t *testing.T) {
 	}
 	for _, releases := range claudeReleases {
 		for _, r := range releases {
-			documented, inherited := inheritClaude(r.id)
-			require.False(t, inherited, "%s reads as %s", r.id, documented)
+			documented, inherited := inheritClaude(r.members[""])
+			require.False(t, inherited, "%s reads as %s", r.members[""], documented)
 		}
 	}
 }
@@ -178,4 +178,41 @@ func TestADocumentedQwenAliasOrSnapshotAnswersAsItsStableID(t *testing.T) {
 	}
 	require.Equal(t, OffUnsupported, ResolveOff("qwen3.7-max-2026-05-17", ProviderOpenAI), "a thinking-only snapshot")
 	require.Equal(t, ResolveOff("qwen3.7-max", ProviderOpenAI), ResolveOff("qwen3.7-max-2026-05-20", ProviderOpenAI))
+}
+
+func TestAVersionIsReadTheWayItsVendorWritesIt(t *testing.T) {
+	t.Parallel()
+
+	for name, want := range map[string]string{
+		"grok-4.35": "grok-4.3", "grok-4.65": "grok-4.6", "grok-4.8": "grok-4.7", "grok-4.8-latest": "grok-4.7",
+		"kimi-k4:free": "kimi-k3", "moonshotai/kimi-k4:free": "kimi-k3", "kimi-k4:cloud": "kimi-k3",
+		"gemini-4-flash-preview-05-20": "gemini-3.8-flash", "gemini-4-flash-001": "gemini-3.8-flash",
+	} {
+		documented, inherited := InheritedModel(name)
+		assert.True(t, inherited, name)
+		assert.Equal(t, want, documented, name)
+	}
+	for _, own := range []string{
+		"grok-4.25", "grok-4.20", "grok-4.30", "grok-4.7-latest", "kimi-k3:free", "gemini-2.0-flash-001",
+	} {
+		documented, inherited := InheritedModel(own)
+		assert.False(t, inherited, "%s reads as %s", own, documented)
+	}
+}
+
+func TestTheReleasesBelowAreWrittenInTheCallersSpelling(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, []string{
+		"zai-glm-5.3", "zai-glm-5.2", "zai-glm-5.1", "zai-glm-5", "zai-glm-4.7", "zai-glm-4.6", "zai-glm-4.5",
+	}, releasesBelow("zai-glm-6"))
+	require.Equal(t, []string{"glm-5-3", "glm-5-2", "glm-5-1", "glm-5", "glm-4-7", "glm-4-6", "glm-4-5"},
+		releasesBelow("glm-5-4"))
+	require.Equal(t, []string{
+		"us.anthropic.claude-opus-5-5", "us.anthropic.claude-opus-5", "us.anthropic.claude-opus-4-8",
+		"us.anthropic.claude-opus-4-7", "us.anthropic.claude-opus-4-6", "us.anthropic.claude-opus-4-5",
+		"us.anthropic.claude-opus-4-1", "us.anthropic.claude-opus-4-0",
+	}, releasesBelow("us.anthropic.claude-opus-6-v1:0"))
+	require.Equal(t, OffOmit, InheritedOffWire("zai-glm-6", ProviderOpenAI), "Mistral turns GLM thinking off by omission")
+	require.Equal(t, OffDisableThinkingObject, InheritedOffWire("glm-6", ProviderOpenAI))
 }

@@ -37,6 +37,9 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	thinking, _ := body["thinking"].(map[string]any)
 	require.Equal(t, "disabled", thinking["type"], "glm-5.2 is the newest GLM that documents a disable: %v", body)
 
+	body, _ = hostCall(t, "https://api.mistral.ai/v1", "zai-glm-6", llms.WithReasoningDisabled())
+	require.NotContains(t, body, "thinking", "Mistral's GLM releases turn thinking off by omission: %v", body)
+
 	body, warnings = hostCall(t, "https://api.openai.com/v1", "gpt-5.7", tools, llms.WithReasoning(llms.ReasoningHigh, 0))
 	require.Equal(t, "high", body["reasoning_effort"])
 	require.Len(t, body["tools"], 1)

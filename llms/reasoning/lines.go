@@ -9,27 +9,6 @@ import (
 	"strings"
 )
 
-type release struct {
-	major, minor int
-	id           string
-}
-
-func (r release) atOrBelow(major, minor int) bool {
-	return r.major < major || r.major == major && r.minor <= minor
-}
-
-func nearestRelease(releases []release, major, minor int) (nearest release, documented, found bool) {
-	for _, r := range releases {
-		if r.major == major && r.minor == minor {
-			return r, true, true
-		}
-		if r.atOrBelow(major, minor) && (!found || !r.atOrBelow(nearest.major, nearest.minor)) {
-			nearest, found = r, true
-		}
-	}
-	return nearest, false, found
-}
-
 // InheritedModel returns the documented model whose rules a name follows when the
 // tables do not list the name's own version: claude-opus-6 follows claude-opus-5-5.
 func InheritedModel(model string) (string, bool) {
@@ -41,51 +20,90 @@ func InheritedModel(model string) (string, bool) {
 	return inheritLine(bare)
 }
 
-var claudeReleases = map[string][]release{
+var claudeReleases = map[string][]generation{
 	"opus": {
-		{4, 0, "claude-opus-4-0"}, {4, 1, "claude-opus-4-1"}, {4, 5, "claude-opus-4-5"},
-		{4, 6, "claude-opus-4-6"}, {4, 7, "claude-opus-4-7"}, {4, 8, "claude-opus-4-8"},
-		{5, 0, "claude-opus-5"}, {5, 5, "claude-opus-5-5"},
+		only(4, 0, "claude-opus-4-0"), only(4, 1, "claude-opus-4-1"), only(4, 5, "claude-opus-4-5"),
+		only(4, 6, "claude-opus-4-6"), only(4, 7, "claude-opus-4-7"), only(4, 8, "claude-opus-4-8"),
+		only(5, 0, "claude-opus-5"), only(5, 5, "claude-opus-5-5"),
 	},
 	"sonnet": {
-		{4, 0, "claude-sonnet-4-0"}, {4, 5, "claude-sonnet-4-5"}, {4, 6, "claude-sonnet-4-6"},
-		{5, 0, "claude-sonnet-5"}, {5, 5, "claude-sonnet-5-5"},
+		only(4, 0, "claude-sonnet-4-0"), only(4, 5, "claude-sonnet-4-5"), only(4, 6, "claude-sonnet-4-6"),
+		only(5, 0, "claude-sonnet-5"), only(5, 5, "claude-sonnet-5-5"),
 	},
-	"haiku":  {{4, 5, "claude-haiku-4-5"}},
-	"fable":  {{5, 0, "claude-fable-5"}, {5, 1, "claude-fable-5-1"}},
-	"mythos": {{5, 0, "claude-mythos-5"}, {5, 1, "claude-mythos-5-1"}},
+	"haiku":  {only(4, 5, "claude-haiku-4-5")},
+	"fable":  {only(5, 0, "claude-fable-5"), only(5, 1, "claude-fable-5-1")},
+	"mythos": {only(5, 0, "claude-mythos-5"), only(5, 1, "claude-mythos-5-1")},
 }
 
-func inheritClaude(canonical string) (string, bool) {
+func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 	rest, ok := strings.CutPrefix(canonical, "claude-")
 	if !ok {
-		return "", false
+		return "", 0, 0, false
 	}
 	parts := strings.Split(rest, "-")
-	releases, known := claudeReleases[parts[0]]
-	if !known || len(parts) < 2 {
-		return "", false
+	if len(parts) < 2 {
+		return "", 0, 0, false
 	}
 	major, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return "", false
+		return "", 0, 0, false
 	}
-	minor := 0
 	if len(parts) > 2 && len(parts[2]) <= 2 {
 		if n, err := strconv.Atoi(parts[2]); err == nil {
 			minor = n
 		}
 	}
-	r, documented, found := nearestRelease(releases, major, minor)
-	if documented || !found {
+	return parts[0], major, minor, true
+}
+
+func inheritClaude(canonical string) (string, bool) {
+	tier, major, minor, ok := claudeVersion(canonical)
+	if !ok {
 		return "", false
 	}
-	return r.id, true
+	g, listed, found := nearest(claudeReleases[tier], major, minor)
+	if listed || !found {
+		return "", false
+	}
+	return g.members[""], true
 }
 
 type generation struct {
 	major, minor int
 	members      map[string]string
+}
+
+func only(major, minor int, id string) generation {
+	return generation{major, minor, map[string]string{"": id}}
+}
+
+func (g generation) before(major, minor int) bool {
+	return g.major < major || g.major == major && g.minor < minor
+}
+
+func nearest(line []generation, major, minor int) (g generation, listed, found bool) {
+	for _, candidate := range line {
+		if candidate.major == major && candidate.minor == minor {
+			return candidate, true, true
+		}
+		if candidate.before(major, minor) && (!found || g.before(candidate.major, candidate.minor)) {
+			g, found = candidate, true
+		}
+	}
+	return g, false, found
+}
+
+func atOrBelow(line []generation, top generation) []generation {
+	var below []generation
+	for _, g := range line {
+		if !top.before(g.major, g.minor) {
+			below = append(below, g)
+		}
+	}
+	slices.SortFunc(below, func(a, b generation) int {
+		return cmp.Or(cmp.Compare(b.major, a.major), cmp.Compare(b.minor, a.minor))
+	})
+	return below
 }
 
 type lineFamily struct {
@@ -237,8 +255,7 @@ var lineFamilies = []lineFamily{
 	{
 		prefix: "grok-",
 		lines: map[string][]generation{"": {
-			{4, 3, map[string]string{"": "grok-4.3"}}, {4, 5, map[string]string{"": "grok-4.5"}},
-			{4, 6, map[string]string{"": "grok-4.6"}}, {4, 7, map[string]string{"": "grok-4.7"}},
+			only(4, 30, "grok-4.3"), only(4, 50, "grok-4.5"), only(4, 60, "grok-4.6"), only(4, 70, "grok-4.7"),
 		}},
 		products:     []string{"reasoning", "non", "multi", "agent", "fast", "code", "build", "mini"},
 		decimalMinor: true,
@@ -252,32 +269,37 @@ type parsedName struct {
 	core               string
 }
 
-func (f lineFamily) parse(name string) (parsedName, bool) {
+func (f *lineFamily) parse(name string) (parsedName, bool) {
+	name, _, _ = strings.Cut(name, ":")
 	rest, ok := strings.CutPrefix(name, f.prefix)
 	if !ok {
 		return parsedName{}, false
 	}
 	tokens := strings.Split(rest, "-")
-	version := tokens[0]
+	version, hundredths := tokens[0], "00"
 	if whole, fraction, dotted := strings.Cut(version, "."); f.decimalMinor && dotted {
-		version = whole + "." + cmp.Or(strings.TrimRight(fraction, "0"), "0")
+		fraction = cmp.Or(strings.TrimRight(fraction, "0"), "0")
+		version, hundredths = whole+"."+fraction, (fraction + "0")[:2]
 	}
 	major, minor, ok := parseVersion(version)
 	if !ok {
 		return parsedName{}, false
 	}
+	if f.decimalMinor {
+		minor, _ = strconv.Atoi(hundredths)
+	}
 	p := parsedName{major: major, minor: minor}
-	core := []string{f.prefix + tokens[0]}
+	core := []string{f.prefix + version}
 	inDate := false
 	for i, token := range tokens[1:] {
 		switch {
-		case i == 0 && f.dashMinor && !strings.Contains(tokens[0], ".") && len(token) <= 2 && allDigits(token):
+		case i == 0 && f.dashMinor && !strings.Contains(version, ".") && len(token) <= 2 && isDigits(token):
 			p.minor, _ = strconv.Atoi(token)
 			p.dashMinor = true
 			core = append(core, token)
-		case allDigits(token) && (len(token) >= 4 || inDate):
+		case isDigits(token) && (len(token) >= 2 || inDate):
 			inDate = true
-		case slices.Contains(f.stages, token):
+		case token == "latest", slices.Contains(f.stages, token):
 		case p.product == "" && slices.Contains(f.products, token):
 			p.product = token
 			core = append(core, token)
@@ -296,41 +318,35 @@ func (f lineFamily) parse(name string) (parsedName, bool) {
 	return p, true
 }
 
-func (f lineFamily) inherit(name string) (string, bool) {
-	p, ok := f.parse(name)
-	if !ok {
+func (f *lineFamily) follow(name string) (p parsedName, line []generation, g generation, listed, ok bool) {
+	if p, ok = f.parse(name); !ok {
+		return p, nil, g, false, false
+	}
+	if line, ok = f.lines[p.product]; !ok {
+		return p, nil, g, false, false
+	}
+	g, listed, ok = nearest(line, p.major, p.minor)
+	return p, line, g, listed, ok
+}
+
+func (f *lineFamily) inherit(name string) (string, bool) {
+	p, _, g, listed, ok := f.follow(name)
+	if !ok || listed && p.qualifier != "" {
 		return "", false
 	}
-	line, ok := f.lines[p.product]
-	if !ok {
-		return "", false
-	}
-	var g generation
-	found := false
-	for _, candidate := range line {
-		if candidate.major == p.major && candidate.minor == p.minor {
-			g, found = candidate, true
-			break
-		}
-		if (candidate.major < p.major || candidate.major == p.major && candidate.minor < p.minor) &&
-			(!found || candidate.major > g.major || candidate.major == g.major && candidate.minor > g.minor) {
-			g, found = candidate, true
-		}
-	}
-	if !found {
-		return "", false
-	}
-	if g.major == p.major && g.minor == p.minor && p.qualifier != "" {
-		return "", false
-	}
-	documented := g.member(p.qualifier)
-	if p.dashMinor {
-		documented = strings.Replace(documented, fmt.Sprintf("%d.%d", g.major, g.minor), fmt.Sprintf("%d-%d", g.major, g.minor), 1)
-	}
-	if listed, _ := f.parse(documented); documented == name || listed.core == p.core {
+	documented := p.spell(g)
+	if release, _ := f.parse(documented); documented == name || release.core == p.core {
 		return "", false
 	}
 	return documented, true
+}
+
+func (p parsedName) spell(g generation) string {
+	id := g.member(p.qualifier)
+	if !p.dashMinor {
+		return id
+	}
+	return strings.Replace(id, fmt.Sprintf("%d.%d", g.major, g.minor), fmt.Sprintf("%d-%d", g.major, g.minor), 1)
 }
 
 func (g generation) member(qualifier string) string {
@@ -352,7 +368,7 @@ var parameterCount = regexp.MustCompile(`^a?\d+(\.\d+)?[bt]$`)
 
 func parseVersion(token string) (major, minor int, ok bool) {
 	majorText, minorText, dotted := strings.Cut(token, ".")
-	if !allDigits(majorText) || dotted && !allDigits(minorText) {
+	if !isDigits(majorText) || dotted && !isDigits(minorText) {
 		return 0, 0, false
 	}
 	major, _ = strconv.Atoi(majorText)
@@ -362,21 +378,9 @@ func parseVersion(token string) (major, minor int, ok bool) {
 	return major, minor, true
 }
 
-func allDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := range len(s) {
-		if !isDigit(s[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 func inheritLine(bare string) (string, bool) {
-	for _, f := range lineFamilies {
-		if documented, ok := f.inherit(bare); ok {
+	for i := range lineFamilies {
+		if documented, ok := lineFamilies[i].inherit(bare); ok {
 			return documented, true
 		}
 	}
@@ -400,37 +404,31 @@ func releasesBelow(model string) []string {
 	if !inherited {
 		return nil
 	}
-	var line []string
-	if rest, ok := strings.CutPrefix(documented, "claude-"); ok {
-		tier, _, _ := strings.Cut(rest, "-")
-		for _, r := range claudeReleases[tier] {
-			line = append(line, r.id)
+	_, _, bare := splitModelName(model)
+	frame, framed := strings.CutSuffix(strings.ToLower(model), bare)
+	if !framed {
+		frame = model[:strings.LastIndex(model, "/")+1]
+	}
+	var below []string
+	if tier, major, minor, ok := claudeVersion(documented); ok {
+		line := claudeReleases[tier]
+		g, _, _ := nearest(line, major, minor)
+		for _, release := range atOrBelow(line, g) {
+			below = append(below, frame+release.members[""])
 		}
-	} else {
-		for _, f := range lineFamilies {
-			p, ok := f.parse(documented)
-			if !ok {
-				continue
-			}
-			for _, g := range f.lines[p.product] {
-				if id := g.member(p.qualifier); id != "" {
-					line = append(line, id)
-				}
-			}
-			break
+		return below
+	}
+	for i := range lineFamilies {
+		p, line, g, _, ok := lineFamilies[i].follow(bare)
+		if !ok {
+			continue
 		}
-	}
-	idx := slices.Index(line, documented)
-	if idx == -1 {
-		line, idx = []string{documented}, 0
-	}
-	route := ""
-	if slash := strings.LastIndex(model, "/"); slash != -1 {
-		route = model[:slash+1]
-	}
-	below := make([]string, 0, idx+1)
-	for i := idx; i >= 0; i-- {
-		below = append(below, route+line[i])
+		for _, release := range atOrBelow(line, g) {
+			if id := p.spell(release); id != "" {
+				below = append(below, frame+id)
+			}
+		}
+		break
 	}
 	return below
 }
