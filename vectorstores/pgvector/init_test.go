@@ -250,9 +250,8 @@ func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Error(t, open(ctx), "init must time out while a writer holds the table")
+	require.Zero(t, pool.Stat().AcquiredConns(), "the failed init still holds the pool's only connection")
 	require.NoError(t, held.Rollback(ctx))
 
-	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	require.NoError(t, open(bounded), "the failed init still holds the pool's only connection")
+	require.NoError(t, open(ctx))
 }
