@@ -502,21 +502,7 @@ StreamEnd:
 		metadata[SAFETY] = lastCandidate.SafetyRatings
 	}
 
-	if lastUsageMetadata != nil {
-		metadata["input_tokens"] = int(lastUsageMetadata.PromptTokenCount)
-		metadata["output_tokens"] = int(lastUsageMetadata.CandidatesTokenCount)
-		metadata["total_tokens"] = int(lastUsageMetadata.TotalTokenCount)
-
-		// Standardized field names for cross-provider compatibility
-		metadata["PromptTokens"] = int(lastUsageMetadata.PromptTokenCount)
-		metadata["CompletionTokens"] = int(lastUsageMetadata.CandidatesTokenCount + lastUsageMetadata.ThoughtsTokenCount)
-		metadata["TotalTokens"] = int(lastUsageMetadata.TotalTokenCount)
-		metadata["ReasoningTokens"] = int(lastUsageMetadata.ThoughtsTokenCount)
-		metadata["PromptCachedTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
-		metadata["CacheReadInputTokens"] = int(lastUsageMetadata.CachedContentTokenCount)
-
-		metadata["CacheCreationInputTokens"] = 0
-	}
+	applyGeminiUsage(metadata, lastUsageMetadata)
 
 	// Carry the finish reason so structured-output validation runs on a normal
 	// STOP (an empty reason would make the validator skip a streamed choice).
@@ -654,20 +640,7 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 		metadata[CITATIONS] = candidate.CitationMetadata
 		metadata[SAFETY] = candidate.SafetyRatings
 
-		if usage := resp.UsageMetadata; usage != nil {
-			metadata["input_tokens"] = usage.PromptTokenCount
-			metadata["output_tokens"] = usage.CandidatesTokenCount
-			metadata["total_tokens"] = usage.TotalTokenCount
-
-			// Standardized field names for cross-provider compatibility
-			metadata["PromptTokens"] = int(usage.PromptTokenCount)
-			metadata["CompletionTokens"] = int(usage.CandidatesTokenCount + usage.ThoughtsTokenCount)
-			metadata["TotalTokens"] = int(usage.TotalTokenCount)
-			metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
-			metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
-			metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
-			metadata["CacheCreationInputTokens"] = 0
-		}
+		applyGeminiUsage(metadata, resp.UsageMetadata)
 
 		choices = append(choices, &llms.ContentChoice{
 			Content:        content.String(),
@@ -680,6 +653,23 @@ func convertResponse(resp *genai.GenerateContentResponse) (*llms.ContentResponse
 	}
 
 	return &llms.ContentResponse{Choices: choices}, nil
+}
+
+func applyGeminiUsage(metadata map[string]any, usage *genai.GenerateContentResponseUsageMetadata) {
+	if usage == nil {
+		return
+	}
+	output := int(usage.CandidatesTokenCount + usage.ThoughtsTokenCount)
+	metadata["input_tokens"] = int(usage.PromptTokenCount)
+	metadata["output_tokens"] = output
+	metadata["total_tokens"] = int(usage.TotalTokenCount)
+	metadata["PromptTokens"] = int(usage.PromptTokenCount)
+	metadata["CompletionTokens"] = output
+	metadata["TotalTokens"] = int(usage.TotalTokenCount)
+	metadata["ReasoningTokens"] = int(usage.ThoughtsTokenCount)
+	metadata["PromptCachedTokens"] = int(usage.CachedContentTokenCount)
+	metadata["CacheReadInputTokens"] = int(usage.CachedContentTokenCount)
+	metadata["CacheCreationInputTokens"] = 0
 }
 
 func convertParts(parts []llms.ContentPart) ([]*genai.Part, error) {
