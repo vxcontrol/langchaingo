@@ -94,3 +94,29 @@ func TestAConversationEndingOnTheModelIsRefusedWhereGeminiRejectsIt(t *testing.T
 	require.NoError(t, err, "a model turn with nothing in it is not the last non-empty turn")
 	assert.Equal(t, []string{"user", "model"}, roles)
 }
+
+func TestAModelTurnOfAToolCallOrASignedThoughtIsNotEmpty(t *testing.T) {
+	t.Parallel()
+
+	human := llms.TextParts(llms.ChatMessageTypeHuman, "look it up")
+	call := llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{
+		ID: "call-1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{}`},
+	}}}
+	signedThought := llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+		llms.TextContent{Reasoning: &reasoning.ContentReasoning{Signature: []byte("signature")}},
+	}}
+
+	for name, last := range map[string]llms.MessageContent{"a tool call": call, "a signed thought": signedThought} {
+		roles, err := sendConversation(t, "gemini-3.8-flash", []llms.MessageContent{human, last})
+		var refusal *reasoning.ErrAssistantPrefillUnsupported
+		assert.True(t, errors.As(err, &refusal), "%s: got %v", name, err)
+		assert.Nil(t, roles, name)
+	}
+
+	result := llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+		llms.ToolCallResponse{ToolCallID: "call-1", Name: "lookup", Content: "found"},
+	}}
+	roles, err := sendConversation(t, "gemini-3.8-flash", []llms.MessageContent{human, call, result})
+	require.NoError(t, err, "a tool result after the call is the user's turn")
+	assert.Equal(t, []string{"user", "model", "user"}, roles)
+}
