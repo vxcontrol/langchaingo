@@ -26,4 +26,10 @@ func TestGrokIsSentOnlyTheEffortsXAIDocuments(t *testing.T) {
 			}
 		}
 	}
+
+	for _, model := range []string{"grok-4.5", "grok-5"} {
+		body, warnings := hostCall(t, "https://api.x.ai/v1", model, llms.WithReasoning(llms.ReasoningMax, 0))
+		assert.Equal(t, "max", body["reasoning_effort"], "%s: a grok the table does not know is sent what was asked", model)
+		assert.NotContains(t, warnings, "WithReasoning", model)
+	}
 }
