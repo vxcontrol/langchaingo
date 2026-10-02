@@ -30,8 +30,9 @@ type Options struct {
 
 	BaseURL string
 
-	credentialsFile string
-	credentialsJSON []byte
+	credentialsFile       string
+	credentialsJSON       []byte
+	apiKeyFromEnvironment bool
 
 	unhonoredOnREST []string
 
@@ -63,6 +64,7 @@ func (o *Options) EnsureAuthPresent() {
 	if o.APIKey == "" && !hasAuthOptions(o.ClientOptions) {
 		if key := os.Getenv("GOOGLE_API_KEY"); key != "" {
 			WithAPIKey(key)(o)
+			o.apiKeyFromEnvironment = true
 		}
 	}
 }
@@ -113,9 +115,8 @@ func WithRest() Option {
 	return func(*Options) {}
 }
 
-// WithGRPCClient append a ClientOption that uses the provided gRPC client to
-// make requests.
-// This is useful for gemini clients.
+// WithGRPCClient is accepted for compatibility: the Google GenAI SDK speaks REST
+// only, so New refuses it with ErrOptionNotHonored.
 func WithGRPCClient(grpcClient *grpc.ClientConn) Option {
 	return func(opts *Options) {
 		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCClient")
@@ -143,9 +144,8 @@ func WithHTTPClient(httpClient *http.Client) Option {
 	}
 }
 
-// WithGRPCConn appends a ClientOption that uses the provided gRPC client connection to
-// make requests.
-// This is useful for testing embeddings in vertex clients.
+// WithGRPCConn is accepted for compatibility: the Google GenAI SDK speaks REST
+// only, so New refuses it with ErrOptionNotHonored.
 func WithGRPCConn(conn *grpc.ClientConn) Option {
 	return func(opts *Options) {
 		opts.unhonoredOnREST = append(opts.unhonoredOnREST, "WithGRPCConn")
