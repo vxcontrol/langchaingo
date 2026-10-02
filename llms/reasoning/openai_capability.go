@@ -158,6 +158,25 @@ func ChatToolsUnsupported(model string) bool {
 	return false
 }
 
+func ChatCompletionsUnsupported(model string) bool {
+	for _, form := range modelSpellings(model) {
+		for _, family := range []string{"gpt-5.6-cyber", "gpt-daybreak-red", "gpt-daybreak-blue"} {
+			if hasGeneration(form, family) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type ErrChatCompletionsUnsupported struct {
+	Model string
+}
+
+func (e *ErrChatCompletionsUnsupported) Error() string {
+	return fmt.Sprintf("model %q is served only by the responses API, not by chat completions", e.Model)
+}
+
 // ErrChatToolsUnsupported reports a request that carries function tools for a
 // model whose chat completions endpoint does not serve them.
 type ErrChatToolsUnsupported struct {

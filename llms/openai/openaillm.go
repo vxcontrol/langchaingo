@@ -106,7 +106,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	if err := opts.ValidateReasoning(); err != nil {
+	if err := o.refuseBeforeTheNetwork(opts); err != nil {
 		return nil, err
 	}
 
@@ -551,6 +551,20 @@ func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
 }
 
 const anthropicAPIHost = "api.anthropic.com"
+
+func (o *LLM) refuseBeforeTheNetwork(opts llms.CallOptions) error {
+	if err := opts.ValidateReasoning(); err != nil {
+		return err
+	}
+	if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
+		return &reasoning.ErrChatCompletionsUnsupported{Model: model}
+	}
+	return nil
+}
+
+func (o *LLM) servedByOpenAI() bool {
+	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+}
 
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
 	return !o.client.ModernReasoningFormat &&
