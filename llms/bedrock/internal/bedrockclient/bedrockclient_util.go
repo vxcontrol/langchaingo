@@ -16,11 +16,13 @@ import (
 
 const providerBedrock = "bedrock"
 
-// isSmithyValidObject validates that an object contains only simple types
-// or structs with proper document tags on all public fields
 func isSmithyValidObject(value any) bool {
 	if value == nil {
 		return true
+	}
+	switch value.(type) {
+	case json.Marshaler, json.Number:
+		return false
 	}
 
 	v := reflect.ValueOf(value)

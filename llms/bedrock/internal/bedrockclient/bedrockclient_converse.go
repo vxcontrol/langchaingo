@@ -1,9 +1,7 @@
 package bedrockclient
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -708,29 +706,6 @@ func (c *ConverseClient) convertUserOrAssistantMessage(msg Message) (types.Messa
 	}, nil
 }
 
-func (c *ConverseClient) convertToolCallInput(args any) (any, error) {
-	if isSmithyValidObject(args) {
-		return args, nil
-	}
-
-	// Convert to Smithy-compatible format by re-encoding through JSON
-	// This handles types like map[string]any with interface{} values
-	jsonBytes := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonBytes).Encode(args); err != nil {
-		return nil, fmt.Errorf("failed to encode arguments: %w", err)
-	}
-
-	jsonDecoder := json.NewDecoder(jsonBytes)
-	jsonDecoder.UseNumber()
-
-	var jsonValue any
-	if err := jsonDecoder.Decode(&jsonValue); err != nil {
-		return nil, fmt.Errorf("failed to decode arguments: %w", err)
-	}
-
-	return jsonValue, nil
-}
-
 // convertToolsToToolConfig converts llms.Tool to Converse ToolConfiguration
 func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any) (*types.ToolConfiguration, error) {
 	var converseTools []types.Tool
@@ -745,9 +720,12 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 			Description: aws.String(tool.Function.Description),
 		}
 
-		parameters, err := c.convertToolCallInput(toolcall.Schema(tool.Function.Parameters))
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert tool call input: %w", err)
+		parameters := toolcall.Schema(tool.Function.Parameters)
+		if !isSmithyValidObject(parameters) {
+			var err error
+			if parameters, err = toolcall.SchemaValue(parameters); err != nil {
+				return nil, fmt.Errorf("failed to convert the parameters of tool %q: %w", tool.Function.Name, err)
+			}
 		}
 		toolSpec.InputSchema = &types.ToolInputSchemaMemberJson{
 			Value: document.NewLazyDocument(parameters),
