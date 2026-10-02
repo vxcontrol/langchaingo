@@ -31,11 +31,17 @@ func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(server.Close)
-	llm, err := New(context.Background(),
-		WithAPIKey("unit-test-key"), WithEndpoint(server.URL), WithDefaultModel("gemini-3.1-pro-preview"))
-	require.NoError(t, err)
-	_, err = llm.GenerateContent(context.Background(),
-		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithReasoningDisabled())
-	var refusal *reasoning.ErrReasoningOffUnsupported
-	require.ErrorAs(t, err, &refusal, "the listed release keeps its refusal")
+	for _, model := range []string{"gemini-3.1-pro-preview", "gemini-3.1-pro"} {
+		llm, err := New(context.Background(),
+			WithAPIKey("unit-test-key"), WithEndpoint(server.URL), WithDefaultModel(model))
+		require.NoError(t, err)
+		_, err = llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithReasoningDisabled())
+		var refusal *reasoning.ErrReasoningOffUnsupported
+		require.ErrorAs(t, err, &refusal, "%s: the listed release keeps its refusal", model)
+	}
+
+	for _, w := range generateForWarnings(t, "gemini-3.1-flash-lite").Warnings {
+		require.NotEqual(t, llms.WarningInherit, w.Kind, "the tables list gemini-3.1-flash-lite: %v", w)
+	}
 }

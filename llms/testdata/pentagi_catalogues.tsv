@@ -1,195 +1,195 @@
-catalogue	model	supported	known	cannot_disable	rejects_sampling	mechanism	efforts	default_on	off	effort_with_tools	no_thinking_depth
-anthropic	claude-fable-5-1	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false
-anthropic	claude-opus-5-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false
-anthropic	claude-fable-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false
-anthropic	claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false
-anthropic	claude-sonnet-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false
-anthropic	claude-opus-4-8	true	true	false	true	1	low,medium,high,xhigh,max	false	omit	0	false
-anthropic	claude-opus-4-7	true	true	false	true	1	low,medium,high,xhigh,max	false	omit	0	false
-anthropic	claude-opus-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false
-anthropic	claude-sonnet-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false
-anthropic	claude-haiku-4-5	true	true	false	false	2		false	omit	0	false
-anthropic	claude-sonnet-4-5	true	true	false	false	2		false	omit	0	false
-anthropic	claude-opus-4-5	true	true	false	false	2	low,medium,high	false	omit	0	false
-bedrock	us.amazon.nova-2-lite-v1:0	true	true	false	false	1	low,medium,high	false	omit	0	false
-bedrock	us.amazon.nova-pro-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.amazon.nova-lite-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.amazon.nova-micro-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.anthropic.claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false
-bedrock	us.anthropic.claude-fable-5-1	true	true	true	true	1	low,medium,high	true	unsupported	0	false
-bedrock	us.anthropic.claude-fable-5	true	true	true	true	1	low,medium,high	true	unsupported	0	false
-bedrock	us.anthropic.claude-opus-4-8	true	true	false	true	1	low,medium,high	false	omit	0	false
-bedrock	us.anthropic.claude-opus-4-7	true	true	false	true	1	low,medium,high	false	omit	0	false
-bedrock	us.anthropic.claude-sonnet-5	true	true	false	true	1	low,medium,high	true	disable-claude	0	false
-bedrock	us.anthropic.claude-opus-4-6-v1	true	true	false	false	3	low,medium,high,max	false	omit	0	false
-bedrock	us.anthropic.claude-sonnet-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false
-bedrock	us.anthropic.claude-opus-4-5-20251101-v1:0	true	true	false	false	2		false	omit	0	false
-bedrock	us.anthropic.claude-haiku-4-5-20251001-v1:0	true	true	false	false	2		false	omit	0	false
-bedrock	us.anthropic.claude-sonnet-4-5-20250929-v1:0	true	true	false	false	2		false	omit	0	false
-bedrock	us.meta.llama4-maverick-17b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.meta.llama4-scout-17b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.meta.llama3-3-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.meta.llama3-1-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	us.meta.llama3-1-8b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	meta.llama3-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	meta.llama3-8b-instruct-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	deepseek.v3.2	true	false	false	false	0		-	omit	0	false
-bedrock	us.deepseek.r1-v1:0	true	false	true	false	0		-	unsupported	0	false
-bedrock	openai.gpt-oss-120b-1:0	true	true	true	false	1	low,medium,high	true	unsupported	0	false
-bedrock	openai.gpt-oss-safeguard-120b	true	true	true	false	1	low,medium,high	true	unsupported	0	false
-bedrock	openai.gpt-oss-20b-1:0	true	true	true	false	1	low,medium,high	true	unsupported	0	false
-bedrock	openai.gpt-oss-safeguard-20b	true	true	true	false	1	low,medium,high	true	unsupported	0	false
-bedrock	qwen.qwen3-next-80b-a3b	true	false	false	false	0		-	omit	0	false
-bedrock	qwen.qwen3-vl-235b-a22b	true	false	false	false	0		-	omit	0	false
-bedrock	qwen.qwen3-32b-v1:0	true	false	false	false	0		-	omit	0	false
-bedrock	qwen.qwen3-coder-30b-a3b-v1:0	true	false	false	false	0		-	omit	0	false
-bedrock	qwen.qwen3-coder-next	true	false	false	false	0		-	omit	0	false
-bedrock	mistral.mistral-large-3-675b-instruct	false	false	false	false	0		-	omit	0	false
-bedrock	mistral.devstral-2-123b	false	false	false	false	0		-	omit	0	false
-bedrock	mistral.magistral-small-2509	true	false	false	false	0		-	omit	0	false
-bedrock	mistral.mistral-large-2402-v1:0	false	false	false	false	0		-	omit	0	false
-bedrock	moonshotai.kimi-k2.5	true	false	false	false	0		-	omit	0	true
-bedrock	moonshot.kimi-k2-thinking	true	false	true	false	0		-	unsupported	0	true
-bedrock	zai.glm-4.7	false	true	false	false	0		false	omit	0	true
-bedrock	zai.glm-4.7-flash	false	true	false	false	0		false	omit	0	true
-bedrock	zai.glm-5	false	true	false	false	0		false	omit	0	true
-bedrock	minimax.minimax-m2.5	true	false	true	false	0		-	unsupported	0	true
-bedrock	minimax.minimax-m2.1	true	false	true	false	0		-	unsupported	0	true
-bedrock	minimax.minimax-m2	true	false	true	false	0		-	unsupported	0	true
-bedrock	nvidia.nemotron-nano-3-30b	true	false	false	false	0		-	omit	0	false
-bedrock	nvidia.nemotron-super-3-120b	true	false	false	false	0		-	omit	0	false
-deepseek	deepseek-flash	true	false	false	false	0		-	disable-thinking-object	0	false
-deepseek	deepseek-v4-pro	true	false	false	false	0		-	disable-thinking-object	0	false
-gemini	gemini-3.8-flash	true	true	true	false	1		true	unsupported	0	false
-gemini	gemini-3.7-flash	true	true	true	false	1		true	unsupported	0	false
-gemini	gemini-3.6-flash	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemini-3.5-flash	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemini-3.5-flash-lite	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemini-3.1-pro-preview	true	true	true	false	1		true	unsupported	0	false
-gemini	gemini-3.1-pro-preview-customtools	true	true	true	false	1		true	unsupported	0	false
-gemini	gemini-3.1-flash-lite	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemini-3-flash-preview	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemini-2.5-pro	true	true	true	false	2		true	unsupported	0	false
-gemini	gemini-2.5-flash	true	true	false	false	2		true	zero-budget	0	false
-gemini	gemini-2.5-flash-lite	true	true	false	false	2		false	zero-budget	0	false
-gemini	gemma-4-31b-it	true	true	false	false	1		true	minimal-level	0	false
-gemini	gemma-4-26b-a4b-it	true	true	false	false	1		true	minimal-level	0	false
-glm	glm-5.3	true	true	true	false	1	low,high,max	-	unsupported	0	false
-glm	glm-5.3-flash	true	true	true	false	1	low,high,max	-	unsupported	0	false
-glm	glm-5.3-flashx	true	true	true	false	1	low,high,max	-	unsupported	0	false
-glm	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false
-glm	glm-5.1	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-5	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.7	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.7-flashx	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.7-flash	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.6	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.5	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.5-x	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.5-air	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.5-airx	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4.5-flash	true	false	false	false	0		-	disable-thinking-object	0	true
-glm	glm-4-32b-0414-128k	false	false	false	false	0		-	omit	0	true
-kimi	kimi-k3	true	true	true	false	1	low,high,max	-	unsupported	0	false
-kimi	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	true
-kimi	kimi-k2.7-code-highspeed	true	false	true	false	0		-	unsupported	0	true
-kimi	kimi-k2.6	true	false	false	false	0		-	disable-thinking-object	0	true
-minimax	MiniMax-M3	true	false	false	false	0		-	disable-thinking-object	0	true
-minimax	MiniMax-M2.7	true	false	true	false	0		-	unsupported	0	true
-minimax	MiniMax-M2.7-highspeed	true	false	true	false	0		-	unsupported	0	true
-mistral	mistral-medium-latest	true	true	false	false	1	high	-	omit	0	false
-mistral	mistral-large-latest	false	false	false	false	0		-	omit	0	false
-mistral	mistral-small-latest	true	true	false	false	1	high	-	omit	0	false
-mistral	codestral-latest	false	false	false	false	0		-	omit	0	false
-mistral	zai-glm-5-2	true	false	false	false	0		-	omit	0	false
-mistral	zai-glm-5-3	true	true	true	false	1	low,high,max	-	unsupported	0	false
-openai	gpt-6-astra	true	true	true	true	1	low,medium,high,xhigh	-	unsupported	0	false
-openai	gpt-6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	gpt-6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	gpt-5.6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	gpt-5.6-terra	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	gpt-5.6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	gpt-5.6-cyber	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false
-openai	daybreak-red	false	false	false	false	0		-	omit	0	false
-openai	daybreak-blue	false	false	false	false	0		-	omit	0	false
-openai	gpt-5.5	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false
-openai	gpt-5.4	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false
-openai	gpt-5.4-mini	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false
-openai	gpt-5.4-nano	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false
-openai	gpt-5.2	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	0	false
-openai	gpt-5	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false
-openai	gpt-5.1	true	true	false	true	1	low,medium,high	-	effort-none	0	false
-openai	gpt-5-mini	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false
-openai	gpt-5-nano	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false
-openai	gpt-4o	false	false	false	false	0		-	omit	0	false
-openai	gpt-4o-mini	false	false	false	false	0		-	omit	0	false
-openai	gpt-4.1	false	false	false	false	0		-	omit	0	false
-openai	gpt-4.1-mini	false	false	false	false	0		-	omit	0	false
-openai	gpt-4.1-nano	false	false	false	false	0		-	omit	0	false
-openai	o3-mini	true	true	true	true	1	low,medium,high	-	unsupported	0	false
-openai	o4-mini	true	true	true	true	1	low,medium,high	-	unsupported	0	false
-openai	o3	true	true	true	true	1	low,medium,high	-	unsupported	0	false
-openai	o1	true	true	true	true	1	low,medium,high	-	unsupported	0	false
-qwen	qwen3.8-max	true	false	false	false	0		-	effort-none	0	false
-qwen	qwen3.8-flash	true	false	false	false	0		-	effort-none	0	false
-qwen	qwen3.8-omni-flash	true	false	false	false	0		-	effort-none	0	false
-qwen	qwen3.8-27b	true	false	false	false	0		-	effort-none	0	false
-qwen	qwen3.8-2.4t-a95b	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3.7-plus	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.7-max	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.7-flash	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.6-max-preview	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.6-plus	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.6-flash	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.6-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.6-27b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-plus	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-flash	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-397b-a17b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-122b-a10b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3.5-27b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-max	true	false	false	false	0		false	omit	0	false
-qwen	qwen-max	true	false	false	false	0		-	omit	0	false
-qwen	qwen-plus	true	false	false	false	0		false	omit	0	false
-qwen	qwen-flash	true	false	false	false	0		false	omit	0	false
-qwen	qwen3-coder-plus	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-coder-flash	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-coder-next	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-coder-30b-a3b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-coder-480b-a35b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-vl-plus	true	false	false	false	0		false	omit	0	false
-qwen	qwen3-vl-flash	true	false	false	false	0		false	omit	0	false
-qwen	qwen3-vl-32b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-vl-30b-a3b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-vl-30b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3-vl-235b-a22b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-vl-235b-a22b-thinking	true	false	true	false	0		-	unsupported	0	false
-qwen	qvq-max	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3-next-80b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3-next-80b-a3b-instruct	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-235b-a22b-thinking-2507	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3-30b-a3b-instruct-2507	true	false	false	false	0		-	omit	0	false
-qwen	qwen3-30b-a3b-thinking-2507	true	false	true	false	0		-	unsupported	0	false
-qwen	qwen3-32b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-14b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-8b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-4b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-1.7b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	qwen3-0.6b	true	false	false	false	0		-	disable-dashscope	0	false
-qwen	glm-5.3-prime	true	true	true	false	1	low,high,max	-	unsupported	0	false
-qwen	glm-5.2-fast-preview	true	false	false	false	0		-	disable-thinking-object	0	false
-qwen	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false
-qwen	deepseek-v4.1-flash	true	false	false	false	0		-	disable-thinking-object	0	false
-qwen	deepseek-v4-pro	true	false	false	false	0		-	disable-thinking-object	0	false
-qwen	deepseek-v4-pro-0813	true	false	false	false	0		-	disable-thinking-object	0	false
-qwen	kimi-k3	true	true	true	false	1	low,high,max	-	unsupported	0	false
-qwen	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	true
-qwen	deepseek-v4-flash-0731	true	false	false	false	0		-	disable-thinking-object	0	false
-xai	grok-4.7	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false
-xai	grok-4.6	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false
-xai	grok-4.5	true	true	true	false	1	low,medium,high	-	unsupported	0	false
-xai	grok-4.3	true	false	false	false	0		-	effort-none	0	false
-xai	grok-4.20-0309-reasoning	true	false	true	false	0		-	unsupported	0	false
-xai	grok-4.20-0309-non-reasoning	false	false	false	false	0		-	omit	0	false
-xai	grok-build-0.1	true	false	true	false	0		-	unsupported	0	false
+catalogue	model	supported	known	cannot_disable	rejects_sampling	mechanism	efforts	default_on	off	effort_with_tools	no_thinking_depth	inherited
+anthropic	claude-fable-5-1	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
+anthropic	claude-opus-5-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
+anthropic	claude-fable-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
+anthropic	claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
+anthropic	claude-sonnet-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
+anthropic	claude-opus-4-8	true	true	false	true	1	low,medium,high,xhigh,max	false	omit	0	false	-
+anthropic	claude-opus-4-7	true	true	false	true	1	low,medium,high,xhigh,max	false	omit	0	false	-
+anthropic	claude-opus-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false	-
+anthropic	claude-sonnet-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false	-
+anthropic	claude-haiku-4-5	true	true	false	false	2		false	omit	0	false	-
+anthropic	claude-sonnet-4-5	true	true	false	false	2		false	omit	0	false	-
+anthropic	claude-opus-4-5	true	true	false	false	2	low,medium,high	false	omit	0	false	-
+bedrock	us.amazon.nova-2-lite-v1:0	true	true	false	false	1	low,medium,high	false	omit	0	false	-
+bedrock	us.amazon.nova-pro-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.amazon.nova-lite-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.amazon.nova-micro-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.anthropic.claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
+bedrock	us.anthropic.claude-fable-5-1	true	true	true	true	1	low,medium,high	true	unsupported	0	false	-
+bedrock	us.anthropic.claude-fable-5	true	true	true	true	1	low,medium,high	true	unsupported	0	false	-
+bedrock	us.anthropic.claude-opus-4-8	true	true	false	true	1	low,medium,high	false	omit	0	false	-
+bedrock	us.anthropic.claude-opus-4-7	true	true	false	true	1	low,medium,high	false	omit	0	false	-
+bedrock	us.anthropic.claude-sonnet-5	true	true	false	true	1	low,medium,high	true	disable-claude	0	false	-
+bedrock	us.anthropic.claude-opus-4-6-v1	true	true	false	false	3	low,medium,high,max	false	omit	0	false	-
+bedrock	us.anthropic.claude-sonnet-4-6	true	true	false	false	3	low,medium,high,max	false	omit	0	false	-
+bedrock	us.anthropic.claude-opus-4-5-20251101-v1:0	true	true	false	false	2		false	omit	0	false	-
+bedrock	us.anthropic.claude-haiku-4-5-20251001-v1:0	true	true	false	false	2		false	omit	0	false	-
+bedrock	us.anthropic.claude-sonnet-4-5-20250929-v1:0	true	true	false	false	2		false	omit	0	false	-
+bedrock	us.meta.llama4-maverick-17b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.meta.llama4-scout-17b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.meta.llama3-3-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.meta.llama3-1-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.meta.llama3-1-8b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	meta.llama3-70b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	meta.llama3-8b-instruct-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	deepseek.v3.2	true	false	false	false	0		-	omit	0	false	-
+bedrock	us.deepseek.r1-v1:0	true	false	true	false	0		-	unsupported	0	false	-
+bedrock	openai.gpt-oss-120b-1:0	true	true	true	false	1	low,medium,high	true	unsupported	0	false	-
+bedrock	openai.gpt-oss-safeguard-120b	true	true	true	false	1	low,medium,high	true	unsupported	0	false	-
+bedrock	openai.gpt-oss-20b-1:0	true	true	true	false	1	low,medium,high	true	unsupported	0	false	-
+bedrock	openai.gpt-oss-safeguard-20b	true	true	true	false	1	low,medium,high	true	unsupported	0	false	-
+bedrock	qwen.qwen3-next-80b-a3b	true	false	false	false	0		-	omit	0	false	-
+bedrock	qwen.qwen3-vl-235b-a22b	true	false	false	false	0		-	omit	0	false	-
+bedrock	qwen.qwen3-32b-v1:0	true	false	false	false	0		-	omit	0	false	-
+bedrock	qwen.qwen3-coder-30b-a3b-v1:0	true	false	false	false	0		-	omit	0	false	-
+bedrock	qwen.qwen3-coder-next	true	false	false	false	0		-	omit	0	false	-
+bedrock	mistral.mistral-large-3-675b-instruct	false	false	false	false	0		-	omit	0	false	-
+bedrock	mistral.devstral-2-123b	false	false	false	false	0		-	omit	0	false	-
+bedrock	mistral.magistral-small-2509	true	false	false	false	0		-	omit	0	false	-
+bedrock	mistral.mistral-large-2402-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	moonshotai.kimi-k2.5	true	false	false	false	0		-	omit	0	true	-
+bedrock	moonshot.kimi-k2-thinking	true	false	true	false	0		-	unsupported	0	true	-
+bedrock	zai.glm-4.7	false	true	false	false	0		false	omit	0	true	-
+bedrock	zai.glm-4.7-flash	false	true	false	false	0		false	omit	0	true	-
+bedrock	zai.glm-5	false	true	false	false	0		false	omit	0	true	-
+bedrock	minimax.minimax-m2.5	true	false	true	false	0		-	unsupported	0	true	-
+bedrock	minimax.minimax-m2.1	true	false	true	false	0		-	unsupported	0	true	-
+bedrock	minimax.minimax-m2	true	false	true	false	0		-	unsupported	0	true	-
+bedrock	nvidia.nemotron-nano-3-30b	true	false	false	false	0		-	omit	0	false	-
+bedrock	nvidia.nemotron-super-3-120b	true	false	false	false	0		-	omit	0	false	-
+deepseek	deepseek-flash	true	false	false	false	0		-	disable-thinking-object	0	false	-
+deepseek	deepseek-v4-pro	true	false	false	false	0		-	disable-thinking-object	0	false	-
+gemini	gemini-3.8-flash	true	true	true	false	1		true	unsupported	0	false	-
+gemini	gemini-3.7-flash	true	true	true	false	1		true	unsupported	0	false	-
+gemini	gemini-3.6-flash	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemini-3.5-flash	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemini-3.5-flash-lite	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemini-3.1-pro-preview	true	true	true	false	1		true	unsupported	0	false	-
+gemini	gemini-3.1-pro-preview-customtools	true	true	true	false	1		true	unsupported	0	false	-
+gemini	gemini-3.1-flash-lite	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemini-3-flash-preview	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemini-2.5-pro	true	true	true	false	2		true	unsupported	0	false	-
+gemini	gemini-2.5-flash	true	true	false	false	2		true	zero-budget	0	false	-
+gemini	gemini-2.5-flash-lite	true	true	false	false	2		false	zero-budget	0	false	-
+gemini	gemma-4-31b-it	true	true	false	false	1		true	minimal-level	0	false	-
+gemini	gemma-4-26b-a4b-it	true	true	false	false	1		true	minimal-level	0	false	-
+glm	glm-5.3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+glm	glm-5.3-flash	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+glm	glm-5.3-flashx	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+glm	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false	-
+glm	glm-5.1	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-5	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.7	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.7-flashx	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.7-flash	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.6	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.5	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.5-x	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.5-air	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.5-airx	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4.5-flash	true	false	false	false	0		-	disable-thinking-object	0	true	-
+glm	glm-4-32b-0414-128k	false	false	false	false	0		-	omit	0	true	-
+kimi	kimi-k3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+kimi	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	true	-
+kimi	kimi-k2.7-code-highspeed	true	false	true	false	0		-	unsupported	0	true	-
+kimi	kimi-k2.6	true	false	false	false	0		-	disable-thinking-object	0	true	-
+minimax	MiniMax-M3	true	false	false	false	0		-	disable-thinking-object	0	true	-
+minimax	MiniMax-M2.7	true	false	true	false	0		-	unsupported	0	true	-
+minimax	MiniMax-M2.7-highspeed	true	false	true	false	0		-	unsupported	0	true	-
+mistral	mistral-medium-latest	true	true	false	false	1	high	-	omit	0	false	-
+mistral	mistral-large-latest	false	false	false	false	0		-	omit	0	false	-
+mistral	mistral-small-latest	true	true	false	false	1	high	-	omit	0	false	-
+mistral	codestral-latest	false	false	false	false	0		-	omit	0	false	-
+mistral	zai-glm-5-2	true	false	false	false	0		-	omit	0	false	-
+mistral	zai-glm-5-3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+openai	gpt-6-astra	true	true	true	true	1	low,medium,high,xhigh	-	unsupported	0	false	-
+openai	gpt-6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	gpt-6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	gpt-5.6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	gpt-5.6-terra	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	gpt-5.6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	gpt-5.6-cyber	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
+openai	daybreak-red	false	false	false	false	0		-	omit	0	false	-
+openai	daybreak-blue	false	false	false	false	0		-	omit	0	false	-
+openai	gpt-5.5	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
+openai	gpt-5.4	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
+openai	gpt-5.4-mini	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
+openai	gpt-5.4-nano	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
+openai	gpt-5.2	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	0	false	-
+openai	gpt-5	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false	-
+openai	gpt-5.1	true	true	false	true	1	low,medium,high	-	effort-none	0	false	-
+openai	gpt-5-mini	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false	-
+openai	gpt-5-nano	true	true	true	true	1	minimal,low,medium,high	-	unsupported	0	false	-
+openai	gpt-4o	false	false	false	false	0		-	omit	0	false	-
+openai	gpt-4o-mini	false	false	false	false	0		-	omit	0	false	-
+openai	gpt-4.1	false	false	false	false	0		-	omit	0	false	-
+openai	gpt-4.1-mini	false	false	false	false	0		-	omit	0	false	-
+openai	gpt-4.1-nano	false	false	false	false	0		-	omit	0	false	-
+openai	o3-mini	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
+openai	o4-mini	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
+openai	o3	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
+openai	o1	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
+qwen	qwen3.8-max	true	false	false	false	0		-	effort-none	0	false	-
+qwen	qwen3.8-flash	true	false	false	false	0		-	effort-none	0	false	-
+qwen	qwen3.8-omni-flash	true	false	false	false	0		-	effort-none	0	false	-
+qwen	qwen3.8-27b	true	false	false	false	0		-	effort-none	0	false	-
+qwen	qwen3.8-2.4t-a95b	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3.7-plus	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.7-max	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.7-flash	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.6-max-preview	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.6-plus	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.6-flash	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.6-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.6-27b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-plus	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-flash	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-397b-a17b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-122b-a10b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3.5-27b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-max	true	false	false	false	0		false	omit	0	false	-
+qwen	qwen-max	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen-plus	true	false	false	false	0		false	omit	0	false	-
+qwen	qwen-flash	true	false	false	false	0		false	omit	0	false	-
+qwen	qwen3-coder-plus	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-coder-flash	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-coder-next	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-coder-30b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-coder-480b-a35b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-vl-plus	true	false	false	false	0		false	omit	0	false	-
+qwen	qwen3-vl-flash	true	false	false	false	0		false	omit	0	false	-
+qwen	qwen3-vl-32b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-vl-30b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-vl-30b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3-vl-235b-a22b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-vl-235b-a22b-thinking	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qvq-max	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3-next-80b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3-next-80b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-235b-a22b-thinking-2507	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3-30b-a3b-instruct-2507	true	false	false	false	0		-	omit	0	false	-
+qwen	qwen3-30b-a3b-thinking-2507	true	false	true	false	0		-	unsupported	0	false	-
+qwen	qwen3-32b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-14b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-8b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-4b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-1.7b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	qwen3-0.6b	true	false	false	false	0		-	disable-dashscope	0	false	-
+qwen	glm-5.3-prime	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+qwen	glm-5.2-fast-preview	true	false	false	false	0		-	disable-thinking-object	0	false	-
+qwen	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false	-
+qwen	deepseek-v4.1-flash	true	false	false	false	0		-	disable-thinking-object	0	false	-
+qwen	deepseek-v4-pro	true	false	false	false	0		-	disable-thinking-object	0	false	-
+qwen	deepseek-v4-pro-0813	true	false	false	false	0		-	disable-thinking-object	0	false	-
+qwen	kimi-k3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
+qwen	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	true	-
+qwen	deepseek-v4-flash-0731	true	false	false	false	0		-	disable-thinking-object	0	false	-
+xai	grok-4.7	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false	-
+xai	grok-4.6	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false	-
+xai	grok-4.5	true	true	true	false	1	low,medium,high	-	unsupported	0	false	-
+xai	grok-4.3	true	false	false	false	0		-	effort-none	0	false	-
+xai	grok-4.20-0309-reasoning	true	false	true	false	0		-	unsupported	0	false	-
+xai	grok-4.20-0309-non-reasoning	false	false	false	false	0		-	omit	0	false	-
+xai	grok-build-0.1	true	false	true	false	0		-	unsupported	0	false	-

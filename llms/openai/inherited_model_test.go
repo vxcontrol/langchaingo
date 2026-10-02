@@ -71,6 +71,7 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	var off *reasoning.ErrReasoningOffUnsupported
 	require.ErrorAs(t, call("https://api.x.ai/v1", "grok-4.7", llms.WithReasoningDisabled()), &off)
 	require.ErrorAs(t, call("https://api.z.ai/api/paas/v4", "glm-5.3", llms.WithReasoningDisabled()), &off)
+	require.ErrorAs(t, call("https://api.minimax.io/v1", "MiniMax-M2.7", llms.WithReasoningDisabled()), &off)
 	var cyber *reasoning.ErrChatCompletionsUnsupported
 	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-5.6-cyber"), &cyber)
 }

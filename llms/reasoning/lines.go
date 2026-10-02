@@ -212,7 +212,8 @@ var lineFamilies = []lineFamily{
 		lines: map[string][]generation{
 			"": {
 				{2, 0, map[string]string{"": "minimax-m2"}}, {2, 1, map[string]string{"": "minimax-m2.1"}},
-				{2, 5, map[string]string{"": "minimax-m2.5"}}, {3, 0, map[string]string{"": "minimax-m3"}},
+				{2, 5, map[string]string{"": "minimax-m2.5"}}, {2, 7, map[string]string{"": "minimax-m2.7"}},
+				{3, 0, map[string]string{"": "minimax-m3"}},
 			},
 			"flash": {{3, 1, map[string]string{"": "minimax-m3.1-flash-preview"}}},
 		},
@@ -326,7 +327,7 @@ func (f lineFamily) inherit(name string) (string, bool) {
 	if p.dashMinor {
 		documented = strings.Replace(documented, fmt.Sprintf("%d.%d", g.major, g.minor), fmt.Sprintf("%d-%d", g.major, g.minor), 1)
 	}
-	if documented == name || documented == p.core {
+	if listed, _ := f.parse(documented); documented == name || listed.core == p.core {
 		return "", false
 	}
 	return documented, true

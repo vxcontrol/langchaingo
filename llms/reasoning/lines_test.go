@@ -137,6 +137,11 @@ func TestEveryListedReleaseReadsAsItself(t *testing.T) {
 				for _, id := range g.members {
 					documented, inherited := inheritLine(id)
 					require.False(t, inherited, "%s reads as %s", id, documented)
+					for _, stage := range f.stages {
+						released := strings.Replace(id, "-"+stage, "", 1)
+						documented, inherited := inheritLine(released)
+						require.False(t, inherited, "%s, the release of %s, reads as %s", released, id, documented)
+					}
 				}
 			}
 		}

@@ -2,6 +2,7 @@ package llms
 
 import (
 	"bufio"
+	"cmp"
 	"flag"
 	"fmt"
 	"os"
@@ -49,6 +50,7 @@ func catalogueRow(catalogue, model string) string {
 		fmt.Sprint(support.RejectsSampling), fmt.Sprint(int(support.Mechanism)),
 		strings.Join(efforts, ","), defaultOn, offWireNames[off],
 		fmt.Sprint(int(reasoning.EffortWithTools(model))), fmt.Sprint(reasoning.TakesNoThinkingDepth(model)),
+		cmp.Or(support.Inherited, "-"),
 	}, "\t")
 }
 
