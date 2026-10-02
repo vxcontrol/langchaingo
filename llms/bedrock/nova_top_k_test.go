@@ -70,6 +70,12 @@ func TestNovaCarriesTopKWhereTheNovaSchemaPutsItOnBothDoors(t *testing.T) {
 			value, sent := topKSent(body, door.converse)
 			require.True(t, sent, "a low effort leaves the sampling in place: %v", body)
 			require.InDelta(t, 40, value, 0)
+			reasoningSection := body["inferenceConfig"]
+			if door.converse {
+				reasoningSection = body["additionalModelRequestFields"]
+			}
+			section, _ := reasoningSection.(map[string]any)
+			require.Contains(t, section, "reasoningConfig", "topK joins the reasoning fields, not replaces them: %v", body)
 
 			resp, body := call("amazon.nova-2-lite-v1:0", llms.WithTopK(40), llms.WithReasoning(llms.ReasoningHigh, 0))
 			_, sent = topKSent(body, door.converse)

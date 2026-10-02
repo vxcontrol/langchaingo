@@ -122,3 +122,19 @@ func TestConverseKeepsTheFieldOrderOfASchemaTaggedForDocuments(t *testing.T) {
 	require.Contains(t, *sent, `"json":{"type":"object","properties":{"query":{"type":"string"},`+
 		`"limit":{"type":"integer","maximum":50}},"required":["query"]}`)
 }
+
+func TestConverseSendsAWideIntegerOfASchemaDigitForDigit(t *testing.T) {
+	t.Parallel()
+
+	llm, sent := legacyLLMCapturing(t, converseAnswer,
+		bedrock.WithModel("anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI())
+	_, err := llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+			Name: "lookup",
+			Parameters: map[string]any{"type": "object", "properties": map[string]any{
+				"id": map[string]any{"type": "integer", "maximum": json.Number("9007199254740993")},
+			}},
+		}}}))
+	require.NoError(t, err)
+	require.Contains(t, *sent, `"maximum":9007199254740993`)
+}

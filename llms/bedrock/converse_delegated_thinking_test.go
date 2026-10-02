@@ -32,4 +32,19 @@ func TestConverseReportsAnAdaptiveCallItCannotHonourAsTheLegacyDoorDoes(t *testi
 		require.NotContains(t, bedrockWarningsByOption(resp.Warnings), "WithReasoning",
 			"%s thinks on its own default depth", model)
 	}
+
+	reasoningWarnings := func(resp *llms.ContentResponse) int {
+		n := 0
+		for _, w := range resp.Warnings {
+			if w.Option == "WithReasoning" {
+				n++
+			}
+		}
+		return n
+	}
+	opts := []bedrock.Option{bedrock.WithModel("us.amazon.nova-pro-v1:0"), bedrock.WithConverseAPI()}
+	resp, _ := bedrockWarningsSending(t, converseAnswer, opts, llms.WithReasoning(llms.ReasoningLow, 0))
+	require.Equal(t, 1, reasoningWarnings(resp), "an asked effort is reported once: %v", resp.Warnings)
+	resp, _ = bedrockWarningsSending(t, converseAnswer, opts, llms.WithReasoningDisabled())
+	require.Zero(t, reasoningWarnings(resp), "thinking asked off is what goes out: %v", resp.Warnings)
 }
