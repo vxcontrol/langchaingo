@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 
@@ -200,7 +201,7 @@ func createAi21Completion(ctx context.Context, client *bedrockruntime.Client, mo
 		ContentType: aws.String("application/json"),
 	}
 
-	resp, err := client.InvokeModel(ctx, &modelInput)
+	resp, err := client.InvokeModel(ctx, &modelInput, awsbody.WithoutWriteTo)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +282,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 		ContentType: aws.String("application/json"),
 	}
 
-	resp, err := client.InvokeModel(ctx, &modelInput)
+	resp, err := client.InvokeModel(ctx, &modelInput, awsbody.WithoutWriteTo)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +317,7 @@ func createAi21JambaCompletion(ctx context.Context, client *bedrockruntime.Clien
 }
 
 func parseAi21StreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
-	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
+	output, err := client.InvokeModelWithResponseStream(ctx, modelInput, awsbody.WithoutWriteTo)
 	if err != nil {
 		return nil, err
 	}

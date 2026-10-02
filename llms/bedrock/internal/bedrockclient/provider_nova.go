@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/awsbody"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -266,7 +267,7 @@ func createNovaCompletion(ctx context.Context,
 		ContentType: aws.String("application/json"),
 		Body:        body,
 	}
-	resp, err := client.InvokeModel(ctx, modelInput)
+	resp, err := client.InvokeModel(ctx, modelInput, awsbody.WithoutWriteTo)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +426,7 @@ func mimeTypeToFormat(mimeType string) string {
 }
 
 func parseNovaStreamingResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
-	output, err := client.InvokeModelWithResponseStream(ctx, modelInput)
+	output, err := client.InvokeModelWithResponseStream(ctx, modelInput, awsbody.WithoutWriteTo)
 	if err != nil {
 		return nil, err
 	}
