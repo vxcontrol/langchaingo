@@ -84,11 +84,8 @@ func TestDownloadImageData_NotFound(t *testing.T) {
 		httputil.DefaultClient = oldClient
 	}()
 
-	// Test with a 404 response that carries an HTML error page
-	imageType, data, err := DownloadImageData("https://httpbin.org/image/missing")
-	require.NoError(t, err)               // The function doesn't check status codes
-	require.NotEqual(t, "png", imageType) // Likely to be "html" or similar
-	require.NotEmpty(t, data)
+	_, _, err := DownloadImageData("https://httpbin.org/image/missing")
+	require.ErrorContains(t, err, "failed to fetch image from url: 404 Not Found")
 }
 
 func TestDownloadImageData_InvalidMimeType(t *testing.T) {
@@ -103,9 +100,6 @@ func TestDownloadImageData_InvalidMimeType(t *testing.T) {
 		httputil.DefaultClient = oldClient
 	}()
 
-	// Test with text content (which should return text/plain or text/html)
-	imageType, data, err := DownloadImageData("https://httpbin.org/robots.txt")
-	require.NoError(t, err)
-	require.Equal(t, "plain", imageType) // text/plain -> plain
-	require.NotEmpty(t, data)
+	_, _, err := DownloadImageData("https://httpbin.org/robots.txt")
+	require.ErrorContains(t, err, `url does not point to an image: content type "text/plain"`)
 }

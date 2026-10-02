@@ -636,6 +636,44 @@ func TestConvertPartsSendsAnImageLinkWithItsImageMIMEType(t *testing.T) {
 	assert.Equal(t, []byte("png-bytes"), parts[0].InlineData.Data)
 }
 
+func TestConvertPartsTypesAnImageLinkWithoutAContentTypeByItsBytes(t *testing.T) {
+	t.Parallel()
+
+	png := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 0x0D}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header()["Content-Type"] = nil
+		_, _ = w.Write(png)
+	}))
+	t.Cleanup(srv.Close)
+
+	parts, err := convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/parrot")})
+	require.NoError(t, err)
+	require.Len(t, parts, 1)
+	require.NotNil(t, parts[0].InlineData)
+	assert.Equal(t, "image/png", parts[0].InlineData.MIMEType)
+	assert.Equal(t, png, parts[0].InlineData.Data)
+}
+
+func TestConvertPartsRefusesALinkThatServesNoImage(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte("<!DOCTYPE html><html>sign in</html>"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/login")})
+	require.ErrorContains(t, err, "url does not point to an image")
+
+	_, err = convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/gone.png")})
+	require.ErrorContains(t, err, "404 Not Found")
+}
+
 func TestFunctionCallIDWrappers(t *testing.T) {
 	t.Run("ensureFunctionCallID", func(t *testing.T) {
 		testCases := []struct {
