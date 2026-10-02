@@ -270,26 +270,14 @@ type parsedName struct {
 }
 
 func (f *lineFamily) parse(name string) (parsedName, bool) {
-	name, tag, tagged := strings.Cut(name, ":")
-	if tagged && parameterCount.MatchString(tag) {
-		name += "-" + tag
-	}
-	rest, ok := strings.CutPrefix(name, f.prefix)
+	rest, ok := strings.CutPrefix(untagged(name), f.prefix)
 	if !ok {
 		return parsedName{}, false
 	}
 	tokens := strings.Split(rest, "-")
-	version, hundredths := tokens[0], "00"
-	if whole, fraction, dotted := strings.Cut(version, "."); f.decimalMinor && dotted {
-		fraction = cmp.Or(strings.TrimRight(fraction, "0"), "0")
-		version, hundredths = whole+"."+fraction, (fraction + "0")[:2]
-	}
-	major, minor, ok := parseVersion(version)
+	major, minor, version, ok := f.version(tokens[0])
 	if !ok {
 		return parsedName{}, false
-	}
-	if f.decimalMinor {
-		minor, _ = strconv.Atoi(hundredths)
 	}
 	p := parsedName{major: major, minor: minor}
 	core := []string{f.prefix + version}
@@ -319,6 +307,27 @@ func (f *lineFamily) parse(name string) (parsedName, bool) {
 	}
 	p.core = strings.Join(core, "-")
 	return p, true
+}
+
+func untagged(name string) string {
+	name, tag, tagged := strings.Cut(name, ":")
+	if tagged && parameterCount.MatchString(tag) {
+		return name + "-" + tag
+	}
+	return name
+}
+
+func (f *lineFamily) version(token string) (major, minor int, spelled string, ok bool) {
+	spelled, hundredths := token, "00"
+	if whole, fraction, dotted := strings.Cut(token, "."); f.decimalMinor && dotted {
+		fraction = cmp.Or(strings.TrimRight(fraction, "0"), "0")
+		spelled, hundredths = whole+"."+fraction, (fraction + "0")[:2]
+	}
+	major, minor, ok = parseVersion(spelled)
+	if ok && f.decimalMinor {
+		minor, _ = strconv.Atoi(hundredths)
+	}
+	return major, minor, spelled, ok
 }
 
 func (f *lineFamily) follow(name string) (p parsedName, line []generation, g generation, listed, ok bool) {
