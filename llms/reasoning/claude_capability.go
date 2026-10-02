@@ -13,11 +13,10 @@ import (
 type ClaudeReasoningKind int
 
 const (
-	// ClaudeReasoningUnknown is any model not explicitly classified below — a
-	// non-Claude model, a Claude model without extended thinking, or a Claude
-	// generation newer than this table. It is handled as literal pass-through
-	// (the caller's requested mechanism is sent unchanged), preserving prior
-	// behavior so an unclassified model never regresses.
+	// ClaudeReasoningUnknown is a non-Claude model or a Claude model without
+	// extended thinking; an unlisted version of a listed tier answers as the
+	// release it follows. It is handled as literal pass-through (the caller's
+	// requested mechanism is sent unchanged).
 	ClaudeReasoningUnknown ClaudeReasoningKind = iota
 	// ClaudeReasoningAdaptiveOnly is the newest generation (Opus 4.7/4.8/5,
 	// Sonnet 5, Fable 5, Mythos 5): it is sent thinking.type=adaptive and never
@@ -35,7 +34,7 @@ const (
 // adaptiveOnlyClaude, dualClaude, and budgetOnlyClaude are the explicit model
 // sets. Substrings match both the first-party IDs (claude-opus-4-7) and the
 // Bedrock IDs (us.anthropic.claude-opus-4-7). Add a new model to exactly one
-// set when it launches; anything absent is treated as ClaudeReasoningUnknown.
+// set when it launches; until then it answers as the release it follows.
 var (
 	adaptiveOnlyClaude = []string{
 		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5",

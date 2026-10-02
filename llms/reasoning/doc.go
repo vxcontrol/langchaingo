@@ -31,8 +31,9 @@
 //     model with no off switch, or ErrReasoningOffUnsupported for models that
 //     cannot be disabled, e.g. always-on Claude or Bedrock defaults).
 //
-// Unrecognized models are treated as optimistic pass-through: the provider API,
-// not a local table, is the final arbiter, so a newer model never regresses.
+// A version the tables do not list, of a line they know, answers as the newest
+// listed release below it (lines.go); a model outside every line passes through
+// and the provider API arbitrates.
 //
 // Example usage for streaming mode:
 //

@@ -20,9 +20,8 @@ var openAIEffortRank = map[string]int{
 
 // OpenAIReasoningCaps is a best-effort static projection of which reasoning
 // efforts a model reachable on an OpenAI-compatible door accepts, so callers avoid
-// sending a value the API would reject with a 400. It asserts only documented, non-default constraints; every
-// other model returns Known=false and is treated optimistically (send as
-// requested, let the API be the arbiter), preserving prior pass-through behavior.
+// sending a value the API would reject with a 400. It asserts only documented, non-default constraints; a
+// model outside every listed line returns Known=false and is sent as requested.
 type OpenAIReasoningCaps struct {
 	// Known reports whether the model was explicitly classified.
 	Known bool
@@ -56,9 +55,9 @@ func (c OpenAIReasoningCaps) ClampEffort(effort string) string {
 }
 
 // OpenAIReasoningCapsFor classifies a reasoning model by the effort set its
-// generation accepts on /chat/completions. A model outside the listed
-// generations (including newer ones) returns Known=false so the caller stays
-// optimistic and the API arbitrates.
+// generation accepts on /chat/completions. An unlisted version of a listed line
+// answers as the release it follows; a model outside every line returns
+// Known=false and the API arbitrates.
 func OpenAIReasoningCapsFor(model string) OpenAIReasoningCaps {
 	for _, form := range modelSpellings(model) {
 		if caps := openAICapsForForm(form); caps.Known {

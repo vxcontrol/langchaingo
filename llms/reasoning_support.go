@@ -61,8 +61,7 @@ var (
 // Scope: this affects ONLY the ReasoningSupportFor hint, not the wire path. The
 // enable/disable resolvers (reasoning.ResolveOff, reasoning.ResolveClaudeAdaptive,
 // effort clamping) live in the lower-level reasoning package, which cannot read
-// this registry, so a registered model still travels the optimistic pass-through
-// path on the wire and the provider API remains the final arbiter.
+// this registry, so the wire of a registered model still follows the tables.
 func RegisterReasoningSupport(pattern string, info ReasoningSupport) {
 	reasoningOverridesMu.Lock()
 	defer reasoningOverridesMu.Unlock()
