@@ -194,7 +194,7 @@ func AcceptsEffortWire(model string) bool {
 		if hasGeneration(form, "qwen3.8") {
 			return true
 		}
-		if strings.HasPrefix(form, "qwen") || strings.HasPrefix(form, "qwq") {
+		if strings.HasPrefix(form, "qwen") || strings.HasPrefix(form, "qwq") || strings.HasPrefix(form, "qvq") {
 			return false
 		}
 		if strings.HasPrefix(form, "gpt-3.5") || strings.HasPrefix(form, "gpt-4") {

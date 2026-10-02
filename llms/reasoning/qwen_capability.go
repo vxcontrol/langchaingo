@@ -27,6 +27,10 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
+func QVQStreamsOnly(model string) bool {
+	return strings.HasPrefix(dashScopeSpelling(model), "qvq")
+}
+
 func dashScopeSpelling(model string) string {
 	m := strings.TrimPrefix(strings.ToLower(model), "dashscope/")
 	if strings.Contains(m, "/") {

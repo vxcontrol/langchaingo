@@ -313,6 +313,9 @@ func (o *LLM) createChatRequest(
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
 
+	if model := o.effectiveModel(opts); reasoning.QVQStreamsOnly(model) && opts.StreamingFunc == nil {
+		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
+	}
 	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
 		if opts.StreamingFunc == nil {
 			if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
