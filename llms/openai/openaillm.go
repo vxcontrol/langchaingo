@@ -607,7 +607,7 @@ func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions) error {
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		return &reasoning.ErrChatCompletionsUnsupported{Model: model}
 	}
-	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) {
+	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		return &reasoning.ErrStopWordsUnsupported{Model: model}
 	}
 	return nil
@@ -615,6 +615,13 @@ func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions) error {
 
 func (o *LLM) servedByOpenAI() bool {
 	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+}
+
+func (o *LLM) servedByTheModelsVendor(model string) bool {
+	if reasoning.GrokFamily(model) {
+		return o.host == "api.x.ai" || strings.HasPrefix(strings.ToLower(model), "xai/")
+	}
+	return o.servedByOpenAI()
 }
 
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
