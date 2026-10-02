@@ -142,6 +142,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	for _, opt := range options {
 		opt(&opts)
 	}
+	if numPredict := o.options.ollamaOptions.NumPredict; opts.MaxTokens == nil && numPredict > 0 {
+		opts.MaxTokens = &numPredict
+	}
 
 	// override LLM model if set as llms.CallOption
 	model := o.getModel(opts)

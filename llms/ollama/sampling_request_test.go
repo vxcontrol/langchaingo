@@ -109,3 +109,18 @@ func TestSamplingNobodySetStaysOffTheWire(t *testing.T) {
 	}
 	require.InDelta(t, llms.DefaultMaxTokens, options["num_predict"], 0)
 }
+
+func TestABudgetIsReadAgainstTheLimitTheCallSends(t *testing.T) {
+	t.Parallel()
+
+	think := func(client []Option, opts ...llms.CallOption) any {
+		raw, err := sendChatRequestWithClient(t, "glm-5", client, opts...)
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(raw, &body))
+		return body["think"]
+	}
+	budget := llms.WithReasoning(llms.ReasoningNone, 2000)
+	require.Equal(t, "high", think(nil, llms.WithMaxTokens(4096), budget))
+	require.Equal(t, "high", think([]Option{WithNumPredict(4096)}, budget), "the client's num_predict is the call's limit")
+}
