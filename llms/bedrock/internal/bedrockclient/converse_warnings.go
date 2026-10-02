@@ -78,6 +78,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			Asked: strconv.Itoa(*input.TopK), Reason: omitted,
 		})
 	}
+	if converseDropsDelegatedThinking(model, input.ReasoningConfig) {
+		reportThinkingUnsupported(warn, model, input.ReasoningConfig)
+	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
 		sent, thinkingSent := converseEffortOnTheWire(built)
 		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent,
@@ -178,6 +181,16 @@ func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
 		return ""
 	}
 	return ""
+}
+
+func converseDropsDelegatedThinking(model string, cfg *llms.ReasoningConfig) bool {
+	if !cfg.DelegatesDepth() {
+		return false
+	}
+	if reasoning.IsReasoningModel(model) && !reasoning.IsBedrockNonReasoningModel(model) {
+		return false
+	}
+	return reasoning.ResolveMechanism(model, cfg.Adaptive, isAnthropicModelID(model), false) == reasoning.MechanismNone
 }
 
 func converseCarriesTopK(built *bedrockruntime.ConverseInput) bool {
