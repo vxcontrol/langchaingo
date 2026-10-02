@@ -12,7 +12,7 @@ This example demonstrates how to use an OpenAI reasoning model with the LangChai
 ## Key Features
 
 - Uses the OpenAI gpt-5.6-sol reasoning model
-- Demonstrates setting custom parameters like max tokens and temperature
+- Demonstrates setting the max tokens of a reasoning model
 - Shows how to extract and print generation metadata
 
 ## How to Run

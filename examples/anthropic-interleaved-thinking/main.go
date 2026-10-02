@@ -319,7 +319,7 @@ This demonstrates interleaved thinking: parallel execution where possible, seque
 	fmt.Println("─────────────────────────")
 	fmt.Println("  • Thinking Mode: MEDIUM")
 	fmt.Println("  • Interleaved Thinking: ENABLED")
-	fmt.Println("  • Max Tokens: 4000")
+	fmt.Println("  • Max Tokens: 8000")
 	fmt.Println("  • Prompt Caching: ENABLED (1-hour TTL)")
 	fmt.Println("  • Cache Strategy:")
 	fmt.Println("    - Tools: CACHED (5 tools)")

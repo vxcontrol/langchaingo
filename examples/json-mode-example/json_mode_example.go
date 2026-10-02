@@ -7,7 +7,6 @@ import (
 	"log"
 
 	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/anthropic"
 	"github.com/vxcontrol/langchaingo/llms/googleai"
 	"github.com/vxcontrol/langchaingo/llms/ollama"
 	"github.com/vxcontrol/langchaingo/llms/openai"
@@ -25,7 +24,6 @@ func main() {
 	completion, err := llms.GenerateFromSinglePrompt(ctx,
 		llm,
 		"Who was first man to walk on the moon? Respond in json format, include `first_man` in response keys.",
-		llms.WithTemperature(0.0),
 		llms.WithJSONMode(),
 	)
 	if err != nil {
@@ -41,8 +39,6 @@ func initBackend(ctx context.Context) (llms.Model, error) {
 		return openai.New()
 	case "ollama":
 		return ollama.New(ollama.WithModel("mistral"))
-	case "anthropic":
-		return anthropic.New(anthropic.WithModel("claude-sonnet-5-5"))
 	case "googleai":
 		return googleai.New(ctx, googleai.WithDefaultModel("gemini-3.8-flash"))
 	default:
