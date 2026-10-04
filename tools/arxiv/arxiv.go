@@ -25,7 +25,9 @@ type Option func(*Tool)
 
 func WithHTTPClient(client *http.Client) Option {
 	return func(t *Tool) {
-		t.client.SetHTTPClient(client)
+		if client != nil {
+			t.client.SetHTTPClient(client)
+		}
 	}
 }
 
