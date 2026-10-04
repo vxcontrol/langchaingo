@@ -757,10 +757,8 @@ func (o *LLM) applySamplingPolicy(
 		switch {
 		case *t > 1 && reasoning.ServedByZAI(model, o.host):
 			clampTemperature(req, warn, model, 1, "Z.ai takes a temperature from 0 to 1")
-		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort) &&
-			reasoning.ClaudeClampTemperature(model, *t) != *t:
-			clampTemperature(req, warn, model, reasoning.ClaudeClampTemperature(model, *t),
-				"Claude takes a temperature from 0 to 1")
+		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort):
+			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
 	}
 	before := takeSamplingSnapshot(req, opts)

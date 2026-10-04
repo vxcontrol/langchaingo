@@ -328,7 +328,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	}
 
 	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
-	temperature = clampClaudeTemperature(warn, model, temperature)
+	temperature = warn.ClampClaudeTemperature(model, temperature)
 
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),

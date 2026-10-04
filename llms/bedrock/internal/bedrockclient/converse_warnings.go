@@ -16,7 +16,8 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		return
 	}
 	model := input.ModelID
-	reportClaudeOffFloor(warn, model, converseMechanismOnTheWire(built))
+	sentThinking := converseMechanismOnTheWire(built)
+	reportClaudeOffFloor(warn, model, sentThinking)
 	const (
 		omitted   = "the door left it off the converse request"
 		different = "the door put a different value on the converse request"
@@ -28,8 +29,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.Temperature
 		}
-		clampedTo, _ := clampTemperature(model, *input.Temperature)
-		if clamped := float32(clampedTo); sent != nil && *sent == clamped && clamped != float32(*input.Temperature) {
+		if sent != nil && !thinkingSetsTheTemperature(sentThinking) {
 			reportTemperatureClamp(warn, model, *input.Temperature)
 		} else {
 			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)

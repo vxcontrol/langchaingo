@@ -143,23 +143,6 @@ func reportAnthropicSampling(
 	}
 }
 
-func clampClaudeTemperature(warn *llms.Warnings, model string, temperature *float64) *float64 {
-	if temperature == nil {
-		return nil
-	}
-	clamped := reasoning.ClaudeClampTemperature(model, *temperature)
-	if clamped == *temperature {
-		return temperature
-	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-		Asked:  strconv.FormatFloat(*temperature, 'g', -1, 64),
-		Sent:   strconv.FormatFloat(clamped, 'g', -1, 64),
-		Reason: "Claude takes a temperature from 0 to 1",
-	})
-	return &clamped
-}
-
 func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPayload) string {
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):

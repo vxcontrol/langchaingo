@@ -248,6 +248,24 @@ func (w *Warnings) AddOffFloor(model, floor string) {
 	})
 }
 
+// ClampClaudeTemperature takes the temperature the thinking rules left in place:
+// a value they replaced is theirs to report, not a clamp.
+func (w *Warnings) ClampClaudeTemperature(model string, temperature *float64) *float64 {
+	if temperature == nil {
+		return nil
+	}
+	clamped := reasoning.ClaudeClampTemperature(model, *temperature)
+	if clamped == *temperature {
+		return temperature
+	}
+	w.Add(Warning{
+		Kind: WarningClamp, Option: "WithTemperature", Model: model,
+		Asked: renderFloat(temperature), Sent: renderFloat(&clamped),
+		Reason: "Claude takes a temperature from 0 to 1",
+	})
+	return &clamped
+}
+
 func (w *Warnings) List() []Warning {
 	if w == nil {
 		return nil

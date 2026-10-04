@@ -82,12 +82,14 @@ func reportLegacyAnthropic(
 ) {
 	const reshaped = "the door reshaped the legacy anthropic payload for this model"
 
+	sentThinking := ""
 	if input.Thinking != nil {
-		reportClaudeOffFloor(warn, modelID, input.Thinking.Type)
+		sentThinking = input.Thinking.Type
 	}
+	reportClaudeOffFloor(warn, modelID, sentThinking)
 
 	if options.Temperature != nil {
-		reportClaudeTemperature(warn, modelID, reshaped, *options.Temperature, input.Temperature)
+		reportClaudeTemperature(warn, modelID, reshaped, *options.Temperature, input.Temperature, sentThinking)
 	}
 	if options.TopP != nil {
 		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
@@ -137,7 +139,9 @@ func reportClaudeOffFloor(warn *llms.Warnings, modelID, sentThinking string) {
 	}
 }
 
-func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked float64, sent *float64) {
+func reportClaudeTemperature(
+	warn *llms.Warnings, modelID, reason string, asked float64, sent *float64, sentThinking string,
+) {
 	render := func(v float64) string { return strconv.FormatFloat(v, 'g', -1, 64) }
 	switch {
 	case sent == nil:
@@ -145,10 +149,9 @@ func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked 
 			Kind: llms.WarningDrop, Option: "WithTemperature", Model: modelID,
 			Asked: render(asked), Reason: reason,
 		})
-	case *sent == asked:
-	case *sent == reasoning.ClaudeClampTemperature(modelID, asked):
+	case !thinkingSetsTheTemperature(sentThinking):
 		reportTemperatureClamp(warn, modelID, asked)
-	default:
+	case *sent != asked:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithTemperature", Model: modelID,
 			Asked: render(asked), Sent: render(*sent), Reason: reason,
@@ -156,27 +159,24 @@ func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked 
 	}
 }
 
-func clampTemperature(model string, temperature float64) (float64, string) {
-	if clamped := reasoning.ClaudeClampTemperature(model, temperature); clamped != temperature {
-		return clamped, "Claude takes a temperature from 0 to 1"
-	}
-	if clamped := reasoning.NovaClampTemperature(model, temperature); clamped != temperature {
-		return clamped, "Nova takes a temperature from 0.00001 to 1"
-	}
-	return temperature, ""
+func thinkingSetsTheTemperature(sentThinking string) bool {
+	return sentThinking == "enabled"
+}
+
+func clampTemperature(model string, temperature float64) float64 {
+	return reasoning.NovaClampTemperature(model, reasoning.ClaudeClampTemperature(model, temperature))
 }
 
 func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) {
-	sent, reason := clampTemperature(modelID, asked)
-	if reason == "" {
-		return
+	warn.ClampClaudeTemperature(modelID, &asked)
+	if sent := reasoning.NovaClampTemperature(modelID, asked); sent != asked {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
+			Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+			Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
+			Reason: "Nova takes a temperature from 0.00001 to 1",
+		})
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
-		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
-		Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
-		Reason: reason,
-	})
 }
 
 const novaMaxTopK = 128
