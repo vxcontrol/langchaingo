@@ -104,14 +104,12 @@ mistral	codestral-latest	false	false	false	false	0		-	omit	0	false	-
 mistral	zai-glm-5-2	true	false	false	false	0		-	omit	0	false	-
 mistral	zai-glm-5-3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
 openai	gpt-6-astra	true	true	true	true	1	low,medium,high,xhigh	-	unsupported	0	false	-
+openai	gpt-6.1-sol	true	true	true	true	1	low,medium,high,xhigh,max	-	unsupported	0	false	-
 openai	gpt-6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
 openai	gpt-6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
 openai	gpt-5.6-sol	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
 openai	gpt-5.6-terra	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
 openai	gpt-5.6-luna	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
-openai	gpt-5.6-cyber	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	2	false	-
-openai	daybreak-red	false	false	false	false	0		-	omit	0	false	-
-openai	daybreak-blue	false	false	false	false	0		-	omit	0	false	-
 openai	gpt-5.5	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
 openai	gpt-5.4	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
 openai	gpt-5.4-mini	true	true	false	true	1	low,medium,high,xhigh	-	effort-none	1	false	-
@@ -174,9 +172,6 @@ qwen	qwen3-30b-a3b-thinking-2507	true	false	true	false	0		-	unsupported	0	false	
 qwen	qwen3-32b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3-14b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3-8b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-4b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-1.7b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-0.6b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	glm-5.3-prime	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
 qwen	glm-5.2-fast-preview	true	false	false	false	0		-	disable-thinking-object	0	false	-
 qwen	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false	-
