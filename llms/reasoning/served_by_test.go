@@ -51,17 +51,19 @@ func TestPublicProviderHost(t *testing.T) {
 	t.Parallel()
 
 	for host, want := range map[string]bool{
-		"openrouter.ai":                    true,
-		"ai-gateway.vercel.sh":             true,
-		"us.api.x.ai":                      true,
-		"codestral.mistral.ai":             true,
-		"eu.api.openai.com":                true,
-		"tenant.openai.azure.com":          true,
-		"llm.pentagi.net":                  false,
-		"litellm.internal":                 false,
-		"localhost":                        false,
-		"":                                 false,
-		"api.openai.com.attacker.internal": false,
+		"openrouter.ai":                      true,
+		"ai-gateway.vercel.sh":               true,
+		"us.api.x.ai":                        true,
+		"codestral.mistral.ai":               true,
+		"cn-hongkong.dashscope.aliyuncs.com": true,
+		"ws-1.cn-beijing.maas.aliyuncs.com":  true,
+		"eu.api.openai.com":                  true,
+		"tenant.openai.azure.com":            true,
+		"llm.pentagi.net":                    false,
+		"litellm.internal":                   false,
+		"localhost":                          false,
+		"":                                   false,
+		"api.openai.com.attacker.internal":   false,
 	} {
 		if got := PublicProviderHost(host); got != want {
 			t.Errorf("PublicProviderHost(%q) = %v, want %v", host, got, want)
