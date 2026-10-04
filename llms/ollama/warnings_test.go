@@ -51,13 +51,15 @@ func TestOptionsWithNoFieldOnThisDoorAreReported(t *testing.T) {
 		llms.WithN(2), llms.WithCandidateCount(3),
 		llms.WithToolChoice(llms.ToolChoice{
 			Type: "function", Function: &llms.FunctionReference{Name: "get_weather"},
-		}))
+		}),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}))
 
 	got := ollamaWarningsByOption(resp.Warnings)
 	require.NotContains(t, got, "WithMinP", "min_p reaches the wire")
 	for option, asked := range map[string]string{
 		"WithLogProbs": "true", "WithTopLogProbs": "2",
 		"WithN": "2", "WithCandidateCount": "3", "WithToolChoice": "get_weather",
+		"WithFunctions": "1 functions",
 	} {
 		w, ok := got[option]
 		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)
@@ -107,11 +109,38 @@ func TestAToolChoiceOfAutoIsNotALoss(t *testing.T) {
 func TestADroppedToolChoiceIsNamedNotNumbered(t *testing.T) {
 	t.Parallel()
 
-	resp := generateForWarnings(t, llms.WithToolChoice("none"))
+	resp := generateForWarnings(t, llms.WithToolChoice("none"), llms.WithTools([]llms.Tool{{
+		Type: "function", Function: &llms.FunctionDefinition{Name: "lookup", Parameters: map[string]any{"type": "object"}},
+	}}))
 
 	w, ok := ollamaWarningsByOption(resp.Warnings)["WithToolChoice"]
 	require.True(t, ok, "no tool-choice warning in %v", resp.Warnings)
 	require.Equal(t, "none", w.Asked)
+	require.Equal(t, "the door builds no field for it", w.Reason)
+}
+
+func TestAToolChoiceWithoutToolsIsReportedAsOnEveryDoor(t *testing.T) {
+	t.Parallel()
+
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{named, "lookup"},
+	} {
+		resp := generateForWarnings(t, llms.WithToolChoice(tc.choice))
+		require.Equal(t, []llms.Warning{{
+			Kind: llms.WarningDrop, Option: "WithToolChoice", Model: "glm-5",
+			Asked: tc.asked, Reason: "the request carries no tools to choose from",
+		}}, resp.Warnings, "%v", tc.choice)
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		resp := generateForWarnings(t, llms.WithToolChoice(choice))
+		require.Empty(t, resp.Warnings, "%v: nothing to choose from changes nothing", choice)
+	}
 }
 
 func TestAZeroTopKIsNotALoss(t *testing.T) {

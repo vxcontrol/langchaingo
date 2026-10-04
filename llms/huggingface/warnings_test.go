@@ -122,7 +122,8 @@ func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 		llms.WithLogProbs(true), llms.WithMinP(0.05), llms.WithTopK(40),
 		llms.WithN(2), llms.WithCandidateCount(3), llms.WithTopLogProbs(5),
-		llms.WithMinLength(10), llms.WithMaxLength(20), llms.WithJSONMode())
+		llms.WithMinLength(10), llms.WithMaxLength(20), llms.WithJSONMode(),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}))
 
 	seen := make(map[string]int, len(resp.Warnings))
 	for _, w := range resp.Warnings {
@@ -132,6 +133,7 @@ func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
 		require.Equal(t, 1, count, "%s reported %d times: %v", option, count, resp.Warnings)
 	}
 	require.Contains(t, seen, "WithLogProbs", "the door builds no logprobs field")
+	require.Contains(t, seen, "WithFunctions", "the door builds no tools field")
 }
 
 func TestABudgetWithoutAnEffortIsReportedAsTheEffortItBecame(t *testing.T) {
@@ -154,4 +156,35 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 	w, ok := hfWarningsByOption(resp.Warnings)["WithExtraBody"]
 	require.True(t, ok)
 	require.Equal(t, "the door does not forward extra body fields", w.Reason, "this door marshals its own payload")
+}
+
+func TestAToolChoiceIsReportedAsOnEveryDoorThatSendsNoTools(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "lookup"}}})
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{named, "lookup"},
+	} {
+		for _, call := range [][]llms.CallOption{
+			{llms.WithToolChoice(tc.choice)},
+			{llms.WithToolChoice(tc.choice), tools},
+		} {
+			w, ok := hfWarningsByOption(generateForWarnings(t, oneMessage(), call...).Warnings)["WithToolChoice"]
+			require.True(t, ok, "%v", tc.choice)
+			require.Equal(t, llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithToolChoice", Model: "Qwen/Qwen3-32B",
+				Asked: tc.asked, Reason: "the request carries no tools to choose from",
+			}, w)
+		}
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		resp := generateForWarnings(t, oneMessage(), llms.WithToolChoice(choice))
+		require.Empty(t, resp.Warnings, "%v: nothing to choose from changes nothing", choice)
+	}
 }

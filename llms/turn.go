@@ -2,6 +2,7 @@ package llms
 
 import (
 	"cmp"
+	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
@@ -117,7 +118,7 @@ func ForcedToolName(choice any) (name string, forced bool) {
 // rejects one; a model that only inherits the refusal goes out, recorded in warn.
 func CheckForcedToolUse(model string, opts CallOptions, warn *Warnings) error {
 	name, forced := ForcedToolName(opts.ToolChoice)
-	if !forced || !offersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
+	if !forced || !OffersTools(opts) || !reasoning.ClaudeRejectsForcedToolUse(model) {
 		return nil
 	}
 	asked := cmp.Or(name, spelledChoice(opts.ToolChoice), "any")
@@ -143,8 +144,16 @@ func spelledChoice(choice any) string {
 	return ""
 }
 
-func offersTools(opts CallOptions) bool {
-	return len(opts.Tools) > 0 || len(opts.Functions) > 0
+// OffersTools judges the options as the door sends them: a door that leaves one
+// of these sources of tools off the wire passes the options without it.
+func OffersTools(opts CallOptions) bool {
+	return len(opts.Tools) > 0 || len(opts.Functions) > 0 || extraBodyCarriesTools(ExtraBody(opts))
+}
+
+func extraBodyCarriesTools(extra map[string]any) bool {
+	tools := reflect.ValueOf(extra["tools"])
+	kind := tools.Kind()
+	return (kind == reflect.Slice || kind == reflect.Array) && tools.Len() > 0
 }
 
 func functionName(fn *FunctionReference) string {
@@ -187,7 +196,7 @@ func CheckClaudeTurnLimitsOnWire(
 		reasoning.ClaudeSupportsThinking(model) &&
 		!reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive) &&
 		budget > 0
-	if budgetThinking && ForcesToolUse(opts.ToolChoice) && offersTools(opts) {
+	if budgetThinking && ForcesToolUse(opts.ToolChoice) && OffersTools(opts) {
 		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
 	}
 	if err := CheckForcedToolUse(model, opts, warn); err != nil {

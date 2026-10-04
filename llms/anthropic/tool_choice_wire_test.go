@@ -226,6 +226,46 @@ func TestNoToolChoiceGoesOutWithoutTools(t *testing.T) {
 	}
 }
 
+func TestAForcedToolChoiceWithoutToolsIsReportedAsDropped(t *testing.T) {
+	t.Parallel()
+
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{"any", "any"},
+		{named, "lookup"},
+	} {
+		resp, body := generateForModelSending(t, "claude-sonnet-4-6", llms.WithToolChoice(tc.choice))
+		require.NotContains(t, body, "tool_choice", "%v", tc.choice)
+		reported := warningsFor(resp.Warnings, "WithToolChoice")
+		require.Len(t, reported, 1, "%v: %v", tc.choice, resp.Warnings)
+		require.Equal(t, llms.WarningDrop, reported[0].Kind)
+		require.Equal(t, tc.asked, reported[0].Asked)
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		resp, _ := generateForModelSending(t, "claude-sonnet-4-6", llms.WithToolChoice(choice))
+		require.Empty(t, warningsFor(resp.Warnings, "WithToolChoice"), "%v: the vendor's default without tools", choice)
+	}
+}
+
+func TestToolsOnlyInTheExtraBodyDoNotMakeAForcedChoiceRefused(t *testing.T) {
+	t.Parallel()
+
+	extraTools := llms.WithExtraBody(map[string]any{"tools": []any{
+		map[string]any{"name": "lookup", "input_schema": map[string]any{"type": "object"}},
+	}})
+	resp, body := generateForModelSending(t, "claude-opus-5-5", extraTools, llms.WithToolChoice("required"))
+	require.NotContains(t, body, "tools")
+	require.NotContains(t, body, "tool_choice")
+	byOption := warningsByOption(resp.Warnings)
+	require.Contains(t, byOption, "WithExtraBody")
+	require.Equal(t, llms.WarningDrop, byOption["WithToolChoice"].Kind)
+}
+
 func TestATextPartAfterAToolResultFollowsItOnTheWire(t *testing.T) {
 	t.Parallel()
 

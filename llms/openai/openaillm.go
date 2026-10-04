@@ -303,7 +303,7 @@ func (o *LLM) createChatRequest(
 		Verbosity:            opts.Verbosity,
 		LogProbs:             opts.LogProbs != nil && *opts.LogProbs || derefInt(opts.TopLogProbs) > 0,
 		TopLogProbs:          derefInt(opts.TopLogProbs),
-		ToolChoice:           toolChoiceForTheToolsOffered(opts),
+		ToolChoice:           toolChoiceForTheToolsOffered(opts, o.effectiveModel(opts), warn),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
 		Seed:                 opts.Seed,
 		Metadata:             opts.Metadata,
@@ -371,7 +371,7 @@ func (o *LLM) createChatRequest(
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) error {
-	if len(req.Tools) == 0 {
+	if !llms.OffersTools(opts) {
 		return nil
 	}
 	choice := req.ToolChoice
@@ -704,7 +704,6 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 	model := o.effectiveModel(opts)
 	route := reasoning.DashScopeRoute(model, o.host)
 	off := reasoning.ResolveOff(route, reasoning.ProviderOpenAI)
-	softened := false
 	if !o.carriesOff(model, off) {
 		off = reasoning.InheritedOffWire(route, reasoning.ProviderOpenAI)
 		if !o.carriesOff(model, off) {
@@ -713,7 +712,6 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 		if warn.KeepOffRefusal(model, off) {
 			return &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
-		softened = true
 	}
 	switch off { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffEffortNone:
@@ -725,13 +723,7 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "disabled"}
 	case reasoning.OffBetweenToolsClaude:
 		req.Thinking = &openaiclient.ThinkingOptions{Type: "between_tools"}
-		if !softened {
-			warn.Add(llms.Warning{
-				Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
-				Asked: "off", Sent: "between_tools",
-				Reason: "this model has no off switch, only a lowest thinking level",
-			})
-		}
+		warn.AddOffFloor(model, req.Thinking.Type)
 	}
 	return nil
 }
@@ -765,10 +757,8 @@ func (o *LLM) applySamplingPolicy(
 		switch {
 		case *t > 1 && reasoning.ServedByZAI(model, o.host):
 			clampTemperature(req, warn, model, 1, "Z.ai takes a temperature from 0 to 1")
-		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort) &&
-			reasoning.ClaudeClampTemperature(model, *t) != *t:
-			clampTemperature(req, warn, model, reasoning.ClaudeClampTemperature(model, *t),
-				"Claude takes a temperature from 0 to 1")
+		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort):
+			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
 	}
 	before := takeSamplingSnapshot(req, opts)
@@ -1196,8 +1186,9 @@ func webSearchOptionsFromCallOptions(opts *llms.WebSearchOptions) *openaiclient.
 	return result
 }
 
-func toolChoiceForTheToolsOffered(opts llms.CallOptions) any {
-	if len(opts.Tools) == 0 && len(opts.Functions) == 0 {
+func toolChoiceForTheToolsOffered(opts llms.CallOptions, model string, warn *llms.Warnings) any {
+	if !llms.OffersTools(opts) {
+		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 		return nil
 	}
 	return openaiToolChoice(opts.ToolChoice)

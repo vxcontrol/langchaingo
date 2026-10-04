@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"cmp"
 	"fmt"
 	"sort"
 	"strconv"
@@ -131,6 +132,12 @@ var unreadCatalogue = []struct {
 		}
 		return ""
 	}},
+	{"WithFunctions", func(o CallOptions) string {
+		if len(o.Functions) == 0 {
+			return ""
+		}
+		return strconv.Itoa(len(o.Functions)) + " functions"
+	}},
 }
 
 func askedFloat(v *float64) string {
@@ -238,6 +245,43 @@ func offSent(off reasoning.OffWire) string {
 		return "between_tools"
 	}
 	return "off"
+}
+
+func (w *Warnings) AddToolChoiceWithoutTools(model string, choice any) {
+	name, forced := ForcedToolName(choice)
+	if !forced {
+		return
+	}
+	w.Add(Warning{
+		Kind: WarningDrop, Option: "WithToolChoice", Model: model,
+		Asked: cmp.Or(name, ToolChoiceAny.String()), Reason: "the request carries no tools to choose from",
+	})
+}
+
+func (w *Warnings) AddOffFloor(model, floor string) {
+	w.Add(Warning{
+		Kind: WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+		Asked: "off", Sent: floor,
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
+}
+
+// ClampClaudeTemperature takes the temperature the thinking rules left in place:
+// a value they replaced is theirs to report, not a clamp.
+func (w *Warnings) ClampClaudeTemperature(model string, temperature *float64) *float64 {
+	if temperature == nil {
+		return nil
+	}
+	clamped := reasoning.ClaudeClampTemperature(model, *temperature)
+	if clamped == *temperature {
+		return temperature
+	}
+	w.Add(Warning{
+		Kind: WarningClamp, Option: "WithTemperature", Model: model,
+		Asked: renderFloat(temperature), Sent: renderFloat(&clamped),
+		Reason: "Claude takes a temperature from 0 to 1",
+	})
+	return &clamped
 }
 
 func (w *Warnings) List() []Warning {

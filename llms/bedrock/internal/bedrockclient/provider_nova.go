@@ -176,7 +176,7 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 		inferenceConfig.TopK = &topK
 	}
 	if options.Temperature != nil {
-		temperature, _ := clampTemperature(modelID, *options.Temperature)
+		temperature := clampTemperature(modelID, *options.Temperature)
 		inferenceConfig.Temperature = &temperature
 	}
 	cleared := false

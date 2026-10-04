@@ -110,3 +110,37 @@ func TestClaudeOpus41OnBedrockIsSentAZeroTemperatureWithoutTopP(t *testing.T) {
 		require.True(t, reported, "converse=%v: %v", converse, resp.Warnings)
 	}
 }
+
+func TestAClaudeTemperatureBudgetThinkingReplacesOnBedrockIsASubstitute(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{bedrock.WithModel(model)}
+		answer := legacyAnswer
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+			answer = converseAnswer
+		}
+		for _, asked := range []float64{1.5, 0.5, -0.5} {
+			resp, body := bedrockWarningsSending(t, answer, opts,
+				llms.WithTemperature(asked), llms.WithReasoning(llms.ReasoningMedium, 2048))
+
+			sampling := body
+			if converse {
+				sampling, _ = body["inferenceConfig"].(map[string]any)
+			}
+			require.InDelta(t, 1, sampling["temperature"], 0, "converse=%v asked %v", converse, asked)
+			var reported []llms.Warning
+			for _, w := range resp.Warnings {
+				if w.Option == "WithTemperature" {
+					reported = append(reported, w)
+				}
+			}
+			require.Len(t, reported, 1, "converse=%v asked %v: %v", converse, asked, resp.Warnings)
+			require.Equal(t, llms.WarningSubstitute, reported[0].Kind, "converse=%v asked %v", converse, asked)
+			require.Equal(t, strconv.FormatFloat(asked, 'g', -1, 64), reported[0].Asked)
+			require.Equal(t, "1", reported[0].Sent)
+		}
+	}
+}

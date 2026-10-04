@@ -40,12 +40,13 @@ func TestTheLegacyAnthropicPathReportsWhatItCannotCarry(t *testing.T) {
 		llms.WithTopK(40), llms.WithSeed(7), llms.WithN(2),
 		llms.WithJSONMode(), llms.WithReasoning(llms.ReasoningHigh, 0),
 		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "f"}}}),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}),
 	)
 	require.NoError(t, err)
 
 	got := warningsByOption(resp.Warnings)
 	for _, option := range []string{
-		"WithTopK", "WithSeed", "WithN", "WithJSONMode", "WithReasoning", "WithTools",
+		"WithTopK", "WithSeed", "WithN", "WithJSONMode", "WithReasoning", "WithTools", "WithFunctions",
 	} {
 		require.Contains(t, got, option, "the legacy request has no field for it: %v", resp.Warnings)
 	}
@@ -59,4 +60,37 @@ func TestTheLegacyAnthropicPathRefusesAnEffortItCannotName(t *testing.T) {
 		llms.WithReasoning("enormous", 0))
 
 	require.Error(t, err, "an effort no door records must not reach the network")
+}
+
+func TestTheLegacyAnthropicPathReportsAToolChoiceAsOnEveryDoorThatSendsNoTools(t *testing.T) {
+	t.Parallel()
+
+	hi := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "lookup"}}})
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{named, "lookup"},
+	} {
+		for _, call := range [][]llms.CallOption{
+			{llms.WithToolChoice(tc.choice)},
+			{llms.WithToolChoice(tc.choice), tools},
+		} {
+			resp, err := legacyCompletionsLLM(t).GenerateContent(t.Context(), hi, call...)
+			require.NoError(t, err)
+			require.Equal(t, []llms.Warning{{
+				Kind: llms.WarningDrop, Option: "WithToolChoice", Model: "claude-2.1",
+				Asked: tc.asked, Reason: "the request carries no tools to choose from",
+			}}, warningsFor(resp.Warnings, "WithToolChoice"), "%v", tc.choice)
+		}
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		resp, err := legacyCompletionsLLM(t).GenerateContent(t.Context(), hi, llms.WithToolChoice(choice))
+		require.NoError(t, err)
+		require.Empty(t, resp.Warnings, "%v: nothing to choose from changes nothing", choice)
+	}
 }
