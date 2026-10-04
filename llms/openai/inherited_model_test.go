@@ -122,13 +122,18 @@ func TestAHostThatRejectsAForcedToolWhileThinkingRefusesItForEveryVersion(t *tes
 	tools := lookupTool
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://api.deepseek.com", "deepseek-v5"},
+		{"https://api.deepseek.com", "deepseek-v5-flash"},
+		{"https://api.deepseek.com", "deepseek-v4.2-flash"},
+		{"http://litellm.example/v1", "deepseek/deepseek-v5-flash"},
 		{"https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "qwen3.9-max"},
 	} {
-		llm := newUnitLLM(t, WithBaseURL(route.baseURL), WithModel(route.model), WithHTTPClient(&bodyDoer{}))
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL(route.baseURL), WithModel(route.model), WithHTTPClient(doer))
 		_, err := llm.GenerateContent(context.Background(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 			tools, llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithToolChoice("required"))
 		var refusal *reasoning.ErrForcedToolChoiceUnsupported
 		require.ErrorAs(t, err, &refusal, route.model)
+		require.Nil(t, doer.body, "%s: the request must not be sent", route.model)
 	}
 }
