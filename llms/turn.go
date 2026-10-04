@@ -2,6 +2,7 @@ package llms
 
 import (
 	"cmp"
+	"fmt"
 	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -148,6 +149,17 @@ func spelledChoice(choice any) string {
 // of these sources of tools off the wire passes the options without it.
 func OffersTools(opts CallOptions) bool {
 	return len(opts.Tools) > 0 || len(opts.Functions) > 0 || extraBodyCarriesTools(ExtraBody(opts))
+}
+
+func CheckToolCalls(messages []MessageContent) error {
+	for _, message := range messages {
+		for _, part := range message.Parts {
+			if call, ok := part.(ToolCall); ok && call.FunctionCall == nil {
+				return NewError(ErrCodeInvalidRequest, "", fmt.Sprintf("tool call %q carries no function to replay", call.ID))
+			}
+		}
+	}
+	return nil
 }
 
 func extraBodyCarriesTools(extra map[string]any) bool {

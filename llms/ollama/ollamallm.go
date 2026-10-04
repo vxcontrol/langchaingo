@@ -148,6 +148,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	// override LLM model if set as llms.CallOption
 	model := o.getModel(opts)
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return nil, err
+	}
+	warn := &llms.Warnings{}
+	warn.AddInherited(model)
+	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
 
 	// convert messages to Ollama format
 	chatMsgs, err := o.prepareMessages(messages)
@@ -171,8 +177,6 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		req.Messages = injectStructuredOutputPrompt(req.Messages, opts.StructuredOutput.Schema, len(opts.Tools) > 0)
 	}
 
-	warn := &llms.Warnings{}
-	warn.AddInherited(model)
 	reportOllamaOptions(warn, model, opts)
 	thinking, err := o.thinkingFor(ctx, model, opts)
 	if err != nil {

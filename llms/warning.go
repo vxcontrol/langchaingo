@@ -258,6 +258,24 @@ func (w *Warnings) AddToolChoiceWithoutTools(model string, choice any) {
 	})
 }
 
+func (w *Warnings) ToolsWithAFunction(model string, tools []Tool) []Tool {
+	sent := make([]Tool, 0, len(tools))
+	for _, tool := range tools {
+		if tool.Function != nil {
+			sent = append(sent, tool)
+		}
+	}
+	if dropped := len(tools) - len(sent); dropped > 0 {
+		w.Add(Warning{
+			Kind: WarningDrop, Option: "WithTools", Model: model,
+			Asked:  strconv.Itoa(dropped) + " tools",
+			Reason: "a tool without a function definition has nothing to send",
+		})
+		return sent
+	}
+	return tools
+}
+
 func (w *Warnings) AddOffFloor(model, floor string) {
 	w.Add(Warning{
 		Kind: WarningSubstitute, Option: "WithReasoningDisabled", Model: model,

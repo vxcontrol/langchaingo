@@ -116,9 +116,12 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if err := opts.ValidateReasoning(); err != nil {
 		return nil, err
 	}
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return nil, err
+	}
 
 	turn := &llms.Warnings{}
-	opts.Tools = toolsWithAFunction(turn, opts.GetModel(), opts.Tools)
+	opts.Tools = turn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
 	onTheWire := opts
 	onTheWire.Functions, onTheWire.ExtraBody = nil, nil
 	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), onTheWire, messages, turn); err != nil {
@@ -259,9 +262,6 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 					Type:     "image",
 				})
 			case llms.ToolCall:
-				if part.FunctionCall == nil {
-					return nil, errors.New("tool call missing function call data")
-				}
 				arguments := map[string]any{}
 				if part.FunctionCall.Arguments != "" {
 					decoded, err := decodeToolArguments(part.FunctionCall.Arguments)

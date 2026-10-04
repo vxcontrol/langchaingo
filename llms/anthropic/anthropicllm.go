@@ -179,6 +179,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	if err := opts.ValidateReasoning(); err != nil {
 		return nil, err
 	}
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return nil, err
+	}
 
 	chatMessages, systemPrompt, err := processMessages(messages)
 	if err != nil {
@@ -192,6 +195,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	model := o.client.EffectiveModel(opts.GetModel())
 	warn := &llms.Warnings{}
 	warn.AddInherited(model)
+	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
 
 	var thinking *anthropicclient.ThinkingPayload
 	var outputConfig *anthropicclient.OutputConfig
@@ -870,9 +874,7 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 		case llms.TextContent:
 			thoughts = append(thoughts, p.Reasoning.Sequence()...)
 		case llms.ToolCall:
-			if p.FunctionCall != nil {
-				toolCalls++
-			}
+			toolCalls++
 		}
 	}
 	placed := reasoning.GroupByToolCalls(thoughts, toolCalls)
@@ -896,10 +898,6 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 				message.Content = append(message.Content, textContent)
 			}
 		case llms.ToolCall:
-			if p.FunctionCall == nil {
-				continue
-			}
-
 			var inputStruct map[string]interface{}
 			dec := json.NewDecoder(strings.NewReader(toolcall.Normalize(p.FunctionCall.Arguments)))
 			dec.UseNumber()

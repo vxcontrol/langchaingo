@@ -109,7 +109,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	warn := warningsFor(o.effectiveModel(opts))
-	if err := o.refuseBeforeTheNetwork(&opts, warn); err != nil {
+	if err := o.refuseBeforeTheNetwork(messages, &opts, warn); err != nil {
 		return nil, err
 	}
 
@@ -647,11 +647,15 @@ func warningsFor(model string) *llms.Warnings {
 	return warn
 }
 
-func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions, warn *llms.Warnings) error {
+func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.CallOptions, warn *llms.Warnings) error {
 	if err := opts.ValidateReasoning(); err != nil {
 		return err
 	}
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return err
+	}
 	model := o.effectiveModel(*opts)
+	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
 		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
