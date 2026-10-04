@@ -187,6 +187,26 @@ func TestNullableWithoutADeclaredTypeStillCompiles(t *testing.T) {
 	}
 }
 
+func TestNullableKeepsTheEnumAndConstOfItsNode(t *testing.T) {
+	t.Parallel()
+
+	for _, node := range []string{
+		`{"type":"string","enum":["a"],"nullable":true}`,
+		`{"type":"string","const":"a","nullable":true}`,
+	} {
+		compiled, err := structuredoutput.Compile(json.RawMessage(node))
+		if err != nil {
+			t.Fatalf("Compile(%s) error: %v", node, err)
+		}
+		if err := compiled.ValidateText(`"a"`); err != nil {
+			t.Fatalf("%s must admit its listed value: %v", node, err)
+		}
+		if err := compiled.ValidateText(`null`); err == nil {
+			t.Fatalf("%s must reject null: nullable widens the type, not the enum or const", node)
+		}
+	}
+}
+
 func TestNullableLeavesInstanceLiteralsAlone(t *testing.T) {
 	t.Parallel()
 
