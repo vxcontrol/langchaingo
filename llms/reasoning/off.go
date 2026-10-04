@@ -188,7 +188,7 @@ func openAIOffWire(model string) OffWire {
 	if offByOmission(model) {
 		return OffOmit
 	}
-	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) {
+	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) || dashScopeDeepSeekV3(model) {
 		return OffDisableDashScope
 	}
 	if disablesByThinkingObject(model) {

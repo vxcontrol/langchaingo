@@ -134,6 +134,11 @@ func dashScopeGuestRoute(model string) string {
 	return rest[:slash] + inheritedOrSelf(rest[slash:])
 }
 
+func dashScopeDeepSeekV3(model string) bool {
+	guest := dashScopeGuestSpelling(model)
+	return hasGeneration(guest, "deepseek-v3.1") || hasGeneration(guest, "deepseek-v3.2")
+}
+
 func dashScopeGuestSpelling(model string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
 	rest = strings.TrimPrefix(rest, "kimi/")

@@ -105,6 +105,7 @@ func TestDashScopeGuestsSpellOffWithTheDashScopeFlag(t *testing.T) {
 		"dashscope/glm-5.2", "dashscope/glm-5.1", "dashscope/glm-5", "dashscope/glm-4.7",
 		"dashscope/glm-4.6", "dashscope/glm-4.5",
 		"dashscope/deepseek-v4-pro", "dashscope/deepseek-v4-flash", "dashscope/deepseek-v4-flash-0731",
+		"dashscope/deepseek-v3.2", "dashscope/deepseek-v3.2-exp", "dashscope/deepseek-v3.1",
 		"dashscope/kimi-k2.6", "dashscope/kimi-k2.5",
 	} {
 		if got := ResolveOff(model, ProviderOpenAI); got != OffDisableDashScope {

@@ -42,6 +42,9 @@ func TestDisablingThinkingOnAHostThatServesTheFamilyUnderItsOwnName(t *testing.T
 		{"dashscope/glm-5.2", map[string]any{"enable_thinking": false}},
 		{"dashscope/deepseek-v4-pro", map[string]any{"enable_thinking": false}},
 		{"dashscope/deepseek-v4-flash-0731", map[string]any{"enable_thinking": false}},
+		{"dashscope/deepseek-v3.2", map[string]any{"enable_thinking": false}},
+		{"dashscope/deepseek-v3.2-exp", map[string]any{"enable_thinking": false}},
+		{"dashscope/deepseek-v3.1", map[string]any{"enable_thinking": false}},
 		{"mistral/zai-glm-5-2", map[string]any{}},
 		{"zai-glm-5-2", map[string]any{}},
 	} {
@@ -109,6 +112,27 @@ func TestDashScopeHostGetsTheGuestWireForNamesWithoutTheRoutePrefix(t *testing.T
 			}
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("reasoning fields on the wire = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDeepSeekV3GetsTheModelStudioFlagOnlyOnModelStudio(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		baseURL, model string
+		want           bool
+	}{
+		{dashScopeBaseURL, "deepseek-v3.2", true},
+		{gatewayBaseURL, "dashscope/deepseek-v3.1", true},
+		{"http://api.deepseek.com", "deepseek-v3.2", false},
+		{gatewayBaseURL, "deepseek/deepseek-v3.2", false},
+	} {
+		t.Run(tc.baseURL+" "+tc.model, func(t *testing.T) {
+			body, _ := sendToHost(t, tc.baseURL, tc.model, llms.WithReasoningDisabled())
+			if _, got := body["enable_thinking"]; got != tc.want {
+				t.Errorf("enable_thinking on the wire = %v, want %v (body %v)", got, tc.want, body)
 			}
 		})
 	}
