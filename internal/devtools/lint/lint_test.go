@@ -44,10 +44,12 @@ func TestFixKeepsTheRecordingTheReplayerWouldRead(t *testing.T) {
 		name               string
 		plainAt, gzipAt    time.Time
 		wantPlainRecording bool
+		wantHint           string
 	}{
-		{"the plain recording is newer", newer, older, true},
-		{"the gzip is newer", older, newer, false},
-		{"both carry the same time", newer, newer, false},
+		{"there is no gzip", newer, time.Time{}, true, "gzip "},
+		{"the plain recording is newer", newer, older, true, "gzip -f "},
+		{"the gzip is newer", older, newer, false, "rm "},
+		{"both carry the same time", newer, newer, false, "rm "},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Chdir(t.TempDir())
@@ -57,11 +59,13 @@ func TestFixKeepsTheRecordingTheReplayerWouldRead(t *testing.T) {
 			gzipRecording := []byte("httprr trace v1\n12 34\nGET /gz HTTP/1.1\r\n\r\nHTTP/1.1 200 OK\r\n\r\n")
 			require.NoError(t, os.MkdirAll(filepath.Dir(plain), 0o755))
 			require.NoError(t, os.WriteFile(plain, plainRecording, 0o644))
-			require.NoError(t, os.WriteFile(plain+".gz", gzipped(t, gzipRecording), 0o644))
 			require.NoError(t, os.Chtimes(plain, tc.plainAt, tc.plainAt))
-			require.NoError(t, os.Chtimes(plain+".gz", tc.gzipAt, tc.gzipAt))
+			if !tc.gzipAt.IsZero() {
+				require.NoError(t, os.WriteFile(plain+".gz", gzipped(t, gzipRecording), 0o644))
+				require.NoError(t, os.Chtimes(plain+".gz", tc.gzipAt, tc.gzipAt))
+			}
 
-			require.ErrorContains(t, checkHttprrCompression(false), plain)
+			require.ErrorContains(t, checkHttprrCompression(false), plain+": "+tc.wantHint+plain)
 			require.FileExists(t, plain, "a check without -fix changes nothing")
 
 			require.NoError(t, checkHttprrCompression(true))

@@ -621,23 +621,46 @@ func checkHttprrCompression(fix bool) error {
 
 	// Report the issue without fixing
 	var errorLines []string
-	errorLines = append(errorLines, fmt.Sprintf("Found %d uncompressed httprr files:", len(uncompressedFiles)))
+	errorLines = append(errorLines, fmt.Sprintf("Found %d uncompressed httprr files, each with the command that fixes it:", len(uncompressedFiles)))
 	for _, file := range uncompressedFiles {
-		errorLines = append(errorLines, fmt.Sprintf("  - %s", file))
+		gzipExists, gzipReplayed, err := httprrForms(file)
+		if err != nil {
+			return fmt.Errorf("failed to inspect %s: %w", file, err)
+		}
+		command := "gzip " + file
+		switch {
+		case gzipReplayed:
+			command = "rm " + file
+		case gzipExists:
+			command = "gzip -f " + file
+		}
+		errorLines = append(errorLines, fmt.Sprintf("  - %s: %s", file, command))
 	}
-	errorLines = append(errorLines, "")
-	errorLines = append(errorLines, "To fix this issue, replace each file with its gzip:")
-	errorLines = append(errorLines, "  gzip <file>.httprr")
 
 	return fmt.Errorf("%s", strings.Join(errorLines, "\n"))
 }
 
-func compressHttprrFile(path string) error {
+func httprrForms(path string) (gzipExists, gzipReplayed bool, err error) {
 	plain, err := os.Stat(path)
+	if err != nil {
+		return false, false, err
+	}
+	compressed, err := os.Stat(path + ".gz")
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, !plain.ModTime().After(compressed.ModTime()), nil
+}
+
+func compressHttprrFile(path string) error {
+	_, gzipReplayed, err := httprrForms(path)
 	if err != nil {
 		return err
 	}
-	if compressed, err := os.Stat(path + ".gz"); err == nil && !plain.ModTime().After(compressed.ModTime()) {
+	if gzipReplayed {
 		return os.Remove(path)
 	}
 	data, err := os.ReadFile(path)
