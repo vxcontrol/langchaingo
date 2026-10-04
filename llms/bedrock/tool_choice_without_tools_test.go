@@ -113,3 +113,53 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnBedrock(t *testing.T) {
 		require.Equal(t, map[string]any{"any": map[string]any{}}, toolConfig["toolChoice"])
 	}
 }
+
+func TestAPayloadWithoutToolsReportsAToolChoiceAsConverseDoes(t *testing.T) {
+	t.Parallel()
+
+	const metaAnswer = `{"generation":"ok","stop_reason":"stop","prompt_token_count":1,` +
+		`"generation_token_count":1}`
+	const novaAnswer = `{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},` +
+		`"stopReason":"end_turn","usage":{"inputTokens":1,"outputTokens":1,"totalTokens":2}}`
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}})
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+
+	for _, door := range []struct {
+		name, model, answer string
+		converse            bool
+	}{
+		{"legacy meta", "meta.llama3-70b-instruct-v1:0", metaAnswer, false},
+		{"legacy nova", "amazon.nova-lite-v1:0", novaAnswer, false},
+		{"converse meta", "meta.llama3-70b-instruct-v1:0", converseAnswer, true},
+	} {
+		opts := []bedrock.Option{bedrock.WithModel(door.model)}
+		if door.converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+		}
+		for _, tc := range []struct {
+			choice any
+			asked  string
+		}{
+			{"required", "any"},
+			{named, "lookup"},
+		} {
+			resp, _ := bedrockWarningsSending(t, door.answer, opts, llms.WithToolChoice(tc.choice))
+			require.Equal(t, []llms.Warning{{
+				Kind: llms.WarningDrop, Option: "WithToolChoice", Model: door.model,
+				Asked: tc.asked, Reason: "the request carries no tools to choose from",
+			}}, toolChoiceWarnings(resp.Warnings), "%s %v", door.name, tc.choice)
+		}
+		for _, choice := range []any{"auto", "none"} {
+			resp, _ := bedrockWarningsSending(t, door.answer, opts, llms.WithToolChoice(choice))
+			require.Empty(t, toolChoiceWarnings(resp.Warnings), "%s %v", door.name, choice)
+		}
+		if door.converse {
+			continue
+		}
+		resp, body := bedrockWarningsSending(t, door.answer, opts, tools, llms.WithToolChoice("required"))
+		require.NotContains(t, body, "tools", door.name)
+		require.Equal(t, "any", bedrockWarningsByOption(resp.Warnings)["WithToolChoice"].Asked, door.name)
+	}
+}

@@ -21,6 +21,7 @@ func reportHuggingFaceOptions(
 		})
 	}
 	reportHuggingFaceShapedOptions(opts, drop)
+	warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	if cfg := opts.Reasoning; cfg != nil && cfg.HasExplicitTokens() {
 		if effort := reasoningEffort(opts); cfg.Effort == llms.ReasoningNone && effort != "" {
 			warn.Add(llms.Warning{
@@ -41,14 +42,6 @@ func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, as
 	}
 	if len(opts.Tools) > 0 {
 		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
-	}
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
-		kind != llms.ToolChoiceAuto {
-		asked := name
-		if asked == "" {
-			asked = kind.String()
-		}
-		drop("WithToolChoice", asked)
 	}
 	if opts.StreamingFunc != nil {
 		drop("WithStreamingFunc", "a callback")

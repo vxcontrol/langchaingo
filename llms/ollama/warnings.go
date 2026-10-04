@@ -1,6 +1,7 @@
 package ollama
 
 import (
+	"cmp"
 	"strconv"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -22,15 +23,14 @@ func reportOllamaOptions(warn *llms.Warnings, model string, opts llms.CallOption
 	warn.AddUnreadOptions(model, opts, unread,
 		"WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
 		"WithTopK", "WithSeed", "WithJSONMode", "WithMinP")
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
-		kind != llms.ToolChoiceAuto {
-		asked := name
-		if asked == "" {
-			asked = kind.String()
-		}
+	kind, name := llms.ClassifyToolChoice(opts.ToolChoice)
+	switch {
+	case len(opts.Tools) == 0:
+		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
+	case kind != llms.ToolChoiceUnset && kind != llms.ToolChoiceAuto:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithToolChoice", Model: model,
-			Asked: asked, Reason: unread,
+			Asked: cmp.Or(name, kind.String()), Reason: unread,
 		})
 	}
 }

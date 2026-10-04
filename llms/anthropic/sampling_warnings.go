@@ -188,13 +188,7 @@ func reportAnthropicCompletions(warn *llms.Warnings, model string, opts llms.Cal
 	if len(opts.Tools) > 0 {
 		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
 	}
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
-		asked := name
-		if asked == "" {
-			asked = kind.String()
-		}
-		drop("WithToolChoice", asked)
-	}
+	warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	if opts.StructuredOutput != nil {
 		drop("WithStructuredOutput", opts.StructuredOutput.Name)
 	}

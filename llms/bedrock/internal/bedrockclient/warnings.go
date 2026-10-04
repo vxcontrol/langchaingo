@@ -27,16 +27,7 @@ func reportLegacyOptions(warn *llms.Warnings, provider, modelID string, options 
 				Asked: strconv.Itoa(len(options.Tools)) + " tools", Reason: reason,
 			})
 		}
-		if kind, name := llms.ClassifyToolChoice(options.ToolChoice); kind != llms.ToolChoiceUnset {
-			asked := name
-			if asked == "" {
-				asked = "kind " + strconv.Itoa(int(kind))
-			}
-			warn.Add(llms.Warning{
-				Kind: llms.WarningDrop, Option: "WithToolChoice", Model: modelID,
-				Asked: asked, Reason: reason,
-			})
-		}
+		warn.AddToolChoiceWithoutTools(modelID, options.ToolChoice)
 	}
 	if !legacyCarriesTopK[provider] && options.TopK != nil && *options.TopK != 0 {
 		warn.Add(llms.Warning{

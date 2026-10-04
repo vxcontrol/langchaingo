@@ -157,3 +157,34 @@ func TestTheExtraBodyDropNamesTheDoorsOwnReason(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "the door does not forward extra body fields", w.Reason, "this door marshals its own payload")
 }
+
+func TestAToolChoiceIsReportedAsOnEveryDoorThatSendsNoTools(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "lookup"}}})
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{named, "lookup"},
+	} {
+		for _, call := range [][]llms.CallOption{
+			{llms.WithToolChoice(tc.choice)},
+			{llms.WithToolChoice(tc.choice), tools},
+		} {
+			w, ok := hfWarningsByOption(generateForWarnings(t, oneMessage(), call...).Warnings)["WithToolChoice"]
+			require.True(t, ok, "%v", tc.choice)
+			require.Equal(t, llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithToolChoice", Model: "Qwen/Qwen3-32B",
+				Asked: tc.asked, Reason: "the request carries no tools to choose from",
+			}, w)
+		}
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		resp := generateForWarnings(t, oneMessage(), llms.WithToolChoice(choice))
+		require.Empty(t, resp.Warnings, "%v: nothing to choose from changes nothing", choice)
+	}
+}
