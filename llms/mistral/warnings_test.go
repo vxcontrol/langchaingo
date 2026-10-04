@@ -134,3 +134,34 @@ func TestTheMistralDoorReportsBothLengthOptionsItNeverReads(t *testing.T) {
 		require.Contains(t, got, option, "the door's request has no field for it")
 	}
 }
+
+func TestFunctionsBesideToolsAreReportedAsDropped(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object"},
+	}}})
+	functions := llms.WithFunctions([]llms.FunctionDefinition{{
+		Name: "now", Parameters: map[string]any{"type": "object"},
+	}})
+
+	sentTools := func(body map[string]any) []string {
+		list, _ := body["tools"].([]any)
+		names := make([]string, 0, len(list))
+		for _, tool := range list {
+			fn, _ := tool.(map[string]any)["function"].(map[string]any)
+			name, _ := fn["name"].(string)
+			names = append(names, name)
+		}
+		return names
+	}
+
+	require.Equal(t, []string{"lookup"}, sentTools(captureMistralRequest(t, tools, functions)))
+	w, ok := mistralWarningsByOption(generateForWarnings(t, tools, functions).Warnings)["WithFunctions"]
+	require.True(t, ok, "the functions beside the tools went nowhere unreported")
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "1 functions", w.Asked)
+
+	require.Equal(t, []string{"now"}, sentTools(captureMistralRequest(t, functions)))
+	require.NotContains(t, mistralWarningsByOption(generateForWarnings(t, functions).Warnings), "WithFunctions")
+}

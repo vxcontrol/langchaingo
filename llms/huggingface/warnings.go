@@ -42,9 +42,6 @@ func reportHuggingFaceShapedOptions(opts *llms.CallOptions, drop func(option, as
 	if len(opts.Tools) > 0 {
 		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
 	}
-	if len(opts.Functions) > 0 {
-		drop("WithFunctions", strconv.Itoa(len(opts.Functions))+" functions")
-	}
 	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset &&
 		kind != llms.ToolChoiceAuto {
 		asked := name

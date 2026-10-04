@@ -132,6 +132,12 @@ var unreadCatalogue = []struct {
 		}
 		return ""
 	}},
+	{"WithFunctions", func(o CallOptions) string {
+		if len(o.Functions) == 0 {
+			return ""
+		}
+		return strconv.Itoa(len(o.Functions)) + " functions"
+	}},
 }
 
 func askedFloat(v *float64) string {

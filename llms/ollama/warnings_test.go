@@ -51,13 +51,15 @@ func TestOptionsWithNoFieldOnThisDoorAreReported(t *testing.T) {
 		llms.WithN(2), llms.WithCandidateCount(3),
 		llms.WithToolChoice(llms.ToolChoice{
 			Type: "function", Function: &llms.FunctionReference{Name: "get_weather"},
-		}))
+		}),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}))
 
 	got := ollamaWarningsByOption(resp.Warnings)
 	require.NotContains(t, got, "WithMinP", "min_p reaches the wire")
 	for option, asked := range map[string]string{
 		"WithLogProbs": "true", "WithTopLogProbs": "2",
 		"WithN": "2", "WithCandidateCount": "3", "WithToolChoice": "get_weather",
+		"WithFunctions": "1 functions",
 	} {
 		w, ok := got[option]
 		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)

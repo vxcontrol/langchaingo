@@ -11,7 +11,11 @@ func reportMistralUnread(warn *llms.Warnings, model string, opts *llms.CallOptio
 	const unread = "the door's request has no field for it"
 
 	warn.AddUnreadExtraBody(model, *opts, extraBodyUnread)
-	warn.AddUnreadOptions(model, *opts, unread, "WithSeed", "WithJSONMode")
+	carried := []string{"WithSeed", "WithJSONMode"}
+	if len(opts.Tools) == 0 {
+		carried = append(carried, "WithFunctions")
+	}
+	warn.AddUnreadOptions(model, *opts, unread, carried...)
 }
 
 func reportMistralOptions(warn *llms.Warnings, model string, opts *llms.CallOptions) {

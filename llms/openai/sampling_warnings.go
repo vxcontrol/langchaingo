@@ -81,7 +81,7 @@ func reportOpenAIUnread(warn *llms.Warnings, model string, opts llms.CallOptions
 	warn.AddUnreadOptions(model, opts, unread,
 		"WithMinP", "WithRepetitionPenalty", "WithFrequencyPenalty", "WithPresencePenalty",
 		"WithTopK", "WithN", "WithTopLogProbs", "WithSeed", "WithVerbosity",
-		"WithLogProbs", "WithJSONMode")
+		"WithLogProbs", "WithJSONMode", "WithFunctions")
 }
 
 func samplingReason(model, host string, opts llms.CallOptions, wireEffort string) string {

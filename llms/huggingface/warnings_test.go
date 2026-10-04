@@ -122,7 +122,8 @@ func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 		llms.WithLogProbs(true), llms.WithMinP(0.05), llms.WithTopK(40),
 		llms.WithN(2), llms.WithCandidateCount(3), llms.WithTopLogProbs(5),
-		llms.WithMinLength(10), llms.WithMaxLength(20), llms.WithJSONMode())
+		llms.WithMinLength(10), llms.WithMaxLength(20), llms.WithJSONMode(),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}))
 
 	seen := make(map[string]int, len(resp.Warnings))
 	for _, w := range resp.Warnings {
@@ -132,6 +133,7 @@ func TestTheHuggingFaceDoorReportsEachOptionOnce(t *testing.T) {
 		require.Equal(t, 1, count, "%s reported %d times: %v", option, count, resp.Warnings)
 	}
 	require.Contains(t, seen, "WithLogProbs", "the door builds no logprobs field")
+	require.Contains(t, seen, "WithFunctions", "the door builds no tools field")
 }
 
 func TestABudgetWithoutAnEffortIsReportedAsTheEffortItBecame(t *testing.T) {

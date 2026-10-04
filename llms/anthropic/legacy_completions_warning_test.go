@@ -40,12 +40,13 @@ func TestTheLegacyAnthropicPathReportsWhatItCannotCarry(t *testing.T) {
 		llms.WithTopK(40), llms.WithSeed(7), llms.WithN(2),
 		llms.WithJSONMode(), llms.WithReasoning(llms.ReasoningHigh, 0),
 		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{Name: "f"}}}),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}),
 	)
 	require.NoError(t, err)
 
 	got := warningsByOption(resp.Warnings)
 	for _, option := range []string{
-		"WithTopK", "WithSeed", "WithN", "WithJSONMode", "WithReasoning", "WithTools",
+		"WithTopK", "WithSeed", "WithN", "WithJSONMode", "WithReasoning", "WithTools", "WithFunctions",
 	} {
 		require.Contains(t, got, option, "the legacy request has no field for it: %v", resp.Warnings)
 	}
