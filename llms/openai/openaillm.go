@@ -429,7 +429,7 @@ func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.Call
 	case on:
 		return true
 	case off:
-		return false
+		return reasoning.ResolveOff(model, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
