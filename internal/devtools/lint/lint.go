@@ -633,6 +633,13 @@ func checkHttprrCompression(fix bool) error {
 }
 
 func compressHttprrFile(path string) error {
+	plain, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if compressed, err := os.Stat(path + ".gz"); err == nil && !plain.ModTime().After(compressed.ModTime()) {
+		return os.Remove(path)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err

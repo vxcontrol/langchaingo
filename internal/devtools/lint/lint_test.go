@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -35,20 +36,42 @@ func gunzipFile(t *testing.T, path string) []byte {
 	return data
 }
 
-func TestFixReplacesAnUncompressedRecordingWithItsGzip(t *testing.T) {
-	t.Chdir(t.TempDir())
+func TestFixKeepsTheRecordingTheReplayerWouldRead(t *testing.T) {
+	older := time.Now().Add(-time.Hour)
+	newer := time.Now()
 
-	plain := filepath.Join("llms", "acme", "testdata", "TestCall.httprr")
-	recording := []byte("httprr trace v1\n12 34\nGET / HTTP/1.1\r\n\r\nHTTP/1.1 200 OK\r\n\r\n")
-	require.NoError(t, os.MkdirAll(filepath.Dir(plain), 0o755))
-	require.NoError(t, os.WriteFile(plain, recording, 0o644))
-	require.NoError(t, os.WriteFile(plain+".gz", gzipped(t, []byte("an older recording")), 0o644))
+	for _, tc := range []struct {
+		name               string
+		plainAt, gzipAt    time.Time
+		wantPlainRecording bool
+	}{
+		{"the plain recording is newer", newer, older, true},
+		{"the gzip is newer", older, newer, false},
+		{"both carry the same time", newer, newer, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
 
-	require.ErrorContains(t, checkHttprrCompression(false), plain)
-	require.FileExists(t, plain, "a check without -fix changes nothing")
+			plain := filepath.Join("llms", "acme", "testdata", "TestCall.httprr")
+			plainRecording := []byte("httprr trace v1\n12 34\nGET / HTTP/1.1\r\n\r\nHTTP/1.1 200 OK\r\n\r\n")
+			gzipRecording := []byte("httprr trace v1\n12 34\nGET /gz HTTP/1.1\r\n\r\nHTTP/1.1 200 OK\r\n\r\n")
+			require.NoError(t, os.MkdirAll(filepath.Dir(plain), 0o755))
+			require.NoError(t, os.WriteFile(plain, plainRecording, 0o644))
+			require.NoError(t, os.WriteFile(plain+".gz", gzipped(t, gzipRecording), 0o644))
+			require.NoError(t, os.Chtimes(plain, tc.plainAt, tc.plainAt))
+			require.NoError(t, os.Chtimes(plain+".gz", tc.gzipAt, tc.gzipAt))
 
-	require.NoError(t, checkHttprrCompression(true))
-	require.NoFileExists(t, plain, "the replayer reads a plain recording before its gzip")
-	require.Equal(t, recording, gunzipFile(t, plain+".gz"), "the plain recording is the newer one")
-	require.NoError(t, checkHttprrCompression(false))
+			require.ErrorContains(t, checkHttprrCompression(false), plain)
+			require.FileExists(t, plain, "a check without -fix changes nothing")
+
+			require.NoError(t, checkHttprrCompression(true))
+			require.NoFileExists(t, plain)
+			want := gzipRecording
+			if tc.wantPlainRecording {
+				want = plainRecording
+			}
+			require.Equal(t, string(want), string(gunzipFile(t, plain+".gz")))
+			require.NoError(t, checkHttprrCompression(false))
+		})
+	}
 }
