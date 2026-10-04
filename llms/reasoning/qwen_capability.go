@@ -27,7 +27,7 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
-func DashScopeTakesNoJSONSchema(route string) bool {
+func dashScopeTakesNoJSONSchema(route string) bool {
 	if guest := dashScopeGuestSpelling(route); strings.HasPrefix(guest, "kimi") || strings.HasPrefix(guest, "moonshot-kimi") {
 		return true
 	}
@@ -135,16 +135,10 @@ func dashScopeGuestSpelling(model string) string {
 	return inheritedOrSelf(rest)
 }
 
-var dashScopeHosts = []string{
-	"dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com", "dashscope-us.aliyuncs.com",
-	"cn-hongkong.dashscope.aliyuncs.com",
-}
-
 // DashScopeRoute returns the name the rules read for a model sent to host: a
 // name sent to Model Studio's own host reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
-	onDashScope := slices.Contains(dashScopeHosts, host) || strings.HasSuffix(host, ".maas.aliyuncs.com")
-	if !onDashScope || strings.HasPrefix(strings.ToLower(model), "dashscope/") {
+	if vendor, _ := vendorOfHost(host); vendor != VendorDashScope || strings.HasPrefix(strings.ToLower(model), "dashscope/") {
 		return model
 	}
 	return "dashscope/" + model

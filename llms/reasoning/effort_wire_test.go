@@ -241,20 +241,42 @@ func TestEffortWithTools(t *testing.T) {
 func TestTakesNoJSONSchema(t *testing.T) {
 	t.Parallel()
 
-	for model, want := range map[string]bool{
-		"deepseek-flash":           true,
-		"deepseek-v4-pro":          true,
-		"deepseek-chat":            true,
-		"deepseek/deepseek-v4-pro": true,
-		"DeepSeek-V4-Pro":          true,
-		"glm-5.3":                  true,
-		"zai/glm-5.3":              true,
-		"glm-5-2":                  false, // served by Mistral, which documents json_schema for it
-		"deepseekcoder":            false, // not a current DeepSeek name: every one reads "deepseek-..."
-		"gpt-4o":                   false,
+	const (
+		deepSeek, zai, bigModel = "api.deepseek.com", "api.z.ai", "open.bigmodel.cn"
+		dashScope, mistral      = "dashscope-intl.aliyuncs.com", "api.mistral.ai"
+		gateway, vllm           = "litellm.internal", "vllm.internal"
+	)
+	for _, tc := range []struct {
+		model, host string
+		want        bool
+	}{
+		{"deepseek-flash", deepSeek, true},
+		{"deepseek-v4-pro", deepSeek, true},
+		{"deepseek-chat", deepSeek, true},
+		{"DeepSeek-V4-Pro", deepSeek, true},
+		{"deepseek/deepseek-v4-pro", gateway, true},
+		{"glm-5.3", zai, true},
+		{"glm-4.6", bigModel, true},
+		{"zai/glm-5.3", gateway, true},
+		{"qwq-plus", dashScope, true},
+		{"dashscope/qwq-plus", gateway, true},
+		{"glm-5-2", mistral, false},
+		{"mistral/glm-5-2", gateway, false},
+		{"deepseekcoder", deepSeek, false},
+		{"glm-4.6", deepSeek, false},
+		{"deepseek-v4-pro", zai, false},
+		{"qwen3.7-plus", dashScope, false},
+		{"gpt-4o", "api.openai.com", false},
+		{"glm-4.6", vllm, false},
+		{"zai-org/GLM-4.6", vllm, false},
+		{"deepseek-v4-pro", vllm, false},
+		{"deepseek-ai/DeepSeek-V3.2", vllm, false},
+		{"deepseek/deepseek-v4-pro", "openrouter.ai", false},
+		{"zai/glm-4.6", "ai-gateway.vercel.sh", false},
+		{"deepseek/deepseek-v4-pro", "api.novita.ai", false},
 	} {
-		if got := TakesNoJSONSchema(model); got != want {
-			t.Errorf("TakesNoJSONSchema(%q) = %v, want %v", model, got, want)
+		if got := TakesNoJSONSchema(tc.model, tc.host); got != tc.want {
+			t.Errorf("TakesNoJSONSchema(%q, %q) = %v, want %v", tc.model, tc.host, got, tc.want)
 		}
 	}
 }

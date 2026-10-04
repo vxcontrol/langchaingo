@@ -244,8 +244,15 @@ func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
 		"deepseek-v5-flash on DashScope":         {dashScopeBaseURL, "deepseek-v5-flash", effort},
 		"deepseek-v4-pro on a gateway":           {gatewayBaseURL, "deepseek-v4-pro", effort},
 		"deepseek/deepseek-v4-pro on OpenRouter": {openRouterBaseURL, "deepseek/deepseek-v4-pro", effort},
+		"deepseek/deepseek-v4-pro on Vercel":     {"http://ai-gateway.vercel.sh/v1", "deepseek/deepseek-v4-pro", effort},
+		"deepseek/deepseek-v4-flash on ZenMux":   {"http://zenmux.ai/api/v1", "deepseek/deepseek-v4-flash", effort},
+		"deepseek/deepseek-v4-flash on Novita":   {"http://api.novita.ai/openai", "deepseek/deepseek-v4-flash", nil},
 	} {
-		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.thinking, llms.WithTemperature(0.4))
+		opts := []llms.CallOption{llms.WithTemperature(0.4)}
+		if tc.thinking != nil {
+			opts = append(opts, tc.thinking)
+		}
+		body, resp := sendToHost(t, tc.baseURL, tc.model, opts...)
 		if body["temperature"] != 0.4 {
 			t.Errorf("%s: only DeepSeek's own API documents temperature as ignored while thinking, got body: %v",
 				name, body)
@@ -423,4 +430,25 @@ func TestLogProbsReachTheWireAndYieldToThinking(t *testing.T) {
 			t.Errorf("gpt-5.4 takes logprobs at the none effort, got body: %v", body)
 		}
 	})
+}
+
+func TestDeepSeekIDsOnAPublicProviderKeepTheTopK(t *testing.T) {
+	t.Parallel()
+
+	for _, baseURL := range []string{"http://ai-gateway.vercel.sh/v1", "http://zenmux.ai/api/v1", "http://api.novita.ai/openai"} {
+		body, resp := sendToHost(t, baseURL, "deepseek/deepseek-v4-pro", llms.WithTopK(40))
+		if body["top_k"] != float64(40) {
+			t.Errorf("%s: the provider's catalogue id is not DeepSeek's API, got body: %v", baseURL, body)
+		}
+		for _, w := range resp.Warnings {
+			if w.Option == "WithTopK" {
+				t.Errorf("%s: top_k reached the wire, yet it is reported: %+v", baseURL, w)
+			}
+		}
+	}
+
+	body, _ := sendToHost(t, gatewayBaseURL, "deepseek/deepseek-v4-pro", llms.WithTopK(40))
+	if _, ok := body["top_k"]; ok {
+		t.Errorf("the gateway's deepseek route is DeepSeek's API, which has no top_k, got body: %v", body)
+	}
 }

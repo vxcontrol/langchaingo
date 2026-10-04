@@ -334,8 +334,7 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOn
 	}
 
-	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) ||
-		reasoning.ServedByZAI(o.effectiveModel(opts), o.host) || o.host == "api.mistral.ai" {
+	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(model, o.host) {
 		req.MaxTokens = opts.MaxTokens
 	} else {
 		req.MaxCompletionTokens = opts.MaxTokens
@@ -638,14 +637,14 @@ func (o *LLM) servedByOpenAI() bool {
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {
 	if reasoning.GrokFamily(model) {
-		return o.host == "api.x.ai" || strings.HasPrefix(strings.ToLower(model), "xai/")
+		return reasoning.ServedBy(model, o.host) == reasoning.VendorXAI
 	}
 	return o.servedByOpenAI()
 }
 
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
 	return !o.client.ModernReasoningFormat &&
-		!publicProviderHost(o.host) &&
+		!reasoning.PublicProviderHost(o.host) &&
 		reasoning.ClaudeThinkingObjectRoute(model)
 }
 

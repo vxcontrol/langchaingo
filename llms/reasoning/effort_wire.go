@@ -22,8 +22,6 @@ func RejectsPenalties(model string) bool {
 // Models & Pricing page lists them.
 var deepSeekAPIModels = []string{"deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"}
 
-const deepSeekAPIHost = "api.deepseek.com"
-
 func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
 	if ServedByDeepSeek(model, host) {
 		return true
@@ -55,8 +53,7 @@ func RejectsRequiredToolChoice(model, host string) bool {
 }
 
 func servedByMoonshot(model, host string) bool {
-	return host == "api.moonshot.ai" || host == "api.moonshot.cn" ||
-		strings.HasPrefix(strings.ToLower(model), "moonshot/")
+	return ServedBy(model, host) == VendorMoonshot
 }
 
 type ErrStopWordsUnsupported struct{ Model string }
@@ -87,23 +84,21 @@ func GrokFamily(model string) bool {
 }
 
 func ServedByZAI(model, host string) bool {
-	if host != "api.z.ai" && host != "open.bigmodel.cn" && !strings.HasPrefix(strings.ToLower(model), "zai/") {
-		return false
-	}
+	return ServedBy(model, host) == VendorZAI && namesFamily(model, "glm-")
+}
+
+func ServedByDeepSeek(model, host string) bool {
+	return ServedBy(model, host) == VendorDeepSeek &&
+		onDeepSeekAPI(strings.TrimPrefix(strings.ToLower(model), "deepseek/"))
+}
+
+func namesFamily(model, prefix string) bool {
 	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "glm-") {
+		if strings.HasPrefix(form, prefix) {
 			return true
 		}
 	}
 	return false
-}
-
-func ServedByDeepSeek(model, host string) bool {
-	m := strings.ToLower(model)
-	if rest, ok := strings.CutPrefix(m, "deepseek/"); ok && host != "openrouter.ai" {
-		return onDeepSeekAPI(rest)
-	}
-	return host == deepSeekAPIHost && onDeepSeekAPI(m)
 }
 
 func onDeepSeekAPI(name string) bool {
@@ -169,18 +164,19 @@ func FixesSampling(model string) bool {
 	return false
 }
 
-// TakesNoJSONSchema reports whether the vendor's chat completions response_format
-// takes only text and json_object, so a JSON schema cannot be asked for.
-func TakesNoJSONSchema(model string) bool {
-	if ServedByMistral(model) {
+// TakesNoJSONSchema reports whether the vendor API that serves the call takes no
+// JSON schema as a response_format.
+func TakesNoJSONSchema(model, host string) bool {
+	switch ServedBy(model, host) {
+	case VendorDeepSeek:
+		return namesFamily(model, "deepseek-")
+	case VendorZAI:
+		return namesFamily(model, "glm-")
+	case VendorDashScope:
+		return dashScopeTakesNoJSONSchema(DashScopeRoute(model, host))
+	default:
 		return false
 	}
-	for _, form := range modelSpellings(model) {
-		if strings.HasPrefix(form, "deepseek-") || strings.HasPrefix(form, "glm-") {
-			return true
-		}
-	}
-	return false
 }
 
 func TakesNoJSONObject(model string) bool {
@@ -242,7 +238,10 @@ func ReplaysReasoningInThinkTags(model string) bool {
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as
 // max_tokens rather than max_completion_tokens.
-func UsesLegacyMaxTokens(model string) bool {
+func UsesLegacyMaxTokens(model, host string) bool {
+	if ServedByZAI(model, host) || ServedBy(model, host) == VendorMistral {
+		return true
+	}
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "grok") ||
 			strings.HasPrefix(form, "qwen") ||

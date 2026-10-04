@@ -139,7 +139,7 @@ func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool
 	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
 		return false
 	}
-	return (takesNoJSONSchema(model, o.host) && noJSONObjectReason(model) == "") ||
+	return (reasoning.TakesNoJSONSchema(model, o.host) && noJSONObjectReason(model) == "") ||
 		reasoning.TakesNoResponseFormat(model)
 }
 
@@ -232,7 +232,7 @@ func openAIStructuredOutputUnsupported(model, host string) string {
 		m = m[idx+1:]
 	}
 	switch {
-	case takesNoJSONSchema(model, host):
+	case reasoning.TakesNoJSONSchema(model, host):
 		return "the vendor's chat completions response_format takes only text and json_object"
 	case reasoning.TakesNoResponseFormat(model):
 		return takesNoResponseFormat
@@ -325,8 +325,4 @@ func openAISubschemas(node map[string]any) []any {
 		}
 	}
 	return out
-}
-
-func takesNoJSONSchema(model, host string) bool {
-	return reasoning.TakesNoJSONSchema(model) || reasoning.DashScopeTakesNoJSONSchema(reasoning.DashScopeRoute(model, host))
 }

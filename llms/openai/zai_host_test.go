@@ -75,9 +75,14 @@ func TestGLMOnZAIIsSentTheTemperatureRangeZAIDocuments(t *testing.T) {
 		}
 	}
 
-	body, warnings := hostCall(t, "http://litellm.internal/v1", "glm-4.6", llms.WithTemperature(1.5))
-	assert.InDelta(t, 1.5, body["temperature"], 1e-9, "another host decides its own range")
-	assert.NotContains(t, warnings, "WithTemperature")
+	for _, route := range []struct{ baseURL, model string }{
+		{"http://litellm.internal/v1", "glm-4.6"},
+		{"https://ai-gateway.vercel.sh/v1", "zai/glm-4.6"},
+	} {
+		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(1.5))
+		assert.InDelta(t, 1.5, body["temperature"], 1e-9, "another host decides its own range: %v", route)
+		assert.NotContains(t, warnings, "WithTemperature", route)
+	}
 }
 
 func TestZAIAndMistralAreSentTheAnswerLimitTheirSchemasName(t *testing.T) {
@@ -87,14 +92,21 @@ func TestZAIAndMistralAreSentTheAnswerLimitTheirSchemasName(t *testing.T) {
 		{"https://api.z.ai/api/paas/v4", "glm-4.6"},
 		{"https://open.bigmodel.cn/api/paas/v4", "glm-5.2"},
 		{"https://api.mistral.ai/v1", "mistral-large-latest"},
+		{"https://codestral.mistral.ai/v1", "codestral-latest"},
 		{"http://litellm.internal/v1", "zai/glm-5.2"},
+		{"http://litellm.internal/v1", "mistral/mistral-large-latest"},
 	} {
 		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithMaxTokens(1000))
-		assert.InDelta(t, 1000, body["max_tokens"], 0, tc.baseURL)
-		assert.NotContains(t, body, "max_completion_tokens", tc.baseURL)
+		assert.InDelta(t, 1000, body["max_tokens"], 0, tc.model)
+		assert.NotContains(t, body, "max_completion_tokens", tc.model)
 	}
 
-	body, _ := hostCall(t, "http://litellm.internal/v1", "glm-5.2", llms.WithMaxTokens(1000))
-	assert.InDelta(t, 1000, body["max_completion_tokens"], 0)
-	assert.NotContains(t, body, "max_tokens")
+	for _, tc := range []struct{ baseURL, model string }{
+		{"http://litellm.internal/v1", "glm-5.2"},
+		{"https://ai-gateway.vercel.sh/v1", "zai/glm-5.2"},
+	} {
+		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithMaxTokens(1000))
+		assert.InDelta(t, 1000, body["max_completion_tokens"], 0, tc.model)
+		assert.NotContains(t, body, "max_tokens", tc.model)
+	}
 }
