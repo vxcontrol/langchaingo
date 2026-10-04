@@ -351,3 +351,125 @@ func TestAHiddenNewestReleaseReadsAsTheOneBeforeItInItsOwnLine(t *testing.T) {
 		require.Equal(t, slices.MaxFunc(without(line, newest), byVersion).members[""], g.members[""], tier)
 	}
 }
+
+type modelLine struct{ family, product, qualifier, version string }
+
+func lineOf(model string) (modelLine, bool) {
+	if c := canonicalClaude(model); strings.Contains(c, "claude-") {
+		tier, major, minor, ok := claudeVersion(c[strings.Index(c, "claude-"):])
+		return modelLine{"claude", tier, "", fmt.Sprintf("%d.%d", major, minor)}, ok
+	}
+	_, bare := splitModelName(model)
+	for _, f := range lineFamilies {
+		p, ok := f.parse(bare)
+		if !ok {
+			continue
+		}
+		version := fmt.Sprintf("%d.%d", p.major, p.minor)
+		if f.decimalMinor {
+			version = fmt.Sprintf("%d.%s", p.major, cmp.Or(strings.TrimRight(fmt.Sprintf("%02d", p.minor), "0"), "0"))
+		}
+		return modelLine{strings.Split(f.prefix, "-")[0], p.product, p.qualifier, version}, true
+	}
+	return modelLine{}, false
+}
+
+func TestADocumentedIDReadsAsItsLineAndVersionOnEveryHost(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		id    string
+		want  modelLine
+		hosts []string
+	}{
+		{"claude-opus-4-6", modelLine{"claude", "opus", "", "4.6"}, []string{
+			"anthropic/claude-opus-4-6", "openrouter/anthropic/claude-opus-4.6", "us.anthropic.claude-opus-4-6-v1:0",
+			"bedrock/us.anthropic.claude-opus-4-6-v1:0", "claude-opus-4-6@20250514", "vertex_ai/claude-opus-4-6",
+		}},
+		{"claude-3-7-sonnet-20250219", modelLine{"claude", "sonnet", "", "3.7"}, []string{
+			"claude-3-7-sonnet", "us.anthropic.claude-3-7-sonnet-20250219-v1:0", "claude-3-7-sonnet@20250219",
+			"anthropic/claude-3.7-sonnet",
+		}},
+		{"us.anthropic.claude-fable-5-1-v1:0", modelLine{"claude", "fable", "", "5.1"}, []string{
+			"claude-fable-5-1", "anthropic/claude-fable-5.1", "claude-fable-5-1@20250514",
+		}},
+		{"claude-opus-latest", modelLine{"claude", "opus", "", "5.5"}, []string{
+			"~anthropic/claude-opus-latest", "openrouter/anthropic/claude-opus-latest",
+		}},
+		{"gpt-6.1-sol", modelLine{"gpt", "sol", "", "6.1"}, []string{
+			"openai/gpt-6.1-sol", "openrouter/openai/gpt-6.1-sol", "azure/gpt-6.1-sol",
+		}},
+		{"gpt-6-sol", modelLine{"gpt", "sol", "", "6.0"}, []string{"openai/gpt-6-sol"}},
+		{"gpt-5.6", modelLine{"gpt", "", "", "5.6"}, []string{"openai/gpt-5.6"}},
+		{"gpt-5.4-mini", modelLine{"gpt", "", "mini", "5.4"}, []string{"openai/gpt-5.4-mini", "azure/gpt-5.4-mini"}},
+		{"gpt-5-pro", modelLine{"gpt", "pro", "", "5.0"}, []string{"openai/gpt-5-pro"}},
+		{"gpt-5.2-pro", modelLine{"gpt", "pro", "", "5.2"}, []string{"openai/gpt-5.2-pro"}},
+		{"gpt-5.1-codex-max", modelLine{"gpt", "codex", "max", "5.1"}, []string{"openai/gpt-5.1-codex-max"}},
+		{"gpt-5.3-codex", modelLine{"gpt", "codex", "", "5.3"}, []string{"openai/gpt-5.3-codex"}},
+		{"gemini-2.5-flash-lite", modelLine{"gemini", "flash-lite", "", "2.5"}, []string{
+			"models/gemini-2.5-flash-lite", "gemini/gemini-2.5-flash-lite", "vertex_ai/gemini-2.5-flash-lite",
+			"google/gemini-2.5-flash-lite",
+		}},
+		{"gemini-3-flash-preview", modelLine{"gemini", "flash", "", "3.0"}, []string{
+			"models/gemini-3-flash-preview", "gemini/gemini-3-flash-preview", "google/gemini-3-flash-preview",
+		}},
+		{"gemini-pro-latest", modelLine{"gemini", "pro", "", "3.1"}, []string{"models/gemini-pro-latest"}},
+		{"glm-5.3", modelLine{"glm", "", "", "5.3"}, []string{"zai/glm-5.3", "zai-glm-5-3", "mistral/zai-glm-5-3"}},
+		{"glm-5.3-flash", modelLine{"glm", "", "flash", "5.3"}, []string{"zai/glm-5.3-flash", "z-ai/glm-5.3-flash"}},
+		{"glm-5.3-flashx", modelLine{"glm", "", "flashx", "5.3"}, []string{"zai/glm-5.3-flashx"}},
+		{"qwen3-235b-a22b-thinking-2507", modelLine{"qwen", "thinking", "", "3.0"}, []string{
+			"dashscope/qwen3-235b-a22b-thinking-2507", "qwen/qwen3-235b-a22b-thinking-2507",
+		}},
+		{"qwen3.8-2.4t-a95b", modelLine{"qwen", "", "", "3.8"}, []string{"dashscope/qwen3.8-2.4t-a95b"}},
+		{"qwen3-max-2025-09-23", modelLine{"qwen", "", "max", "3.0"}, []string{"dashscope/qwen3-max-2025-09-23"}},
+		{"qwen3.7-max-preview", modelLine{"qwen", "", "max", "3.7"}, []string{"dashscope/qwen3.7-max-preview"}},
+		{"qwen3.7-max-2026-05-17", modelLine{"qwen", "", "max", "3.7"}, []string{"dashscope/qwen3.7-max-2026-05-17"}},
+		{"qwen3.6-max-preview", modelLine{"qwen", "", "max", "3.6"}, []string{"dashscope/qwen3.6-max-preview"}},
+		{"kimi-k2.5", modelLine{"kimi", "", "", "2.5"}, []string{"moonshot/kimi-k2.5", "moonshotai/kimi-k2.5"}},
+		{"kimi-k2.6", modelLine{"kimi", "", "", "2.6"}, []string{
+			"moonshot/kimi-k2.6", "moonshotai/kimi-k2.6", "dashscope/kimi/kimi-k2.6",
+		}},
+		{"kimi-k2.7-code", modelLine{"kimi", "code", "", "2.7"}, []string{"moonshot/kimi-k2.7-code"}},
+		{"MiniMax-M2-her", modelLine{"minimax", "her", "", "2.0"}, []string{"minimax/MiniMax-M2-her"}},
+		{"MiniMax-M3.1-Flash-Preview", modelLine{"minimax", "flash", "", "3.1"}, []string{"minimax/MiniMax-M3.1-Flash-Preview"}},
+		{"deepseek-v4-pro", modelLine{"deepseek", "", "pro", "4.0"}, []string{"deepseek/deepseek-v4-pro", "dashscope/deepseek-v4-pro"}},
+		{"deepseek-v4-flash-0731", modelLine{"deepseek", "", "flash", "4.0"}, []string{"dashscope/deepseek-v4-flash-0731"}},
+		{"grok-3-mini", modelLine{"grok", "mini", "", "3.0"}, []string{"xai/grok-3-mini"}},
+		{"grok-4-0709", modelLine{"grok", "", "", "4.0"}, []string{"xai/grok-4-0709"}},
+		{"grok-4.3", modelLine{"grok", "", "", "4.3"}, []string{"xai/grok-4.3", "xai.grok-4.3"}},
+		{"grok-4.6", modelLine{"grok", "", "", "4.6"}, []string{"xai/grok-4.6", "us.xai.grok-4.6"}},
+	} {
+		got, ok := lineOf(tc.id)
+		require.True(t, ok, "%s is read into no line", tc.id)
+		assert.Equal(t, tc.want, got, tc.id)
+		documented, inherited := InheritedModel(tc.id)
+		assert.False(t, inherited && documented != tc.id, "%s is documented, yet follows %s", tc.id, documented)
+		for _, host := range tc.hosts {
+			got, ok := lineOf(host)
+			assert.True(t, ok, "%s, the host spelling of %s, is read into no line", host, tc.id)
+			assert.Equal(t, tc.want, got, "%s, the host spelling of %s", host, tc.id)
+		}
+	}
+}
+
+func TestADocumentedIDOutsideTheLinesReadsAsItself(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{
+		"o1-preview", "o1-mini", "o1", "o3-mini", "o3", "o4-mini", "gpt-4o-2024-05-13",
+		"mistral-medium-latest", "mistral-small-latest", "ministral-2410", "pixtral-12b",
+		"deepseek-chat", "deepseek-reasoner", "deepseek-flash", "qwen-plus", "qwen-max", "qwen-flash", "kimi-latest",
+	} {
+		documented, inherited := InheritedModel(id)
+		assert.False(t, inherited, "%s reads as %s", id, documented)
+	}
+
+	for _, spelling := range []string{
+		"openai.gpt-oss-safeguard-20b-1:0", "openai.gpt-oss-safeguard-20b", "gpt-oss-safeguard:20b",
+		"openai/gpt-oss-safeguard-20b", "gpt-oss:120b", "openai/gpt-oss-120b:groq",
+	} {
+		assert.True(t, IsGptOssModel(spelling), spelling)
+		got, parsed := lineOf(spelling)
+		assert.False(t, parsed, "%s is read as a gpt release %v", spelling, got)
+	}
+}

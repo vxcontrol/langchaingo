@@ -45,6 +45,9 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 	if len(parts) < 2 {
 		return "", 0, 0, false
 	}
+	if isDigits(parts[0]) {
+		return claudeVersionBeforeTier(parts)
+	}
 	if line := claudeReleases[parts[0]]; parts[1] == "latest" && len(line) > 0 {
 		newest := slices.MaxFunc(line, compareVersions)
 		return parts[0], newest.major, newest.minor, true
@@ -59,6 +62,19 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 		}
 	}
 	return parts[0], major, minor, true
+}
+
+func claudeVersionBeforeTier(parts []string) (tier string, major, minor int, ok bool) {
+	major, _ = strconv.Atoi(parts[0])
+	rest := parts[1:]
+	if len(rest) > 1 && len(rest[0]) <= 2 && isDigits(rest[0]) {
+		minor, _ = strconv.Atoi(rest[0])
+		rest = rest[1:]
+	}
+	if !isClaudeTier(rest[0]) {
+		return "", 0, 0, false
+	}
+	return rest[0], major, minor, true
 }
 
 func inheritClaude(canonical string) (string, bool) {
@@ -198,8 +214,8 @@ var lineFamilies = []lineFamily{
 				{5, 4, map[string]string{"": "gpt-5.4-pro"}}, {5, 5, map[string]string{"": "gpt-5.5-pro"}},
 			},
 		},
-		products:   []string{"sol", "luna", "terra", "astra", "cyber", "pro"},
-		qualifiers: []string{"mini", "nano"},
+		products:   []string{"sol", "luna", "terra", "astra", "cyber", "pro", "codex"},
+		qualifiers: []string{"mini", "nano", "max"},
 	},
 	{
 		prefix: "glm-",
@@ -267,6 +283,7 @@ var lineFamilies = []lineFamily{
 		products:   []string{"thinking", "instruct", "vl", "omni", "coder", "next"},
 		qualifiers: []string{"max", "plus", "flash", "turbo"},
 		stages:     []string{"preview"},
+		sizes:      true,
 	},
 	{
 		prefix: "grok-",
