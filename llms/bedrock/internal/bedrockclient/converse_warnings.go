@@ -85,6 +85,9 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		reportEffortClamp(warn, model, string(cfg.Effort), sent, thinkingSent,
 			cfg, converseThinkingBudget(built))
 	}
+	if built.ToolConfig == nil {
+		warn.AddToolChoiceWithoutTools(model, input.ToolChoice)
+	}
 	choice, _ := llms.ClassifyToolChoice(input.ToolChoice)
 	if choice == llms.ToolChoiceNone &&
 		built.ToolConfig != nil && built.ToolConfig.ToolChoice != nil {

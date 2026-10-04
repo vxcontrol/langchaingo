@@ -118,7 +118,9 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	turn := &llms.Warnings{}
-	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), opts, messages, turn); err != nil {
+	onTheWire := opts
+	onTheWire.ExtraBody = nil
+	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), onTheWire, messages, turn); err != nil {
 		return nil, err
 	}
 

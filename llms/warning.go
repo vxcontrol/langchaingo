@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"cmp"
 	"fmt"
 	"sort"
 	"strconv"
@@ -238,6 +239,17 @@ func offSent(off reasoning.OffWire) string {
 		return "between_tools"
 	}
 	return "off"
+}
+
+func (w *Warnings) AddToolChoiceWithoutTools(model string, choice any) {
+	name, forced := ForcedToolName(choice)
+	if !forced {
+		return
+	}
+	w.Add(Warning{
+		Kind: WarningDrop, Option: "WithToolChoice", Model: model,
+		Asked: cmp.Or(name, ToolChoiceAny.String()), Reason: "the request carries no tools to choose from",
+	})
 }
 
 func (w *Warnings) AddOffFloor(model, floor string) {

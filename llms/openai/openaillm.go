@@ -303,7 +303,7 @@ func (o *LLM) createChatRequest(
 		Verbosity:            opts.Verbosity,
 		LogProbs:             opts.LogProbs != nil && *opts.LogProbs || derefInt(opts.TopLogProbs) > 0,
 		TopLogProbs:          derefInt(opts.TopLogProbs),
-		ToolChoice:           toolChoiceForTheToolsOffered(opts),
+		ToolChoice:           toolChoiceForTheToolsOffered(opts, o.effectiveModel(opts), warn),
 		FunctionCallBehavior: openaiclient.FunctionCallBehavior(opts.FunctionCallBehavior),
 		Seed:                 opts.Seed,
 		Metadata:             opts.Metadata,
@@ -371,7 +371,7 @@ func (o *LLM) createChatRequest(
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
 ) error {
-	if len(req.Tools) == 0 {
+	if !llms.OffersTools(opts) {
 		return nil
 	}
 	choice := req.ToolChoice
@@ -1186,8 +1186,9 @@ func webSearchOptionsFromCallOptions(opts *llms.WebSearchOptions) *openaiclient.
 	return result
 }
 
-func toolChoiceForTheToolsOffered(opts llms.CallOptions) any {
-	if len(opts.Tools) == 0 && len(opts.Functions) == 0 {
+func toolChoiceForTheToolsOffered(opts llms.CallOptions, model string, warn *llms.Warnings) any {
+	if !llms.OffersTools(opts) {
+		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 		return nil
 	}
 	return openaiToolChoice(opts.ToolChoice)

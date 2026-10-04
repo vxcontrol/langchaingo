@@ -87,6 +87,9 @@ func reportLegacyAnthropic(
 		sentThinking = input.Thinking.Type
 	}
 	reportClaudeOffFloor(warn, modelID, sentThinking)
+	if len(input.Tools) == 0 {
+		warn.AddToolChoiceWithoutTools(modelID, options.ToolChoice)
+	}
 
 	if options.Temperature != nil {
 		reportClaudeTemperature(warn, modelID, reshaped, *options.Temperature, input.Temperature, sentThinking)
