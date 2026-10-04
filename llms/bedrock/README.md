@@ -197,25 +197,13 @@ source of truth used by the first-party Anthropic provider):
 
 - **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` + `output_config.effort` when the call names an effort (without one the model's own default applies); budget thinking and sampling params are rejected. Bedrock serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5, Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8, which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to Opus 5 and Sonnet 5 and no effort beside it; Sonnet 5.5, which rejects `disabled`, gets its lowest level `thinking.type=between_tools` with no effort and a `WarningSubstitute`; Fable 5 cannot be disabled. Opus 4.7/4.8 default off, so omitting thinking already yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
-- **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` +
-  `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on
-  this path; Opus 4.5 accepts it on the first-party API but rejects it here, so
-  this door does not send it.
+- **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` + `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on this path; Opus 4.5 accepts it on the first-party API but rejects it here, so this door does not send it.
 
 Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1.
 
 ## Structured Output
 
-The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for
-the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku
-4.5 (not through the `in.` India inference profile); any other Claude model returns a
-typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model
-card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3,
-Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose
-card is silent return the same typed error. The final response is guaranteed to be a
-single JSON value
-matching the supplied JSON Schema (Draft 2020-12), validated locally against the
-original schema.
+The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku 4.5 (not through the `in.` India inference profile); any other Claude model returns a typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3, Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose card is silent return the same typed error. The final response is guaranteed to be a single JSON value matching the supplied JSON Schema (Draft 2020-12), validated locally against the original schema.
 
 ```go
 schema := json.RawMessage(`{
