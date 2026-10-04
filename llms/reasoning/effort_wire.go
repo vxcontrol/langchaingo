@@ -27,7 +27,8 @@ func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
 		return true
 	}
 	if ServedBy(model, host) == VendorDashScope {
-		return true
+		name, _ := dashScopeRouteName(DashScopeRoute(model, host))
+		return named || strings.HasPrefix(name, "qwen") || qwqOrQVQ(name)
 	}
 	if !servedByMoonshot(model, host) {
 		return false

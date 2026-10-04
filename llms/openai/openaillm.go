@@ -388,7 +388,6 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
-		!named && reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope,
 		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && o.thinksOnTheWire(req, model, opts, wireEffort):
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
@@ -426,7 +425,13 @@ func (o *LLM) withholdToolsInsteadOfNone(
 }
 
 func (o *LLM) thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
-	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+	extra := llms.ExtraBody(opts)
+	on, off := llms.ExtraBodyThinking(extra)
+	if reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope {
+		enabled, set := extra["enable_thinking"].(bool)
+		on, off = set && enabled, set && !enabled
+	}
+	switch {
 	case on:
 		return true
 	case off:
@@ -439,7 +444,7 @@ func (o *LLM) thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts 
 	if reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host)) {
 		return false
 	}
-	return thinkingRuns(model, opts, wireEffort)
+	return reasoning.IsReasoningModel(model) && thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -870,6 +875,10 @@ func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
 	case off:
 		return false
 	}
+	return thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+}
+
+func thinkingRunsWithoutTheExtraBody(model string, opts llms.CallOptions, wireEffort string) bool {
 	if opts.Reasoning.IsDisabled() {
 		return false
 	}
