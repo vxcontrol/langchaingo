@@ -57,6 +57,8 @@ func TestAForcedToolChoiceTheVendorRejectsIsRefusedBeforeTheNetwork(t *testing.T
 			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": true}), named}},
 		"Kimi K2.6 on Model Studio switched on by the door, named": {dashScope, "kimi-k2.6",
 			[]llms.CallOption{thinking, named}},
+		"Kimi K2.6 on Model Studio switched on by the extra body, named": {dashScope, "kimi-k2.6",
+			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": true}), named}},
 		"Qwen through the gateway's dashscope route": {gateway, "dashscope/qwen3.6-plus", []llms.CallOption{thinking, named}},
 		"Kimi thinking, named":                       {moonshot, "kimi-k2.5", []llms.CallOption{thinking, named}},
 		"Kimi K2.6, required":                        {moonshot, "kimi-k2.6", []llms.CallOption{required}},
