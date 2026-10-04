@@ -429,7 +429,8 @@ func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.Call
 	case on:
 		return true
 	case off:
-		return reasoning.ResolveOff(model, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
+		_, inherited := reasoning.InheritedModel(model)
+		return !inherited && reasoning.ResolveOff(model, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
