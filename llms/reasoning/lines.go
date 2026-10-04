@@ -73,6 +73,15 @@ func inheritClaude(canonical string) (string, bool) {
 	return g.members[""], true
 }
 
+func latestClaude(canonical string) (string, bool) {
+	tier, major, minor, ok := claudeVersion(canonical)
+	if !ok || !strings.HasPrefix(canonical, "claude-"+tier+"-latest") {
+		return "", false
+	}
+	g, _, _ := nearest(claudeReleases[tier], major, minor)
+	return g.members[""], true
+}
+
 type generation struct {
 	major, minor int
 	members      map[string]string
