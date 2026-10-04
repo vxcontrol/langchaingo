@@ -87,7 +87,7 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 	}
 
 	warn := &llms.Warnings{}
-	reportMistralOptions(warn, callOptions.GetModel(), callOptions)
+	reportMistralOptions(warn, callOptions.GetModel(), callOptions, len(chatOpts.Tools) > 0)
 
 	if callOptions.StreamingFunc != nil {
 		resp, err = generateStreamingContent(ctx, m, callOptions, messages, chatOpts)
@@ -138,7 +138,6 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 	if callOpts.GetJSONMode() {
 		chatOpts.ResponseFormat = sdk.ResponseFormatJsonObject
 	}
-	chatOpts.ToolChoice = mistralToolChoice(callOpts.ToolChoice)
 	if len(callOpts.Tools) > 0 {
 		for _, tool := range callOpts.Tools {
 			chatOpts.Tools = append(chatOpts.Tools, sdk.Tool{
@@ -161,6 +160,9 @@ func mistralChatParamsFromCallOptions(callOpts *llms.CallOptions) (sdk.ChatReque
 				},
 			})
 		}
+	}
+	if len(chatOpts.Tools) > 0 || !llms.ForcesToolUse(callOpts.ToolChoice) {
+		chatOpts.ToolChoice = mistralToolChoice(callOpts.ToolChoice)
 	}
 	return chatOpts, nil
 }
