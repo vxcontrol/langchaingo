@@ -428,8 +428,7 @@ func (o *LLM) thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts 
 	extra := llms.ExtraBody(opts)
 	on, off := llms.ExtraBodyThinking(extra)
 	if reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope {
-		enabled, set := extra["enable_thinking"].(bool)
-		on, off = set && enabled, set && !enabled
+		on, off = modelStudioThinkingSwitch(reasoning.DashScopeRoute(model, o.host), extra)
 	}
 	switch {
 	case on:
@@ -863,6 +862,20 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 		return false
 	}
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
+}
+
+func modelStudioThinkingSwitch(route string, extra map[string]any) (on, off bool) {
+	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) {
+	case reasoning.OffDisableDashScope, reasoning.OffOmit:
+		enabled, set := extra["enable_thinking"].(bool)
+		return set && enabled, set && !enabled
+	case reasoning.OffEffortNone:
+		return llms.ExtraBodyThinking(map[string]any{"reasoning_effort": extra["reasoning_effort"]})
+	case reasoning.OffDisableThinkingObject:
+		return llms.ExtraBodyThinking(map[string]any{"thinking": extra["thinking"]})
+	default:
+		return false, false
+	}
 }
 
 func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
