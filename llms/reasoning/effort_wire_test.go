@@ -154,9 +154,16 @@ func TestServedByDeepSeek(t *testing.T) {
 		{"openrouter/deepseek/deepseek-v4-pro", gateway, false},
 		{"deepseek-v4-flash-0731", deepSeek, false},
 		{"deepseek-v4.1-flash", deepSeek, false},
+		{"deepseek-v5-flash", deepSeek, true},
+		{"deepseek-v4.2-flash", deepSeek, true},
+		{"deepseek-v5", deepSeek, true},
+		{"deepseek/deepseek-v5-flash", gateway, true},
+		{"deepseek-v5-flash", dashScope, false},
+		{"deepseek/deepseek-v5-flash", "openrouter.ai", false},
 		{"deepseek-r1", deepSeek, false},
 		{"deepseek-v3.2", deepSeek, false},
 		{"gpt-5.5", deepSeek, false},
+		{"kimi-k4", deepSeek, false},
 	} {
 		if got := ServedByDeepSeek(tc.model, tc.host); got != tc.served {
 			t.Errorf("ServedByDeepSeek(%q, %q) = %v, want %v", tc.model, tc.host, got, tc.served)

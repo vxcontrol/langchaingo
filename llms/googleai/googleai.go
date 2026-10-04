@@ -168,7 +168,9 @@ func (g *GoogleAI) GenerateContent(
 		}
 		config.Tools = tools
 	}
-	if toolConfig := googleToolConfig(opts.ToolChoice); toolConfig != nil && len(config.Tools) > 0 {
+	if len(config.Tools) == 0 {
+		warn.AddToolChoiceWithoutTools(opts.GetModel(), opts.ToolChoice)
+	} else if toolConfig := googleToolConfig(opts.ToolChoice); toolConfig != nil {
 		config.ToolConfig = toolConfig
 	}
 

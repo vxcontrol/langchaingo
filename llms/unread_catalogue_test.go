@@ -12,7 +12,7 @@ import (
 var optionsOutsideTheCatalogue = map[string]bool{
 	"Model": true, "MaxTokens": true, "Temperature": true, "StopWords": true, "StreamingFunc": true,
 	"TopP": true, "Reasoning": true, "FailOnTruncation": true, "StructuredOutput": true,
-	"Tools": true, "ToolChoice": true, "Functions": true, "FunctionCallBehavior": true,
+	"Tools": true, "ToolChoice": true, "FunctionCallBehavior": true,
 	"ExtraBody": true, "Metadata": true, "Voice": true, "Speed": true, "ResponseFormat": true,
 	"WebSearchOptions": true,
 }
@@ -31,6 +31,8 @@ func setAsked(t *testing.T, field reflect.Value, name string) {
 		field.Set(reflect.ValueOf(new(true)))
 	case bool:
 		field.SetBool(true)
+	case []llms.FunctionDefinition:
+		field.Set(reflect.ValueOf([]llms.FunctionDefinition{{Name: "asked"}}))
 	default:
 		t.Fatalf("CallOptions.%s is neither reported by the unread catalogue nor listed outside it", name)
 	}

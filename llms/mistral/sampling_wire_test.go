@@ -84,7 +84,9 @@ func TestToolChoiceReachesTheMistralWire(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, sent := captureMistralRequest(t, llms.WithToolChoice(tc.choice))["tool_choice"]
+			got, sent := captureMistralRequest(t, llms.WithToolChoice(tc.choice), llms.WithTools([]llms.Tool{{
+				Type: "function", Function: &llms.FunctionDefinition{Name: "get_weather"},
+			}}))["tool_choice"]
 			if tc.want == nil {
 				if sent {
 					t.Errorf("must stay off the wire, got %v", got)

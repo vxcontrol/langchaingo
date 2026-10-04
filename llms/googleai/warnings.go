@@ -107,11 +107,7 @@ func reportGoogleAIDisableFloor(warn *llms.Warnings, model string, tc *genai.Thi
 	if tc == nil || tc.ThinkingLevel == "" || reasoning.GeminiTogglesThinkingByLevel(model) {
 		return
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
-		Asked: "off", Sent: strings.ToLower(string(tc.ThinkingLevel)),
-		Reason: "this model has no off switch, only a lowest thinking level",
-	})
+	warn.AddOffFloor(model, strings.ToLower(string(tc.ThinkingLevel)))
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"

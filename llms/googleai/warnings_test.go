@@ -45,11 +45,12 @@ func TestOptionsThisDoorNeverReadsAreReported(t *testing.T) {
 	t.Parallel()
 
 	resp := generateForWarnings(t, "gemini-2.5-flash",
-		llms.WithN(3), llms.WithLogProbs(true), llms.WithTopLogProbs(2))
+		llms.WithN(3), llms.WithLogProbs(true), llms.WithTopLogProbs(2),
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}))
 
 	got := googleWarningsByOption(resp.Warnings)
 	for option, asked := range map[string]string{
-		"WithN": "3", "WithLogProbs": "true", "WithTopLogProbs": "2",
+		"WithN": "3", "WithLogProbs": "true", "WithTopLogProbs": "2", "WithFunctions": "1 functions",
 	} {
 		w, ok := got[option]
 		require.True(t, ok, "no %s warning in %v", option, resp.Warnings)

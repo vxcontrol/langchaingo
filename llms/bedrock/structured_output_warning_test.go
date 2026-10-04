@@ -3,8 +3,12 @@ package bedrock_test
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -141,4 +145,90 @@ func TestAStreamedSchemaIsRefusedWhereTheCardDocumentsItForNonStreamingCallsOnly
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)}))
 	require.NoError(t, err, "the same model takes the schema on a non-streaming call")
 	require.NotEmpty(t, *sent)
+}
+
+func converseStreamSending(t *testing.T, model string, call ...llms.CallOption) (*llms.ContentResponse, map[string]any) {
+	t.Helper()
+
+	var raw []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/vnd.amazon.eventstream")
+		enc := eventstream.NewEncoder()
+		writeConverseEvent(t, w, enc, "messageStart", `{"role":"assistant"}`)
+		writeConverseEvent(t, w, enc, "contentBlockDelta", `{"contentBlockIndex":0,"delta":{"text":"{\"answer\":\"ok\"}"}}`)
+		writeConverseEvent(t, w, enc, "contentBlockStop", `{"contentBlockIndex":0}`)
+		writeConverseEvent(t, w, enc, "messageStop", `{"stopReason":"end_turn"}`)
+		writeConverseEvent(t, w, enc, "metadata", `{"usage":{"inputTokens":1,"outputTokens":1,"totalTokens":2}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(model), bedrock.WithConverseAPI())
+	resp, err := llm.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		append([]llms.CallOption{llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })}, call...)...)
+	require.NoError(t, err, model)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(raw, &body), model)
+	return resp, body
+}
+
+func requireInheritedSchema(t *testing.T, resp *llms.ContentResponse, model string) {
+	t.Helper()
+
+	w := bedrockWarningsByOption(resp.Warnings)["WithStructuredOutput"]
+	require.Equal(t, llms.WarningInherit, w.Kind, "%s: %v", model, resp.Warnings)
+	require.Equal(t, "s", w.Asked, model)
+	require.Equal(t, "s", w.Sent, model)
+}
+
+func TestAnUnlistedVersionOnBedrockIsSentASchemaItsReleaseWouldRefuse(t *testing.T) {
+	t.Parallel()
+
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)})
+	for _, model := range []string{"anthropic.claude-opus-6-0-v1:0", "us.anthropic.claude-sonnet-6-v1:0", "zai.glm-6"} {
+		resp, body := bedrockWarningsSending(t, converseSchemaAnswer,
+			[]bedrock.Option{bedrock.WithModel(model), bedrock.WithConverseAPI()}, schema)
+		format, _ := body["outputConfig"].(map[string]any)
+		require.Contains(t, format, "textFormat", "%s: %v", model, body)
+		requireInheritedSchema(t, resp, model)
+	}
+
+	resp, body := bedrockWarningsSending(t, legacySchemaAnswer,
+		[]bedrock.Option{bedrock.WithModel("anthropic.claude-opus-6-0-v1:0")}, schema)
+	config, _ := body["output_config"].(map[string]any)
+	format, _ := config["format"].(map[string]any)
+	require.Equal(t, "json_schema", format["type"], "%v", body)
+	requireInheritedSchema(t, resp, "legacy anthropic.claude-opus-6-0-v1:0")
+
+	for _, model := range []string{"us.openai.gpt-7-sol", "openai.gpt-6.2-sol"} {
+		resp, body := converseStreamSending(t, model, schema)
+		require.Contains(t, body, "outputConfig", model)
+		extra, _ := body["additionalModelRequestFields"].(map[string]any)
+		require.Equal(t, map[string]any{"format": map[string]any{"strict": true}}, extra["text"], model)
+		requireInheritedSchema(t, resp, model)
+	}
+}
+
+func TestAListedReleaseOnBedrockKeepsItsSchemaRefusal(t *testing.T) {
+	t.Parallel()
+
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)})
+	for _, door := range []struct {
+		answer string
+		opts   []bedrock.Option
+	}{
+		{legacySchemaAnswer, nil},
+		{converseSchemaAnswer, []bedrock.Option{bedrock.WithConverseAPI()}},
+	} {
+		for _, model := range []string{"anthropic.claude-opus-5-5-v1:0", "us.anthropic.claude-opus-4-7-v1:0"} {
+			llm, sent := legacyLLMCapturing(t, door.answer, append([]bedrock.Option{bedrock.WithModel(model)}, door.opts...)...)
+			_, err := llm.GenerateContent(t.Context(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, schema)
+			var refused *llms.ErrStructuredOutputUnsupported
+			require.ErrorAs(t, err, &refused, model)
+			require.Contains(t, refused.Reason, "neither API", model)
+			require.Empty(t, *sent, "%s: refused before the network", model)
+		}
+	}
 }

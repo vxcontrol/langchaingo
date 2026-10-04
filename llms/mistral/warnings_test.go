@@ -134,3 +134,74 @@ func TestTheMistralDoorReportsBothLengthOptionsItNeverReads(t *testing.T) {
 		require.Contains(t, got, option, "the door's request has no field for it")
 	}
 }
+
+func TestFunctionsBesideToolsAreReportedAsDropped(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object"},
+	}}})
+	functions := llms.WithFunctions([]llms.FunctionDefinition{{
+		Name: "now", Parameters: map[string]any{"type": "object"},
+	}})
+
+	sentTools := func(body map[string]any) []string {
+		list, _ := body["tools"].([]any)
+		names := make([]string, 0, len(list))
+		for _, tool := range list {
+			fn, _ := tool.(map[string]any)["function"].(map[string]any)
+			name, _ := fn["name"].(string)
+			names = append(names, name)
+		}
+		return names
+	}
+
+	require.Equal(t, []string{"lookup"}, sentTools(captureMistralRequest(t, tools, functions)))
+	w, ok := mistralWarningsByOption(generateForWarnings(t, tools, functions).Warnings)["WithFunctions"]
+	require.True(t, ok, "the functions beside the tools went nowhere unreported")
+	require.Equal(t, llms.WarningDrop, w.Kind)
+	require.Equal(t, "1 functions", w.Asked)
+
+	require.Equal(t, []string{"now"}, sentTools(captureMistralRequest(t, functions)))
+	require.NotContains(t, mistralWarningsByOption(generateForWarnings(t, functions).Warnings), "WithFunctions")
+}
+
+func TestAToolChoiceWithoutToolsIsReportedAsOnEveryDoor(t *testing.T) {
+	t.Parallel()
+
+	toolChoiceWarnings := func(warnings []llms.Warning) []llms.Warning {
+		var found []llms.Warning
+		for _, w := range warnings {
+			if w.Option == "WithToolChoice" {
+				found = append(found, w)
+			}
+		}
+		return found
+	}
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{"any", "any"},
+		{named, "lookup"},
+	} {
+		require.NotContains(t, captureMistralRequest(t, llms.WithToolChoice(tc.choice)), "tool_choice", "%v", tc.choice)
+		require.Equal(t, []llms.Warning{{
+			Kind: llms.WarningDrop, Option: "WithToolChoice", Model: "mistral-small-latest",
+			Asked: tc.asked, Reason: "the request carries no tools to choose from",
+		}}, toolChoiceWarnings(generateForWarnings(t, llms.WithToolChoice(tc.choice)).Warnings), "%v", tc.choice)
+	}
+
+	for _, choice := range []string{"auto", "none"} {
+		require.Equal(t, choice, captureMistralRequest(t, llms.WithToolChoice(choice))["tool_choice"])
+		require.Empty(t, generateForWarnings(t, llms.WithToolChoice(choice)).Warnings, choice)
+	}
+
+	functions := llms.WithFunctions([]llms.FunctionDefinition{{Name: "lookup"}})
+	require.Equal(t, "any", captureMistralRequest(t, functions, llms.WithToolChoice("required"))["tool_choice"])
+	require.Empty(t, generateForWarnings(t, functions, llms.WithToolChoice("required")).Warnings)
+	w := mistralWarningsByOption(generateForWarnings(t, functions, llms.WithToolChoice(named)).Warnings)["WithToolChoice"]
+	require.Equal(t, "the door's tool choice is a bare string, so a named tool has no shape to travel in", w.Reason)
+}

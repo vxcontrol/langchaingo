@@ -2,6 +2,7 @@ package bedrockclient
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -126,17 +127,13 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	}
 	model, named := modelNamedByID(input.ModelID)
 	if named && isAnthropicModelID(model) && !reasoning.ClaudeSupportsStructuredOutputOnBedrock(model) {
-		return &llms.ErrStructuredOutputUnsupported{
-			Provider: providerBedrock,
-			Model:    input.ModelID,
-			Reason:   claudeStructuredOutputRefusal(model),
+		if err := refuseStructuredOutput(input.Warnings, input.ModelID, so, claudeStructuredOutputRefusal(model)); err != nil {
+			return err
 		}
 	}
 	if named && !isAnthropicModelID(model) && !reasoning.BedrockSupportsStructuredOutput(model) {
-		return &llms.ErrStructuredOutputUnsupported{
-			Provider: providerBedrock,
-			Model:    input.ModelID,
-			Reason:   bedrockModelCardStructuredOutputReason,
+		if err := refuseStructuredOutput(input.Warnings, input.ModelID, so, bedrockModelCardStructuredOutputReason); err != nil {
+			return err
 		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;
@@ -146,10 +143,8 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	}
 	if named && reasoning.BedrockStructuredOutputNeedsStrict(model) {
 		if input.StreamingFunc != nil {
-			return &llms.ErrStructuredOutputUnsupported{
-				Provider: providerBedrock,
-				Model:    input.ModelID,
-				Reason:   bedrockStreamedSchemaReason,
+			if err := refuseStructuredOutput(input.Warnings, input.ModelID, so, bedrockStreamedSchemaReason); err != nil {
+				return err
 			}
 		}
 		fields := converseAdditionalFields(converseInput)
@@ -174,6 +169,15 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 	return nil
 }
 
+func refuseStructuredOutput(warn *llms.Warnings, modelID string, so *llms.StructuredOutputConfig, reason string) error {
+	refusal := &llms.ErrStructuredOutputUnsupported{Provider: providerBedrock, Model: modelID, Reason: reason}
+	asked := cmp.Or(so.Name, "a JSON Schema")
+	if warn.KeepRefusal(modelID, "WithStructuredOutput", asked, asked, refusal) {
+		return refusal
+	}
+	return nil
+}
+
 func claudeStructuredOutputRefusal(model string) string {
 	if reasoning.ClaudeStructuredOutputBlockedByProfile(model) {
 		return bedrockProfileStructuredOutputReason
@@ -190,15 +194,15 @@ const (
 
 // applyAnthropicStructuredOutput folds a per-call schema into the legacy Anthropic
 // output_config.format, preserving any effort already set.
-func applyAnthropicStructuredOutput(input *anthropicTextGenerationInput, modelID string, so *llms.StructuredOutputConfig) error {
+func applyAnthropicStructuredOutput(
+	input *anthropicTextGenerationInput, modelID string, so *llms.StructuredOutputConfig, warn *llms.Warnings,
+) error {
 	if so == nil {
 		return nil
 	}
 	if !reasoning.ClaudeSupportsStructuredOutputOnBedrock(modelID) {
-		return &llms.ErrStructuredOutputUnsupported{
-			Provider: providerBedrock,
-			Model:    modelID,
-			Reason:   claudeStructuredOutputRefusal(modelID),
+		if err := refuseStructuredOutput(warn, modelID, so, claudeStructuredOutputRefusal(modelID)); err != nil {
+			return err
 		}
 	}
 	// Bedrock rejects an object schema that omits additionalProperties:false;

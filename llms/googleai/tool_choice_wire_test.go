@@ -152,3 +152,32 @@ func TestNoToolConfigGoesOutWithoutTools(t *testing.T) {
 		assert.NotContains(t, body, "toolConfig", "%v with no tools must not reach the wire", choice)
 	}
 }
+
+func TestAForcedToolChoiceWithoutToolsIsReportedAsDropped(t *testing.T) {
+	t.Parallel()
+
+	named := llms.ToolChoice{Type: "function", Function: &llms.FunctionReference{Name: "lookup"}}
+	for _, tc := range []struct {
+		choice any
+		asked  string
+	}{
+		{"required", "any"},
+		{named, "lookup"},
+	} {
+		var reported []llms.Warning
+		for _, w := range generateForWarnings(t, "gemini-2.5-flash", llms.WithToolChoice(tc.choice)).Warnings {
+			if w.Option == "WithToolChoice" {
+				reported = append(reported, w)
+			}
+		}
+		require.Len(t, reported, 1, "%v", tc.choice)
+		assert.Equal(t, llms.WarningDrop, reported[0].Kind)
+		assert.Equal(t, tc.asked, reported[0].Asked)
+	}
+
+	for _, choice := range []any{"auto", "none"} {
+		for _, w := range generateForWarnings(t, "gemini-2.5-flash", llms.WithToolChoice(choice)).Warnings {
+			assert.NotEqual(t, "WithToolChoice", w.Option, "%v: nothing to choose from changes nothing", choice)
+		}
+	}
+}

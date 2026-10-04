@@ -58,6 +58,34 @@ func TestEveryClaudeVersionATableKeysOnIsAListedRelease(t *testing.T) {
 			}
 			documented, inherited := inheritClaude(entry)
 			require.False(t, inherited, "%s is keyed on by a table, yet would be read as %s", entry, documented)
+			newest, alias := latestClaude(entry)
+			require.False(t, alias, "%s is keyed on by a table, yet is read as %s", entry, newest)
+		}
+	}
+}
+
+func TestAClaudeLatestAliasAnswersEveryTableLikeTheNewestReleaseOfItsTier(t *testing.T) {
+	t.Parallel()
+
+	for tier, line := range claudeReleases {
+		newest := slices.MaxFunc(line, compareVersions).members[""]
+		for _, frame := range []string{"", "~anthropic/", "anthropic/"} {
+			alias := frame + "claude-" + tier + "-latest"
+			got, want := tableAnswers(alias), tableAnswers(frame+newest)
+			for name, rule := range map[string]func(string) bool{
+				"ClaudeMutuallyExclusiveSampling": ClaudeMutuallyExclusiveSampling,
+				"ClaudeSupportsStructuredOutput":  ClaudeSupportsStructuredOutput,
+				"ClaudePredatesAdaptive":          ClaudePredatesAdaptive,
+				"ClaudeInterleavesOnBudget":       ClaudeInterleavesOnBudget,
+				"ClaudeSpendsThinkingBudget":      ClaudeSpendsThinkingBudget,
+			} {
+				got[name], want[name] = rule(alias), rule(frame+newest)
+			}
+			for key := range want {
+				assert.Equal(t, want[key], got[key], "%s should answer %s like %s", alias, key, newest)
+			}
+			_, inherited := InheritedModel(alias)
+			assert.False(t, inherited, "%s names a listed release", alias)
 		}
 	}
 }

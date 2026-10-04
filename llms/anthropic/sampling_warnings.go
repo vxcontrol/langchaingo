@@ -84,14 +84,9 @@ func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallO
 }
 
 func reportClaudeOffFloor(warn *llms.Warnings, model string, thinking *anthropicclient.ThinkingPayload) {
-	if thinking == nil || thinking.Type != "between_tools" {
-		return
+	if thinking != nil && thinking.Type == "between_tools" {
+		warn.AddOffFloor(model, thinking.Type)
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
-		Asked: "off", Sent: thinking.Type,
-		Reason: "this model has no off switch, only a lowest thinking level",
-	})
 }
 
 func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {
@@ -148,23 +143,6 @@ func reportAnthropicSampling(
 	}
 }
 
-func clampClaudeTemperature(warn *llms.Warnings, model string, temperature *float64) *float64 {
-	if temperature == nil {
-		return nil
-	}
-	clamped := reasoning.ClaudeClampTemperature(model, *temperature)
-	if clamped == *temperature {
-		return temperature
-	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-		Asked:  strconv.FormatFloat(*temperature, 'g', -1, 64),
-		Sent:   strconv.FormatFloat(clamped, 'g', -1, 64),
-		Reason: "Claude takes a temperature from 0 to 1",
-	})
-	return &clamped
-}
-
 func anthropicSamplingReason(model string, thinking *anthropicclient.ThinkingPayload) string {
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):
@@ -210,13 +188,7 @@ func reportAnthropicCompletions(warn *llms.Warnings, model string, opts llms.Cal
 	if len(opts.Tools) > 0 {
 		drop("WithTools", strconv.Itoa(len(opts.Tools))+" tools")
 	}
-	if kind, name := llms.ClassifyToolChoice(opts.ToolChoice); kind != llms.ToolChoiceUnset {
-		asked := name
-		if asked == "" {
-			asked = kind.String()
-		}
-		drop("WithToolChoice", asked)
-	}
+	warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	if opts.StructuredOutput != nil {
 		drop("WithStructuredOutput", opts.StructuredOutput.Name)
 	}

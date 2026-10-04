@@ -253,7 +253,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	if thinking != nil && thinking.Type == "enabled" && llms.ForcesToolUse(opts.ToolChoice) && len(opts.Tools) > 0 {
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
-	if err := llms.CheckForcedToolUse(model, *opts, warn); err != nil {
+	onTheWire := *opts
+	onTheWire.Functions, onTheWire.ExtraBody = nil, nil
+	if err := llms.CheckForcedToolUse(model, onTheWire, warn); err != nil {
 		return nil, err
 	}
 
@@ -268,6 +270,9 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	}
 
 	tools := toolsToTools(opts.Tools)
+	if len(tools) == 0 {
+		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
+	}
 
 	// Merge client-level and call-level cache strategies
 	if mergedStrategy := mergeCacheStrategies(o.defaultCacheStrategy, opts); mergedStrategy != nil {
@@ -328,7 +333,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	}
 
 	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
-	temperature = clampClaudeTemperature(warn, model, temperature)
+	temperature = warn.ClampClaudeTemperature(model, temperature)
 
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),
