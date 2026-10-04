@@ -136,7 +136,8 @@ func TestQVQOnModelStudioIsRefusedAForcedToolChoice(t *testing.T) {
 	}
 
 	for _, model := range []string{"qvq-max", "qwq-plus"} {
-		body, err := callWithATool(t, dashScope, model, stream, llms.WithToolChoice("required"),
+		body, err := callWithATool(t, dashScope, model, stream,
+			llms.WithToolChoice(map[string]any{"type": "function", "name": "lookup"}),
 			llms.WithExtraBody(map[string]any{"enable_thinking": false}))
 		var refused *reasoning.ErrForcedToolChoiceUnsupported
 		require.True(t, errors.As(err, &refused), "%s keeps thinking whatever the extra body says: %v", model, err)
