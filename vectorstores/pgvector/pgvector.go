@@ -236,9 +236,9 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) (
 		s.embeddingTableName).Scan(&relation); err != nil {
 		return "", err
 	}
-	sql = fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s ON %s (collection_id)`,
-		indexIdentifier(relation+"_collection_id"), s.embeddingTableName)
-	if _, err := tx.Exec(ctx, sql); err != nil {
+	if err := s.createIndexIfMissing(ctx, tx, relation+"_collection_id", fmt.Sprintf(
+		`CREATE INDEX IF NOT EXISTS %s ON %s (collection_id)`,
+		indexIdentifier(relation+"_collection_id"), s.embeddingTableName)); err != nil {
 		return "", err
 	}
 
@@ -251,12 +251,21 @@ func (s Store) createEmbeddingTableIfNotExists(ctx context.Context, tx pgx.Tx) (
 		if s.hnswIndex.m > 0 && s.hnswIndex.efConstruction > 0 {
 			sql = fmt.Sprintf("%s WITH (m=%d, ef_construction = %d)", sql, s.hnswIndex.m, s.hnswIndex.efConstruction)
 		}
-		if _, err := tx.Exec(ctx, sql); err != nil {
+		if err := s.createIndexIfMissing(ctx, tx, relation+"_embedding_hnsw", sql); err != nil {
 			return "", err
 		}
 	}
 
 	return relation, nil
+}
+
+func (s Store) createIndexIfMissing(ctx context.Context, tx pgx.Tx, name, statement string) error {
+	exists, err := s.indexExists(ctx, tx, name)
+	if err != nil || exists {
+		return err
+	}
+	_, err = tx.Exec(ctx, statement)
+	return err
 }
 
 // AddDocuments adds documents to the Postgres collection associated with 'Store'.

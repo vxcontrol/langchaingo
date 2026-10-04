@@ -473,18 +473,34 @@ func TestAStartOverExistingIndexesTakesNoTableLock(t *testing.T) {
 
 	url := narrowingURL(t)
 	ctx := t.Context()
-	store, conn := newIsolatedIndexedStore(t, url,
-		MetadataIndex{Keys: []string{"doc_type"}},
-		MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}},
-		MetadataIndex{Keys: []string{"owner"}, Name: "OwnerIdx_" + strings.ReplaceAll(uuid.New().String(), "-", "")})
+	suffix := strings.ReplaceAll(uuid.New().String(), "-", "")
+	embeddings, collections := "lock_embedding_"+suffix, "lock_collection_"+suffix
+	conn, err := pgx.Connect(ctx, url)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), "DROP TABLE IF EXISTS "+embeddings+", "+collections)
+		_ = conn.Close(context.Background())
+	})
+
+	store, err := New(ctx, WithConnectionURL(url), WithEmbedder(fixedEmbedder{dims: 64}), WithVectorDimensions(64),
+		WithCollectionName("c"), WithEmbeddingTableName(embeddings), WithCollectionTableName(collections),
+		WithHNSWIndex(16, 64, "vector_l2_ops"),
+		WithMetadataIndexes(
+			MetadataIndex{Keys: []string{"doc_type"}},
+			MetadataIndex{Keys: []string{"flow_id"}, Exclude: map[string]string{"flow_id": "0"}},
+			MetadataIndex{Keys: []string{"owner"}, Name: "OwnerIdx_" + suffix}))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
 
 	tx, err := conn.Begin(ctx)
 	require.NoError(t, err)
 	defer func() { _ = tx.Rollback(context.Background()) }()
+	_, err = store.createEmbeddingTableIfNotExists(ctx, tx)
+	require.NoError(t, err)
 	require.NoError(t, store.createMetadataIndexesIfNotExist(ctx, tx))
 
 	rows, err := tx.Query(ctx, "SELECT mode FROM pg_locks WHERE locktype = 'relation' "+
-		"AND relation = $1::regclass AND pid = pg_backend_pid()", store.embeddingTableName)
+		"AND relation = $1::regclass AND pid = pg_backend_pid()", embeddings)
 	require.NoError(t, err)
 	var modes []string
 	for rows.Next() {

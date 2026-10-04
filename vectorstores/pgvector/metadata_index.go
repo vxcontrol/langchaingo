@@ -35,9 +35,10 @@ type MetadataIndex struct {
 	// first. At least one is required.
 	Keys []string
 
-	// Exclude restricts the index to rows whose key does NOT hold the given
-	// value. It earns its place when the interesting rows are a small minority
-	// of the table: the index then spans that minority rather than every row.
+	// Exclude restricts the index to rows whose key holds a value other than the
+	// given one; a row without the key stays out of the index as well. It earns
+	// its place when the interesting rows are a small minority of the table: the
+	// index then spans that minority rather than every row.
 	Exclude map[string]string
 }
 
@@ -160,6 +161,15 @@ func quoteLiteral(value string) (string, error) {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'", nil
 }
 
+func (s Store) indexExists(ctx context.Context, tx pgx.Tx, name string) (bool, error) {
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+		WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, name).Scan(&exists); err != nil {
+		return false, fmt.Errorf("look up index %s: %w", name, err)
+	}
+	return exists, nil
+}
+
 // createMetadataIndexesIfNotExist brings the declared indexes into existence.
 //
 // It runs inside init's transaction, which already holds the embedding table's
@@ -190,10 +200,9 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 		}
 		definitions[name] = definition
 
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
-			WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, name).Scan(&exists); err != nil {
-			return fmt.Errorf("look up metadata index %s: %w", name, err)
+		exists, err := s.indexExists(ctx, tx, name)
+		if err != nil {
+			return err
 		}
 		if exists {
 			continue
