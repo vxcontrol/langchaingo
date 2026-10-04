@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -54,8 +55,8 @@ func TestAResponsesOnlyModelIsRefusedBeforeOpenAIsChatCompletions(t *testing.T) 
 		{"http://litellm.internal/v1", "openai/gpt-5.6-cyber"},
 		{"https://api.openai.com/v1", "gpt-5.6"},
 	} {
-		calls, err := call(tc.baseURL, tc.model)
-		require.NoError(t, err, tc.model)
-		require.Equal(t, 1, calls, "%s on %s goes out", tc.model, tc.baseURL)
+		body, _ := hostCall(t, tc.baseURL, tc.model)
+		assert.Equal(t, tc.model, body["model"], "%s on %s goes out", tc.model, tc.baseURL)
+		assert.Equal(t, []any{map[string]any{"role": "user", "content": "hi"}}, body["messages"], tc.model)
 	}
 }
