@@ -341,7 +341,7 @@ func (o *LLM) createChatRequest(
 		req.MaxCompletionTokens = opts.MaxTokens
 	}
 
-	setJSONMode(req, model, opts, warn)
+	setJSONMode(req, model, o.host, opts, warn)
 
 	// add tools from functions and tool definitions
 	if err := o.addToolsToRequest(req, opts, warn); err != nil {
@@ -349,7 +349,7 @@ func (o *LLM) createChatRequest(
 	}
 	o.withholdToolsInsteadOfNone(req, model, warn)
 
-	setClientResponseFormat(req, model, o.client.ResponseFormat, warn)
+	setClientResponseFormat(req, model, o.host, o.client.ResponseFormat, warn)
 
 	// per-call schema-constrained structured output takes precedence over JSONMode
 	// and conflicts with a client-level response format.

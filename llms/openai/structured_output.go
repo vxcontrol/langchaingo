@@ -33,21 +33,21 @@ func (e *ErrStructuredOutputRefusal) Error() string {
 	return fmt.Sprintf("openai structured output: model refused (model=%s choice=%d): %s", e.Model, e.Choice, e.Refusal)
 }
 
-func noJSONObjectReason(model string) string {
+func noJSONObjectReason(model, host string) string {
 	switch {
 	case reasoning.TakesNoResponseFormat(model):
 		return takesNoResponseFormat
-	case reasoning.TakesNoJSONObject(model):
+	case reasoning.TakesNoJSONObject(model), reasoning.DashScopeTakesNoJSONObject(reasoning.DashScopeRoute(model, host)):
 		return "the vendor has no json_object response format for this model"
 	}
 	return ""
 }
 
-func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, warn *llms.Warnings) {
+func setJSONMode(req *openaiclient.ChatRequest, model, host string, opts llms.CallOptions, warn *llms.Warnings) {
 	if !opts.GetJSONMode() {
 		return
 	}
-	reason := noJSONObjectReason(model)
+	reason := noJSONObjectReason(model, host)
 	if reason == "" {
 		req.SetResponseFormat(ResponseFormatJSON)
 		return
@@ -60,12 +60,12 @@ func setJSONMode(req *openaiclient.ChatRequest, model string, opts llms.CallOpti
 	}
 }
 
-func setClientResponseFormat(req *openaiclient.ChatRequest, model string, rf *ResponseFormat, warn *llms.Warnings) {
+func setClientResponseFormat(req *openaiclient.ChatRequest, model, host string, rf *ResponseFormat, warn *llms.Warnings) {
 	if rf == nil {
 		return
 	}
 	if rf.Type == ResponseFormatJSON.Type {
-		if reason := noJSONObjectReason(model); reason != "" {
+		if reason := noJSONObjectReason(model, host); reason != "" {
 			warn.Add(llms.Warning{
 				Kind: llms.WarningDrop, Option: "WithResponseFormat", Model: model,
 				Asked: rf.Type, Reason: reason,
@@ -113,8 +113,8 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 		return err
 	}
 	if emulated {
-		sent, reason := "a prompt instruction", takesNoResponseFormat
-		if noJSONObjectReason(model) == "" {
+		sent, reason := "a prompt instruction", noJSONObjectReason(model, o.host)
+		if reason == "" {
 			req.SetResponseFormat(ResponseFormatJSON)
 			sent, reason = "json_object and a prompt instruction", "the vendor's chat completions response_format takes only text and json_object"
 		}
@@ -133,14 +133,12 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 
 // emulatesStructuredOutput reports whether a structured-output call travels as
 // a prompt instruction: the client opted in with WithStructuredOutputFallback,
-// and the model's vendor takes json_object but no json_schema, which then goes
-// along, or takes no response_format at all.
+// and the model's vendor takes no json_schema or no response_format at all.
 func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool {
 	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
 		return false
 	}
-	return (reasoning.TakesNoJSONSchema(model, o.host) && noJSONObjectReason(model) == "") ||
-		reasoning.TakesNoResponseFormat(model)
+	return reasoning.TakesNoJSONSchema(model, o.host) || reasoning.TakesNoResponseFormat(model)
 }
 
 // injectSchemaInstruction appends the schema instruction to the last user
@@ -232,6 +230,8 @@ func openAIStructuredOutputUnsupported(model, host string) string {
 		m = m[idx+1:]
 	}
 	switch {
+	case reasoning.TakesNoJSONSchema(model, host) && noJSONObjectReason(model, host) != "":
+		return "the vendor's chat completions response_format takes neither a JSON schema nor json_object for this model"
 	case reasoning.TakesNoJSONSchema(model, host):
 		return "the vendor's chat completions response_format takes only text and json_object"
 	case reasoning.TakesNoResponseFormat(model):

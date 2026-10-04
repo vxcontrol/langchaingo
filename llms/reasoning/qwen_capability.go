@@ -49,6 +49,11 @@ func dashScopeTakesNoJSONSchema(route string) bool {
 	return !versioned || major < 3 || major == 3 && minor <= 8
 }
 
+func DashScopeTakesNoJSONObject(route string) bool {
+	name, ok := dashScopeRouteName(route)
+	return ok && (strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq"))
+}
+
 func QVQStreamsOnly(route string) bool {
 	name, ok := dashScopeRouteName(route)
 	return ok && strings.HasPrefix(name, "qvq")

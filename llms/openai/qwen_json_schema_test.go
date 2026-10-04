@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 func TestQwenIsSentAJSONSchemaOnlyWhereDashScopeDocumentsIt(t *testing.T) {
@@ -59,4 +60,71 @@ func TestQwenIsSentAJSONSchemaOnlyWhereDashScopeDocumentsIt(t *testing.T) {
 		format, _ := body["response_format"].(map[string]any)
 		assert.Equal(t, "json_schema", format["type"], tc.model)
 	}
+}
+
+func TestQwQAndQVQOnModelStudioAreSentNoJSONObject(t *testing.T) {
+	t.Parallel()
+
+	const (
+		dashScope = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+		gateway   = "http://litellm.internal/v1"
+	)
+	stream := llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })
+	call := func(baseURL, model string, opts ...llms.CallOption) (map[string]any, *llms.ContentResponse, error) {
+		doer := &streamDoer{}
+		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer), WithStructuredOutputFallback())
+		resp, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "what is in the picture?")},
+			append([]llms.CallOption{stream}, opts...)...)
+		if len(doer.bodies) == 0 {
+			return nil, resp, err
+		}
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(doer.bodies[0], &body))
+		return body, resp, err
+	}
+	warningOn := func(resp *llms.ContentResponse, option string) llms.Warning {
+		for _, w := range resp.Warnings {
+			if w.Option == option {
+				return w
+			}
+		}
+		return llms.Warning{}
+	}
+
+	for _, tc := range []struct{ baseURL, model string }{
+		{dashScope, "qwq-plus"}, {dashScope, "qvq-max"}, {gateway, "dashscope/qwq-plus"},
+	} {
+		body, resp, _ := call(tc.baseURL, tc.model, answerSchema())
+		require.NotNil(t, body, tc.model)
+		assert.NotContains(t, body, "response_format", tc.model)
+		assert.Contains(t, body["messages"].([]any)[0].(map[string]any)["content"], "JSON Schema", tc.model)
+		assert.Equal(t, llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithStructuredOutput", Model: tc.model,
+			Asked: "answer", Sent: "a prompt instruction",
+			Reason: "the vendor has no json_object response format for this model, " +
+				"so the schema travels in the prompt and the answer is validated locally",
+		}, warningOn(resp, "WithStructuredOutput"), tc.model)
+
+		body, resp, err := call(tc.baseURL, tc.model, llms.WithJSONMode())
+		require.NoError(t, err, tc.model)
+		assert.NotContains(t, body, "response_format", tc.model)
+		assert.Equal(t, llms.WarningDrop, warningOn(resp, "WithJSONMode").Kind, tc.model)
+	}
+
+	llm := newUnitLLM(t, WithBaseURL(dashScope), WithModel("qwq-plus"), WithHTTPClient(&streamDoer{}))
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, stream, answerSchema())
+	var unsupported *llms.ErrStructuredOutputUnsupported
+	require.ErrorAs(t, err, &unsupported)
+	assert.Equal(t, "the vendor's chat completions response_format takes neither a JSON schema nor json_object for this model",
+		unsupported.Reason)
+
+	body, _, _ := call(dashScope, "qwen3.6-plus", answerSchema())
+	assert.Equal(t, map[string]any{"type": "json_object"}, body["response_format"],
+		"Model Studio takes json_object from a hybrid that thinks")
+
+	body, _, _ = call("http://vllm.internal:8000/v1", "qwq-32b", answerSchema())
+	format, _ := body["response_format"].(map[string]any)
+	assert.Equal(t, "json_schema", format["type"], "open weights on another host keep the schema")
 }
