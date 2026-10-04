@@ -27,7 +27,7 @@ func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
 		return true
 	}
 	if name, ok := onDashScope(model, host); ok {
-		return strings.HasPrefix(name, "qwen") || strings.HasPrefix(name, "qwq")
+		return strings.HasPrefix(name, "qwen") || strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq")
 	}
 	if !servedByMoonshot(model, host) {
 		return false
