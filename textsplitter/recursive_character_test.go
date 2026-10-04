@@ -12,8 +12,6 @@ import (
 
 //nolint:dupword,funlen
 func TestRecursiveCharacterSplitter(t *testing.T) {
-	tokenEncoder := cl100kBase(t)
-
 	t.Parallel()
 	type testCase struct {
 		text          string
@@ -22,7 +20,6 @@ func TestRecursiveCharacterSplitter(t *testing.T) {
 		separators    []string
 		expectedDocs  []schema.Document
 		keepSeparator bool
-		LenFunc       func(string) int
 	}
 	testCases := []testCase{
 		{
@@ -123,18 +120,6 @@ Bye!
 				{PageContent: "\nI am glad to meet you", Metadata: map[string]any{}},
 			},
 		},
-		{
-			text:          strings.Repeat("The quick brown fox jumped over the lazy dog. ", 2),
-			chunkOverlap:  0,
-			chunkSize:     10,
-			separators:    []string{" "},
-			keepSeparator: true,
-			LenFunc:       func(s string) int { return len(tokenEncoder.Encode(s, nil, nil)) },
-			expectedDocs: []schema.Document{
-				{PageContent: "The quick brown fox jumped over the lazy dog.", Metadata: map[string]any{}},
-				{PageContent: "The quick brown fox jumped over the lazy dog.", Metadata: map[string]any{}},
-			},
-		},
 	}
 	splitter := NewRecursiveCharacter()
 	for _, tc := range testCases {
@@ -142,12 +127,24 @@ Bye!
 		splitter.ChunkSize = tc.chunkSize
 		splitter.Separators = tc.separators
 		splitter.KeepSeparator = tc.keepSeparator
-		if tc.LenFunc != nil {
-			splitter.LenFunc = tc.LenFunc
-		}
 
 		docs, err := CreateDocuments(splitter, []string{tc.text}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, tc.expectedDocs, docs)
 	}
+
+	t.Run("token length", func(t *testing.T) {
+		tokenEncoder := cl100kBase(t)
+		splitter := NewRecursiveCharacter(
+			WithChunkOverlap(0), WithChunkSize(10), WithSeparators([]string{" "}), WithKeepSeparator(true),
+			WithLenFunc(func(s string) int { return len(tokenEncoder.Encode(s, nil, nil)) }),
+		)
+
+		docs, err := CreateDocuments(splitter, []string{strings.Repeat("The quick brown fox jumped over the lazy dog. ", 2)}, nil)
+		require.NoError(t, err)
+		assert.Equal(t, []schema.Document{
+			{PageContent: "The quick brown fox jumped over the lazy dog.", Metadata: map[string]any{}},
+			{PageContent: "The quick brown fox jumped over the lazy dog.", Metadata: map[string]any{}},
+		}, docs)
+	})
 }

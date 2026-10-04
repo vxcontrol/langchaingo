@@ -17,8 +17,9 @@ type Compiled struct {
 }
 
 // Compile compiles a raw JSON Schema document. Without $schema the document is
-// treated as Draft 2020-12. A node marked nullable: true also admits null; no
-// other keyword is injected or stripped.
+// treated as Draft 2020-12. A node marked nullable: true that declares type gets
+// null added to that type; its other keywords, enum and const among them, still
+// apply. No other keyword is injected or stripped.
 func Compile(schema json.RawMessage) (*Compiled, error) {
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schema))
 	if err != nil {

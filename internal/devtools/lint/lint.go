@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"flag"
 	"fmt"
@@ -584,11 +585,8 @@ func checkHttprrCompression(fix bool) error {
 		}
 
 		// Check for uncompressed httprr files
-		if strings.HasSuffix(path, ".httprr") && !strings.HasSuffix(path, ".httprr.gz") {
-			// Skip files in internal/devtools/httprr-convert as those are for testing
-			if !strings.Contains(path, "internal/devtools/httprr-convert") {
-				uncompressedFiles = append(uncompressedFiles, path)
-			}
+		if strings.HasSuffix(path, ".httprr") {
+			uncompressedFiles = append(uncompressedFiles, path)
 		}
 
 		return nil
@@ -609,22 +607,9 @@ func checkHttprrCompression(fix bool) error {
 			log.Printf("Found %d uncompressed httprr files, compressing them...", len(uncompressedFiles))
 		}
 
-		// Group files by directory and compress them
-		dirFiles := make(map[string][]string)
 		for _, file := range uncompressedFiles {
-			dir := filepath.Dir(file)
-			dirFiles[dir] = append(dirFiles[dir], file)
-		}
-
-		for dir := range dirFiles {
-			cmd := exec.Command("go", "run", "./internal/devtools/httprr-convert", "-compress", "-dir", dir)
-			if *flagVerbose {
-				log.Printf("Running: %s", strings.Join(cmd.Args, " "))
-			}
-
-			if output, err := cmd.CombinedOutput(); err != nil {
-				log.Printf("Failed to compress httprr files in %s: %v\nOutput: %s", dir, err, output)
-				return fmt.Errorf("failed to compress httprr files in %s: %w", dir, err)
+			if err := compressHttprrFile(file); err != nil {
+				return fmt.Errorf("failed to compress %s: %w", file, err)
 			}
 		}
 
@@ -636,17 +621,64 @@ func checkHttprrCompression(fix bool) error {
 
 	// Report the issue without fixing
 	var errorLines []string
-	errorLines = append(errorLines, fmt.Sprintf("Found %d uncompressed httprr files:", len(uncompressedFiles)))
+	errorLines = append(errorLines, fmt.Sprintf("Found %d uncompressed httprr files, each with the command that fixes it:", len(uncompressedFiles)))
 	for _, file := range uncompressedFiles {
-		errorLines = append(errorLines, fmt.Sprintf("  - %s", file))
+		gzipExists, gzipReplayed, err := httprrForms(file)
+		if err != nil {
+			return fmt.Errorf("failed to inspect %s: %w", file, err)
+		}
+		command := "gzip " + file
+		switch {
+		case gzipReplayed:
+			command = "rm " + file
+		case gzipExists:
+			command = "gzip -f " + file
+		}
+		errorLines = append(errorLines, fmt.Sprintf("  - %s: %s", file, command))
 	}
-	errorLines = append(errorLines, "")
-	errorLines = append(errorLines, "To fix this issue, run:")
-	errorLines = append(errorLines, "  go run ./internal/devtools/lint -prepush -fix")
-	errorLines = append(errorLines, "Or manually compress files:")
-	errorLines = append(errorLines, "  gzip -k <file>.httprr")
 
 	return fmt.Errorf("%s", strings.Join(errorLines, "\n"))
+}
+
+func httprrForms(path string) (gzipExists, gzipReplayed bool, err error) {
+	plain, err := os.Stat(path)
+	if err != nil {
+		return false, false, err
+	}
+	compressed, err := os.Stat(path + ".gz")
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	return true, !plain.ModTime().After(compressed.ModTime()), nil
+}
+
+func compressHttprrFile(path string) error {
+	_, gzipReplayed, err := httprrForms(path)
+	if err != nil {
+		return err
+	}
+	if gzipReplayed {
+		return os.Remove(path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write(data); err != nil {
+		return err
+	}
+	if err := zw.Close(); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path+".gz", buf.Bytes(), 0o644); err != nil {
+		return err
+	}
+	return os.Remove(path)
 }
 
 // checkHttprrTestPatterns checks for incorrect httprr usage patterns in test files using AST analysis.

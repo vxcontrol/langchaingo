@@ -12,9 +12,10 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	t.Parallel()
-
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	if rr.Replaying() {
+		t.Parallel()
+	}
 	tool, err := New(2, DefaultUserAgent, WithHTTPClient(rr.Client()))
 	require.NoError(t, err)
 
@@ -41,6 +42,21 @@ func TestTheSearchGoesThroughTheGivenClient(t *testing.T) {
 
 	transport := &cannedFeed{}
 	tool, err := New(1, DefaultUserAgent, WithHTTPClient(&http.Client{Transport: transport}))
+	require.NoError(t, err)
+
+	call, err := tool.Call(t.Context(), "electron")
+	require.NoError(t, err)
+	require.Contains(t, call, "Title: Canned paper")
+	require.Equal(t, 1, transport.requests)
+}
+
+func TestANilClientKeepsTheDefaultOne(t *testing.T) {
+	transport := &cannedFeed{}
+	defaultTransport := http.DefaultClient.Transport
+	http.DefaultClient.Transport = transport
+	t.Cleanup(func() { http.DefaultClient.Transport = defaultTransport })
+
+	tool, err := New(1, DefaultUserAgent, WithHTTPClient(nil))
 	require.NoError(t, err)
 
 	call, err := tool.Call(t.Context(), "electron")

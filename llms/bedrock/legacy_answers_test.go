@@ -2,6 +2,7 @@ package bedrock_test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,9 +55,11 @@ func TestAnUnreadableLegacyAnswerIsAnError(t *testing.T) {
 	t.Parallel()
 
 	for _, model := range []string{"ai21.j2-ultra-v1", "meta.llama3-70b-instruct-v1:0", "amazon.titan-text-express-v1"} {
-		llm, _ := legacyLLMCapturing(t, "not json", bedrock.WithModel(model))
+		llm, sent := legacyLLMCapturing(t, "not json", bedrock.WithModel(model))
 		_, err := llm.GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
-		require.Error(t, err, model)
+		require.Contains(t, *sent, "human: hi", "%s: the request went out", model)
+		var syntaxErr *json.SyntaxError
+		require.ErrorAs(t, err, &syntaxErr, "%s: the answer could not be decoded", model)
 	}
 }
 
