@@ -48,7 +48,7 @@ var litellmRoutes = map[string]Vendor{
 // ServedBy reports the vendor whose own API serves model on host: the owner of
 // the host, or, off public providers, the vendor a LiteLLM route prefix names.
 func ServedBy(model, host string) Vendor {
-	if vendor, owned := vendorOfHost(host); owned {
+	if vendor := vendorOfHost(host); vendor != VendorUnknown {
 		return vendor
 	}
 	if PublicProviderHost(host) {
@@ -61,14 +61,11 @@ func ServedBy(model, host string) Vendor {
 	return litellmRoutes[route]
 }
 
-func vendorOfHost(host string) (Vendor, bool) {
-	if vendor, ok := vendorHosts[host]; ok {
-		return vendor, true
-	}
+func vendorOfHost(host string) Vendor {
 	if strings.HasSuffix(host, ".maas.aliyuncs.com") {
-		return VendorDashScope, true
+		return VendorDashScope
 	}
-	return VendorUnknown, false
+	return vendorHosts[host]
 }
 
 // publicProviderBaseURLs lists documented OpenAI-compatible API base URLs of
@@ -90,7 +87,7 @@ var publicProviderBaseURLs = []string{
 	"https://gb.api.openai.com/v1",
 	"https://ae.api.openai.com/v1",
 
-	// PentAGI custom / aggregator backends (from project documentation).
+	// Vendor APIs and aggregators PentAGI works with.
 	"https://openrouter.ai/api/v1",
 	"https://api.deepinfra.com/v1/openai",
 	"https://opencode.ai/zen/go/v1",
@@ -180,7 +177,7 @@ func PublicProviderHost(host string) bool {
 	if host == "" {
 		return false
 	}
-	if publicProviderHosts[host] {
+	if publicProviderHosts[host] || vendorOfHost(host) != VendorUnknown {
 		return true
 	}
 	for _, suffix := range publicProviderHostSuffixes {

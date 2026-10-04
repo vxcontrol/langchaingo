@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -145,12 +144,10 @@ func newFallbackLLM(t *testing.T, serverURL, model string, extra ...Option) *LLM
 func onHost(t *testing.T, fs *fallbackServer, baseURL string) []Option {
 	t.Helper()
 
-	addr := fs.Listener.Addr().String()
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, addr)
-	}}
-	t.Cleanup(transport.CloseIdleConnections)
-	return []Option{WithBaseURL(baseURL), WithHTTPClient(&http.Client{Transport: transport})}
+	if baseURL == "" {
+		return nil
+	}
+	return []Option{WithBaseURL(baseURL), WithHTTPClient(clientDialing(t, fs.Server))}
 }
 
 func answerSchema() llms.CallOption {
@@ -168,11 +165,7 @@ func TestTheFallbackSendsJSONObjectAndTheSchemaInThePrompt(t *testing.T) {
 			t.Parallel()
 
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			var host []Option
-			if baseURL != "" {
-				host = onHost(t, srv, baseURL)
-			}
-			resp, err := newFallbackLLM(t, srv.URL, model, host...).GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, model, onHost(t, srv, baseURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, answerSchema())
 			require.NoError(t, err)
 			assert.Equal(t, `{"answer":"42"}`, resp.Choices[0].Content)
@@ -355,11 +348,7 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 			"deepseek/deepseek-v4-pro": "http://openrouter.ai/api/v1", "zai/glm-4.6": "http://ai-gateway.vercel.sh/v1",
 		} {
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			var host []Option
-			if baseURL != "" {
-				host = onHost(t, srv, baseURL)
-			}
-			resp, err := newFallbackLLM(t, srv.URL, model, host...).GenerateContent(t.Context(), human, answerSchema())
+			resp, err := newFallbackLLM(t, srv.URL, model, onHost(t, srv, baseURL)...).GenerateContent(t.Context(), human, answerSchema())
 			require.NoError(t, err, model)
 
 			req := srv.request(t, 0)
@@ -376,11 +365,8 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 		t.Parallel()
 		for model, baseURL := range map[string]string{"deepseek-flash": deepSeekBaseURL, "MiniMax-M2.7": ""} {
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			opts := []Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)}
-			if baseURL != "" {
-				opts = append(opts, onHost(t, srv, baseURL)...)
-			}
-			llm, err := New(opts...)
+			llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)},
+				onHost(t, srv, baseURL)...)...)
 			require.NoError(t, err)
 
 			_, err = llm.GenerateContent(t.Context(), human, answerSchema())

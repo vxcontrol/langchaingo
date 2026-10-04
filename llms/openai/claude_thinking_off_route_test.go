@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -64,15 +63,8 @@ func sendOffToHost(t *testing.T, baseURL, model string, clientOpts []Option) (bo
 	}))
 	t.Cleanup(srv.Close)
 
-	addr := srv.Listener.Addr().String()
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, addr)
-	}}
-	t.Cleanup(transport.CloseIdleConnections)
-
 	opts := append([]Option{
-		WithBaseURL(baseURL), WithToken("token"), WithModel(model),
-		WithHTTPClient(&http.Client{Transport: transport}),
+		WithBaseURL(baseURL), WithToken("token"), WithModel(model), WithHTTPClient(clientDialing(t, srv)),
 	}, clientOpts...)
 	llm, err := New(opts...)
 	if err != nil {

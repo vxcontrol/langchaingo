@@ -132,8 +132,7 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 }
 
 // emulatesStructuredOutput reports whether a structured-output call travels as
-// a prompt instruction: the client opted in with WithStructuredOutputFallback,
-// and the model's vendor takes no json_schema or no response_format at all.
+// a prompt instruction.
 func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool {
 	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
 		return false
@@ -230,9 +229,10 @@ func openAIStructuredOutputUnsupported(model, host string) string {
 		m = m[idx+1:]
 	}
 	switch {
-	case reasoning.TakesNoJSONSchema(model, host) && noJSONObjectReason(model, host) != "":
-		return "the vendor's chat completions response_format takes neither a JSON schema nor json_object for this model"
 	case reasoning.TakesNoJSONSchema(model, host):
+		if noJSONObjectReason(model, host) != "" {
+			return "the vendor's chat completions response_format takes neither a JSON schema nor json_object for this model"
+		}
 		return "the vendor's chat completions response_format takes only text and json_object"
 	case reasoning.TakesNoResponseFormat(model):
 		return takesNoResponseFormat

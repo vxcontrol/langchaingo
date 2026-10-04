@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -100,14 +99,7 @@ func sendToHost(t *testing.T, baseURL, model string, opts ...llms.CallOption) (m
 	}))
 	t.Cleanup(srv.Close)
 
-	addr := srv.Listener.Addr().String()
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, addr)
-	}}
-	t.Cleanup(transport.CloseIdleConnections)
-
-	llm, err := New(WithBaseURL(baseURL), WithToken("token"), WithModel(model),
-		WithHTTPClient(&http.Client{Transport: transport}))
+	llm, err := New(WithBaseURL(baseURL), WithToken("token"), WithModel(model), WithHTTPClient(clientDialing(t, srv)))
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}

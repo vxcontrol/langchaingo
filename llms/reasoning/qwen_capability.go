@@ -28,14 +28,17 @@ func QwenThinkingRequiresStream(model string) bool {
 }
 
 func dashScopeTakesNoJSONSchema(route string) bool {
-	if guest := dashScopeGuestSpelling(route); strings.HasPrefix(guest, "kimi") || strings.HasPrefix(guest, "moonshot-kimi") {
-		return true
+	guest := dashScopeGuestSpelling(route)
+	for _, family := range []string{"kimi", "moonshot-kimi", "deepseek-", "glm-"} {
+		if strings.HasPrefix(guest, family) {
+			return true
+		}
 	}
 	name, ok := dashScopeRouteName(route)
 	switch {
 	case !ok:
 		return false
-	case strings.HasPrefix(name, "qwq"), strings.HasPrefix(name, "qvq"):
+	case qwqOrQVQ(name):
 		return true
 	case !strings.HasPrefix(name, "qwen"):
 		return false
@@ -51,7 +54,11 @@ func dashScopeTakesNoJSONSchema(route string) bool {
 
 func DashScopeTakesNoJSONObject(route string) bool {
 	name, ok := dashScopeRouteName(route)
-	return ok && (strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq"))
+	return ok && qwqOrQVQ(name)
+}
+
+func qwqOrQVQ(name string) bool {
+	return strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq")
 }
 
 func QVQStreamsOnly(route string) bool {
@@ -143,7 +150,14 @@ func dashScopeGuestSpelling(model string) string {
 // DashScopeRoute returns the name the rules read for a model sent to host: a
 // name sent to Model Studio's own host reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
-	if vendor, _ := vendorOfHost(host); vendor != VendorDashScope || strings.HasPrefix(strings.ToLower(model), "dashscope/") {
+	routed := strings.HasPrefix(strings.ToLower(model), "dashscope/")
+	if ServedBy(model, host) != VendorDashScope {
+		if routed {
+			return model[len("dashscope/"):]
+		}
+		return model
+	}
+	if routed {
 		return model
 	}
 	return "dashscope/" + model

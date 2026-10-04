@@ -68,3 +68,21 @@ func TestPublicProviderHost(t *testing.T) {
 		}
 	}
 }
+
+func TestDashScopeRoute(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ model, host, want string }{
+		{"qwen3.6-plus", "dashscope-intl.aliyuncs.com", "dashscope/qwen3.6-plus"},
+		{"dashscope/qwen3.6-plus", "dashscope-intl.aliyuncs.com", "dashscope/qwen3.6-plus"},
+		{"dashscope/qwen3.6-plus", "litellm.internal", "dashscope/qwen3.6-plus"},
+		{"qwen3.6-plus", "litellm.internal", "qwen3.6-plus"},
+		{"qwen3.6-plus", "vllm.internal", "qwen3.6-plus"},
+		{"dashscope/qwq-plus", "ai-gateway.vercel.sh", "qwq-plus"},
+		{"DashScope/QwQ-Plus", "openrouter.ai", "QwQ-Plus"},
+	} {
+		if got := DashScopeRoute(tc.model, tc.host); got != tc.want {
+			t.Errorf("DashScopeRoute(%q, %q) = %q, want %q", tc.model, tc.host, got, tc.want)
+		}
+	}
+}

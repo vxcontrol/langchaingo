@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,6 +33,17 @@ func (d *bodyDoer) Do(req *http.Request) (*http.Response, error) {
 			`"choices":[{"index":0,"message":{"role":"assistant","content":` + string(content) + `},` +
 			`"finish_reason":"stop"}]}`)),
 	}, nil
+}
+
+func clientDialing(t *testing.T, srv *httptest.Server) *http.Client {
+	t.Helper()
+
+	addr := srv.Listener.Addr().String()
+	transport := &http.Transport{DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, addr)
+	}}
+	t.Cleanup(transport.CloseIdleConnections)
+	return &http.Client{Transport: transport}
 }
 
 func hostCall(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map[string]any, map[string]llms.Warning) {

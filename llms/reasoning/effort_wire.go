@@ -164,8 +164,6 @@ func FixesSampling(model string) bool {
 	return false
 }
 
-// TakesNoJSONSchema reports whether the vendor API that serves the call takes no
-// JSON schema as a response_format.
 func TakesNoJSONSchema(model, host string) bool {
 	switch ServedBy(model, host) {
 	case VendorDeepSeek:
@@ -239,8 +237,13 @@ func ReplaysReasoningInThinkTags(model string) bool {
 // UsesLegacyMaxTokens reports whether the output limit must travel as
 // max_tokens rather than max_completion_tokens.
 func UsesLegacyMaxTokens(model, host string) bool {
-	if ServedByZAI(model, host) || ServedBy(model, host) == VendorMistral {
+	switch ServedBy(model, host) { //nolint:exhaustive // the name decides for the other vendors
+	case VendorMistral:
 		return true
+	case VendorZAI:
+		if namesFamily(model, "glm-") {
+			return true
+		}
 	}
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "grok") ||
