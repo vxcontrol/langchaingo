@@ -246,10 +246,10 @@ func TestFailedInitReturnsItsConnectionToThePool(t *testing.T) {
 	defer writer.Close(ctx)
 	held, err := writer.Begin(ctx)
 	require.NoError(t, err)
-	_, err = held.Exec(ctx, "LOCK TABLE "+embeddingTable+" IN ROW EXCLUSIVE MODE")
+	_, err = held.Exec(ctx, "LOCK TABLE "+collectionTable+" IN ACCESS EXCLUSIVE MODE")
 	require.NoError(t, err)
 
-	require.Error(t, open(ctx), "init must time out while a writer holds the table")
+	require.Error(t, open(ctx), "init must time out while another session holds the collection table")
 	require.Zero(t, pool.Stat().AcquiredConns(), "the failed init still holds the pool's only connection")
 	require.NoError(t, held.Rollback(ctx))
 

@@ -152,6 +152,15 @@ func (m MetadataIndex) ddl(table, relation string) (string, error) {
 // whole of the escaping under standard_conforming_strings, which has been on by
 // default since PostgreSQL 9.1; a backslash is rejected rather than trusted to
 // it, and a NUL byte cannot appear in a statement at all.
+func (s Store) indexExists(ctx context.Context, tx pgx.Tx, name string) (bool, error) {
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+		WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, name).Scan(&exists); err != nil {
+		return false, fmt.Errorf("look up index %s: %w", name, err)
+	}
+	return exists, nil
+}
+
 func quoteLiteral(value string) (string, error) {
 	if strings.ContainsAny(value, "\x00\\") {
 		return "", fmt.Errorf("%w: value %q may not contain a backslash or a NUL byte",
@@ -190,10 +199,9 @@ func (s Store) createMetadataIndexesIfNotExist(ctx context.Context, tx pgx.Tx) e
 		}
 		definitions[name] = definition
 
-		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
-			WHERE i.indrelid = $1::regclass AND c.relname = $2)`, s.embeddingTableName, name).Scan(&exists); err != nil {
-			return fmt.Errorf("look up metadata index %s: %w", name, err)
+		exists, err := s.indexExists(ctx, tx, name)
+		if err != nil {
+			return err
 		}
 		if exists {
 			continue
