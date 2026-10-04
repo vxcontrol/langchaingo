@@ -81,3 +81,35 @@ func TestToolsOnlyInTheExtraBodyDoNotMakeAForcedChoiceRefusedOnBedrock(t *testin
 		require.Equal(t, llms.WarningDrop, byOption["WithToolChoice"].Kind, door.name)
 	}
 }
+
+func TestAToolWithoutAFunctionIsDroppedAndReportedOnBedrock(t *testing.T) {
+	t.Parallel()
+
+	bare := llms.Tool{Type: "function"}
+	lookup := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
+	}}
+	for _, door := range bedrockDoors("anthropic.claude-sonnet-4-5-20250929-v1:0") {
+		resp, body := bedrockWarningsSending(t, door.answer, door.opts,
+			llms.WithTools([]llms.Tool{bare}), llms.WithToolChoice("required"))
+		require.NotContains(t, body, "tools", door.name)
+		require.NotContains(t, body, "toolConfig", door.name)
+		byOption := bedrockWarningsByOption(resp.Warnings)
+		require.Equal(t, llms.WarningDrop, byOption["WithTools"].Kind, "%s: %v", door.name, resp.Warnings)
+		require.Equal(t, "1 tools", byOption["WithTools"].Asked, door.name)
+		require.Equal(t, llms.WarningDrop, byOption["WithToolChoice"].Kind, "%s: %v", door.name, resp.Warnings)
+
+		resp, body = bedrockWarningsSending(t, door.answer, door.opts,
+			llms.WithTools([]llms.Tool{bare, lookup}), llms.WithToolChoice("required"))
+		require.Equal(t, "1 tools", bedrockWarningsByOption(resp.Warnings)["WithTools"].Asked, door.name)
+		require.Empty(t, toolChoiceWarnings(resp.Warnings), door.name)
+		if door.name == "legacy" {
+			require.Len(t, body["tools"], 1)
+			require.Equal(t, map[string]any{"type": "any"}, body["tool_choice"])
+			continue
+		}
+		toolConfig, _ := body["toolConfig"].(map[string]any)
+		require.Len(t, toolConfig["tools"], 1)
+		require.Equal(t, map[string]any{"any": map[string]any{}}, toolConfig["toolChoice"])
+	}
+}

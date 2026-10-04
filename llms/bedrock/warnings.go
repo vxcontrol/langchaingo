@@ -1,6 +1,8 @@
 package bedrock
 
 import (
+	"strconv"
+
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/bedrock/internal/bedrockclient"
 )
@@ -40,3 +42,21 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 }
 
 const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+
+func toolsWithAFunction(warn *llms.Warnings, model string, tools []llms.Tool) []llms.Tool {
+	sent := make([]llms.Tool, 0, len(tools))
+	for _, tool := range tools {
+		if tool.Function != nil {
+			sent = append(sent, tool)
+		}
+	}
+	if dropped := len(tools) - len(sent); dropped > 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithTools", Model: model,
+			Asked:  strconv.Itoa(dropped) + " tools",
+			Reason: "a tool without a function definition has nothing to send",
+		})
+		return sent
+	}
+	return tools
+}
