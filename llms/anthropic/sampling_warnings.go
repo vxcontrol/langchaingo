@@ -84,14 +84,9 @@ func reportAnthropicMechanism(warn *llms.Warnings, model string, opts llms.CallO
 }
 
 func reportClaudeOffFloor(warn *llms.Warnings, model string, thinking *anthropicclient.ThinkingPayload) {
-	if thinking == nil || thinking.Type != "between_tools" {
-		return
+	if thinking != nil && thinking.Type == "between_tools" {
+		warn.AddOffFloor(model, thinking.Type)
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
-		Asked: "off", Sent: thinking.Type,
-		Reason: "this model has no off switch, only a lowest thinking level",
-	})
 }
 
 func reportAnthropicBudget(warn *llms.Warnings, model string, opts llms.CallOptions, thinking *anthropicclient.ThinkingPayload) {

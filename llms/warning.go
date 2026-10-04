@@ -240,6 +240,14 @@ func offSent(off reasoning.OffWire) string {
 	return "off"
 }
 
+func (w *Warnings) AddOffFloor(model, floor string) {
+	w.Add(Warning{
+		Kind: WarningSubstitute, Option: "WithReasoningDisabled", Model: model,
+		Asked: "off", Sent: floor,
+		Reason: "this model has no off switch, only a lowest thinking level",
+	})
+}
+
 func (w *Warnings) List() []Warning {
 	if w == nil {
 		return nil

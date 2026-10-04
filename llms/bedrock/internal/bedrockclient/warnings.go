@@ -132,14 +132,9 @@ func reportLegacyAnthropic(
 }
 
 func reportClaudeOffFloor(warn *llms.Warnings, modelID, sentThinking string) {
-	if sentThinking != "between_tools" {
-		return
+	if sentThinking == "between_tools" {
+		warn.AddOffFloor(modelID, sentThinking)
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningSubstitute, Option: "WithReasoningDisabled", Model: modelID,
-		Asked: "off", Sent: "between_tools",
-		Reason: "this model has no off switch, only a lowest thinking level",
-	})
 }
 
 func reportClaudeTemperature(warn *llms.Warnings, modelID, reason string, asked float64, sent *float64) {
