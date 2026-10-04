@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -346,6 +347,7 @@ func (o *LLM) createChatRequest(
 	if err := o.addToolsToRequest(req, opts, warn); err != nil {
 		return nil, err
 	}
+	o.withholdToolsInsteadOfNone(req, model, warn)
 
 	setClientResponseFormat(req, model, o.client.ResponseFormat, warn)
 
@@ -394,6 +396,29 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 		}
 	}
 	return nil
+}
+
+func (o *LLM) withholdToolsInsteadOfNone(req *openaiclient.ChatRequest, model string, warn *llms.Warnings) {
+	if len(req.Tools) == 0 || !reasoning.ServedByZAI(model, o.host) {
+		return
+	}
+	choice, inExtraBody := req.ExtraBody["tool_choice"]
+	if !inExtraBody {
+		choice = req.ToolChoice
+	}
+	if kind, _ := llms.ClassifyToolChoice(choice); kind != llms.ToolChoiceNone {
+		return
+	}
+	req.Tools, req.ToolChoice = nil, nil
+	if inExtraBody {
+		req.ExtraBody = maps.Clone(req.ExtraBody)
+		delete(req.ExtraBody, "tool_choice")
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: model,
+		Asked: "none", Sent: "no tools",
+		Reason: "Z.ai takes only tool_choice auto, so the tools stay off the request",
+	})
 }
 
 func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
@@ -754,8 +779,8 @@ func (o *LLM) applySamplingPolicy(
 	model := o.effectiveModel(opts)
 	if t := req.Temperature; t != nil {
 		switch {
-		case *t > 1 && reasoning.ServedByZAI(model, o.host):
-			clampTemperature(req, warn, model, 1, "Z.ai takes a temperature from 0 to 1")
+		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
+			clampTemperature(req, warn, model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
 		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort):
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}

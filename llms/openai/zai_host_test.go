@@ -58,13 +58,13 @@ func TestGLMOnZAIIsSentTheTemperatureRangeZAIDocuments(t *testing.T) {
 		{"https://open.bigmodel.cn/api/paas/v4", "glm-4.6"},
 		{"http://litellm.internal/v1", "zai/glm-4.6"},
 	} {
-		for _, asked := range []float64{1.5, 1.0001} {
+		for asked, sent := range map[float64]float64{1.5: 1, 1.0001: 1, -0.5: 0} {
 			body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(asked))
-			assert.InDelta(t, 1, body["temperature"], 0, route)
+			assert.InDelta(t, sent, body["temperature"], 0, route)
 			if assert.Contains(t, warnings, "WithTemperature", route) {
 				assert.Equal(t, llms.WarningClamp, warnings["WithTemperature"].Kind)
 				assert.Equal(t, strconv.FormatFloat(asked, 'g', -1, 64), warnings["WithTemperature"].Asked)
-				assert.Equal(t, "1", warnings["WithTemperature"].Sent)
+				assert.Equal(t, strconv.FormatFloat(sent, 'g', -1, 64), warnings["WithTemperature"].Sent)
 			}
 		}
 
@@ -109,4 +109,51 @@ func TestZAIAndMistralAreSentTheAnswerLimitTheirSchemasName(t *testing.T) {
 		assert.InDelta(t, 1000, body["max_completion_tokens"], 0, tc.model)
 		assert.NotContains(t, body, "max_tokens", tc.model)
 	}
+}
+
+func TestZAIIsSentNoToolsWhenAskedNotToCallThem(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{astraTool()})
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://api.z.ai/api/paas/v4", "glm-4.6"},
+		{"https://open.bigmodel.cn/api/paas/v4", "glm-4.6"},
+		{"http://litellm.internal/v1", "zai/glm-4.6"},
+	} {
+		for name, none := range map[string]llms.CallOption{
+			"by name":           llms.WithToolChoice("none"),
+			"as a struct":       llms.WithToolChoice(llms.ToolChoice{Type: "none"}),
+			"in the extra body": llms.WithExtraBody(map[string]any{"tool_choice": "none", "do_sample": true}),
+		} {
+			body, warnings := hostCall(t, route.baseURL, route.model, tools, none)
+			assert.NotContains(t, body, "tools", "%s %s", route.model, name)
+			assert.NotContains(t, body, "tool_choice", "%s %s", route.model, name)
+			assert.Equal(t, llms.Warning{
+				Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: route.model, Asked: "none", Sent: "no tools",
+				Reason: "Z.ai takes only tool_choice auto, so the tools stay off the request",
+			}, warnings["WithToolChoice"], "%s %s", route.model, name)
+		}
+		body, _ := hostCall(t, route.baseURL, route.model, tools,
+			llms.WithExtraBody(map[string]any{"tool_choice": "none", "do_sample": true}))
+		assert.Equal(t, true, body["do_sample"], "the rest of the extra body still goes: %s", route.model)
+	}
+
+	extra := map[string]any{"tool_choice": "none"}
+	hostCall(t, "https://api.z.ai/api/paas/v4", "glm-4.6", tools, llms.WithExtraBody(extra))
+	assert.Equal(t, map[string]any{"tool_choice": "none"}, extra, "the caller's extra body stays as it was")
+
+	for _, route := range []struct{ baseURL, model string }{
+		{"http://vllm.internal:8000/v1", "glm-4.6"},
+		{"https://ai-gateway.vercel.sh/v1", "zai/glm-4.6"},
+	} {
+		body, warnings := hostCall(t, route.baseURL, route.model, tools, llms.WithToolChoice("none"))
+		assert.Equal(t, "none", body["tool_choice"], route.model)
+		assert.Len(t, body["tools"], 1, route.model)
+		assert.NotContains(t, warnings, "WithToolChoice", route.model)
+	}
+
+	body, warnings := hostCall(t, "https://api.z.ai/api/paas/v4", "glm-4.6", tools, llms.WithToolChoice("auto"))
+	assert.Equal(t, "auto", body["tool_choice"])
+	assert.Len(t, body["tools"], 1)
+	assert.NotContains(t, warnings, "WithToolChoice")
 }
