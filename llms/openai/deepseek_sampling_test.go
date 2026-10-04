@@ -134,6 +134,9 @@ func TestDeepSeekThinkingLeavesOutTheTemperatureItIgnores(t *testing.T) {
 		"deepseek-v4-pro thinking by object": {deepSeekBaseURL, "deepseek-v4-pro", append([]llms.CallOption{thinkingInExtraBody("enabled")}, sampling...)},
 		"deepseek-flash":                     {deepSeekBaseURL, "deepseek-flash", sampling},
 		"deepseek/deepseek-flash":            {gatewayBaseURL, "deepseek/deepseek-flash", sampling},
+		"deepseek-v5-flash":                  {deepSeekBaseURL, "deepseek-v5-flash", sampling},
+		"deepseek-v4.2-flash":                {deepSeekBaseURL, "deepseek-v4.2-flash", sampling},
+		"deepseek/deepseek-v5-flash":         {gatewayBaseURL, "deepseek/deepseek-v5-flash", sampling},
 		"deepseek/deepseek-flash with an effort and thinking by object": {gatewayBaseURL, "deepseek/deepseek-flash",
 			append([]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0), thinkingInExtraBody("enabled")}, sampling...)},
 	} {
@@ -187,6 +190,8 @@ func TestDeepSeekOutOfThinkingLeavesOutTheTopPItIgnores(t *testing.T) {
 		{deepSeekBaseURL, "deepseek-v4-pro"},
 		{deepSeekBaseURL, "deepseek-flash"},
 		{gatewayBaseURL, "deepseek/deepseek-flash"},
+		{deepSeekBaseURL, "deepseek-v5-flash"},
+		{deepSeekBaseURL, "deepseek-v4.2-flash"},
 	} {
 		for name, off := range offs {
 			body, resp := sendToHost(t, target.baseURL, target.model, off, llms.WithTemperature(0.3), llms.WithTopP(0.9))
@@ -201,7 +206,13 @@ func TestDeepSeekOutOfThinkingLeavesOutTheTopPItIgnores(t *testing.T) {
 			if w.Kind != llms.WarningDrop || w.Asked != "0.9" || !strings.Contains(w.Reason, "ignores top_p") {
 				t.Errorf("%s, %s: top_p warning = %+v", target.model, name, w)
 			}
-			if len(resp.Warnings) != 1 {
+			var lost []llms.Warning
+			for _, w := range resp.Warnings {
+				if w.Option != "WithModel" {
+					lost = append(lost, w)
+				}
+			}
+			if len(lost) != 1 {
 				t.Errorf("%s, %s: only top_p was lost, got %v", target.model, name, resp.Warnings)
 			}
 		}
@@ -230,6 +241,7 @@ func TestDeepSeekOnAnotherHostKeepsItsTemperatureWhileThinking(t *testing.T) {
 		"deepseek-v4-pro on DashScope":           {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": true})},
 		"deepseek-v4-pro on DashScope, off":      {dashScopeBaseURL, "deepseek-v4-pro", llms.WithExtraBody(map[string]any{"enable_thinking": false})},
 		"deepseek-v4-flash on DashScope":         {dashScopeBaseURL, "deepseek-v4-flash", effort},
+		"deepseek-v5-flash on DashScope":         {dashScopeBaseURL, "deepseek-v5-flash", effort},
 		"deepseek-v4-pro on a gateway":           {gatewayBaseURL, "deepseek-v4-pro", effort},
 		"deepseek/deepseek-v4-pro on OpenRouter": {openRouterBaseURL, "deepseek/deepseek-v4-pro", effort},
 	} {
@@ -286,6 +298,8 @@ func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 		"deepseek-v4-pro on its own API":                  {deepSeekBaseURL, "deepseek-v4-pro", true},
 		"deepseek/deepseek-v4-pro on a gateway":           {gatewayBaseURL, "deepseek/deepseek-v4-pro", true},
 		"deepseek-flash on its own API":                   {deepSeekBaseURL, "deepseek-flash", true},
+		"deepseek-v5-flash on its own API":                {deepSeekBaseURL, "deepseek-v5-flash", true},
+		"deepseek-v4.2-flash on its own API":              {deepSeekBaseURL, "deepseek-v4.2-flash", true},
 		"dashscope/deepseek-v4-pro on a gateway":          {gatewayBaseURL, "dashscope/deepseek-v4-pro", true},
 		"deepseek-v4-pro on DashScope":                    {dashScopeBaseURL, "deepseek-v4-pro", true},
 		"dashscope/kimi-k2.7-code on a gateway":           {gatewayBaseURL, "dashscope/kimi-k2.7-code", true},
