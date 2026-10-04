@@ -108,8 +108,8 @@ func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T)
 	t.Parallel()
 
 	for name, documented := range map[string]string{
-		"gpt-5.7": "gpt-5.6-sol", "gpt-6.1": "gpt-6.1-sol", "gpt-6.2-sol": "gpt-6.1-sol", "gpt-6.2-astra": "gpt-6-astra",
-		"gpt-5.7-pro": "gpt-5.5-pro", "openai/gpt-5.7": "gpt-5.6-sol",
+		"gpt-5.7": "gpt-5.6", "gpt-6.1": "gpt-6.1-sol", "gpt-6.2-sol": "gpt-6.1-sol", "gpt-6.2-astra": "gpt-6-astra",
+		"gpt-5.7-pro": "gpt-5.5-pro", "openai/gpt-5.7": "gpt-5.6",
 		"glm-5.4": "glm-5.3", "glm-6": "glm-5.3", "glm-5.31": "glm-5.3", "glm-5.4-flash": "glm-5.3-flash",
 		"zai-glm-5-4": "zai-glm-5-3", "zai-glm-5": "zai-glm-5-3", "zai-glm-latest": "zai-glm-5-3",
 		"kimi-k4": "kimi-k3", "kimi-k2.8": "kimi-k2.6", "moonshot/kimi-k4": "moonshot/kimi-k3",
@@ -122,6 +122,12 @@ func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T)
 		"models/gemini-4-pro": "gemini-3.1-pro-preview", "gemini-pro-latest": "gemini-3.1-pro-preview",
 		"gemini-3.9-flash-lite": "gemini-3.5-flash-lite", "gemma-5": "gemma-4-26b-a4b-it",
 	} {
+		_, release := splitModelName(documented)
+		followed, inherited := InheritedModel(name)
+		if !inherited {
+			_, followed = splitModelName(name)
+		}
+		assert.Equal(t, release, followed, "%s should follow %s", name, documented)
 		got, want := tableAnswers(name), tableAnswers(documented)
 		for key := range want {
 			assert.Equal(t, want[key], got[key], "%s should answer %s like %s", name, key, documented)
