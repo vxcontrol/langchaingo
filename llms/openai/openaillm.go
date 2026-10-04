@@ -347,7 +347,7 @@ func (o *LLM) createChatRequest(
 	if err := o.addToolsToRequest(req, opts, warn); err != nil {
 		return nil, err
 	}
-	o.withholdToolsInsteadOfNone(req, model, warn)
+	o.withholdToolsInsteadOfNone(req, opts, model, warn)
 
 	setClientResponseFormat(req, model, o.host, o.client.ResponseFormat, warn)
 
@@ -398,8 +398,10 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	return nil
 }
 
-func (o *LLM) withholdToolsInsteadOfNone(req *openaiclient.ChatRequest, model string, warn *llms.Warnings) {
-	if len(req.Tools) == 0 || !reasoning.ServedByZAI(model, o.host) {
+func (o *LLM) withholdToolsInsteadOfNone(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, model string, warn *llms.Warnings,
+) {
+	if !llms.OffersTools(opts) || !reasoning.ServedByZAI(model, o.host) {
 		return
 	}
 	choice, inExtraBody := req.ExtraBody["tool_choice"]
@@ -410,9 +412,10 @@ func (o *LLM) withholdToolsInsteadOfNone(req *openaiclient.ChatRequest, model st
 		return
 	}
 	req.Tools, req.ToolChoice = nil, nil
-	if inExtraBody {
+	if _, toolsInExtraBody := req.ExtraBody["tools"]; inExtraBody || toolsInExtraBody {
 		req.ExtraBody = maps.Clone(req.ExtraBody)
 		delete(req.ExtraBody, "tool_choice")
+		delete(req.ExtraBody, "tools")
 	}
 	warn.Add(llms.Warning{
 		Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: model,

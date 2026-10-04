@@ -128,27 +128,33 @@ func TestZAIIsSentNoToolsWhenAskedNotToCallThem(t *testing.T) {
 	t.Parallel()
 
 	tools := llms.WithTools([]llms.Tool{astraTool()})
+	lookup := map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://api.z.ai/api/paas/v4", "glm-4.6"},
 		{"https://open.bigmodel.cn/api/paas/v4", "glm-4.6"},
 		{"http://litellm.internal/v1", "zai/glm-4.6"},
 	} {
-		for name, none := range map[string]llms.CallOption{
-			"by name":           llms.WithToolChoice("none"),
-			"as a struct":       llms.WithToolChoice(llms.ToolChoice{Type: "none"}),
-			"in the extra body": llms.WithExtraBody(map[string]any{"tool_choice": "none", "do_sample": true}),
+		for name, opts := range map[string][]llms.CallOption{
+			"by name":     {tools, llms.WithToolChoice("none")},
+			"as a struct": {tools, llms.WithToolChoice(llms.ToolChoice{Type: "none"})},
+			"in the extra body": {tools,
+				llms.WithExtraBody(map[string]any{"tool_choice": "none", "do_sample": true})},
+			"with the tools in the extra body": {
+				llms.WithExtraBody(map[string]any{"tools": []any{lookup}, "do_sample": true}), llms.WithToolChoice("none")},
+			"with both in the extra body": {tools,
+				llms.WithExtraBody(map[string]any{"tools": []any{lookup}, "tool_choice": "none", "do_sample": true})},
 		} {
-			body, warnings := hostCall(t, route.baseURL, route.model, tools, none)
+			body, warnings := hostCall(t, route.baseURL, route.model, opts...)
 			assert.NotContains(t, body, "tools", "%s %s", route.model, name)
 			assert.NotContains(t, body, "tool_choice", "%s %s", route.model, name)
 			assert.Equal(t, llms.Warning{
 				Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: route.model, Asked: "none", Sent: "no tools",
 				Reason: "Z.ai takes only tool_choice auto, so the tools stay off the request",
 			}, warnings["WithToolChoice"], "%s %s", route.model, name)
+			if name != "by name" && name != "as a struct" {
+				assert.Equal(t, true, body["do_sample"], "the rest of the extra body still goes: %s %s", route.model, name)
+			}
 		}
-		body, _ := hostCall(t, route.baseURL, route.model, tools,
-			llms.WithExtraBody(map[string]any{"tool_choice": "none", "do_sample": true}))
-		assert.Equal(t, true, body["do_sample"], "the rest of the extra body still goes: %s", route.model)
 	}
 
 	extra := map[string]any{"tool_choice": "none"}
