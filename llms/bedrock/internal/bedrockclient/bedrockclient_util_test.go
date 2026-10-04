@@ -287,7 +287,7 @@ func TestLegacyAnthropic_StructuredOutput_FormatAndEffort(t *testing.T) {
 	input := anthropicTextGenerationInput{
 		OutputConfig: &anthropicOutputConfig{Effort: "high"},
 	}
-	require.NoError(t, applyAnthropicStructuredOutput(&input, "anthropic.claude-sonnet-4-5-v1:0", soConfig()))
+	require.NoError(t, applyAnthropicStructuredOutput(&input, "anthropic.claude-sonnet-4-5-v1:0", soConfig(), nil))
 
 	got := marshalAnthropicInput(t, input)
 	oc, _ := got["output_config"].(map[string]any)
@@ -304,7 +304,7 @@ func TestLegacyAnthropic_StructuredOutput_FormatAndEffort(t *testing.T) {
 func TestLegacyAnthropic_StructuredOutput_UnsupportedModel(t *testing.T) {
 	t.Parallel()
 	input := anthropicTextGenerationInput{}
-	err := applyAnthropicStructuredOutput(&input, "anthropic.claude-3-sonnet-20240229-v1:0", soConfig())
+	err := applyAnthropicStructuredOutput(&input, "anthropic.claude-3-sonnet-20240229-v1:0", soConfig(), nil)
 	var unsup *llms.ErrStructuredOutputUnsupported
 	require.True(t, errors.As(err, &unsup), "legacy 3.x must be unsupported, got %v", err)
 }
@@ -395,13 +395,13 @@ func TestLegacyAnthropic_StructuredOutput_FollowsBedrocksClaudeList(t *testing.T
 	t.Parallel()
 
 	for _, model := range claudeWithoutStructuredOutputOnBedrock {
-		err := applyAnthropicStructuredOutput(&anthropicTextGenerationInput{}, model, soConfig())
+		err := applyAnthropicStructuredOutput(&anthropicTextGenerationInput{}, model, soConfig(), nil)
 		var unsup *llms.ErrStructuredOutputUnsupported
 		require.ErrorAs(t, err, &unsup, model)
 	}
 	for _, model := range claudeWithStructuredOutputOnBedrock {
 		input := anthropicTextGenerationInput{}
-		require.NoError(t, applyAnthropicStructuredOutput(&input, model, soConfig()), model)
+		require.NoError(t, applyAnthropicStructuredOutput(&input, model, soConfig(), nil), model)
 		require.NotNil(t, input.OutputConfig, model)
 	}
 }
