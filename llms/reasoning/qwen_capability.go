@@ -27,15 +27,18 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
-func DashScopeTakesNoJSONSchema(route string) bool {
-	if guest := dashScopeGuestSpelling(route); strings.HasPrefix(guest, "kimi") || strings.HasPrefix(guest, "moonshot-kimi") {
-		return true
+func dashScopeTakesNoJSONSchema(route string) bool {
+	guest := dashScopeGuestSpelling(route)
+	for _, family := range []string{"kimi", "moonshot-kimi", "deepseek-", "glm-"} {
+		if strings.HasPrefix(guest, family) {
+			return true
+		}
 	}
 	name, ok := dashScopeRouteName(route)
 	switch {
 	case !ok:
 		return false
-	case strings.HasPrefix(name, "qwq"), strings.HasPrefix(name, "qvq"):
+	case qwqOrQVQ(name):
 		return true
 	case !strings.HasPrefix(name, "qwen"):
 		return false
@@ -49,6 +52,15 @@ func DashScopeTakesNoJSONSchema(route string) bool {
 	return !versioned || major < 3 || major == 3 && minor <= 8
 }
 
+func DashScopeTakesNoJSONObject(route string) bool {
+	name, ok := dashScopeRouteName(route)
+	return ok && qwqOrQVQ(name)
+}
+
+func qwqOrQVQ(name string) bool {
+	return strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq")
+}
+
 func QVQStreamsOnly(route string) bool {
 	name, ok := dashScopeRouteName(route)
 	return ok && strings.HasPrefix(name, "qvq")
@@ -57,10 +69,6 @@ func QVQStreamsOnly(route string) bool {
 func dashScopeRouteName(route string) (string, bool) {
 	name, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
 	return name, ok && !strings.Contains(name, "/")
-}
-
-func onDashScope(model, host string) (string, bool) {
-	return dashScopeRouteName(DashScopeRoute(model, host))
 }
 
 func dashScopeSpelling(model string) string {
@@ -135,16 +143,17 @@ func dashScopeGuestSpelling(model string) string {
 	return inheritedOrSelf(rest)
 }
 
-var dashScopeHosts = []string{
-	"dashscope.aliyuncs.com", "dashscope-intl.aliyuncs.com", "dashscope-us.aliyuncs.com",
-	"cn-hongkong.dashscope.aliyuncs.com",
-}
-
 // DashScopeRoute returns the name the rules read for a model sent to host: a
 // name sent to Model Studio's own host reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
-	onDashScope := slices.Contains(dashScopeHosts, host) || strings.HasSuffix(host, ".maas.aliyuncs.com")
-	if !onDashScope || strings.HasPrefix(strings.ToLower(model), "dashscope/") {
+	routed := strings.HasPrefix(strings.ToLower(model), "dashscope/")
+	if ServedBy(model, host) != VendorDashScope {
+		if routed {
+			return model[len("dashscope/"):]
+		}
+		return model
+	}
+	if routed {
 		return model
 	}
 	return "dashscope/" + model

@@ -109,9 +109,9 @@ func tableAnswers(model string) map[string]any {
 		"RejectsSamplingWhileThinking": RejectsSamplingWhileThinking, "RejectsStop": RejectsStop,
 		"RejectsTopK": RejectsTopK, "ReplaysEmptyReasoning": ReplaysEmptyReasoning,
 		"ReplaysReasoningOnEveryTurn": ReplaysReasoningOnEveryTurn, "ReplaysThinkingInContent": ReplaysThinkingInContent,
-		"ServedByMistral": ServedByMistral, "TakesNoJSONObject": TakesNoJSONObject, "TakesNoJSONSchema": TakesNoJSONSchema,
+		"ServedByMistral": ServedByMistral, "TakesNoJSONObject": TakesNoJSONObject,
 		"TakesNoResponseFormat": TakesNoResponseFormat, "TakesNoThinkingDepth": TakesNoThinkingDepth,
-		"TakesNoTopK": TakesNoTopK, "ThinkingOptIn": ThinkingOptIn, "UsesLegacyMaxTokens": UsesLegacyMaxTokens,
+		"TakesNoTopK": TakesNoTopK, "ThinkingOptIn": ThinkingOptIn,
 	} {
 		answers[name] = rule(model)
 	}
@@ -123,7 +123,13 @@ func tableAnswers(model string) map[string]any {
 		answers[fmt.Sprint("ResolveOff/", p)] = ResolveOff(model, p)
 		answers[fmt.Sprint("ClaudeEffortsFor/", p)] = ClaudeEffortsFor(model, p)
 	}
-	for _, host := range []string{"api.deepseek.com", "api.z.ai", "api.moonshot.ai", "dashscope-intl.aliyuncs.com", "api.x.ai", "api.openai.com"} {
+	for _, host := range []string{
+		"api.deepseek.com", "api.z.ai", "api.moonshot.ai", "dashscope-intl.aliyuncs.com", "api.x.ai", "api.openai.com",
+		"api.mistral.ai", "litellm.internal", "openrouter.ai",
+	} {
+		answers["ServedBy/"+host] = ServedBy(model, host)
+		answers["TakesNoJSONSchema/"+host] = TakesNoJSONSchema(model, host)
+		answers["UsesLegacyMaxTokens/"+host] = UsesLegacyMaxTokens(model, host)
 		answers["ServedByDeepSeek/"+host] = ServedByDeepSeek(model, host)
 		answers["ServedByZAI/"+host] = ServedByZAI(model, host)
 		answers["RejectsRequiredToolChoice/"+host] = RejectsRequiredToolChoice(model, host)

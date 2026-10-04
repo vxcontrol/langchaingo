@@ -379,6 +379,7 @@ func namesReasoningModel(modelLower string) bool { //nolint:funlen // a flat cat
 	// Qwen reasoning models. Qwen3.x thinking is user-toggleable with configurable
 	// sampling, so the bare qwen3 prefix must not force temperature pinning.
 	if (strings.HasPrefix(modelLower, "qwen") && ThinkingMarkedInName(modelLower)) ||
+		strings.HasPrefix(modelLower, "qwq") || strings.HasPrefix(modelLower, "qvq") ||
 		strings.Contains(modelLower, "qwq-") || strings.Contains(modelLower, "qvq-") ||
 		QwenThinkingRequiresStream(modelLower) ||
 		QwenThinkingEnabledByFlag(modelLower) ||

@@ -124,11 +124,12 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 
 	t.Run("a vendor without json_schema is refused before the request", func(t *testing.T) {
 		t.Parallel()
-		for _, model := range []string{
-			"deepseek-flash", "deepseek-v4-pro", "deepseek/deepseek-v4-pro", "glm-4.5-air", "zai/glm-5.3",
-			"glm-5.2", "zai.glm-4.7", "glm-5-turbo",
+		const deepSeek, zai, gateway = "https://api.deepseek.com", "https://api.z.ai/api/paas/v4", "http://litellm.internal/v1"
+		for model, baseURL := range map[string]string{
+			"deepseek-flash": deepSeek, "deepseek-v4-pro": deepSeek, "deepseek/deepseek-v4-pro": gateway,
+			"glm-4.5-air": zai, "zai/glm-5.3": gateway, "glm-5.2": zai, "glm-5-turbo": zai,
 		} {
-			llm := newUnitLLM(t, WithModel(model))
+			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
 			_, err := llm.createChatRequest(nil, opts, nil)
@@ -148,8 +149,11 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 
 	t.Run("GLM served by Mistral keeps the schema Mistral documents for it", func(t *testing.T) {
 		t.Parallel()
-		for _, model := range []string{"glm-5-2", "zai-glm-5-2", "mistral/zai-glm-5-2"} {
-			llm := newUnitLLM(t, WithModel(model))
+		for model, baseURL := range map[string]string{
+			"glm-5-2": "https://api.mistral.ai/v1", "zai-glm-5-2": "https://api.mistral.ai/v1",
+			"mistral/zai-glm-5-2": "http://litellm.internal/v1",
+		} {
+			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
 			req, err := llm.createChatRequest(nil, opts, nil)

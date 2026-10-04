@@ -726,6 +726,14 @@ func TestIsReasoningModel(t *testing.T) { //nolint:funlen
 		{"qwen3-vl-235b-a22b-thinking", true},
 		{"qwq-32b", true},
 		{"qwen/qwq-32b", true},
+		{"qwq:32b", true},
+		{"qwq", true},
+		{"qvq-max", true},
+		{"qvq:72b", true},
+		{"Qwen/QVQ-72B-Preview", true},
+		{"qwen-qwq-32b", true},
+		{"groq/qwen-qwq-32b", true},
+		{"qwen_qwq-32b-q4_k_m.gguf", true},
 
 		// Minimax reasoning models
 		{"minimax-m1", true},

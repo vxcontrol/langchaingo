@@ -22,6 +22,8 @@ func TestStopWordsAreRefusedBeforeTheNetworkWhereTheVendorRefusesThem(t *testing
 		{"https://api.openai.com/v1", "o4-mini-2025-04-16"},
 		{"https://api.x.ai/v1", "grok-4.7"},
 		{"https://api.x.ai/v1", "grok-4.6"},
+		{"https://us.api.x.ai/v1", "grok-4.7"},
+		{"https://us.api.x.ai/v1", "grok-4.6"},
 	} {
 		doer := &bodyDoer{}
 		llm := newUnitLLM(t, WithBaseURL(tc.baseURL), WithModel(tc.model), WithHTTPClient(doer))
@@ -44,7 +46,10 @@ func TestStopWordsAreRefusedBeforeTheNetworkWhereTheVendorRefusesThem(t *testing
 		{"https://api.openai.com/v1", "o3-mini"},
 		{"https://api.x.ai/v1", "grok-4-1-fast-non-reasoning"},
 		{"https://api.x.ai/v1", "grok-3"},
+		{"https://us.api.x.ai/v1", "grok-4-1-fast-non-reasoning"},
 		{"https://openrouter.ai/api/v1", "x-ai/grok-4.7"},
+		{"https://ai-gateway.vercel.sh/v1", "spacexai/grok-4.7"},
+		{"https://zenmux.ai/api/v1", "xai/grok-4.7"},
 		{"https://openrouter.ai/api/v1", "openai/o3"},
 	} {
 		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithStopWords([]string{"END"}))

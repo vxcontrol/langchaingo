@@ -141,6 +141,15 @@ func newFallbackLLM(t *testing.T, serverURL, model string, extra ...Option) *LLM
 	return llm
 }
 
+func onHost(t *testing.T, fs *fallbackServer, baseURL string) []Option {
+	t.Helper()
+
+	if baseURL == "" {
+		return nil
+	}
+	return []Option{WithBaseURL(baseURL), WithHTTPClient(clientDialing(t, fs.Server))}
+}
+
 func answerSchema() llms.CallOption {
 	return llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "answer", Schema: objectSchema()})
 }
@@ -148,12 +157,15 @@ func answerSchema() llms.CallOption {
 func TestTheFallbackSendsJSONObjectAndTheSchemaInThePrompt(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"deepseek-flash", "deepseek-v4-pro", "deepseek/deepseek-v4-pro", "glm-5.3", "zai/glm-5.3"} {
+	for model, baseURL := range map[string]string{
+		"deepseek-flash": deepSeekBaseURL, "deepseek-v4-pro": deepSeekBaseURL, "deepseek/deepseek-v4-pro": "",
+		"glm-5.3": "http://api.z.ai/api/paas/v4", "zai/glm-5.3": "",
+	} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
 
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			resp, err := newFallbackLLM(t, srv.URL, model).GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, model, onHost(t, srv, baseURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, answerSchema())
 			require.NoError(t, err)
 			assert.Equal(t, `{"answer":"42"}`, resp.Choices[0].Content)
@@ -281,7 +293,7 @@ func TestTheFallbackCarriesTheSchemaInThePrompt(t *testing.T) {
 			t.Parallel()
 
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			llm := newFallbackLLM(t, srv.URL, "deepseek-flash")
+			llm := newFallbackLLM(t, srv.URL, "deepseek-flash", onHost(t, srv, deepSeekBaseURL)...)
 
 			before, err := json.Marshal(tc.messages)
 			require.NoError(t, err)
@@ -330,9 +342,13 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 
 	t.Run("models with json_schema keep it", func(t *testing.T) {
 		t.Parallel()
-		for _, model := range []string{"gpt-4o", "glm-5-2", "mistral/zai-glm-5-2", "MiniMax-Text-01", "openrouter/minimax/minimax-m3"} {
+		for model, baseURL := range map[string]string{
+			"gpt-4o": "", "glm-5-2": "http://api.mistral.ai/v1", "mistral/zai-glm-5-2": "", "MiniMax-Text-01": "",
+			"openrouter/minimax/minimax-m3": "", "glm-4.6": "", "deepseek-v4-pro": "",
+			"deepseek/deepseek-v4-pro": "http://openrouter.ai/api/v1", "zai/glm-4.6": "http://ai-gateway.vercel.sh/v1",
+		} {
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			resp, err := newFallbackLLM(t, srv.URL, model).GenerateContent(t.Context(), human, answerSchema())
+			resp, err := newFallbackLLM(t, srv.URL, model, onHost(t, srv, baseURL)...).GenerateContent(t.Context(), human, answerSchema())
 			require.NoError(t, err, model)
 
 			req := srv.request(t, 0)
@@ -347,9 +363,10 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 
 	t.Run("without the option the vendor is still refused before any request", func(t *testing.T) {
 		t.Parallel()
-		for _, model := range []string{"deepseek-flash", "MiniMax-M2.7"} {
+		for model, baseURL := range map[string]string{"deepseek-flash": deepSeekBaseURL, "MiniMax-M2.7": ""} {
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-			llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
+			llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)},
+				onHost(t, srv, baseURL)...)...)
 			require.NoError(t, err)
 
 			_, err = llm.GenerateContent(t.Context(), human, answerSchema())
@@ -362,7 +379,7 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 	t.Run("JSON mode alone is left as it was", func(t *testing.T) {
 		t.Parallel()
 		srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"a":1}`}})
-		resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash").GenerateContent(t.Context(),
+		resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash", onHost(t, srv, deepSeekBaseURL)...).GenerateContent(t.Context(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "answer in json")}, llms.WithJSONMode())
 		require.NoError(t, err)
 
@@ -402,7 +419,11 @@ func TestTheFallbackChecksTheSchemaAsTheNativePathDoes(t *testing.T) {
 			var errs [2]error
 			for i, model := range []string{"gpt-4o", "deepseek-flash"} {
 				srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
-				_, errs[i] = newFallbackLLM(t, srv.URL, model, tc.opts...).GenerateContent(t.Context(), human,
+				opts := tc.opts
+				if model == "deepseek-flash" {
+					opts = append(onHost(t, srv, deepSeekBaseURL), tc.opts...)
+				}
+				_, errs[i] = newFallbackLLM(t, srv.URL, model, opts...).GenerateContent(t.Context(), human,
 					llms.WithStructuredOutput(tc.config))
 				require.Error(t, errs[i], model)
 				assert.Zero(t, srv.requests(), "%s: refused before any request", model)
@@ -447,7 +468,7 @@ func TestTheFallbackValidatesTheAnswerLocally(t *testing.T) {
 			if tc.reply.toolCall {
 				opts = append(opts, llms.WithTools([]llms.Tool{weatherTool()}))
 			}
-			resp, err := newFallbackLLM(t, srv.URL, "glm-5.3").GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, "glm-5.3", onHost(t, srv, "http://api.z.ai/api/paas/v4")...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, opts...)
 			require.NotNil(t, resp, "the answer comes back with any error")
 
@@ -483,7 +504,7 @@ func TestTheFallbackValidatesTheStreamedAnswer(t *testing.T) {
 
 			srv := newFallbackServer(t, fallbackReply{pieces: tc.pieces})
 			var streamed strings.Builder
-			resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash").GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash", onHost(t, srv, deepSeekBaseURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")},
 				answerSchema(), llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
 					if chunk.Type == streaming.ChunkTypeText {
@@ -614,7 +635,7 @@ func TestAnswersOutsideTheFallbackStayAsSent(t *testing.T) {
 	t.Run("JSON mode alone on a fallback client", func(t *testing.T) {
 		t.Parallel()
 		srv := newFallbackServer(t, fallbackReply{pieces: []string{fenced}})
-		resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash").GenerateContent(t.Context(), human, llms.WithJSONMode())
+		resp, err := newFallbackLLM(t, srv.URL, "deepseek-flash", onHost(t, srv, deepSeekBaseURL)...).GenerateContent(t.Context(), human, llms.WithJSONMode())
 		require.NoError(t, err)
 		assert.Equal(t, fenced, resp.Choices[0].Content)
 	})

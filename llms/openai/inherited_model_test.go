@@ -131,7 +131,8 @@ func TestAHostThatRejectsAForcedToolWhileThinkingRefusesItForEveryVersion(t *tes
 		llm := newUnitLLM(t, WithBaseURL(route.baseURL), WithModel(route.model), WithHTTPClient(doer))
 		_, err := llm.GenerateContent(context.Background(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-			tools, llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithToolChoice("required"))
+			tools, llms.WithReasoning(llms.ReasoningHigh, 0),
+			llms.WithToolChoice(map[string]any{"type": "function", "name": "lookup"}))
 		var refusal *reasoning.ErrForcedToolChoiceUnsupported
 		require.ErrorAs(t, err, &refusal, route.model)
 		require.Nil(t, doer.body, "%s: the request must not be sent", route.model)

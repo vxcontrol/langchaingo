@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -334,21 +335,21 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOn
 	}
 
-	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(o.effectiveModel(opts)) ||
-		reasoning.ServedByZAI(o.effectiveModel(opts), o.host) || o.host == "api.mistral.ai" {
+	if isLegacyMaxTokensField(&opts) || reasoning.UsesLegacyMaxTokens(model, o.host) {
 		req.MaxTokens = opts.MaxTokens
 	} else {
 		req.MaxCompletionTokens = opts.MaxTokens
 	}
 
-	setJSONMode(req, model, opts, warn)
+	setJSONMode(req, model, o.host, opts, warn)
 
 	// add tools from functions and tool definitions
 	if err := o.addToolsToRequest(req, opts, warn); err != nil {
 		return nil, err
 	}
+	o.withholdToolsInsteadOfNone(req, opts, model, warn)
 
-	setClientResponseFormat(req, model, o.client.ResponseFormat, warn)
+	setClientResponseFormat(req, model, o.host, o.client.ResponseFormat, warn)
 
 	// per-call schema-constrained structured output takes precedence over JSONMode
 	// and conflicts with a client-level response format.
@@ -387,7 +388,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
-		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && o.thinksOnTheWire(req, model, opts, wireEffort):
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
 		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
@@ -397,17 +398,52 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	return nil
 }
 
-func thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
-	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
+func (o *LLM) withholdToolsInsteadOfNone(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, model string, warn *llms.Warnings,
+) {
+	if !llms.OffersTools(opts) || !reasoning.ServedByZAI(model, o.host) {
+		return
+	}
+	choice, inExtraBody := req.ExtraBody["tool_choice"]
+	if !inExtraBody {
+		choice = req.ToolChoice
+	}
+	if kind, _ := llms.ClassifyToolChoice(choice); kind != llms.ToolChoiceNone {
+		return
+	}
+	req.Tools, req.ToolChoice = nil, nil
+	if _, toolsInExtraBody := req.ExtraBody["tools"]; inExtraBody || toolsInExtraBody {
+		req.ExtraBody = maps.Clone(req.ExtraBody)
+		delete(req.ExtraBody, "tool_choice")
+		delete(req.ExtraBody, "tools")
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningSubstitute, Option: "WithToolChoice", Model: model,
+		Asked: "none", Sent: "no tools",
+		Reason: "Z.ai takes only tool_choice auto, so the tools stay off the request",
+	})
+}
+
+func (o *LLM) thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
+	extra := llms.ExtraBody(opts)
+	on, off := llms.ExtraBodyThinking(extra)
+	if reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope {
+		on, off = modelStudioThinkingSwitch(reasoning.DashScopeRoute(model, o.host), extra)
+	}
+	switch {
 	case on:
 		return true
 	case off:
-		return false
+		_, inherited := reasoning.InheritedModel(model)
+		return !inherited && reasoning.ResolveOff(model, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
 	}
-	return thinkingRuns(model, opts, wireEffort)
+	if reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host)) {
+		return false
+	}
+	return reasoning.IsReasoningModel(model) && thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -638,14 +674,14 @@ func (o *LLM) servedByOpenAI() bool {
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {
 	if reasoning.GrokFamily(model) {
-		return o.host == "api.x.ai" || strings.HasPrefix(strings.ToLower(model), "xai/")
+		return reasoning.ServedBy(model, o.host) == reasoning.VendorXAI
 	}
 	return o.servedByOpenAI()
 }
 
 func (o *LLM) sendsClaudeThinkingObject(model string) bool {
 	return !o.client.ModernReasoningFormat &&
-		!publicProviderHost(o.host) &&
+		!reasoning.PublicProviderHost(o.host) &&
 		reasoning.ClaudeThinkingObjectRoute(model)
 }
 
@@ -755,8 +791,8 @@ func (o *LLM) applySamplingPolicy(
 	model := o.effectiveModel(opts)
 	if t := req.Temperature; t != nil {
 		switch {
-		case *t > 1 && reasoning.ServedByZAI(model, o.host):
-			clampTemperature(req, warn, model, 1, "Z.ai takes a temperature from 0 to 1")
+		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
+			clampTemperature(req, warn, model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
 		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort):
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
@@ -828,6 +864,20 @@ func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffor
 	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
 }
 
+func modelStudioThinkingSwitch(route string, extra map[string]any) (on, off bool) {
+	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) {
+	case reasoning.OffDisableDashScope, reasoning.OffOmit:
+		enabled, set := extra["enable_thinking"].(bool)
+		return set && enabled, set && !enabled
+	case reasoning.OffEffortNone:
+		return llms.ExtraBodyThinking(map[string]any{"reasoning_effort": extra["reasoning_effort"]})
+	case reasoning.OffDisableThinkingObject:
+		return llms.ExtraBodyThinking(map[string]any{"thinking": extra["thinking"]})
+	default:
+		return false, false
+	}
+}
+
 func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
 	if !reasoning.IsReasoningModel(model) {
 		return false
@@ -838,6 +888,10 @@ func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
 	case off:
 		return false
 	}
+	return thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+}
+
+func thinkingRunsWithoutTheExtraBody(model string, opts llms.CallOptions, wireEffort string) bool {
 	if opts.Reasoning.IsDisabled() {
 		return false
 	}
