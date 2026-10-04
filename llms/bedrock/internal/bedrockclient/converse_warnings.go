@@ -77,7 +77,7 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	if converseDropsDelegatedThinking(model, input.ReasoningConfig) {
+	if converseDropsThinkingAtNoNamedDepth(model, input.ReasoningConfig) {
 		reportThinkingUnsupported(warn, model, input.ReasoningConfig)
 	}
 	if cfg := input.ReasoningConfig; cfg != nil && cfg.Effort != "" && cfg.Effort != llms.ReasoningNone {
@@ -185,8 +185,8 @@ func converseMechanismOnTheWire(built *bedrockruntime.ConverseInput) string {
 	return ""
 }
 
-func converseDropsDelegatedThinking(model string, cfg *llms.ReasoningConfig) bool {
-	if !cfg.DelegatesDepth() {
+func converseDropsThinkingAtNoNamedDepth(model string, cfg *llms.ReasoningConfig) bool {
+	if cfg.ResolveMode() != llms.ReasoningOn || cfg.Effort != llms.ReasoningNone || cfg.HasExplicitTokens() {
 		return false
 	}
 	if reasoning.IsReasoningModel(model) && !reasoning.IsBedrockNonReasoningModel(model) {
