@@ -26,8 +26,8 @@ func RejectsForcedToolChoiceWhileThinking(model, host string, named bool) bool {
 	if ServedByDeepSeek(model, host) {
 		return true
 	}
-	if name, ok := onDashScope(model, host); ok {
-		return strings.HasPrefix(name, "qwen") || strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq")
+	if ServedBy(model, host) == VendorDashScope {
+		return true
 	}
 	if !servedByMoonshot(model, host) {
 		return false

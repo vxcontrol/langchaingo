@@ -388,6 +388,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
+		!named && reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope,
 		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinksOnTheWire(req, model, opts, wireEffort):
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):

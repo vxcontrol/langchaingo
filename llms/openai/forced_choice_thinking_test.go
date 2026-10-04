@@ -37,16 +37,11 @@ func TestAForcedToolChoiceTheVendorRejectsIsRefusedBeforeTheNetwork(t *testing.T
 	thinking := llms.WithReasoning(llms.ReasoningHigh, 0)
 
 	const (
-		deepSeek   = "https://api.deepseek.com"
-		dashScope  = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-		moonshot   = "https://api.moonshot.ai/v1"
-		zai        = "https://api.z.ai/api/paas/v4"
-		gateway    = "http://litellm.internal/v1"
-		openRouter = "https://openrouter.ai/api/v1"
-		vllm       = "http://vllm.internal:8000/v1"
-		vercel     = "https://ai-gateway.vercel.sh/v1"
-		zenMux     = "https://zenmux.ai/api/v1"
-		novita     = "https://api.novita.ai/openai"
+		deepSeek  = "https://api.deepseek.com"
+		dashScope = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+		moonshot  = "https://api.moonshot.ai/v1"
+		zai       = "https://api.z.ai/api/paas/v4"
+		gateway   = "http://litellm.internal/v1"
 	)
 	requiredInTheExtraBody := llms.WithExtraBody(map[string]any{"tool_choice": "required"})
 	for name, tc := range map[string]struct {
@@ -69,34 +64,62 @@ func TestAForcedToolChoiceTheVendorRejectsIsRefusedBeforeTheNetwork(t *testing.T
 		"GLM on Z.ai, required":                      {zai, "glm-4.6", []llms.CallOption{required}},
 		"GLM on Z.ai, named":                         {zai, "glm-4.6", []llms.CallOption{named}},
 		"GLM through the gateway's zai route":        {gateway, "zai/glm-4.6", []llms.CallOption{required}},
+		"Qwen thinking off by the extra body, required": {dashScope, "qwen3.6-plus",
+			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": false}), required}},
+		"Qwen3 the door keeps from thinking off a stream, required": {dashScope, "qwen3-32b", []llms.CallOption{required}},
+		"Qwen switched off by the extra body over the door, required": {dashScope, "qwen-plus",
+			[]llms.CallOption{thinking, llms.WithExtraBody(map[string]any{"enable_thinking": false}), required}},
+		"Kimi K3 on Model Studio, named": {dashScope, "kimi-k3", []llms.CallOption{named}},
+		"DeepSeek on Model Studio thinking, named": {dashScope, "deepseek-v4-pro",
+			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": true}), named}},
 	} {
 		body, err := callWithATool(t, tc.baseURL, tc.model, tc.opts...)
 		var refused *reasoning.ErrForcedToolChoiceUnsupported
 		require.True(t, errors.As(err, &refused), "%s: %v", name, err)
 		require.Nil(t, body, "%s: refused before the network", name)
 	}
+}
 
+func TestAForcedToolChoiceTheVendorTakesGoesOutAsAsked(t *testing.T) {
+	t.Parallel()
+
+	named := llms.WithToolChoice(map[string]any{"type": "function", "name": "lookup"})
+	required := llms.WithToolChoice("required")
+	thinking := llms.WithReasoning(llms.ReasoningHigh, 0)
+
+	const (
+		deepSeek   = "https://api.deepseek.com"
+		dashScope  = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+		moonshot   = "https://api.moonshot.ai/v1"
+		zai        = "https://api.z.ai/api/paas/v4"
+		gateway    = "http://litellm.internal/v1"
+		openRouter = "https://openrouter.ai/api/v1"
+		vllm       = "http://vllm.internal:8000/v1"
+		vercel     = "https://ai-gateway.vercel.sh/v1"
+		zenMux     = "https://zenmux.ai/api/v1"
+		novita     = "https://api.novita.ai/openai"
+	)
 	namedOnTheWire := map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}
 	for name, tc := range map[string]struct {
 		baseURL, model string
 		opts           []llms.CallOption
 		sent           any
 	}{
-		"Qwen with thinking off, named": {dashScope, "qwen3.6-plus", []llms.CallOption{llms.WithReasoningDisabled(), named}, namedOnTheWire},
-		"Qwen thinking off by the extra body, required": {dashScope, "qwen3.6-plus",
-			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": false}), required}, "required"},
-		"Qwen3 the door keeps from thinking off a stream, required": {dashScope, "qwen3-32b", []llms.CallOption{required}, "required"},
-		"Kimi thinking, required":                                   {moonshot, "kimi-k2.5", []llms.CallOption{thinking, required}, "required"},
-		"GLM on a gateway, required":                                {gateway, "glm-4.6", []llms.CallOption{required}, "required"},
-		"DeepSeek thinking, auto":                                   {deepSeek, "deepseek-v4-pro", []llms.CallOption{thinking, llms.WithToolChoice("auto")}, "auto"},
-		"GPT, required":                                             {"https://api.openai.com/v1", "gpt-5.4", []llms.CallOption{required}, "required"},
-		"DeepSeek weights on vLLM":                                  {vllm, "deepseek-v4-pro", []llms.CallOption{thinking, required}, "required"},
-		"Qwen on OpenRouter":                                        {openRouter, "qwen/qwen3.6-plus", []llms.CallOption{thinking, required}, "required"},
-		"Kimi K2.6 on OpenRouter":                                   {openRouter, "moonshotai/kimi-k2.6", []llms.CallOption{required}, "required"},
-		"Qwen weights on vLLM, named":                               {vllm, "Qwen/Qwen3-32B", []llms.CallOption{thinking, named}, namedOnTheWire},
-		"Qwen by bare name on a gateway":                            {gateway, "qwen3.6-plus", []llms.CallOption{thinking, required}, "required"},
-		"Qwen switched off by the extra body over the door": {dashScope, "qwen-plus",
-			[]llms.CallOption{thinking, llms.WithExtraBody(map[string]any{"enable_thinking": false}), required}, "required"},
+		"Qwen with thinking off, named":                          {dashScope, "qwen3.6-plus", []llms.CallOption{llms.WithReasoningDisabled(), named}, namedOnTheWire},
+		"Qwen3 the door keeps from thinking off a stream, named": {dashScope, "qwen3-32b", []llms.CallOption{named}, namedOnTheWire},
+		"DeepSeek on Model Studio with thinking off, named": {dashScope, "deepseek-v4-pro",
+			[]llms.CallOption{llms.WithExtraBody(map[string]any{"enable_thinking": false}), named}, namedOnTheWire},
+		"Kimi thinking, required":        {moonshot, "kimi-k2.5", []llms.CallOption{thinking, required}, "required"},
+		"GLM on a gateway, required":     {gateway, "glm-4.6", []llms.CallOption{required}, "required"},
+		"DeepSeek thinking, auto":        {deepSeek, "deepseek-v4-pro", []llms.CallOption{thinking, llms.WithToolChoice("auto")}, "auto"},
+		"GPT, required":                  {"https://api.openai.com/v1", "gpt-5.4", []llms.CallOption{required}, "required"},
+		"DeepSeek weights on vLLM":       {vllm, "deepseek-v4-pro", []llms.CallOption{thinking, required}, "required"},
+		"Qwen on OpenRouter":             {openRouter, "qwen/qwen3.6-plus", []llms.CallOption{thinking, required}, "required"},
+		"Kimi K2.6 on OpenRouter":        {openRouter, "moonshotai/kimi-k2.6", []llms.CallOption{required}, "required"},
+		"Qwen weights on vLLM, named":    {vllm, "Qwen/Qwen3-32B", []llms.CallOption{thinking, named}, namedOnTheWire},
+		"Qwen by bare name on a gateway": {gateway, "qwen3.6-plus", []llms.CallOption{thinking, required}, "required"},
+		"Qwen switched off by the extra body over the door, named": {dashScope, "qwen-plus",
+			[]llms.CallOption{thinking, llms.WithExtraBody(map[string]any{"enable_thinking": false}), named}, namedOnTheWire},
 		"GLM with auto in the extra body over required": {zai, "glm-4.6",
 			[]llms.CallOption{required, llms.WithExtraBody(map[string]any{"tool_choice": "auto"})}, "auto"},
 		"Kimi on OpenRouter, named": {openRouter, "moonshotai/kimi-k2.5", []llms.CallOption{thinking, named}, namedOnTheWire},

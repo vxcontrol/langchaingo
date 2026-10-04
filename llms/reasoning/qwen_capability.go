@@ -71,10 +71,6 @@ func dashScopeRouteName(route string) (string, bool) {
 	return name, ok && !strings.Contains(name, "/")
 }
 
-func onDashScope(model, host string) (string, bool) {
-	return dashScopeRouteName(DashScopeRoute(model, host))
-}
-
 func dashScopeSpelling(model string) string {
 	m := strings.TrimPrefix(strings.ToLower(model), "dashscope/")
 	if strings.Contains(m, "/") {
