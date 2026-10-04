@@ -167,10 +167,12 @@ func TestTheRecorderStripsGatewayHeadersFromAResponse(t *testing.T) {
 
 func TestATestWithoutARecordingRunsOnlyWhenRecorded(t *testing.T) {
 	ran := false
+	restore := setRecordForTesting("")
 	t.Run("replaying", func(t *testing.T) {
 		SkipIfRecordingMissing(t)
 		ran = true
 	})
+	restore()
 	require.False(t, ran, "a test with no recording has nothing to replay")
 
 	defer setRecordForTesting(".*")()
