@@ -203,7 +203,7 @@ Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths,
 
 ## Structured Output
 
-The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku 4.5 (not through the `in.` India inference profile); any other Claude model returns a typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3, Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose card is silent return the same typed error. A version the tables do not list yet (`anthropic.claude-opus-6-0-v1:0`, `us.openai.gpt-7-sol`, `zai.glm-6`) follows the newest listed release of its line: where only that release would be refused, the schema still goes out and `ContentResponse.Warnings` carries a `WarningInherit` naming what was sent. The final response is guaranteed to be a single JSON value matching the supplied JSON Schema (Draft 2020-12), validated locally against the original schema.
+The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku 4.5 (not through the `in.` India inference profile); any other listed Claude model returns a typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3, Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose card is silent return the same typed error. A version the tables do not list yet follows the newest listed release of its line: where only that release would refuse the schema, the schema still goes out and `ContentResponse.Warnings` carries a `WarningInherit` naming what was sent. That holds on both paths for an unlisted Claude version such as `anthropic.claude-opus-6-0-v1:0`, and on Converse for other families, such as `zai.glm-6` or a streamed schema on `us.openai.gpt-7-sol`; the legacy path still refuses every non-Anthropic model. The final response is guaranteed to be a single JSON value matching the supplied JSON Schema (Draft 2020-12), validated locally against the original schema.
 
 ```go
 schema := json.RawMessage(`{
@@ -218,12 +218,12 @@ resp, err := llm.GenerateContent(ctx, messages,
 ```
 
 **Wire mapping**:
-- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`, except for GPT-5.6 and GPT-6, whose model cards document the schema on non-streaming calls only and ask for `additionalModelRequestFields.text.format.strict`: the door adds that field and refuses a streamed schema with the typed error.
+- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`, except for GPT-5.6 and GPT-6, whose model cards document the schema on non-streaming calls only and ask for `additionalModelRequestFields.text.format.strict`: the door adds that field and refuses a streamed schema with the typed error for the listed releases, while an unlisted version such as `openai.gpt-6.2-sol` is sent the streamed schema with a `WarningInherit`.
 - **Legacy (InvokeModel)**: Anthropic-compatible `output_config.format`, merged with reasoning `output_config.effort` when both are set.
 
 **Requirements and behavior**:
 - Every object node must set `additionalProperties: false` — Bedrock rejects a schema that omits it. The SDK enforces this locally with a typed `ErrStructuredOutputConfig` before the request is sent.
-- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — a model whose AWS model card lists Structured Outputs gets it; any other returns the typed unsupported error.
+- Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — a model whose AWS model card lists Structured Outputs gets it; any other listed model returns the typed unsupported error, and an unlisted version of a listed line is sent the schema with a `WarningInherit`.
 - Only the final normal turn (`end_turn`/`stop_sequence`) is validated; a `tool_use`/`max_tokens`/guardrail/filtered turn is not treated as final JSON.
 - The response `StopReason` is surfaced on `ContentChoice.StopReason` (Converse now transfers it from the response/`MessageStopEvent`).
 
