@@ -254,7 +254,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		return nil, &ErrForcedToolUseWithThinking{Model: model}
 	}
 	onTheWire := *opts
-	onTheWire.ExtraBody = nil
+	onTheWire.Functions, onTheWire.ExtraBody = nil, nil
 	if err := llms.CheckForcedToolUse(model, onTheWire, warn); err != nil {
 		return nil, err
 	}

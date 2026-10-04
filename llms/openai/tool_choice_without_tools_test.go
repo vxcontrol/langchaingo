@@ -84,3 +84,17 @@ func TestToolsInTheExtraBodyKeepAForcedChoiceOnTheWire(t *testing.T) {
 		require.Nil(t, doer.body, "%s: refused before the network", route.model)
 	}
 }
+
+func TestFunctionsTheOpenAIDoorSendsAsToolsKeepAForcedChoiceRefusedOnClaude55(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithBaseURL("http://litellm.internal/v1"), WithModel("anthropic/claude-opus-5-5"),
+		WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "what time is it?")},
+		llms.WithFunctions([]llms.FunctionDefinition{{Name: "now"}}), llms.WithToolChoice("required"))
+	var refused *reasoning.ErrForcedToolChoiceUnsupported
+	require.ErrorAs(t, err, &refused)
+	require.Nil(t, doer.body)
+}

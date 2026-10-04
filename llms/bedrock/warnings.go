@@ -38,6 +38,12 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 	var warn llms.Warnings
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
 	warn.AddUnreadOptions(model, opts, unread, carried...)
+	if len(opts.Functions) > 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithFunctions", Model: model,
+			Asked: strconv.Itoa(len(opts.Functions)) + " functions", Reason: unread,
+		})
+	}
 	return warn.List()
 }
 

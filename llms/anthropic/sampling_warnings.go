@@ -14,6 +14,12 @@ func reportAnthropicUnread(warn *llms.Warnings, model string, opts llms.CallOpti
 
 	warn.AddUnreadExtraBody(model, opts, extraBodyUnread)
 	warn.AddUnreadOptions(model, opts, unread, "WithTopK", "WithInferenceSpeed")
+	if len(opts.Functions) > 0 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithFunctions", Model: model,
+			Asked: strconv.Itoa(len(opts.Functions)) + " functions", Reason: unread,
+		})
+	}
 }
 
 func reportAnthropicEffort(
