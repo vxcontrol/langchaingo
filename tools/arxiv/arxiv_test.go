@@ -12,9 +12,10 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	t.Parallel()
-
 	rr := httprr.OpenForTest(t, http.DefaultTransport)
+	if rr.Replaying() {
+		t.Parallel()
+	}
 	tool, err := New(2, DefaultUserAgent, WithHTTPClient(rr.Client()))
 	require.NoError(t, err)
 
