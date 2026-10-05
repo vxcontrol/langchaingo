@@ -73,6 +73,9 @@ func (ch *CachingHelper) CreateCachedContent(
 	ttl time.Duration,
 	displayName string,
 ) (*genai.CachedContent, error) {
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return nil, err
+	}
 	// Convert langchain messages to genai content
 	contents := make([]*genai.Content, 0, len(messages))
 	var systemInstruction *genai.Content

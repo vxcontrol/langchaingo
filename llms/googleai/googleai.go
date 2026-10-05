@@ -121,6 +121,16 @@ func (g *GoogleAI) GenerateContent(
 	if temperature, ok := g.opts.defaultTemperature(); ok && opts.Temperature == nil {
 		opts.Temperature = &temperature
 	}
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return nil, err
+	}
+	warn := &llms.Warnings{}
+	warn.AddInherited(opts.GetModel())
+	toolsSent, err := warn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tools = toolsSent
 	if endsOnTheModel(messages) && reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) {
 		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
 	}
@@ -140,9 +150,6 @@ func (g *GoogleAI) GenerateContent(
 	if err := applyGoogleResponseFormat(config, &opts); err != nil {
 		return nil, err
 	}
-
-	warn := &llms.Warnings{}
-	warn.AddInherited(opts.GetModel())
 
 	// Handle thinking configuration for reasoning models
 	tc, err := resolveThinkingConfig(opts.GetModel(), opts.Reasoning, opts.GetMaxTokens())

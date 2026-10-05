@@ -75,6 +75,15 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 
 	callOptions := resolveDefaultOptions(sdk.DefaultChatRequestParams, m.clientOptions)
 	setCallOptions(options, callOptions)
+	if err := llms.CheckToolCalls(langchainMessages); err != nil {
+		return nil, err
+	}
+	warn := &llms.Warnings{}
+	toolsSent, err := warn.ToolsWithAFunction(callOptions.GetModel(), callOptions.Tools)
+	if err != nil {
+		return nil, err
+	}
+	callOptions.Tools = toolsSent
 
 	chatOpts, err := mistralChatParamsFromCallOptions(callOptions)
 	if err != nil {
@@ -86,7 +95,6 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 		return nil, err
 	}
 
-	warn := &llms.Warnings{}
 	reportMistralOptions(warn, callOptions.GetModel(), callOptions, len(chatOpts.Tools) > 0)
 
 	if callOptions.StreamingFunc != nil {

@@ -109,7 +109,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	warn := warningsFor(o.effectiveModel(opts))
-	if err := o.refuseBeforeTheNetwork(&opts, warn); err != nil {
+	if err := o.refuseBeforeTheNetwork(messages, &opts, warn); err != nil {
 		return nil, err
 	}
 
@@ -647,11 +647,19 @@ func warningsFor(model string) *llms.Warnings {
 	return warn
 }
 
-func (o *LLM) refuseBeforeTheNetwork(opts *llms.CallOptions, warn *llms.Warnings) error {
+func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.CallOptions, warn *llms.Warnings) error {
 	if err := opts.ValidateReasoning(); err != nil {
 		return err
 	}
+	if err := llms.CheckToolCalls(messages); err != nil {
+		return err
+	}
 	model := o.effectiveModel(*opts)
+	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
+	if err != nil {
+		return err
+	}
+	opts.Tools = toolsSent
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
 		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
@@ -1055,7 +1063,7 @@ func (o *LLM) processReasoning(reasoningContent string) *reasoning.ContentReason
 // processToolCalls processes tool calls in the response.
 func (o *LLM) processToolCalls(choice *llms.ContentChoice, c *openaiclient.ChatCompletionChoice) {
 	// legacy function call handling
-	if c.FinishReason == "function_call" {
+	if c.FinishReason == "function_call" && c.Message.FunctionCall != nil {
 		choice.FuncCall = &llms.FunctionCall{
 			Name:      c.Message.FunctionCall.Name,
 			Arguments: c.Message.FunctionCall.Arguments,
