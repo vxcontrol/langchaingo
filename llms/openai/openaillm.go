@@ -172,7 +172,6 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	return response, nil
 }
 
-// convertMessages converts LangChain messages to OpenAI chat messages.
 func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
 	chatMsgs, err := o.convertMessages(messages, model)
 	if err != nil {
@@ -185,6 +184,7 @@ func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([
 	return chatMsgs, nil
 }
 
+// convertMessages converts LangChain messages to OpenAI chat messages.
 func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
 	chatMsgs := make([]*ChatMessage, 0, len(messages))
 	for _, mc := range messages {
