@@ -179,7 +179,7 @@ qwen	deepseek-v4.1-flash	true	false	false	false	0		-	disable-thinking-object	0	f
 qwen	deepseek-v4-pro	true	false	false	false	0		-	disable-thinking-object	0	false	-
 qwen	deepseek-v4-pro-0813	true	false	false	false	0		-	disable-thinking-object	0	false	-
 qwen	kimi-k3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
-qwen	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	true	-
+qwen	kimi-k2.7-code	true	false	true	false	0		-	unsupported	0	false	-
 qwen	deepseek-v4-flash-0731	true	false	false	false	0		-	disable-thinking-object	0	false	-
 xai	grok-4.7	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false	-
 xai	grok-4.6	true	true	true	false	1	low,medium,high,xhigh	-	unsupported	0	false	-
