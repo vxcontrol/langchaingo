@@ -63,7 +63,7 @@ func TestQwenIsSentAJSONSchemaOnlyWhereDashScopeDocumentsIt(t *testing.T) {
 	}
 }
 
-func TestQwQAndQVQOnModelStudioAreSentNoJSONObject(t *testing.T) {
+func TestModelStudioModelsWithoutJSONObjectAreSentNone(t *testing.T) {
 	t.Parallel()
 
 	stream := llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })
@@ -78,6 +78,8 @@ func TestQwQAndQVQOnModelStudioAreSentNoJSONObject(t *testing.T) {
 
 	for _, tc := range []struct{ baseURL, model string }{
 		{dashScopeBaseURL, "qwq-plus"}, {dashScopeBaseURL, "qvq-max"}, {"", "dashscope/qwq-plus"},
+		{dashScopeBaseURL, "kimi-k2.7-code"}, {dashScopeBaseURL, "kimi-k2.6"}, {dashScopeBaseURL, "glm-5.2"},
+		{dashScopeBaseURL, "ZHIPU/GLM-5.3"}, {"", "dashscope/ZHIPU/GLM-5.3"}, {"", "dashscope/kimi-k2.5"},
 	} {
 		req, resp := call(tc.baseURL, tc.model, answerSchema())
 		assert.Empty(t, req.ResponseFormat, tc.model)
@@ -128,9 +130,16 @@ func TestGuestsOnModelStudioAreSentNoJSONSchema(t *testing.T) {
 	t.Parallel()
 
 	human := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}
-	for _, tc := range []struct{ baseURL, model string }{
-		{dashScopeBaseURL, "deepseek-v4-pro"}, {dashScopeBaseURL, "deepseek-v4-flash"},
-		{dashScopeBaseURL, "glm-5.2"}, {dashScopeBaseURL, "glm-4.6"}, {"", "dashscope/deepseek-v4-pro"},
+	for _, tc := range []struct {
+		baseURL, model string
+		jsonObject     bool
+	}{
+		{dashScopeBaseURL, "deepseek-v4-pro", true}, {dashScopeBaseURL, "deepseek-v4-flash", true},
+		{dashScopeBaseURL, "glm-4.6", true}, {"", "dashscope/deepseek-v4-pro", true}, {dashScopeBaseURL, "kimi-k3", true},
+		{dashScopeBaseURL, "glm-5.2", false}, {dashScopeBaseURL, "kimi-k2.7-code", false},
+		{dashScopeBaseURL, "MiniMax-M2.5", false}, {dashScopeBaseURL, "MiniMax/MiniMax-M3", false},
+		{dashScopeBaseURL, "ZHIPU/GLM-5.3", false}, {"", "dashscope/MiniMax-M2.5", false},
+		{"", "dashscope/MiniMax/MiniMax-M3", false}, {"", "dashscope/ZHIPU/GLM-5.3", false},
 	} {
 		srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
 		llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(tc.model)},
@@ -143,6 +152,10 @@ func TestGuestsOnModelStudioAreSentNoJSONSchema(t *testing.T) {
 
 		_, err = newFallbackLLM(t, srv.URL, tc.model, onHost(t, srv, tc.baseURL)...).GenerateContent(t.Context(), human, answerSchema())
 		require.NoError(t, err, tc.model)
-		assert.JSONEq(t, `{"type":"json_object"}`, string(srv.request(t, 0).ResponseFormat), tc.model)
+		if tc.jsonObject {
+			assert.JSONEq(t, `{"type":"json_object"}`, string(srv.request(t, 0).ResponseFormat), tc.model)
+		} else {
+			assert.Empty(t, srv.request(t, 0).ResponseFormat, "Model Studio lists no json_object for %s", tc.model)
+		}
 	}
 }
