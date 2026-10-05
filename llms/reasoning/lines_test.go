@@ -99,8 +99,8 @@ func tableAnswers(model string) map[string]any {
 		"ClaudeSupportsThinking": ClaudeSupportsThinking, "ClaudeThinkingAlwaysOn": ClaudeThinkingAlwaysOn,
 		"ClaudeThinkingDefaultsOn": ClaudeThinkingDefaultsOn, "ClaudeTurnsOffBetweenTools": ClaudeTurnsOffBetweenTools,
 		"DashScopeBudgetSharesAnswerLimit": DashScopeBudgetSharesAnswerLimit, "DashScopeTakesNoTopK": DashScopeTakesNoTopK,
-		"DashScopeTakesThinkingBudget": DashScopeTakesThinkingBudget, "FixesSampling": FixesSampling,
-		"GeminiCanDisable": GeminiCanDisable, "GeminiSupportsThinking": GeminiSupportsThinking,
+		"DashScopeTakesThinkingBudget": DashScopeTakesThinkingBudget,
+		"GeminiCanDisable":             GeminiCanDisable, "GeminiSupportsThinking": GeminiSupportsThinking,
 		"GeminiUsesThinkingLevel": GeminiUsesThinkingLevel, "GrokFamily": GrokFamily, "IsReasoningModel": IsReasoningModel,
 		"LikelyReasoningModel": LikelyReasoningModel, "OpenAIThinkingOptIn": OpenAIThinkingOptIn,
 		"QwenThinkingEnabledByFlag": QwenThinkingEnabledByFlag, "QwenThinkingOffByFlag": QwenThinkingOffByFlag,
@@ -129,6 +129,7 @@ func tableAnswers(model string) map[string]any {
 		answers["ServedBy/"+host] = ServedBy(model, host)
 		answers["TakesNoResponseFormat/"+host] = TakesNoResponseFormat(model, host)
 		answers["TakesNoTopK/"+host] = TakesNoTopK(model, host)
+		answers["FixesSampling/"+host] = FixesSampling(model, host)
 		answers["TakesNoJSONSchema/"+host] = TakesNoJSONSchema(model, host)
 		answers["UsesLegacyMaxTokens/"+host] = UsesLegacyMaxTokens(model, host)
 		answers["ServedByDeepSeek/"+host] = ServedByDeepSeek(model, host)

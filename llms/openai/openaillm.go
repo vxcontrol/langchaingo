@@ -821,7 +821,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.Temperature, req.TopP, req.TopK = nil, nil, nil
 		return
 	}
-	if reasoning.FixesSampling(model) {
+	if reasoning.FixesSampling(model, o.host) {
 		req.Temperature, req.TopP = nil, nil
 		req.FrequencyPenalty, req.PresencePenalty = nil, nil
 		return

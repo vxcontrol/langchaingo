@@ -153,9 +153,13 @@ func RejectsSamplingWhileThinking(model string) bool {
 	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
 }
 
-// FixesSampling reports whether the model runs on fixed temperature, top_p and
-// penalties, so any value the caller sets for them stays off the wire.
-func FixesSampling(model string) bool {
+// FixesSampling reports whether Moonshot's API runs the model on fixed
+// temperature, top_p and penalties, so any value the caller sets for them stays
+// off the wire.
+func FixesSampling(model, host string) bool {
+	if ServedBy(model, host) != VendorMoonshot {
+		return false
+	}
 	for _, form := range modelSpellings(model) {
 		if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
 			hasGeneration(form, "kimi-k2.7-code") {
