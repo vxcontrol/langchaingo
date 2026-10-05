@@ -132,3 +132,37 @@ func TestABedrockForcedChoiceWithABudgetAndNoToolsGoesOutWithoutTheChoice(t *tes
 		}
 	}
 }
+
+func TestBedrockJudgesThePrefillOnTheTurnsItSends(t *testing.T) {
+	t.Parallel()
+
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{}
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+		}
+		human, answer := llms.TextParts(llms.ChatMessageTypeHuman, "hi"), llms.TextParts(llms.ChatMessageTypeAI, "half an ")
+		sendsNoAnswer := [][]llms.MessageContent{
+			{human, {Role: llms.ChatMessageTypeAI}, llms.TextParts(llms.ChatMessageTypeSystem, "be brief")},
+			{human, {Role: llms.ChatMessageTypeAI}},
+		}
+		endsOnTheAnswer := [][]llms.MessageContent{{human, answer, {Role: llms.ChatMessageTypeHuman}}}
+		if converse {
+			sendsNoAnswer = append(sendsNoAnswer, []llms.MessageContent{human, llms.TextParts(llms.ChatMessageTypeAI, "")})
+			endsOnTheAnswer = append(endsOnTheAnswer, []llms.MessageContent{human, answer, llms.TextParts(llms.ChatMessageTypeHuman, "")})
+		}
+		llm := truncationLLMWithBody(t, `{}`,
+			append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-opus-4-6-v1:0")}, opts...)...)
+		var target *reasoning.ErrAssistantPrefillUnsupported
+		for i, messages := range sendsNoAnswer {
+			if _, err := llm.GenerateContent(context.Background(), messages); errors.As(err, &target) {
+				t.Errorf("converse=%v: conversation %d sends no assistant turn last: %v", converse, i, err)
+			}
+		}
+		for i, messages := range endsOnTheAnswer {
+			if _, err := llm.GenerateContent(context.Background(), messages); !errors.As(err, &target) {
+				t.Errorf("converse=%v: conversation %d sends the answer last, want ErrAssistantPrefillUnsupported, got %v", converse, i, err)
+			}
+		}
+	}
+}

@@ -142,6 +142,10 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert messages: %w", err)
 	}
+	last := len(converseMessages) - 1
+	if err := llms.CheckClaudePrefill(input.ModelID, last >= 0 && converseMessages[last].Role == types.ConversationRoleAssistant); err != nil {
+		return nil, err
+	}
 
 	// Build inference configuration
 	inferenceConfig := &types.InferenceConfiguration{}

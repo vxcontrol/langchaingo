@@ -79,6 +79,26 @@ func TestASystemMessageAfterTheAnswerStaysInPlaceOnTheOpenAITransport(t *testing
 	}
 }
 
+func TestThePrefillIsJudgedOnTheMessagesTheOpenAITransportSends(t *testing.T) {
+	t.Parallel()
+
+	human := llms.TextParts(llms.ChatMessageTypeHuman, "finish this")
+	var target *reasoning.ErrAssistantPrefillUnsupported
+	for i, messages := range [][]llms.MessageContent{
+		{human, llms.TextParts(llms.ChatMessageTypeAI, "")},
+		{human, {Role: llms.ChatMessageTypeAI}},
+		{human, {Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextContent{Reasoning: &reasoning.ContentReasoning{Content: "hm"}}}}},
+	} {
+		if err := turnLimitErr(t, "claude-sonnet-4-6", messages); errors.As(err, &target) {
+			t.Errorf("conversation %d sends no assistant message last: %v", i, err)
+		}
+	}
+	endsOnTheAnswer := append(endingOnAssistant(), llms.TextParts(llms.ChatMessageTypeHuman, ""))
+	if err := turnLimitErr(t, "claude-sonnet-4-6", endsOnTheAnswer); !errors.As(err, &target) {
+		t.Errorf("an empty human message is not sent, so the answer goes last: got %v", err)
+	}
+}
+
 func TestABudgetWithAForcedChoiceAndNoToolsIsNotRefusedOnTheOpenAITransport(t *testing.T) {
 	t.Parallel()
 
