@@ -2,6 +2,7 @@ package llms
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -960,6 +961,14 @@ func WithExtraBody(extraBody map[string]any) CallOption {
 // ExtraBody returns the fields WithExtraBody attached, or nil.
 func ExtraBody(opts CallOptions) map[string]any {
 	return opts.ExtraBody
+}
+
+func ExtraBodyTools(extra map[string]any) int {
+	tools := reflect.ValueOf(extra["tools"])
+	if kind := tools.Kind(); kind != reflect.Slice && kind != reflect.Array {
+		return 0
+	}
+	return tools.Len()
 }
 
 func ExtraBodyThinking(extra map[string]any) (on, off bool) {

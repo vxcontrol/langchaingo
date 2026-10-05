@@ -2,7 +2,6 @@ package llms
 
 import (
 	"cmp"
-	"reflect"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
@@ -147,13 +146,7 @@ func spelledChoice(choice any) string {
 // OffersTools judges the options as the door sends them: a door that leaves one
 // of these sources of tools off the wire passes the options without it.
 func OffersTools(opts CallOptions) bool {
-	return len(opts.Tools) > 0 || len(opts.Functions) > 0 || extraBodyCarriesTools(ExtraBody(opts))
-}
-
-func extraBodyCarriesTools(extra map[string]any) bool {
-	tools := reflect.ValueOf(extra["tools"])
-	kind := tools.Kind()
-	return (kind == reflect.Slice || kind == reflect.Array) && tools.Len() > 0
+	return len(opts.Tools) > 0 || len(opts.Functions) > 0 || ExtraBodyTools(ExtraBody(opts)) > 0
 }
 
 func functionName(fn *FunctionReference) string {

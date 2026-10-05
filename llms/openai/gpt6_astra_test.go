@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -35,6 +36,22 @@ func TestToolsAreRefusedOnOpenAIsChatCompletionsWhereTheModelPageSaysSo(t *testi
 				"name": "lookup", "parameters": map[string]any{"type": "object", "properties": map[string]any{}},
 			}}}, body["tools"], "%s on %s", model, baseURL)
 		}
+	}
+}
+
+func TestToolsOnlyInTheExtraBodyAreRefusedWhereTheModelPageSaysSo(t *testing.T) {
+	t.Parallel()
+
+	lookup := map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}
+	for _, model := range []string{"gpt-6-astra", "gpt-6.1-sol"} {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL("https://api.openai.com/v1"), WithModel(model), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "look it up")},
+			llms.WithExtraBody(map[string]any{"tools": []any{lookup}}))
+		var unsupported *reasoning.ErrChatToolsUnsupported
+		require.ErrorAs(t, err, &unsupported, model)
+		assert.Nil(t, doer.body, model)
 	}
 }
 

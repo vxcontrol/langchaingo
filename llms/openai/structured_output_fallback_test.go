@@ -270,6 +270,14 @@ func placementCases() []placementCase {
 			roles: []string{"user", "assistant", "tool"}, instructed: 0, prefix: "weather in Paris?\n\n", toolsNote: true,
 		},
 		{
+			name:     "the tools note also when the tools travel only in the extra body",
+			messages: []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "weather in Paris?")},
+			opts: []llms.CallOption{llms.WithExtraBody(map[string]any{"tools": []any{map[string]any{
+				"type": "function", "function": map[string]any{"name": "get_weather"},
+			}}})},
+			roles: []string{"user"}, instructed: 0, prefix: "weather in Paris?\n\n", toolsNote: true,
+		},
+		{
 			name:     "a user turn of its own when there is none, since Z.ai answers no conversation without one",
 			messages: []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeSystem, "sys")},
 			roles:    []string{"system", "user"}, instructed: 1, prefix: structuredoutput.SchemaInstruction,
