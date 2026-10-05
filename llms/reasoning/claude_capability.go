@@ -33,8 +33,9 @@ const (
 
 // adaptiveOnlyClaude, dualClaude, and budgetOnlyClaude are the explicit model
 // sets. Substrings match both the first-party IDs (claude-opus-4-7) and the
-// Bedrock IDs (us.anthropic.claude-opus-4-7). Add a new model to exactly one
-// set when it launches; until then it answers as the release it follows.
+// Bedrock IDs (us.anthropic.claude-opus-4-7). Add a new release to exactly one
+// set once claudeReleases in lines.go lists it; until then it answers as the
+// release it follows.
 var (
 	adaptiveOnlyClaude = []string{
 		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5",
