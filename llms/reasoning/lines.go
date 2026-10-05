@@ -429,6 +429,54 @@ func parseVersion(token string) (major, minor int, ok bool) {
 	return major, minor, true
 }
 
+func routerAlias(bare string) string {
+	family, ok := strings.CutSuffix(bare, "-latest")
+	if !ok {
+		return bare
+	}
+	for i := range lineFamilies {
+		stem, _, _ := strings.Cut(lineFamilies[i].prefix, "-")
+		rest, ok := strings.CutPrefix(family, stem)
+		if !ok || rest != "" && rest[0] != '-' {
+			continue
+		}
+		if newest, ok := lineFamilies[i].newestRelease(stem, strings.FieldsFunc(rest, isDash)); ok {
+			return newest
+		}
+	}
+	return bare
+}
+
+func isDash(r rune) bool { return r == '-' }
+
+func (f *lineFamily) newestRelease(stem string, selectors []string) (string, bool) {
+	product, qualifier := "", ""
+	major, minor, versioned := 0, 0, false
+	for _, selector := range selectors {
+		token, inPrefix := strings.CutPrefix(stem+"-"+selector, f.prefix)
+		switch {
+		case product == "" && slices.Contains(f.products, selector):
+			product = selector
+		case qualifier == "" && slices.Contains(f.qualifiers, selector):
+			qualifier = selector
+		case inPrefix && !versioned:
+			if major, minor, _, versioned = f.version(token); !versioned {
+				return "", false
+			}
+		default:
+			return "", false
+		}
+	}
+	line := slices.Clone(f.lines[product])
+	slices.SortFunc(line, func(a, b generation) int { return compareVersions(b, a) })
+	for _, g := range line {
+		if id := g.members[qualifier]; id != "" && (!versioned || g.major == major && g.minor == minor) {
+			return id, true
+		}
+	}
+	return "", false
+}
+
 func inheritLine(bare string) (string, bool) {
 	for i := range lineFamilies {
 		if documented, ok := lineFamilies[i].inherit(bare); ok {

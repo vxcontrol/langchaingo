@@ -132,6 +132,27 @@ func tableAnswers(model string) map[string]any {
 	return answers
 }
 
+func TestAnOpenRouterRouterAliasAnswersEveryTableLikeTheReleaseItLeadsTo(t *testing.T) {
+	t.Parallel()
+
+	for alias, target := range map[string]string{
+		"~openai/gpt-sol-latest": "gpt-6.1-sol", "~openai/gpt-astra-latest": "gpt-6-astra",
+		"~openai/gpt-luna-latest": "gpt-6-luna", "~openai/gpt-terra-latest": "gpt-5.6-terra",
+		"~openai/gpt-mini-latest": "gpt-5.4-mini", "~deepseek/deepseek-pro-latest": "deepseek-v4-pro",
+		"~deepseek/deepseek-flash-latest": "deepseek-v4.1-flash", "~deepseek/deepseek-v4-flash-latest": "deepseek-v4-flash",
+		"~moonshotai/kimi-latest": "kimi-k3", "~x-ai/grok-latest": "grok-4.7", "~z-ai/glm-latest": "glm-5.3",
+		"~z-ai/glm-flash-latest": "glm-5.3-flash", "~google/gemini-pro-latest": "gemini-3.1-pro-preview",
+		"~google/gemini-flash-latest": "gemini-3.8-flash", "openrouter/~openai/gpt-sol-latest": "gpt-6.1-sol",
+	} {
+		route := alias[:strings.LastIndex(alias, "/")+1]
+		assert.Equal(t, tableAnswers(route+target), tableAnswers(alias), alias)
+	}
+	for _, vendorAlias := range []string{"kimi-latest", "grok-latest", "glm-latest", "moonshot/kimi-latest"} {
+		_, bare := splitModelName(vendorAlias)
+		assert.Equal(t, strings.TrimPrefix(vendorAlias, "moonshot/"), bare, "only OpenRouter's ~ marks a router alias")
+	}
+}
+
 func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T) {
 	t.Parallel()
 

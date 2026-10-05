@@ -76,3 +76,26 @@ func TestAClaudeNameFormIsSentWhatItsReleaseIsSent(t *testing.T) {
 		}
 	}
 }
+
+func TestAnOpenRouterRouterAliasIsSentWhatItsTargetIsSent(t *testing.T) {
+	t.Parallel()
+
+	human := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
+	tools := llms.WithTools([]llms.Tool{astraTool()})
+	for alias, target := range map[string]string{
+		"~openai/gpt-sol-latest": "openai/gpt-6.1-sol", "~openai/gpt-astra-latest": "openai/gpt-6-astra",
+		"~openai/gpt-luna-latest": "openai/gpt-6-luna", "~openai/gpt-terra-latest": "openai/gpt-5.6-terra",
+		"~x-ai/grok-latest": "x-ai/grok-4.7", "~moonshotai/kimi-latest": "moonshotai/kimi-k3",
+		"~google/gemini-flash-latest": "google/gemini-3.8-flash",
+	} {
+		for name, opts := range map[string][]llms.CallOption{
+			"disable":           {llms.WithReasoningDisabled()},
+			"effort with tools": {tools, llms.WithReasoning(llms.ReasoningHigh, 0)},
+			"sampling":          {llms.WithTemperature(0.5), llms.WithTopP(0.9)},
+		} {
+			want := sentFor(t, "https://openrouter.ai/api/v1", target, human, opts...)
+			got := sentFor(t, "https://openrouter.ai/api/v1", alias, human, opts...)
+			assert.Equal(t, want, got, "%s, %s, as %s", alias, name, target)
+		}
+	}
+}
