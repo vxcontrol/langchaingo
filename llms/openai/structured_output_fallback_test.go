@@ -670,3 +670,16 @@ func TestThePerCallModelDecidesTheFallbackUnwrap(t *testing.T) {
 	assert.Equal(t, `{"answer":"42"}`, resp.Choices[0].Content)
 	assert.Empty(t, srv.request(t, 0).ResponseFormat)
 }
+
+func TestTheFallbackLeavesOutTheToolsNoteWhenZAIIsSentNoTools(t *testing.T) {
+	t.Parallel()
+
+	srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
+	_, err := newFallbackLLM(t, srv.URL, "glm-4.6", onHost(t, srv, "http://api.z.ai/api/paas/v4")...).GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "weather in Paris?")},
+		answerSchema(), llms.WithTools([]llms.Tool{weatherTool()}), llms.WithToolChoice("none"))
+	require.NoError(t, err)
+	text, _ := messageText(t, srv.request(t, 0).Messages[0].Content)
+	assert.Contains(t, text, structuredoutput.SchemaInstruction)
+	assert.NotContains(t, text, structuredoutput.ToolsNote, "Z.ai asked not to call tools is sent none")
+}

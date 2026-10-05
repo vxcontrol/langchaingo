@@ -1,7 +1,6 @@
 package openai
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -28,6 +27,10 @@ func TestToolsAreRefusedOnOpenAIsChatCompletionsWhereTheModelPageSaysSo(t *testi
 			require.True(t, errors.As(err, &unsupported), "%s on %q: %v", model, baseURL, err)
 			assert.Equal(t, model, unsupported.Model)
 			assert.Nil(t, body, "%s on %q", model, baseURL)
+
+			sent, err := callWithToolsOnlyInTheExtraBody(t, baseURL, model)
+			require.ErrorAs(t, err, &unsupported, "tools in the extra body, %s on %q", model, baseURL)
+			assert.False(t, sent, "%s on %q", model, baseURL)
 		}
 		for _, baseURL := range []string{"https://openrouter.ai/api/v1", "http://litellm.internal/v1"} {
 			body, err := callWithATool(t, baseURL, "openai/"+model)
@@ -36,22 +39,6 @@ func TestToolsAreRefusedOnOpenAIsChatCompletionsWhereTheModelPageSaysSo(t *testi
 				"name": "lookup", "parameters": map[string]any{"type": "object", "properties": map[string]any{}},
 			}}}, body["tools"], "%s on %s", model, baseURL)
 		}
-	}
-}
-
-func TestToolsOnlyInTheExtraBodyAreRefusedWhereTheModelPageSaysSo(t *testing.T) {
-	t.Parallel()
-
-	lookup := map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}
-	for _, model := range []string{"gpt-6-astra", "gpt-6.1-sol"} {
-		doer := &bodyDoer{}
-		llm := newUnitLLM(t, WithBaseURL("https://api.openai.com/v1"), WithModel(model), WithHTTPClient(doer))
-		_, err := llm.GenerateContent(context.Background(),
-			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "look it up")},
-			llms.WithExtraBody(map[string]any{"tools": []any{lookup}}))
-		var unsupported *reasoning.ErrChatToolsUnsupported
-		require.ErrorAs(t, err, &unsupported, model)
-		assert.Nil(t, doer.body, model)
 	}
 }
 
