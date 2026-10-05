@@ -25,6 +25,9 @@ func DownloadImageData(url string) (string, []byte, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to read image bytes: %w", err)
 	}
+	if len(urlData) == 0 {
+		return "", nil, fmt.Errorf("url does not point to an image: empty body (%s)", resp.Status)
+	}
 
 	header := resp.Header.Get("Content-Type")
 	mediaType, _, err := mime.ParseMediaType(header)
