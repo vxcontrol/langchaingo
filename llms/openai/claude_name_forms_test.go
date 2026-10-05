@@ -67,6 +67,7 @@ func TestAClaudeNameFormIsSentWhatItsReleaseIsSent(t *testing.T) {
 		{"http://litellm.internal/v1", "claude-proxy/claude-opus-4-6", "proxy/claude-opus-4-6"},
 		{"http://litellm.internal/v1", "claude-proxy/claude-opus-latest", "proxy/claude-opus-latest"},
 		{"http://litellm.internal/v1", "claude-relay/gpt-5.7", "relay/gpt-5.7"},
+		{"http://litellm.internal/v1", "anthropic/claude-opus-4-6[1m]", "anthropic/claude-opus-4-6"},
 	} {
 		for name, call := range calls {
 			want := sentFor(t, pair.baseURL, pair.release, call.messages, call.opts...)

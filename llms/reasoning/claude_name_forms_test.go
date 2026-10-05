@@ -54,7 +54,7 @@ func TestClaudePredicatesAgreeAcrossNameForms(t *testing.T) {
 	}
 }
 
-func TestAClaudeIDWrittenGenerationFirstOrWithoutItsMinorAnswersAsItsRelease(t *testing.T) {
+func TestAClaudeIDSpelledAnotherWayAnswersAsItsRelease(t *testing.T) {
 	t.Parallel()
 
 	for form, release := range map[string]string{
@@ -62,6 +62,8 @@ func TestAClaudeIDWrittenGenerationFirstOrWithoutItsMinorAnswersAsItsRelease(t *
 		"claude-4.6-sonnet": "claude-sonnet-4-6", "claude-5-fable": "claude-fable-5", "claude-5.1-fable": "claude-fable-5-1",
 		"claude-5-mythos": "claude-mythos-5", "claude-sonnet-4": "claude-sonnet-4-0", "claude-opus-4": "claude-opus-4-0",
 		"claude-4-sonnet": "claude-sonnet-4-0", "claude-4-opus-20250514": "claude-opus-4-0",
+		"claude-opus-4-6[1m]": "claude-opus-4-6", "claude-opus-5-5[1m]": "claude-opus-5-5", "claude-sonnet-4-5[1m]": "claude-sonnet-4-5",
+		"claude-sonnet-4-5-20250929[1m]": "claude-sonnet-4-5",
 	} {
 		for _, frame := range []string{"", "anthropic/", "openrouter/anthropic/", "deepinfra/anthropic/"} {
 			assert.Equal(t, tableAnswers(frame+release), tableAnswers(frame+form), frame+form)

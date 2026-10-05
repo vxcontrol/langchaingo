@@ -55,12 +55,19 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 	if err != nil {
 		return "", 0, 0, false
 	}
-	if len(parts) > 2 && len(parts[2]) <= 2 {
-		if n, err := strconv.Atoi(parts[2]); err == nil {
-			minor = n
-		}
+	if len(parts) > 2 {
+		minor = leadingMinor(parts[2])
 	}
 	return parts[0], major, minor, true
+}
+
+func leadingMinor(token string) int {
+	digits := len(token) - len(strings.TrimLeft(token, "0123456789"))
+	if digits == 0 || digits > 2 || digits < len(token) && 'a' <= token[digits] && token[digits] <= 'z' {
+		return 0
+	}
+	minor, _ := strconv.Atoi(token[:digits])
+	return minor
 }
 
 func claudeVersionBeforeTier(parts []string) (tier string, major, minor int, ok bool) {
