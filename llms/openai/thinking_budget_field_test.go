@@ -26,7 +26,7 @@ func TestABudgetNoFieldCarriesIsRefusedBeforeTheNetwork(t *testing.T) {
 		{"modern format alone", []Option{WithModernReasoningFormat()}},
 		{"reasoning max tokens alone", []Option{WithUsingReasoningMaxTokens()}},
 	}
-	for _, model := range []string{"zai/glm-5.1", "glm-4.7", "moonshot/kimi-k2.6", "minimax/MiniMax-M3"} {
+	for _, model := range []string{"zai/glm-5.1", "glm-4.7", "moonshot/kimi-k2.6", "minimax/MiniMax-M3", "dashscope/MiniMax-M2.5"} {
 		for _, client := range clients {
 			t.Run(model+"/"+client.name, func(t *testing.T) {
 				t.Parallel()

@@ -91,6 +91,8 @@ func TestTakesNoThinkingDepth(t *testing.T) {
 		{"dashscope/glm-5", false},
 		{"dashscope/kimi-k2.7-code", false},
 		{"dashscope/kimi-k2.6", false},
+		{"dashscope/kimi/kimi-k3", false},
+		{"dashscope/MiniMax-M2.5", true},
 		{"zai-glm-5-2", false},
 		{"qwen3.7-plus", false},
 		{"gpt-5", false},

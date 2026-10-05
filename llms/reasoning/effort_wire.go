@@ -297,7 +297,7 @@ func AcceptsEffortWire(model string) bool {
 // TakesNoThinkingDepth reports whether the model's own door takes neither a
 // thinking budget nor an effort level.
 func TakesNoThinkingDepth(model string) bool {
-	if dashScopeGuestSpelling(model) != "" {
+	if DashScopeTakesThinkingBudget(model) {
 		return false
 	}
 	for _, form := range modelSpellings(model) {
