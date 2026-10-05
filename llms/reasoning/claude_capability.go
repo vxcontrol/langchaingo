@@ -2,7 +2,6 @@ package reasoning
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -45,8 +44,8 @@ var (
 		"claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview",
 	}
 	budgetOnlyClaude = []string{
-		"claude-opus-4-5", "claude-opus-4-1", "claude-opus-4-0", "claude-opus-4-2025",
-		"claude-sonnet-4-5", "claude-sonnet-4-0", "claude-sonnet-4-2025",
+		"claude-opus-4-5", "claude-opus-4-1", "claude-opus-4-0",
+		"claude-sonnet-4-5", "claude-sonnet-4-0",
 		"claude-haiku-4-5",
 		"claude-3-7",
 	}
@@ -240,24 +239,14 @@ func ClaudeMaxTokensForBudget(budget, maxTokens int) int {
 	return budget * 2
 }
 
-var budgetInterleavingClaude = []string{"claude-opus-4-5", "claude-sonnet-4-5", "claude-sonnet-4-6", "claude-opus-4-1"}
+var budgetInterleavingClaude = []string{
+	"claude-opus-4-0", "claude-opus-4-1", "claude-opus-4-5", "claude-sonnet-4-0", "claude-sonnet-4-5", "claude-sonnet-4-6",
+}
 
 // ClaudeInterleavesOnBudget reports whether budget thinking on the model
 // interleaves with tool calls once the interleaved-thinking beta is on.
 func ClaudeInterleavesOnBudget(model string) bool {
-	if claudeNamedIn(model, budgetInterleavingClaude) {
-		return true
-	}
-	for _, form := range modelSpellings(model) {
-		name := canonicalClaude(form)
-		for _, first := range []string{"claude-opus-4", "claude-sonnet-4"} {
-			rest, ok := strings.CutPrefix(name, first)
-			if ok && (rest == "" || strings.HasPrefix(rest, "-0") || strings.HasPrefix(rest, "-2025")) {
-				return true
-			}
-		}
-	}
-	return false
+	return claudeNamedIn(model, budgetInterleavingClaude)
 }
 
 // budgetEffortClaude are budget-thinking models that also accept an effort
@@ -298,8 +287,8 @@ func ClaudeRejectsForcedToolUse(model string) bool {
 // name asks for at 4.6 or later, whatever release the tables answer it with.
 func ClaudeRejectsAssistantPrefill(model string) bool {
 	m := claudeName(model)
-	if idx := strings.Index(m, "claude-"); idx != -1 {
-		tier, major, minor, ok := claudeVersion(m[idx:])
+	if _, id, ok := claudeID(m); ok {
+		tier, major, minor, ok := claudeVersion(id)
 		if ok && claudeReleases[tier] != nil && (major > 4 || major == 4 && minor >= 6) {
 			return true
 		}
@@ -327,8 +316,8 @@ var legacyNoStructuredClaude = []string{
 	"claude-2", "claude-v2", "claude-instant",
 	"claude-3-",
 	"claude-opus-4-1",
-	"claude-opus-4-0", "claude-opus-4-20",
-	"claude-sonnet-4-0", "claude-sonnet-4-20",
+	"claude-opus-4-0",
+	"claude-sonnet-4-0",
 }
 
 // ClaudeSupportsStructuredOutput reports whether the model can be asked for schema
@@ -390,7 +379,6 @@ var preAdaptiveClaude = []string{
 	"claude-instant",
 	"claude-3", // claude-3, claude-3-5, claude-3-7 all predate adaptive
 	"claude-opus-4-0", "claude-opus-4-1", "claude-sonnet-4-0",
-	"claude-opus-4-20", "claude-sonnet-4-20",
 }
 
 // ClaudePredatesAdaptive reports whether the model is a known pre-adaptive Claude
@@ -433,16 +421,11 @@ func ClaudeRejectsSampling(model string) bool {
 	return containsAny(canonicalClaude(model), rejectsSamplingClaude)
 }
 
-// canonicalClaude reduces a Claude identifier to the dashed form every table in
-// this file is keyed on. A dotted entry added to one of them never matches.
 func canonicalClaude(model string) string {
 	m := claudeName(model)
-	if idx := strings.Index(m, "claude-"); idx != -1 {
-		if documented, ok := inheritClaude(m[idx:]); ok {
-			return m[:idx] + documented
-		}
-		if newest, ok := latestClaude(m[idx:]); ok {
-			return m[:idx] + newest
+	if head, id, ok := claudeID(m); ok {
+		if documented, ok := documentedClaude(id); ok {
+			return head + documented
 		}
 	}
 	return m
@@ -460,29 +443,22 @@ func claudeName(model string) string {
 		}
 		b.WriteByte(m[i])
 	}
-	return claudeTierFirst(b.String())
+	return b.String()
 }
 
-func claudeTierFirst(m string) string {
-	idx := strings.Index(m, "claude-")
+func claudeID(m string) (head, id string, ok bool) {
+	segment := m[strings.LastIndex(m, "/")+1:]
+	idx := strings.Index(segment, "claude-")
 	if idx == -1 {
-		return m
+		return "", "", false
 	}
-	head, rest := m[:idx+len("claude-")], m[idx+len("claude-"):]
-	parts := strings.Split(rest, "-")
-	if len(parts) < 2 || !isClaudeTier(parts[1]) {
-		return m
-	}
-	generation, err := strconv.Atoi(parts[0])
-	if err != nil || generation < 4 {
-		return m
-	}
-	reordered := append([]string{parts[1], parts[0]}, parts[2:]...)
-	return head + strings.Join(reordered, "-")
+	cut := len(m) - len(segment) + idx
+	return m[:cut], m[cut:], true
 }
 
 func isClaudeTier(s string) bool {
-	return s == "opus" || s == "sonnet" || s == "haiku"
+	_, listed := claudeReleases[s]
+	return listed
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }

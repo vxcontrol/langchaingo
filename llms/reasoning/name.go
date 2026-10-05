@@ -22,10 +22,7 @@ func modelSpellings(model string) []string {
 }
 
 func splitModelName(model string) (vendor, bare string) {
-	m := strings.ToLower(model)
-	if idx := strings.LastIndex(m, "/"); idx != -1 {
-		m = m[idx+1:]
-	}
+	m := routedName(model)
 	m = stripFineTuneWrapper(m)
 	m = stripBedrockRegion(m)
 
@@ -37,6 +34,19 @@ func splitModelName(model string) (vendor, bare string) {
 		}
 	}
 	return vendor, bare
+}
+
+func routedName(model string) string {
+	m := strings.ToLower(model)
+	idx := strings.LastIndex(m, "/")
+	if idx == -1 {
+		return m
+	}
+	route, name := m[:idx], m[idx+1:]
+	if strings.HasPrefix(route[strings.LastIndex(route, "/")+1:], "~") {
+		return routerAlias(name)
+	}
+	return name
 }
 
 // vendorAliases entries must be backed by a vendor page that serves both names with one model.

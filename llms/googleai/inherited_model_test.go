@@ -2,8 +2,10 @@ package googleai
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -74,4 +76,29 @@ func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 	for _, w := range generateForWarnings(t, "gemini-3.1-flash-lite").Warnings {
 		require.NotEqual(t, llms.WarningInherit, w.Kind, "the tables list gemini-3.1-flash-lite: %v", w)
 	}
+}
+
+func TestAClaudeWordInTheProjectIDChangesNothingSent(t *testing.T) {
+	t.Parallel()
+
+	const path = "projects/%s/locations/us-central1/publishers/google/models/"
+	for _, model := range []string{"gemini-4-pro", "gemini-4-flash"} {
+		for _, opt := range []llms.CallOption{llms.WithReasoningDisabled(), llms.WithReasoning(llms.ReasoningHigh, 0)} {
+			neutral, prefixed := fmt.Sprintf(path, "relay-team")+model, fmt.Sprintf(path, "claude-team")+model
+			want, wantWarnings := generationConfigSent(t, neutral, opt)
+			got, gotWarnings := generationConfigSent(t, prefixed, opt)
+			require.Equal(t, want, got, prefixed)
+			require.Equal(t, warningsAbout(neutral, wantWarnings), warningsAbout(prefixed, gotWarnings), prefixed)
+		}
+	}
+}
+
+func warningsAbout(model string, byOption map[string]llms.Warning) map[string]llms.Warning {
+	named := strings.NewReplacer(model, "<model>")
+	normalized := make(map[string]llms.Warning, len(byOption))
+	for option, w := range byOption {
+		w.Model, w.Asked, w.Sent, w.Reason = "", named.Replace(w.Asked), named.Replace(w.Sent), named.Replace(w.Reason)
+		normalized[option] = w
+	}
+	return normalized
 }

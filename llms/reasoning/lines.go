@@ -12,9 +12,8 @@ import (
 // InheritedModel returns the documented model whose rules a name follows when the
 // tables do not list the name's own version: claude-opus-6 follows claude-opus-5-5.
 func InheritedModel(model string) (string, bool) {
-	m := claudeName(model)
-	if idx := strings.Index(m, "claude-"); idx != -1 {
-		return inheritClaude(m[idx:])
+	if _, id, ok := claudeID(claudeName(model)); ok {
+		return inheritClaude(id)
 	}
 	_, bare := splitModelName(model)
 	return inheritLine(bare)
@@ -52,16 +51,22 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 		newest := slices.MaxFunc(line, compareVersions)
 		return parts[0], newest.major, newest.minor, true
 	}
-	major, err := strconv.Atoi(parts[1])
-	if err != nil {
+	if major, ok = claudeVersionNumber(parts[1]); !ok {
 		return "", 0, 0, false
 	}
-	if len(parts) > 2 && len(parts[2]) <= 2 {
-		if n, err := strconv.Atoi(parts[2]); err == nil {
-			minor = n
-		}
+	if len(parts) > 2 {
+		minor, _ = claudeVersionNumber(parts[2])
 	}
 	return parts[0], major, minor, true
+}
+
+func claudeVersionNumber(token string) (int, bool) {
+	digits := len(token) - len(strings.TrimLeft(token, "0123456789"))
+	if digits == 0 || digits > 2 || digits < len(token) && 'a' <= token[digits] && token[digits] <= 'z' {
+		return 0, false
+	}
+	n, _ := strconv.Atoi(token[:digits])
+	return n, true
 }
 
 func claudeVersionBeforeTier(parts []string) (tier string, major, minor int, ok bool) {
@@ -89,13 +94,13 @@ func inheritClaude(canonical string) (string, bool) {
 	return g.members[""], true
 }
 
-func latestClaude(canonical string) (string, bool) {
+func documentedClaude(canonical string) (string, bool) {
 	tier, major, minor, ok := claudeVersion(canonical)
-	if !ok || !strings.HasPrefix(canonical, "claude-"+tier+"-latest") {
+	if !ok {
 		return "", false
 	}
-	g, _, _ := nearest(claudeReleases[tier], major, minor)
-	return g.members[""], true
+	g, _, found := nearest(claudeReleases[tier], major, minor)
+	return g.members[""], found
 }
 
 type generation struct {
@@ -421,6 +426,55 @@ func parseVersion(token string) (major, minor int, ok bool) {
 		minor, _ = strconv.Atoi(minorText)
 	}
 	return major, minor, true
+}
+
+func routerAlias(bare string) string {
+	untaggedName, _, _ := strings.Cut(bare, ":")
+	family, ok := strings.CutSuffix(untaggedName, "-latest")
+	if !ok {
+		return bare
+	}
+	for i := range lineFamilies {
+		stem, _, _ := strings.Cut(lineFamilies[i].prefix, "-")
+		rest, ok := strings.CutPrefix(family, stem)
+		if !ok || rest != "" && rest[0] != '-' {
+			continue
+		}
+		if newest, ok := lineFamilies[i].newestRelease(stem, strings.FieldsFunc(rest, isDash)); ok {
+			return newest
+		}
+	}
+	return bare
+}
+
+func isDash(r rune) bool { return r == '-' }
+
+func (f *lineFamily) newestRelease(stem string, selectors []string) (string, bool) {
+	product, qualifier := "", ""
+	major, minor, versioned := 0, 0, false
+	for _, selector := range selectors {
+		token, inPrefix := strings.CutPrefix(stem+"-"+selector, f.prefix)
+		switch {
+		case product == "" && slices.Contains(f.products, selector):
+			product = selector
+		case qualifier == "" && slices.Contains(f.qualifiers, selector):
+			qualifier = selector
+		case inPrefix && !versioned:
+			if major, minor, _, versioned = f.version(token); !versioned {
+				return "", false
+			}
+		default:
+			return "", false
+		}
+	}
+	line := slices.Clone(f.lines[product])
+	slices.SortFunc(line, func(a, b generation) int { return compareVersions(b, a) })
+	for _, g := range line {
+		if id := g.members[qualifier]; id != "" && (!versioned || g.major == major && g.minor == minor) {
+			return id, true
+		}
+	}
+	return "", false
 }
 
 func inheritLine(bare string) (string, bool) {

@@ -53,13 +53,7 @@ func TestEveryClaudeVersionATableKeysOnIsAListedRelease(t *testing.T) {
 	}, slices.Collect(maps.Values(bedrockTopEfforts)))
 	for _, table := range tables {
 		for _, entry := range table {
-			if strings.HasSuffix(entry, "-20") {
-				continue
-			}
-			documented, inherited := inheritClaude(entry)
-			require.False(t, inherited, "%s is keyed on by a table, yet would be read as %s", entry, documented)
-			newest, alias := latestClaude(entry)
-			require.False(t, alias, "%s is keyed on by a table, yet is read as %s", entry, newest)
+			require.Contains(t, canonicalClaude(entry), entry, "%s is keyed on by a table, yet no name reads as it", entry)
 		}
 	}
 }
@@ -138,6 +132,36 @@ func tableAnswers(model string) map[string]any {
 	return answers
 }
 
+func TestAnOpenRouterRouterAliasAnswersEveryTableLikeTheReleaseItLeadsTo(t *testing.T) {
+	t.Parallel()
+
+	for alias, target := range map[string]string{
+		"~openai/gpt-sol-latest": "gpt-6.1-sol", "~openai/gpt-astra-latest": "gpt-6-astra",
+		"~openai/gpt-luna-latest": "gpt-6-luna", "~openai/gpt-terra-latest": "gpt-5.6-terra",
+		"~openai/gpt-mini-latest": "gpt-5.4-mini", "~deepseek/deepseek-pro-latest": "deepseek-v4-pro",
+		"~deepseek/deepseek-flash-latest": "deepseek-v4.1-flash", "~deepseek/deepseek-v4-flash-latest": "deepseek-v4-flash",
+		"~moonshotai/kimi-latest": "kimi-k3", "~x-ai/grok-latest": "grok-4.7", "~z-ai/glm-latest": "glm-5.3",
+		"~z-ai/glm-flash-latest": "glm-5.3-flash", "~google/gemini-pro-latest": "gemini-3.1-pro-preview",
+		"~google/gemini-flash-latest": "gemini-3.8-flash", "openrouter/~openai/gpt-sol-latest": "gpt-6.1-sol",
+		"~openai/gpt-sol-latest:nitro": "gpt-6.1-sol", "~x-ai/grok-latest:online": "grok-4.7",
+	} {
+		route := alias[:strings.LastIndex(alias, "/")+1]
+		assert.Equal(t, tableAnswers(route+target), tableAnswers(alias), alias)
+	}
+	for _, vendorAlias := range []string{"kimi-latest", "grok-latest", "glm-latest", "moonshot/kimi-latest"} {
+		_, bare := splitModelName(vendorAlias)
+		assert.Equal(t, strings.TrimPrefix(vendorAlias, "moonshot/"), bare, "only OpenRouter's ~ marks a router alias")
+	}
+	for alias, read := range map[string]string{
+		"~deepseek/deepseek-v4-flash-latest": "deepseek-v4-flash", "~openai/gptsol-latest": "gptsol-latest",
+		"~google/gemini-flash-lite-latest": "gemini-flash-lite-latest", "~openai/gpt-sol-preview-latest": "gpt-sol-preview-latest",
+		"~deepseek/deepseek-ultra-latest": "deepseek-ultra-latest",
+	} {
+		_, bare := splitModelName(alias)
+		assert.Equal(t, read, bare, "%s names a release by its version, or no family the tables list", alias)
+	}
+}
+
 func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T) {
 	t.Parallel()
 
@@ -151,7 +175,7 @@ func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T)
 		"minimax-m4": "minimax-m3", "MiniMax-M4": "MiniMax-M3",
 		"qwen3.9-max": "qwen3.8-max", "qwen4-max": "qwen3.8-max", "dashscope/qwen3.9-max": "dashscope/qwen3.8-max",
 		"grok-4.8": "grok-4.7", "grok-5": "grok-4.7",
-		"claude-opus-6": "claude-opus-5-5", "claude-opus-4-10": "claude-opus-4-8",
+		"claude-opus-6": "claude-opus-5-5", "claude-opus-4-10": "claude-opus-4-8", "claude-opus-6[1m]": "claude-opus-5-5",
 		"gemini-4-pro": "gemini-3.1-pro-preview", "gemini-4-flash": "gemini-3.8-flash",
 		"models/gemini-4-pro": "gemini-3.1-pro-preview", "gemini-pro-latest": "gemini-3.1-pro-preview",
 		"gemini-3.9-flash-lite": "gemini-3.5-flash-lite", "gemma-5": "gemma-4-26b-a4b-it",

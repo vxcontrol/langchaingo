@@ -12,23 +12,15 @@ import (
 // (thinking_level mapping, the temperature value) stay in the googleai adapter.
 
 func baseModelName(model string) string {
-	m := documentedAlias(namedModel(model))
+	m := documentedAlias(routedName(model))
 	if strings.HasPrefix(m, "gemini-") || strings.HasPrefix(m, "gemma-") {
 		return inheritedOrSelf(m)
 	}
 	return m
 }
 
-func namedModel(model string) string {
-	m := strings.ToLower(model)
-	if idx := strings.LastIndex(m, "/"); idx != -1 {
-		m = m[idx+1:]
-	}
-	return m
-}
-
 func GeminiRejectsAssistantPrefill(model string) bool {
-	m := namedModel(model)
+	m := routedName(model)
 	major, minor, ok := generationAfter("gemini-", m)
 	switch {
 	case !ok:
@@ -41,7 +33,7 @@ func GeminiRejectsAssistantPrefill(model string) bool {
 }
 
 func GeminiTakesNoCandidateCount(model string) bool {
-	m := namedModel(model)
+	m := routedName(model)
 	if major, _, ok := generationAfter("gemini-", m); ok {
 		return major >= 3
 	}
