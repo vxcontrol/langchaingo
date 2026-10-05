@@ -429,7 +429,8 @@ func parseVersion(token string) (major, minor int, ok bool) {
 }
 
 func routerAlias(bare string) string {
-	family, ok := strings.CutSuffix(bare, "-latest")
+	untaggedName, _, _ := strings.Cut(bare, ":")
+	family, ok := strings.CutSuffix(untaggedName, "-latest")
 	if !ok {
 		return bare
 	}

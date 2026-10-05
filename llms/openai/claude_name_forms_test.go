@@ -86,7 +86,7 @@ func TestAnOpenRouterRouterAliasIsSentWhatItsTargetIsSent(t *testing.T) {
 		"~openai/gpt-sol-latest": "openai/gpt-6.1-sol", "~openai/gpt-astra-latest": "openai/gpt-6-astra",
 		"~openai/gpt-luna-latest": "openai/gpt-6-luna", "~openai/gpt-terra-latest": "openai/gpt-5.6-terra",
 		"~x-ai/grok-latest": "x-ai/grok-4.7", "~moonshotai/kimi-latest": "moonshotai/kimi-k3",
-		"~google/gemini-flash-latest": "google/gemini-3.8-flash",
+		"~google/gemini-flash-latest": "google/gemini-3.8-flash", "~openai/gpt-sol-latest:nitro": "openai/gpt-6.1-sol:nitro",
 	} {
 		for name, opts := range map[string][]llms.CallOption{
 			"disable":           {llms.WithReasoningDisabled()},
