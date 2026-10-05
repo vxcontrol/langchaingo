@@ -54,7 +54,8 @@ func catalogueRow(catalogue, model string) string {
 		fmt.Sprint(support.RejectsSampling), fmt.Sprint(int(support.Mechanism)),
 		strings.Join(efforts, ","), defaultOn, offWireNames[off],
 		fmt.Sprint(int(reasoning.EffortWithTools(model))),
-		fmt.Sprint(reasoning.TakesNoThinkingDepth(reasoning.DashScopeRoute(model, catalogueHosts[catalogue]))),
+		fmt.Sprint(provider == reasoning.ProviderOpenAI &&
+			reasoning.TakesNoThinkingDepth(reasoning.DashScopeRoute(model, catalogueHosts[catalogue]))),
 		cmp.Or(support.Inherited, "-"),
 	}, "\t")
 }
