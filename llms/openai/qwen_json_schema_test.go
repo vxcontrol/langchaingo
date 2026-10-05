@@ -137,6 +137,8 @@ func TestGuestsOnModelStudioAreSentNoJSONSchema(t *testing.T) {
 	}{
 		{dashScopeBaseURL, "deepseek-v4-pro", true}, {dashScopeBaseURL, "deepseek-v4-flash", true},
 		{dashScopeBaseURL, "glm-4.6", true}, {"", "dashscope/deepseek-v4-pro", true}, {dashScopeBaseURL, "kimi-k3", true},
+		{dashScopeBaseURL, "kimi-k2-thinking", true}, {dashScopeBaseURL, "glm-5.1", true}, {dashScopeBaseURL, "glm-5", true},
+		{dashScopeBaseURL, "glm-4.7", true}, {dashScopeBaseURL, "deepseek-v4-pro-0813", true},
 		{dashScopeBaseURL, "glm-5.2", false}, {dashScopeBaseURL, "kimi-k2.7-code", false},
 		{dashScopeBaseURL, "MiniMax-M2.5", false}, {dashScopeBaseURL, "MiniMax/MiniMax-M3", false},
 		{dashScopeBaseURL, "ZHIPU/GLM-5.3", false}, {"", "dashscope/MiniMax-M2.5", false},

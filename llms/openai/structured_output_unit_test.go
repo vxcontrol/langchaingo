@@ -474,7 +474,7 @@ func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
 
 	for model, baseURL := range map[string]string{
 		"MiniMax-M3": miniMaxHostURL, "minimax/MiniMax-M3": gatewayBaseURL, "MiniMax-M2.7": miniMaxHostURL,
-		"MiniMax-M2.7-highspeed": "http://api.minimaxi.com/v1",
+		"MiniMax-M2.7-highspeed": "http://api.minimaxi.com/v1", "MiniMax-M2.5": "http://api.minimax.cn/v1",
 	} {
 		var calls atomic.Int32
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

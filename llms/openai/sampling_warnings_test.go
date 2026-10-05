@@ -372,6 +372,7 @@ func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
 	for _, route := range []struct{ baseURL, model string }{
 		{miniMaxHostURL, "MiniMax-M3"}, {miniMaxHostURL, "MiniMax-M2.7"},
 		{"http://api.minimaxi.com/v1", "MiniMax-M2.7-highspeed"}, {gatewayBaseURL, "minimax/MiniMax-M3"},
+		{"http://api.minimax.cn/v1", "MiniMax-M3"},
 	} {
 		body, resp := sendToHost(t, route.baseURL, route.model, llms.WithTopK(40), llms.WithTopP(0.95))
 		if _, sent := body["top_k"]; sent {

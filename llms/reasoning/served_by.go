@@ -36,6 +36,7 @@ var vendorHosts = map[string]Vendor{
 	"dashscope-us.aliyuncs.com":          VendorDashScope,
 	"cn-hongkong.dashscope.aliyuncs.com": VendorDashScope,
 	"api.minimax.io":                     VendorMiniMax,
+	"api.minimax.cn":                     VendorMiniMax,
 	"api.minimaxi.com":                   VendorMiniMax,
 }
 
@@ -110,6 +111,7 @@ var publicProviderBaseURLs = []string{
 	"https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 	"https://dashscope.aliyuncs.com/compatible-mode/v1",
 	"https://api.minimax.io/v1",
+	"https://api.minimax.cn/v1",
 	"https://integrate.api.nvidia.com/v1",
 	"https://api.hcnsec.cn/v1",
 	"https://ollama.com/v1",
