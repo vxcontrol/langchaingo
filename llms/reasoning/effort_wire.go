@@ -114,15 +114,15 @@ func RejectsTopK(model string) bool {
 	return openAIProperName(model)
 }
 
-func TakesNoTopK(model string) bool {
-	return onMiniMaxAPI(model, "minimax-")
+func TakesNoTopK(model, host string) bool {
+	return ServedBy(model, host) == VendorMiniMax && namesMiniMax(model, "minimax-")
 }
 
-func TakesNoResponseFormat(model string) bool {
-	return onMiniMaxAPI(model, "minimax-m")
+func TakesNoResponseFormat(model, host string) bool {
+	return ServedBy(model, host) == VendorMiniMax && namesMiniMax(model, "minimax-m")
 }
 
-func onMiniMaxAPI(model, family string) bool {
+func namesMiniMax(model, family string) bool {
 	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), family)
 }
 
@@ -153,9 +153,13 @@ func RejectsSamplingWhileThinking(model string) bool {
 	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
 }
 
-// FixesSampling reports whether the model runs on fixed temperature, top_p and
-// penalties, so any value the caller sets for them stays off the wire.
-func FixesSampling(model string) bool {
+// FixesSampling reports whether Moonshot's API runs the model on fixed
+// temperature, top_p and penalties, so any value the caller sets for them stays
+// off the wire.
+func FixesSampling(model, host string) bool {
+	if ServedBy(model, host) != VendorMoonshot {
+		return false
+	}
 	for _, form := range modelSpellings(model) {
 		if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
 			hasGeneration(form, "kimi-k2.7-code") {
@@ -232,7 +236,7 @@ func ReplaysThinkingInContent(model string) bool {
 }
 
 func ReplaysReasoningInThinkTags(model string) bool {
-	return onMiniMaxAPI(model, "minimax-m")
+	return namesMiniMax(model, "minimax-m")
 }
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as
@@ -293,7 +297,7 @@ func AcceptsEffortWire(model string) bool {
 // TakesNoThinkingDepth reports whether the model's own door takes neither a
 // thinking budget nor an effort level.
 func TakesNoThinkingDepth(model string) bool {
-	if dashScopeGuestSpelling(model) != "" {
+	if DashScopeTakesThinkingBudget(model) {
 		return false
 	}
 	for _, form := range modelSpellings(model) {

@@ -1,8 +1,12 @@
 package openai
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
 )
@@ -54,8 +58,7 @@ func TestClientJSONFormatFollowsTheJSONModeModelRule(t *testing.T) {
 
 	client := []Option{WithResponseFormat(ResponseFormatJSON)}
 	for _, model := range []string{
-		"anthropic/claude-sonnet-5", "claude-haiku-4-5", "us.anthropic.claude-opus-4-6-v1:0",
-		"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7",
+		"anthropic/claude-sonnet-5", "claude-haiku-4-5", "us.anthropic.claude-opus-4-6-v1:0", "minimax/MiniMax-M3",
 	} {
 		resp, sent := sendForWarningsWith(t, model, client)
 		if rf, ok := sent["response_format"]; ok {
@@ -65,6 +68,19 @@ func TestClientJSONFormatFollowsTheJSONModeModelRule(t *testing.T) {
 		if w.Kind != llms.WarningDrop || w.Asked != "json_object" || w.Sent != "" || w.Model != model {
 			t.Errorf("%s: response-format warning = %+v", model, w)
 		}
+	}
+
+	for _, model := range []string{"MiniMax-M3", "MiniMax-M2.7"} {
+		resp, sent := clientFormatOn(t, "https://api.minimax.io/v1", model)
+		if rf, ok := sent["response_format"]; ok {
+			t.Errorf("%s: MiniMax's API takes no response_format, got %v", model, rf)
+		}
+		if w := warningFor(t, resp, "WithResponseFormat"); w.Kind != llms.WarningDrop || w.Asked != "json_object" {
+			t.Errorf("%s: response-format warning = %+v", model, w)
+		}
+	}
+	if _, sent := clientFormatOn(t, "https://openrouter.ai/api/v1", "minimax/minimax-m3"); sent["response_format"] == nil {
+		t.Error("OpenRouter lists response_format for minimax-m3, so the client format reaches the wire")
 	}
 
 	for _, model := range []string{"gpt-4o", "openrouter/minimax/minimax-m3"} {
@@ -87,4 +103,16 @@ func TestClientJSONFormatFollowsTheJSONModeModelRule(t *testing.T) {
 	if len(resp.Warnings) != 0 {
 		t.Errorf("the schema reached the wire, got %v", resp.Warnings)
 	}
+}
+
+func clientFormatOn(t *testing.T, baseURL, model string) (*llms.ContentResponse, map[string]any) {
+	t.Helper()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer), WithResponseFormat(ResponseFormatJSON))
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
+	require.NoError(t, err)
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &sent))
+	return resp, sent
 }

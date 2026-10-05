@@ -369,19 +369,21 @@ func TestAVendorThatTakesTopKStillGetsIt(t *testing.T) {
 func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
-		body := sendForWire(t, model, llms.WithTopK(40), llms.WithTopP(0.95))
-		if strings.Contains(body, `"top_k"`) {
-			t.Errorf("%s: MiniMax's API documents no top_k, got body: %s", model, body)
+	for _, route := range []struct{ baseURL, model string }{
+		{miniMaxHostURL, "MiniMax-M3"}, {miniMaxHostURL, "MiniMax-M2.7"},
+		{"http://api.minimaxi.com/v1", "MiniMax-M2.7-highspeed"}, {gatewayBaseURL, "minimax/MiniMax-M3"},
+		{"http://api.minimax.cn/v1", "MiniMax-M3"},
+	} {
+		body, resp := sendToHost(t, route.baseURL, route.model, llms.WithTopK(40), llms.WithTopP(0.95))
+		if _, sent := body["top_k"]; sent {
+			t.Errorf("%s: MiniMax's API documents no top_k, got body: %v", route.model, body)
 		}
-		if !strings.Contains(body, `"top_p":0.95`) {
-			t.Errorf("%s: MiniMax documents top_p and must keep getting it, got body: %s", model, body)
+		if body["top_p"] != 0.95 {
+			t.Errorf("%s: MiniMax documents top_p and must keep getting it, got body: %v", route.model, body)
 		}
-
-		resp := sendForWarnings(t, model, llms.WithTopK(40))
 		w := warningFor(t, resp, "WithTopK")
 		if w.Kind != llms.WarningDrop || w.Asked != "40" || !strings.Contains(w.Reason, "no top_k") {
-			t.Errorf("%s: top-k warning = %+v", model, w)
+			t.Errorf("%s: top-k warning = %+v", route.model, w)
 		}
 	}
 }
@@ -389,9 +391,13 @@ func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
 func TestMiniMaxOnAnotherHostKeepsTopK(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"openrouter/minimax/minimax-m3", "minimax.minimax-m2.5"} {
-		if body := sendForWire(t, model, llms.WithTopK(40)); !strings.Contains(body, `"top_k":40`) {
-			t.Errorf("%s: only MiniMax's own API lacks top_k, got body: %s", model, body)
+	for _, route := range []struct{ baseURL, model string }{
+		{gatewayBaseURL, "openrouter/minimax/minimax-m3"}, {gatewayBaseURL, "minimax.minimax-m2.5"},
+		{openRouterBaseURL, "minimax/minimax-m3"}, {"http://vllm.internal:8000/v1", "MiniMax-M2.5"},
+		{"http://api.hcnsec.cn/v1", "MiniMax-M2.7"}, {"http://opencode.ai/zen/go/v1", "minimax-m3"},
+	} {
+		if body, _ := sendToHost(t, route.baseURL, route.model, llms.WithTopK(40)); body["top_k"] != float64(40) {
+			t.Errorf("%s on %s: only MiniMax's own API lacks top_k, got body: %v", route.model, route.baseURL, body)
 		}
 	}
 }
@@ -601,25 +607,49 @@ func TestKimiModelsWithFixedSamplingGetNoneOfIt(t *testing.T) {
 		llms.WithTemperature(0.3), llms.WithTopP(0.5),
 		llms.WithPresencePenalty(0.2), llms.WithFrequencyPenalty(0.1),
 	}
-	requests := map[string][]llms.CallOption{
-		"kimi-k3":                  sampling,
-		"moonshot/kimi-k3":         sampling,
-		"kimi-k2.7-code":           sampling,
-		"kimi-k2.7-code-highspeed": sampling,
-		"kimi-k2.6":                slices.Concat(sampling, []llms.CallOption{llms.WithReasoningDisabled()}),
-	}
-	for model, opts := range requests {
-		body := sendForWire(t, model, opts...)
-		for _, field := range []string{`"temperature"`, `"top_p"`, `"presence_penalty"`, `"frequency_penalty"`} {
-			if strings.Contains(body, field) {
-				t.Errorf("%s: %s is fixed by the vendor and must stay off the wire: %s", model, field, body)
+	const moonshot = "http://api.moonshot.ai/v1"
+	for _, tc := range []struct {
+		baseURL, model string
+		opts           []llms.CallOption
+	}{
+		{moonshot, "kimi-k3", sampling},
+		{gatewayBaseURL, "moonshot/kimi-k3", sampling},
+		{"http://api.moonshot.cn/v1", "kimi-k2.7-code", sampling},
+		{moonshot, "kimi-k2.7-code-highspeed", sampling},
+		{moonshot, "kimi-k2.6", slices.Concat(sampling, []llms.CallOption{llms.WithReasoningDisabled()})},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.opts...)
+		for _, field := range []string{"temperature", "top_p", "presence_penalty", "frequency_penalty"} {
+			if _, sent := body[field]; sent {
+				t.Errorf("%s: %s is fixed by the vendor and must stay off the wire: %v", tc.model, field, body)
 			}
 		}
-
-		resp := sendForWarnings(t, model, sampling...)
 		for _, option := range []string{"WithTemperature", "WithTopP", "WithPresencePenalty", "WithFrequencyPenalty"} {
 			if got := warningFor(t, resp, option); got.Kind != llms.WarningDrop {
-				t.Errorf("%s: %s warning = %+v", model, option, got)
+				t.Errorf("%s: %s warning = %+v", tc.model, option, got)
+			}
+		}
+	}
+}
+
+func TestKimiOnAHostOtherThanMoonshotKeepsItsSampling(t *testing.T) {
+	t.Parallel()
+
+	sampling := []llms.CallOption{llms.WithTemperature(0.3), llms.WithTopP(0.5), llms.WithPresencePenalty(0.2)}
+	for _, route := range []struct{ baseURL, model string }{
+		{dashScopeBaseURL, "kimi-k3"}, {dashScopeBaseURL, "kimi-k2.7-code"}, {dashScopeBaseURL, "kimi-k2.6"},
+		{gatewayBaseURL, "dashscope/kimi-k3"}, {openRouterBaseURL, "moonshotai/kimi-k2.6"},
+		{"http://api.atlascloud.ai/v1", "moonshotai/kimi-k2.6"},
+	} {
+		body, resp := sendToHost(t, route.baseURL, route.model, sampling...)
+		for field, want := range map[string]float64{"temperature": 0.3, "top_p": 0.5, "presence_penalty": 0.2} {
+			if body[field] != want {
+				t.Errorf("%s on %s: %s = %v, want %v", route.model, route.baseURL, field, body[field], want)
+			}
+		}
+		for _, w := range resp.Warnings {
+			if strings.Contains(w.Reason, "fixed sampling") {
+				t.Errorf("%s on %s: only Moonshot's API fixes the sampling, got %+v", route.model, route.baseURL, w)
 			}
 		}
 	}
@@ -629,9 +659,9 @@ func TestKimiModelsOutsideTheFixedListKeepTheirSampling(t *testing.T) {
 	t.Parallel()
 
 	for _, model := range []string{"kimi-k2-thinking", "kimi-k2-turbo-preview"} {
-		body := sendForWire(t, model, llms.WithTemperature(0.3), llms.WithTopP(0.5))
-		if !strings.Contains(body, `"temperature":0.3`) || !strings.Contains(body, `"top_p":0.5`) {
-			t.Errorf("%s: sampling the vendor does not fix must reach the wire: %s", model, body)
+		body, _ := sendToHost(t, "http://api.moonshot.ai/v1", model, llms.WithTemperature(0.3), llms.WithTopP(0.5))
+		if body["temperature"] != 0.3 || body["top_p"] != 0.5 {
+			t.Errorf("%s: sampling the vendor does not fix must reach the wire: %v", model, body)
 		}
 	}
 }

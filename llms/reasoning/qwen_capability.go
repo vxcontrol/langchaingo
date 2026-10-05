@@ -28,20 +28,9 @@ func QwenThinkingRequiresStream(model string) bool {
 }
 
 func dashScopeTakesNoJSONSchema(route string) bool {
-	guest := dashScopeGuestSpelling(route)
-	for _, family := range []string{"kimi", "moonshot-kimi", "deepseek-", "glm-"} {
-		if strings.HasPrefix(guest, family) {
-			return true
-		}
-	}
 	name, ok := dashScopeRouteName(route)
-	switch {
-	case !ok:
-		return false
-	case qwqOrQVQ(name):
+	if !ok || !strings.HasPrefix(name, "qwen") {
 		return true
-	case !strings.HasPrefix(name, "qwen"):
-		return false
 	}
 	for _, family := range []string{"qwen3.7-plus", "qwen3.7-flash", "qwen3.7-max", "qwen3.8-max", "qwen3.8-flash"} {
 		if strings.HasPrefix(name, family) {
@@ -52,9 +41,21 @@ func dashScopeTakesNoJSONSchema(route string) bool {
 	return !versioned || major < 3 || major == 3 && minor <= 8
 }
 
+var dashScopeGuestJSONObject = []string{
+	"kimi-k3", "kimi-k2-thinking", "glm-5.1", "glm-5", "glm-4.7", "glm-4.6", "deepseek-v4-pro", "deepseek-v4-flash",
+}
+
 func DashScopeTakesNoJSONObject(route string) bool {
-	name, ok := dashScopeRouteName(route)
-	return ok && qwqOrQVQ(name)
+	if !strings.HasPrefix(strings.ToLower(route), "dashscope/") {
+		return false
+	}
+	if name, ok := dashScopeRouteName(route); ok && strings.HasPrefix(name, "qwen") {
+		return false
+	}
+	guest := dashScopeGuestSpelling(route)
+	return !slices.ContainsFunc(dashScopeGuestJSONObject, func(listed string) bool {
+		return guest == listed || strings.HasPrefix(guest, listed+"-")
+	})
 }
 
 func qwqOrQVQ(name string) bool {

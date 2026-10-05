@@ -470,7 +470,7 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host strin
 		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
 		req.TopK = nil
 	}
-	if (reasoning.TakesNoTopK(model) || reasoning.ServedByDeepSeek(model, host) ||
+	if (reasoning.TakesNoTopK(model, host) || reasoning.ServedByDeepSeek(model, host) ||
 		reasoning.DashScopeTakesNoTopK(reasoning.DashScopeRoute(model, host))) && req.TopK != nil {
 		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
 		req.TopK = nil
@@ -841,7 +841,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.Temperature, req.TopP, req.TopK = nil, nil, nil
 		return
 	}
-	if reasoning.FixesSampling(model) {
+	if reasoning.FixesSampling(model, o.host) {
 		req.Temperature, req.TopP = nil, nil
 		req.FrequencyPenalty, req.PresencePenalty = nil, nil
 		return

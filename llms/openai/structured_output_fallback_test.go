@@ -195,13 +195,16 @@ func TestTheFallbackSendsJSONObjectAndTheSchemaInThePrompt(t *testing.T) {
 func TestTheFallbackSendsMiniMaxOnlyTheSchemaInThePrompt(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"MiniMax-M2.7", "MiniMax-M2.7-highspeed", "MiniMax-M3", "minimax/MiniMax-M3"} {
+	for model, baseURL := range map[string]string{
+		"MiniMax-M2.7": miniMaxHostURL, "MiniMax-M2.7-highspeed": miniMaxHostURL,
+		"MiniMax-M3": "http://api.minimaxi.com/v1", "minimax/MiniMax-M3": "",
+	} {
 		t.Run(model, func(t *testing.T) {
 			t.Parallel()
 
 			// MiniMax puts its thinking at the head of content; the client splits it off.
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{"<think>\nThe user wants JSON.\n</think>\n\n", `{"answer":"42"}`}})
-			resp, err := newFallbackLLM(t, srv.URL, model).GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, model, onHost(t, srv, baseURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, answerSchema(), llms.WithJSONMode())
 			require.NoError(t, err)
 			assert.Equal(t, `{"answer":"42"}`, resp.Choices[0].Content)
@@ -371,7 +374,7 @@ func TestTheFallbackReachesOnlyModelsWithoutJSONSchema(t *testing.T) {
 
 	t.Run("without the option the vendor is still refused before any request", func(t *testing.T) {
 		t.Parallel()
-		for model, baseURL := range map[string]string{"deepseek-flash": deepSeekBaseURL, "MiniMax-M2.7": ""} {
+		for model, baseURL := range map[string]string{"deepseek-flash": deepSeekBaseURL, "MiniMax-M2.7": miniMaxHostURL} {
 			srv := newFallbackServer(t, fallbackReply{pieces: []string{`{"answer":"42"}`}})
 			llm, err := New(append([]Option{WithBaseURL(srv.URL), WithToken("test"), WithModel(model)},
 				onHost(t, srv, baseURL)...)...)
@@ -551,7 +554,7 @@ func TestTheFallbackValidatesMiniMaxStreamedAnswerAfterItsThinking(t *testing.T)
 
 			srv := newFallbackServer(t, fallbackReply{pieces: pieces, reasonings: tc.reasonings})
 			var thought strings.Builder
-			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7").GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7", onHost(t, srv, miniMaxHostURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")},
 				answerSchema(), llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
 					if chunk.Type == streaming.ChunkTypeReasoning {
@@ -583,7 +586,7 @@ func TestTheFallbackMovesOnlyTheThinkingAtTheHeadOfTheAnswer(t *testing.T) {
 			t.Parallel()
 
 			srv := newFallbackServer(t, fallbackReply{pieces: pieces, reasonings: []string{"r", "r"}})
-			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7").GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7", onHost(t, srv, miniMaxHostURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, answerSchema(),
 				llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
 
@@ -621,7 +624,7 @@ func TestTheFallbackTakesOutTheThinkingAtTheHeadOfTheAnswer(t *testing.T) {
 			t.Parallel()
 
 			srv := newFallbackServer(t, fallbackReply{pieces: tc.pieces, reasonings: tc.reasonings})
-			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7").GenerateContent(t.Context(),
+			resp, err := newFallbackLLM(t, srv.URL, "MiniMax-M2.7", onHost(t, srv, miniMaxHostURL)...).GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "question")}, answerSchema(),
 				llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
 			require.NoError(t, err)

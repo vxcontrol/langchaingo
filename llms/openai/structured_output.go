@@ -35,7 +35,7 @@ func (e *ErrStructuredOutputRefusal) Error() string {
 
 func noJSONObjectReason(model, host string) string {
 	switch {
-	case reasoning.TakesNoResponseFormat(model):
+	case reasoning.TakesNoResponseFormat(model, host):
 		return takesNoResponseFormat
 	case reasoning.TakesNoJSONObject(model), reasoning.DashScopeTakesNoJSONObject(reasoning.DashScopeRoute(model, host)):
 		return "the vendor has no json_object response format for this model"
@@ -137,7 +137,7 @@ func (o *LLM) emulatesStructuredOutput(model string, opts llms.CallOptions) bool
 	if opts.StructuredOutput == nil || !o.structuredOutputFallback {
 		return false
 	}
-	return reasoning.TakesNoJSONSchema(model, o.host) || reasoning.TakesNoResponseFormat(model)
+	return reasoning.TakesNoJSONSchema(model, o.host) || reasoning.TakesNoResponseFormat(model, o.host)
 }
 
 // injectSchemaInstruction appends the schema instruction to the last user
@@ -234,7 +234,7 @@ func openAIStructuredOutputUnsupported(model, host string) string {
 			return "the vendor's chat completions response_format takes neither a JSON schema nor json_object for this model"
 		}
 		return "the vendor's chat completions response_format takes only text and json_object"
-	case reasoning.TakesNoResponseFormat(model):
+	case reasoning.TakesNoResponseFormat(model, host):
 		return takesNoResponseFormat
 	case strings.HasPrefix(m, "gpt-3.5"):
 		return predates

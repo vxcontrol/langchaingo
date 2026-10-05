@@ -180,13 +180,13 @@ func WithModernReasoningFormat() Option {
 // reasoning_content: on the turns that called a tool, and on every assistant
 // turn for DeepSeek, Kimi, GLM and Qwen models. A model Mistral serves takes it on
 // every turn as a thinking chunk at the head of content instead, and one that
-// does not reason there takes none. A MiniMax M-series model on MiniMax's API
-// takes it on every turn inside <think> tags at the head of content, unless the
-// content already opens with a <think> block. A DeepSeek ("deepseek-") assistant
-// turn that holds no reasoning goes back with an empty reasoning_content, which
-// DeepSeek's thinking mode requires after the last user message; keep the
-// reasoning DeepSeek returned in the history, since the empty field also stops
-// DeepSeek from restoring it by the turn's tool call ID.
+// does not reason there takes none. A MiniMax M-series model named bare or under
+// minimax/ takes it on every turn inside <think> tags at the head of content, on
+// any host, unless the content already opens with a <think> block. A DeepSeek
+// ("deepseek-") assistant turn that holds no reasoning goes back with an empty
+// reasoning_content, which DeepSeek's thinking mode requires after the last user
+// message; keep the reasoning DeepSeek returned in the history, since the empty
+// field also stops DeepSeek from restoring it by the turn's tool call ID.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true

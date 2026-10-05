@@ -24,6 +24,10 @@ var catalogueProviders = map[string]reasoning.Provider{
 	"gemini":    reasoning.ProviderGoogleAI,
 }
 
+// catalogueHosts mirrors the default server URLs in PentAGI's config for the
+// catalogues whose host changes what the tables answer.
+var catalogueHosts = map[string]string{"qwen": "dashscope-us.aliyuncs.com"}
+
 var offWireNames = []string{
 	"omit", "disable-claude", "zero-budget", "minimal-level", "effort-none", "disable-dashscope",
 	"disable-thinking-object", "disable-think-bool", "between-tools-claude", "unsupported",
@@ -49,7 +53,9 @@ func catalogueRow(catalogue, model string) string {
 		fmt.Sprint(support.Supported), fmt.Sprint(support.Known), fmt.Sprint(support.CannotDisable),
 		fmt.Sprint(support.RejectsSampling), fmt.Sprint(int(support.Mechanism)),
 		strings.Join(efforts, ","), defaultOn, offWireNames[off],
-		fmt.Sprint(int(reasoning.EffortWithTools(model))), fmt.Sprint(reasoning.TakesNoThinkingDepth(model)),
+		fmt.Sprint(int(reasoning.EffortWithTools(model))),
+		fmt.Sprint(provider == reasoning.ProviderOpenAI &&
+			reasoning.TakesNoThinkingDepth(reasoning.DashScopeRoute(model, catalogueHosts[catalogue]))),
 		cmp.Or(support.Inherited, "-"),
 	}, "\t")
 }
