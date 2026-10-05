@@ -496,7 +496,7 @@ func (o *LLM) setReasoning(
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if len(req.Tools) > 0 {
+	if toolsOnTheWire(req) {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
@@ -913,11 +913,10 @@ func isThinkingOnTheWire(wireEffort string) bool {
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
 func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
-	if len(opts.Tools) > 0 || len(opts.Functions) > 0 {
+	if offered := len(opts.Tools) + len(opts.Functions) + llms.ExtraBodyTools(llms.ExtraBody(opts)); offered > 0 {
 		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
 			refusal := &reasoning.ErrChatToolsUnsupported{Model: model}
-			offered := strconv.Itoa(len(opts.Tools) + len(opts.Functions))
-			if warn.KeepRefusal(model, "WithTools", offered, offered, refusal) {
+			if asked := strconv.Itoa(offered); warn.KeepRefusal(model, "WithTools", asked, asked, refusal) {
 				return refusal
 			}
 		}
@@ -946,6 +945,10 @@ func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOpt
 	}
 
 	return nil
+}
+
+func toolsOnTheWire(req *openaiclient.ChatRequest) bool {
+	return len(req.Tools) > 0 || llms.ExtraBodyTools(req.ExtraBody) > 0
 }
 
 func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRefusal, int) {

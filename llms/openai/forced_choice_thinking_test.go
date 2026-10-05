@@ -29,6 +29,17 @@ func callWithATool(t *testing.T, baseURL, model string, opts ...llms.CallOption)
 	return body, err
 }
 
+func callWithToolsOnlyInTheExtraBody(t *testing.T, baseURL, model string) (bool, error) {
+	t.Helper()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "look it up")},
+		llms.WithExtraBody(map[string]any{"tools": []any{map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}}}))
+	return doer.body != nil, err
+}
+
 func TestAForcedToolChoiceTheVendorRejectsIsRefusedBeforeTheNetwork(t *testing.T) {
 	t.Parallel()
 

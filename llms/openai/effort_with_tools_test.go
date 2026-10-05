@@ -23,6 +23,12 @@ func weatherTool() llms.Tool {
 	}
 }
 
+func weatherToolInTheExtraBody() llms.CallOption {
+	return llms.WithExtraBody(map[string]any{"tools": []any{map[string]any{
+		"type": "function", "function": map[string]any{"name": "get_weather", "parameters": map[string]any{"type": "object"}},
+	}}})
+}
+
 func bodyForCall(t *testing.T, model string, opts ...llms.CallOption) string {
 	t.Helper()
 
@@ -65,6 +71,10 @@ func TestEffortAndToolsOnTheWire(t *testing.T) {
 	}{
 		{"5.6 with tools and no request still sends none", "gpt-5.6-sol",
 			[]llms.CallOption{tools}, `"reasoning_effort":"none"`, false},
+		{"5.6 with tools in the extra body still sends none", "gpt-5.6-sol",
+			[]llms.CallOption{weatherToolInTheExtraBody()}, `"reasoning_effort":"none"`, false},
+		{"6-sol with tools in the extra body still sends none", "gpt-6-sol",
+			[]llms.CallOption{weatherToolInTheExtraBody()}, `"reasoning_effort":"none"`, false},
 		{"5.6 without tools keeps the level", "gpt-5.6-sol",
 			[]llms.CallOption{high}, `"reasoning_effort":"high"`, false},
 		{"6-sol with tools and no request still sends none", "gpt-6-sol",
@@ -286,34 +296,40 @@ func TestDashScopeDeepSeekBudgetLeavesRoomForTheAnswer(t *testing.T) {
 func TestAnUnservableEffortWithToolsIsRefusedBeforeTheNetwork(t *testing.T) {
 	t.Parallel()
 
+	offers := map[string]llms.CallOption{
+		"typed":             llms.WithTools([]llms.Tool{weatherTool()}),
+		"in the extra body": weatherToolInTheExtraBody(),
+	}
 	for _, model := range []string{"gpt-5.6-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.5", "gpt-5.4-nano"} {
-		t.Run(model, func(t *testing.T) {
-			t.Parallel()
+		for offer, tools := range offers {
+			t.Run(model+" with tools "+offer, func(t *testing.T) {
+				t.Parallel()
 
-			var reached bool
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				reached = true
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"id":"x","choices":[]}`)
-			}))
-			t.Cleanup(srv.Close)
+				var reached bool
+				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					reached = true
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"id":"x","choices":[]}`)
+				}))
+				t.Cleanup(srv.Close)
 
-			llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
-			if err != nil {
-				t.Fatalf("New() error: %v", err)
-			}
-			_, err = llm.GenerateContent(context.Background(),
-				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
-				llms.WithTools([]llms.Tool{weatherTool()}), llms.WithReasoning(llms.ReasoningHigh, 0))
+				llm, err := New(WithBaseURL(srv.URL), WithToken("test"), WithModel(model))
+				if err != nil {
+					t.Fatalf("New() error: %v", err)
+				}
+				_, err = llm.GenerateContent(context.Background(),
+					[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+					tools, llms.WithReasoning(llms.ReasoningHigh, 0))
 
-			var want *reasoning.ErrEffortWithTools
-			if !errors.As(err, &want) {
-				t.Fatalf("asking %s to think alongside tools must be refused, got err=%v", model, err)
-			}
-			if reached {
-				t.Error("the refusal must come before the request leaves")
-			}
-		})
+				var want *reasoning.ErrEffortWithTools
+				if !errors.As(err, &want) {
+					t.Fatalf("asking %s to think alongside tools %s must be refused, got err=%v", model, offer, err)
+				}
+				if reached {
+					t.Error("the refusal must come before the request leaves")
+				}
+			})
+		}
 	}
 }
 

@@ -119,7 +119,7 @@ func (o *LLM) setStructuredOutput(req *openaiclient.ChatRequest, opts llms.CallO
 			sent, reason = "json_object and a prompt instruction", "the vendor's chat completions response_format takes only text and json_object"
 		}
 		// addToolsToRequest has already moved functions into req.Tools.
-		req.Messages = injectSchemaInstruction(req.Messages, so.Schema, len(req.Tools) > 0)
+		req.Messages = injectSchemaInstruction(req.Messages, so.Schema, toolsOnTheWire(req))
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithStructuredOutput", Model: model,
 			Asked: so.Name, Sent: sent,
