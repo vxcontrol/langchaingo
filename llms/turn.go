@@ -172,6 +172,16 @@ func HasAssistantPrefill(messages []MessageContent) bool {
 	return messages[len(messages)-1].Role == ChatMessageTypeAI
 }
 
+func WithoutSystemMessages(messages []MessageContent) []MessageContent {
+	conversation := make([]MessageContent, 0, len(messages))
+	for _, message := range messages {
+		if message.Role != ChatMessageTypeSystem {
+			conversation = append(conversation, message)
+		}
+	}
+	return conversation
+}
+
 // CheckClaudeTurnLimits refuses the two turns a Claude model rejects on the
 // wire: manual (budget) thinking combined with a forced tool choice, and a
 // conversation that ends on an assistant turn.

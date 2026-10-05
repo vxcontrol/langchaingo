@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -1126,14 +1127,17 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 	t.Run("rejected on 4.6 and later without a round trip", func(t *testing.T) {
 		t.Parallel()
 
+		systemAfter := append(slices.Clone(prefilled), llms.TextParts(llms.ChatMessageTypeSystem, "be brief"))
 		for _, model := range []string{"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7", "claude-opus-latest"} {
-			llm, hits := newLLM(t, model)
-			_, err := llm.GenerateContent(t.Context(), prefilled)
+			for _, messages := range [][]llms.MessageContent{prefilled, systemAfter} {
+				llm, hits := newLLM(t, model)
+				_, err := llm.GenerateContent(t.Context(), messages)
 
-			var unsupported *anthropic.ErrAssistantPrefillUnsupported
-			require.ErrorAs(t, err, &unsupported, model)
-			require.Equal(t, model, unsupported.Model)
-			require.Zero(t, hits.Load(), "%s: the request must not be sent", model)
+				var unsupported *anthropic.ErrAssistantPrefillUnsupported
+				require.ErrorAs(t, err, &unsupported, "%s with %d messages", model, len(messages))
+				require.Equal(t, model, unsupported.Model)
+				require.Zero(t, hits.Load(), "%s: the request must not be sent", model)
+			}
 		}
 	})
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -674,10 +675,13 @@ func TestAnthropic_StructuredOutputWire(t *testing.T) {
 			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPart("hi")}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPart("prefill")}},
 		}
-		_, err = llm.GenerateContent(t.Context(), messages,
-			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(soSchema)}))
-		var conflict *llms.ErrStructuredOutputConflict
-		require.True(t, errors.As(err, &conflict), "want ErrStructuredOutputConflict, got %v", err)
+		systemAfter := append(slices.Clone(messages), llms.TextParts(llms.ChatMessageTypeSystem, "be brief"))
+		for _, conversation := range [][]llms.MessageContent{messages, systemAfter} {
+			_, err = llm.GenerateContent(t.Context(), conversation,
+				llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(soSchema)}))
+			var conflict *llms.ErrStructuredOutputConflict
+			require.True(t, errors.As(err, &conflict), "want ErrStructuredOutputConflict for %d messages, got %v", len(conversation), err)
+		}
 	})
 
 	t.Run("object schema missing additionalProperties:false is rejected before the network", func(t *testing.T) {

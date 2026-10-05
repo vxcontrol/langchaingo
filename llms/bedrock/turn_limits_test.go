@@ -45,6 +45,18 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 			}
 		})
 
+		t.Run(name+"/assistant prefill behind a system message is refused before the request", func(t *testing.T) {
+			t.Parallel()
+			llm := truncationLLMWithBody(t, `{}`,
+				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-opus-4-6-v1:0")}, opts...)...)
+			messages := append(turnLimitMessages(llms.ChatMessageTypeAI), llms.TextParts(llms.ChatMessageTypeSystem, "be brief"))
+			_, err := llm.GenerateContent(context.Background(), messages)
+			var target *reasoning.ErrAssistantPrefillUnsupported
+			if !errors.As(err, &target) {
+				t.Errorf("the system message is sent apart from the turns, so they still end on the answer: %v", err)
+			}
+		})
+
 		t.Run(name+"/a forced tool with manual thinking is refused", func(t *testing.T) {
 			t.Parallel()
 			llm := truncationLLMWithBody(t, `{}`,
