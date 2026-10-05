@@ -458,7 +458,7 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host strin
 		addNonZeroIntChange(warn, "WithTopK", model, refusedByEndpoint, req.TopK, nil)
 		req.TopK = nil
 	}
-	if (reasoning.TakesNoTopK(model) || reasoning.ServedByDeepSeek(model, host) ||
+	if (reasoning.TakesNoTopK(model, host) || reasoning.ServedByDeepSeek(model, host) ||
 		reasoning.DashScopeTakesNoTopK(reasoning.DashScopeRoute(model, host))) && req.TopK != nil {
 		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
 		req.TopK = nil

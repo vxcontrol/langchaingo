@@ -114,15 +114,15 @@ func RejectsTopK(model string) bool {
 	return openAIProperName(model)
 }
 
-func TakesNoTopK(model string) bool {
-	return onMiniMaxAPI(model, "minimax-")
+func TakesNoTopK(model, host string) bool {
+	return ServedBy(model, host) == VendorMiniMax && namesMiniMax(model, "minimax-")
 }
 
-func TakesNoResponseFormat(model string) bool {
-	return onMiniMaxAPI(model, "minimax-m")
+func TakesNoResponseFormat(model, host string) bool {
+	return ServedBy(model, host) == VendorMiniMax && namesMiniMax(model, "minimax-m")
 }
 
-func onMiniMaxAPI(model, family string) bool {
+func namesMiniMax(model, family string) bool {
 	return strings.HasPrefix(strings.TrimPrefix(strings.ToLower(model), "minimax/"), family)
 }
 
@@ -232,7 +232,7 @@ func ReplaysThinkingInContent(model string) bool {
 }
 
 func ReplaysReasoningInThinkTags(model string) bool {
-	return onMiniMaxAPI(model, "minimax-m")
+	return namesMiniMax(model, "minimax-m")
 }
 
 // UsesLegacyMaxTokens reports whether the output limit must travel as

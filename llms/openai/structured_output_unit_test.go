@@ -165,8 +165,11 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 
 	t.Run("MiniMax outside its own M-series API keeps the schema", func(t *testing.T) {
 		t.Parallel()
-		for _, model := range []string{"MiniMax-Text-01", "openrouter/minimax/minimax-m3"} {
-			llm := newUnitLLM(t, WithModel(model))
+		for model, baseURL := range map[string]string{
+			"MiniMax-Text-01": "", "openrouter/minimax/minimax-m3": "", "minimax/minimax-m3": "https://openrouter.ai/api/v1",
+			"MiniMax-M2.5": "http://vllm.internal:8000/v1", "MiniMax-M2.7": "https://api.hcnsec.cn/v1",
+		} {
+			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
 			req, err := llm.createChatRequest(nil, opts, nil)
@@ -469,7 +472,10 @@ func TestStructuredOutputValidationFailureFiresSingleErrorCallback(t *testing.T)
 func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
+	for model, baseURL := range map[string]string{
+		"MiniMax-M3": miniMaxHostURL, "minimax/MiniMax-M3": gatewayBaseURL, "MiniMax-M2.7": miniMaxHostURL,
+		"MiniMax-M2.7-highspeed": "http://api.minimaxi.com/v1",
+	} {
 		var calls atomic.Int32
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			calls.Add(1)
@@ -481,7 +487,7 @@ func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
 		}))
 		t.Cleanup(srv.Close)
 
-		llm := newUnitLLM(t, WithBaseURL(srv.URL), WithModel(model))
+		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(clientDialing(t, srv)))
 		_, err := llm.GenerateContent(context.Background(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()}))
@@ -499,12 +505,15 @@ func TestMiniMaxJSONSchemaIsRefusedWithoutARequest(t *testing.T) {
 func TestMiniMaxJSONModeLeavesOutTheResponseFormatItsAPILacks(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
-		if body := sendForWire(t, model, llms.WithJSONMode()); strings.Contains(body, "response_format") {
-			t.Errorf("%s: MiniMax's chat completions API documents no response_format, got body: %s", model, body)
+	for model, baseURL := range map[string]string{
+		"MiniMax-M3": miniMaxHostURL, "minimax/MiniMax-M3": gatewayBaseURL, "MiniMax-M2.7": miniMaxHostURL,
+		"MiniMax-M2.7-highspeed": "http://api.minimaxi.com/v1",
+	} {
+		body, resp := sendToHost(t, baseURL, model, llms.WithJSONMode())
+		if _, sent := body["response_format"]; sent {
+			t.Errorf("%s: MiniMax's chat completions API documents no response_format, got body: %v", model, body)
 		}
-
-		w := warningFor(t, sendForWarnings(t, model, llms.WithJSONMode()), "WithJSONMode")
+		w := warningFor(t, resp, "WithJSONMode")
 		if w.Kind != llms.WarningDrop || w.Asked != "true" || !strings.Contains(w.Reason, "response_format") {
 			t.Errorf("%s: JSON mode warning = %+v", model, w)
 		}

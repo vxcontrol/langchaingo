@@ -82,6 +82,7 @@ const (
 	dashScopeBaseURL  = "http://dashscope-us.aliyuncs.com/compatible-mode/v1"
 	gatewayBaseURL    = "http://litellm.example/v1"
 	openRouterBaseURL = "http://openrouter.ai/api/v1"
+	miniMaxHostURL    = "http://api.minimax.io/v1"
 )
 
 func sendToHost(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map[string]any, *llms.ContentResponse) {

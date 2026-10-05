@@ -80,6 +80,7 @@ func TestModelStudioModelsWithoutJSONObjectAreSentNone(t *testing.T) {
 		{dashScopeBaseURL, "qwq-plus"}, {dashScopeBaseURL, "qvq-max"}, {"", "dashscope/qwq-plus"},
 		{dashScopeBaseURL, "kimi-k2.7-code"}, {dashScopeBaseURL, "kimi-k2.6"}, {dashScopeBaseURL, "glm-5.2"},
 		{dashScopeBaseURL, "ZHIPU/GLM-5.3"}, {"", "dashscope/ZHIPU/GLM-5.3"}, {"", "dashscope/kimi-k2.5"},
+		{dashScopeBaseURL, "MiniMax-M2.5"}, {"", "dashscope/MiniMax/MiniMax-M3"},
 	} {
 		req, resp := call(tc.baseURL, tc.model, answerSchema())
 		assert.Empty(t, req.ResponseFormat, tc.model)

@@ -18,6 +18,7 @@ const (
 	VendorXAI
 	VendorMistral
 	VendorDashScope
+	VendorMiniMax
 )
 
 var vendorHosts = map[string]Vendor{
@@ -34,6 +35,8 @@ var vendorHosts = map[string]Vendor{
 	"dashscope-intl.aliyuncs.com":        VendorDashScope,
 	"dashscope-us.aliyuncs.com":          VendorDashScope,
 	"cn-hongkong.dashscope.aliyuncs.com": VendorDashScope,
+	"api.minimax.io":                     VendorMiniMax,
+	"api.minimaxi.com":                   VendorMiniMax,
 }
 
 var litellmRoutes = map[string]Vendor{
@@ -43,6 +46,7 @@ var litellmRoutes = map[string]Vendor{
 	"xai":       VendorXAI,
 	"mistral":   VendorMistral,
 	"dashscope": VendorDashScope,
+	"minimax":   VendorMiniMax,
 }
 
 // ServedBy reports the vendor whose own API serves model on host: the owner of

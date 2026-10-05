@@ -369,19 +369,20 @@ func TestAVendorThatTakesTopKStillGetsIt(t *testing.T) {
 func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"MiniMax-M3", "minimax/MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"} {
-		body := sendForWire(t, model, llms.WithTopK(40), llms.WithTopP(0.95))
-		if strings.Contains(body, `"top_k"`) {
-			t.Errorf("%s: MiniMax's API documents no top_k, got body: %s", model, body)
+	for _, route := range []struct{ baseURL, model string }{
+		{miniMaxHostURL, "MiniMax-M3"}, {miniMaxHostURL, "MiniMax-M2.7"},
+		{"http://api.minimaxi.com/v1", "MiniMax-M2.7-highspeed"}, {gatewayBaseURL, "minimax/MiniMax-M3"},
+	} {
+		body, resp := sendToHost(t, route.baseURL, route.model, llms.WithTopK(40), llms.WithTopP(0.95))
+		if _, sent := body["top_k"]; sent {
+			t.Errorf("%s: MiniMax's API documents no top_k, got body: %v", route.model, body)
 		}
-		if !strings.Contains(body, `"top_p":0.95`) {
-			t.Errorf("%s: MiniMax documents top_p and must keep getting it, got body: %s", model, body)
+		if body["top_p"] != 0.95 {
+			t.Errorf("%s: MiniMax documents top_p and must keep getting it, got body: %v", route.model, body)
 		}
-
-		resp := sendForWarnings(t, model, llms.WithTopK(40))
 		w := warningFor(t, resp, "WithTopK")
 		if w.Kind != llms.WarningDrop || w.Asked != "40" || !strings.Contains(w.Reason, "no top_k") {
-			t.Errorf("%s: top-k warning = %+v", model, w)
+			t.Errorf("%s: top-k warning = %+v", route.model, w)
 		}
 	}
 }
@@ -389,9 +390,13 @@ func TestMiniMaxGetsNoTopKItsAPIHasNoFieldFor(t *testing.T) {
 func TestMiniMaxOnAnotherHostKeepsTopK(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"openrouter/minimax/minimax-m3", "minimax.minimax-m2.5"} {
-		if body := sendForWire(t, model, llms.WithTopK(40)); !strings.Contains(body, `"top_k":40`) {
-			t.Errorf("%s: only MiniMax's own API lacks top_k, got body: %s", model, body)
+	for _, route := range []struct{ baseURL, model string }{
+		{gatewayBaseURL, "openrouter/minimax/minimax-m3"}, {gatewayBaseURL, "minimax.minimax-m2.5"},
+		{openRouterBaseURL, "minimax/minimax-m3"}, {"http://vllm.internal:8000/v1", "MiniMax-M2.5"},
+		{"http://api.hcnsec.cn/v1", "MiniMax-M2.7"}, {"http://opencode.ai/zen/go/v1", "minimax-m3"},
+	} {
+		if body, _ := sendToHost(t, route.baseURL, route.model, llms.WithTopK(40)); body["top_k"] != float64(40) {
+			t.Errorf("%s on %s: only MiniMax's own API lacks top_k, got body: %v", route.model, route.baseURL, body)
 		}
 	}
 }
