@@ -166,7 +166,7 @@ func TestAnUnlistedVersionAnswersEveryTableLikeTheReleaseItFollows(t *testing.T)
 		"minimax-m4": "minimax-m3", "MiniMax-M4": "MiniMax-M3",
 		"qwen3.9-max": "qwen3.8-max", "qwen4-max": "qwen3.8-max", "dashscope/qwen3.9-max": "dashscope/qwen3.8-max",
 		"grok-4.8": "grok-4.7", "grok-5": "grok-4.7",
-		"claude-opus-6": "claude-opus-5-5", "claude-opus-4-10": "claude-opus-4-8",
+		"claude-opus-6": "claude-opus-5-5", "claude-opus-4-10": "claude-opus-4-8", "claude-opus-6[1m]": "claude-opus-5-5",
 		"gemini-4-pro": "gemini-3.1-pro-preview", "gemini-4-flash": "gemini-3.8-flash",
 		"models/gemini-4-pro": "gemini-3.1-pro-preview", "gemini-pro-latest": "gemini-3.1-pro-preview",
 		"gemini-3.9-flash-lite": "gemini-3.5-flash-lite", "gemma-5": "gemma-4-26b-a4b-it",

@@ -51,23 +51,22 @@ func claudeVersion(canonical string) (tier string, major, minor int, ok bool) {
 		newest := slices.MaxFunc(line, compareVersions)
 		return parts[0], newest.major, newest.minor, true
 	}
-	major, err := strconv.Atoi(parts[1])
-	if err != nil {
+	if major, ok = claudeVersionNumber(parts[1]); !ok {
 		return "", 0, 0, false
 	}
 	if len(parts) > 2 {
-		minor = leadingMinor(parts[2])
+		minor, _ = claudeVersionNumber(parts[2])
 	}
 	return parts[0], major, minor, true
 }
 
-func leadingMinor(token string) int {
+func claudeVersionNumber(token string) (int, bool) {
 	digits := len(token) - len(strings.TrimLeft(token, "0123456789"))
 	if digits == 0 || digits > 2 || digits < len(token) && 'a' <= token[digits] && token[digits] <= 'z' {
-		return 0
+		return 0, false
 	}
-	minor, _ := strconv.Atoi(token[:digits])
-	return minor
+	n, _ := strconv.Atoi(token[:digits])
+	return n, true
 }
 
 func claudeVersionBeforeTier(parts []string) (tier string, major, minor int, ok bool) {
