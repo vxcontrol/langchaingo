@@ -12,6 +12,17 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
+func TestAnUnlistedGeminiIsSentTheThinkingItsReleaseTakes(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemini-4-flash", "gemini-4-pro"} {
+		config, warnings := generationConfigSent(t, model, llms.WithReasoning(llms.ReasoningHigh, 0))
+		require.Equal(t, map[string]any{"includeThoughts": true, "thinkingLevel": "HIGH"}, config["thinkingConfig"], model)
+		require.Len(t, warnings, 1, "%s: only the inherited model is reported: %v", model, warnings)
+		require.Equal(t, llms.WarningInherit, warnings["WithModel"].Kind, model)
+	}
+}
+
 func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 	t.Parallel()
 
@@ -34,11 +45,17 @@ func TestAnUnlistedGeminiIsSentADisableItsReleaseWouldRefuse(t *testing.T) {
 
 	config, _ = generationConfigSent(t, "gemini-4-pro", llms.WithReasoningDisabled())
 	require.NotContains(t, config, "thinkingConfig", "no pro release documents a disable: %v", config)
+	inherited = map[string]bool{}
 	for _, w := range generateForWarnings(t, "gemini-4-pro", llms.WithReasoningDisabled()).Warnings {
+		if w.Kind == llms.WarningInherit {
+			inherited[w.Option] = true
+		}
 		if w.Option == "WithReasoningDisabled" {
 			require.Empty(t, w.Sent, "%v", w)
 		}
 	}
+	require.Equal(t, map[string]bool{"WithModel": true, "WithReasoningDisabled": true}, inherited,
+		"the disable a pro cannot honour is reported, not lost")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
