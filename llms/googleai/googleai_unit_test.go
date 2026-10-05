@@ -658,12 +658,15 @@ func TestConvertPartsRefusesALinkThatServesNoImage(t *testing.T) {
 	t.Parallel()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/login" {
+		switch r.URL.Path {
+		case "/login":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			_, _ = w.Write([]byte("<!DOCTYPE html><html>sign in</html>"))
-			return
+		case "/empty.png":
+			w.Header().Set("Content-Type", "image/png")
+		default:
+			http.NotFound(w, r)
 		}
-		http.NotFound(w, r)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -672,6 +675,9 @@ func TestConvertPartsRefusesALinkThatServesNoImage(t *testing.T) {
 
 	_, err = convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/gone.png")})
 	require.ErrorContains(t, err, "404 Not Found")
+
+	_, err = convertParts([]llms.ContentPart{llms.ImageURLPart(srv.URL + "/empty.png")})
+	require.ErrorContains(t, err, "empty body")
 }
 
 func TestFunctionCallIDWrappers(t *testing.T) {

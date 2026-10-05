@@ -128,7 +128,7 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	opts.Tools = toolsSent
 	onTheWire := opts
 	onTheWire.Functions, onTheWire.ExtraBody = nil, nil
-	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), onTheWire, messages, turn); err != nil {
+	if err := llms.CheckClaudeToolChoice(opts.GetModel(), onTheWire, true, turn); err != nil {
 		return nil, err
 	}
 

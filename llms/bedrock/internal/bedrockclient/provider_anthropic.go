@@ -237,6 +237,10 @@ func createAnthropicCompletion(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	last := len(inputContents) - 1
+	if err := llms.CheckClaudePrefill(modelID, last >= 0 && inputContents[last].Role == AnthropicRoleAssistant); err != nil {
+		return nil, err
+	}
 
 	tools := make([]anthropicTool, 0, len(options.Tools))
 	for _, tool := range options.Tools {

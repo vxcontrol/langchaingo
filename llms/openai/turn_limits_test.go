@@ -2,10 +2,12 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -49,6 +51,53 @@ var turnLimitTools = llms.WithTools([]llms.Tool{{
 	Type:     "function",
 	Function: &llms.FunctionDefinition{Name: "calc", Parameters: map[string]any{"type": "object"}},
 }})
+
+func TestASystemMessageAfterTheAnswerStaysInPlaceOnTheOpenAITransport(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithBaseURL("http://litellm.internal/v1"), WithModel("anthropic/claude-sonnet-4-6"), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(),
+		append(endingOnAssistant(), llms.TextParts(llms.ChatMessageTypeSystem, "be brief")))
+	if err != nil {
+		t.Fatalf("the gateway decides what a system message after the answer means: %v", err)
+	}
+	var body struct {
+		Messages []struct {
+			Role string `json:"role"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(doer.body, &body); err != nil {
+		t.Fatal(err)
+	}
+	roles := make([]string, 0, len(body.Messages))
+	for _, m := range body.Messages {
+		roles = append(roles, m.Role)
+	}
+	if !slices.Equal(roles, []string{"user", "assistant", "system"}) {
+		t.Errorf("roles on the wire = %v", roles)
+	}
+}
+
+func TestThePrefillIsJudgedOnTheMessagesTheOpenAITransportSends(t *testing.T) {
+	t.Parallel()
+
+	human := llms.TextParts(llms.ChatMessageTypeHuman, "finish this")
+	var target *reasoning.ErrAssistantPrefillUnsupported
+	for i, messages := range [][]llms.MessageContent{
+		{human, llms.TextParts(llms.ChatMessageTypeAI, "")},
+		{human, {Role: llms.ChatMessageTypeAI}},
+		{human, {Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextContent{Reasoning: &reasoning.ContentReasoning{Content: "hm"}}}}},
+	} {
+		if err := turnLimitErr(t, "claude-sonnet-4-6", messages); errors.As(err, &target) {
+			t.Errorf("conversation %d sends no assistant message last: %v", i, err)
+		}
+	}
+	endsOnTheAnswer := append(endingOnAssistant(), llms.TextParts(llms.ChatMessageTypeHuman, ""))
+	if err := turnLimitErr(t, "claude-sonnet-4-6", endsOnTheAnswer); !errors.As(err, &target) {
+		t.Errorf("an empty human message is not sent, so the answer goes last: got %v", err)
+	}
+}
 
 func TestABudgetWithAForcedChoiceAndNoToolsIsNotRefusedOnTheOpenAITransport(t *testing.T) {
 	t.Parallel()

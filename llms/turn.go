@@ -177,23 +177,21 @@ func HasAssistantPrefill(messages []MessageContent) bool {
 	return messages[len(messages)-1].Role == ChatMessageTypeAI
 }
 
-// CheckClaudeTurnLimits refuses the two turns a Claude model rejects on the
-// wire: manual (budget) thinking combined with a forced tool choice, and a
-// conversation that ends on an assistant turn.
-func CheckClaudeTurnLimits(model string, opts CallOptions, messages []MessageContent, warn *Warnings) error {
-	return CheckClaudeTurnLimitsOnWire(model, opts, messages, true, warn)
+func WithoutSystemMessages(messages []MessageContent) []MessageContent {
+	conversation := make([]MessageContent, 0, len(messages))
+	for _, message := range messages {
+		if message.Role != ChatMessageTypeSystem {
+			conversation = append(conversation, message)
+		}
+	}
+	return conversation
 }
 
-// CheckClaudeTurnLimitsOnWire is CheckClaudeTurnLimits for a door that knows
-// whether its own request carries a manual thinking budget; a door that sends
-// only an effort passes false.
-func CheckClaudeTurnLimitsOnWire(
-	model string,
-	opts CallOptions,
-	messages []MessageContent,
-	sendsManualThinking bool,
-	warn *Warnings,
-) error {
+// CheckClaudeToolChoice refuses the tool choices a Claude model rejects on the
+// wire: a forced choice beside manual (budget) thinking, and a forced choice the
+// model rejects whatever the thinking. A door that sends only an effort passes
+// false for sendsManualThinking.
+func CheckClaudeToolChoice(model string, opts CallOptions, sendsManualThinking bool, warn *Warnings) error {
 	budget := reasoning.ClaudeClampBudget(model, opts.Reasoning.GetTokens(opts.GetMaxTokens()))
 	budgetOnly := reasoning.ClaudeReasoningKindFor(model) == reasoning.ClaudeReasoningBudgetOnly
 	budgetThinking := (sendsManualThinking || budgetOnly) &&
@@ -204,11 +202,13 @@ func CheckClaudeTurnLimitsOnWire(
 	if budgetThinking && ForcesToolUse(opts.ToolChoice) && OffersTools(opts) {
 		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
 	}
-	if err := CheckForcedToolUse(model, opts, warn); err != nil {
-		return err
-	}
+	return CheckForcedToolUse(model, opts, warn)
+}
 
-	if reasoning.ClaudeRejectsAssistantPrefill(model) && HasAssistantPrefill(messages) {
+// CheckClaudePrefill refuses a request whose turns, as the door sends them, end on
+// an assistant turn the model rejects as a prefill.
+func CheckClaudePrefill(model string, endsOnAssistant bool) error {
+	if endsOnAssistant && reasoning.ClaudeRejectsAssistantPrefill(model) {
 		return &reasoning.ErrAssistantPrefillUnsupported{Model: model}
 	}
 	return nil

@@ -115,11 +115,11 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	sendsBudget := (o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()) ||
 		o.sendsClaudeBudget(o.effectiveModel(opts), opts)
-	if err := llms.CheckClaudeTurnLimitsOnWire(o.effectiveModel(opts), opts, messages, sendsBudget, warn); err != nil {
+	if err := llms.CheckClaudeToolChoice(o.effectiveModel(opts), opts, sendsBudget, warn); err != nil {
 		return nil, err
 	}
 
-	chatMsgs, err := o.convertMessages(messages, o.effectiveModel(opts))
+	chatMsgs, err := o.messagesOnTheWire(messages, o.effectiveModel(opts))
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +170,18 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	return response, nil
+}
+
+func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
+	chatMsgs, err := o.convertMessages(messages, model)
+	if err != nil {
+		return nil, err
+	}
+	last := len(chatMsgs) - 1
+	if err := llms.CheckClaudePrefill(model, last >= 0 && chatMsgs[last].Role == RoleAssistant); err != nil {
+		return nil, err
+	}
+	return chatMsgs, nil
 }
 
 // convertMessages converts LangChain messages to OpenAI chat messages.

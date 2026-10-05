@@ -129,11 +129,18 @@ func TestDownloadImageData(t *testing.T) {
 			name: "empty response",
 			serverFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "image/png")
-				// No data written
 			},
-			wantType: "png",
-			wantData: []byte{},
-			wantErr:  false,
+			wantErr:    true,
+			wantErrMsg: "url does not point to an image: empty body (200 OK)",
+		},
+		{
+			name: "no content",
+			serverFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "image/png")
+				w.WriteHeader(http.StatusNoContent)
+			},
+			wantErr:    true,
+			wantErrMsg: "url does not point to an image: empty body (204 No Content)",
 		},
 	}
 

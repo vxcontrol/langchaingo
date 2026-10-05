@@ -267,7 +267,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		return nil, err
 	}
 
-	if reasoning.ClaudeRejectsAssistantPrefill(model) && llms.HasAssistantPrefill(messages) {
+	if reasoning.ClaudeRejectsAssistantPrefill(model) && llms.HasAssistantPrefill(llms.WithoutSystemMessages(messages)) {
 		return nil, &ErrAssistantPrefillUnsupported{Model: model}
 	}
 
@@ -1039,7 +1039,7 @@ func applyAnthropicStructuredOutput(
 			Reason:   "model predates the output_config.format JSON Schema mode",
 		}
 	}
-	if llms.HasAssistantPrefill(messages) {
+	if llms.HasAssistantPrefill(llms.WithoutSystemMessages(messages)) {
 		return nil, &llms.ErrStructuredOutputConflict{
 			Provider: providerAnthropic,
 			Detail:   "structured output is incompatible with assistant message prefilling",

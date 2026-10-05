@@ -45,6 +45,18 @@ func TestBedrockRefusesTheSameTurnsAsThePrimaryDoor(t *testing.T) {
 			}
 		})
 
+		t.Run(name+"/assistant prefill behind a system message is refused before the request", func(t *testing.T) {
+			t.Parallel()
+			llm := truncationLLMWithBody(t, `{}`,
+				append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-opus-4-6-v1:0")}, opts...)...)
+			messages := append(turnLimitMessages(llms.ChatMessageTypeAI), llms.TextParts(llms.ChatMessageTypeSystem, "be brief"))
+			_, err := llm.GenerateContent(context.Background(), messages)
+			var target *reasoning.ErrAssistantPrefillUnsupported
+			if !errors.As(err, &target) {
+				t.Errorf("the system message is sent apart from the turns, so they still end on the answer: %v", err)
+			}
+		})
+
 		t.Run(name+"/a forced tool with manual thinking is refused", func(t *testing.T) {
 			t.Parallel()
 			llm := truncationLLMWithBody(t, `{}`,
@@ -117,6 +129,40 @@ func TestABedrockForcedChoiceWithABudgetAndNoToolsGoesOutWithoutTheChoice(t *tes
 		}
 		if _, sent := body["toolConfig"]; sent {
 			t.Errorf("converse=%v: the converse body carries a tool config with no tools: %v", converse, body)
+		}
+	}
+}
+
+func TestBedrockJudgesThePrefillOnTheTurnsItSends(t *testing.T) {
+	t.Parallel()
+
+	for _, converse := range []bool{false, true} {
+		opts := []bedrock.Option{}
+		if converse {
+			opts = append(opts, bedrock.WithConverseAPI())
+		}
+		human, answer := llms.TextParts(llms.ChatMessageTypeHuman, "hi"), llms.TextParts(llms.ChatMessageTypeAI, "half an ")
+		sendsNoAnswer := [][]llms.MessageContent{
+			{human, {Role: llms.ChatMessageTypeAI}, llms.TextParts(llms.ChatMessageTypeSystem, "be brief")},
+			{human, {Role: llms.ChatMessageTypeAI}},
+		}
+		endsOnTheAnswer := [][]llms.MessageContent{{human, answer, {Role: llms.ChatMessageTypeHuman}}}
+		if converse {
+			sendsNoAnswer = append(sendsNoAnswer, []llms.MessageContent{human, llms.TextParts(llms.ChatMessageTypeAI, "")})
+			endsOnTheAnswer = append(endsOnTheAnswer, []llms.MessageContent{human, answer, llms.TextParts(llms.ChatMessageTypeHuman, "")})
+		}
+		llm := truncationLLMWithBody(t, `{}`,
+			append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-opus-4-6-v1:0")}, opts...)...)
+		var target *reasoning.ErrAssistantPrefillUnsupported
+		for i, messages := range sendsNoAnswer {
+			if _, err := llm.GenerateContent(context.Background(), messages); errors.As(err, &target) {
+				t.Errorf("converse=%v: conversation %d sends no assistant turn last: %v", converse, i, err)
+			}
+		}
+		for i, messages := range endsOnTheAnswer {
+			if _, err := llm.GenerateContent(context.Background(), messages); !errors.As(err, &target) {
+				t.Errorf("converse=%v: conversation %d sends the answer last, want ErrAssistantPrefillUnsupported, got %v", converse, i, err)
+			}
 		}
 	}
 }
