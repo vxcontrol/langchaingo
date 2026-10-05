@@ -19,11 +19,11 @@ func TestAToolWithoutAFunctionIsDroppedAndReported(t *testing.T) {
 		Name: "search", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
 	}}
 	body, warnings := hostCall(t, "http://api.openai.com/v1", "gpt-4.1",
-		llms.WithTools([]llms.Tool{{Type: "function"}, named}))
+		llms.WithTools([]llms.Tool{{Type: "function"}, {}, named}))
 	tools, _ := body["tools"].([]any)
 	require.Len(t, tools, 1, "%v", body)
 	require.Equal(t, llms.WarningDrop, warnings["WithTools"].Kind, "%v", warnings)
-	require.Equal(t, "1 tools", warnings["WithTools"].Asked)
+	require.Equal(t, "2 tools", warnings["WithTools"].Asked)
 }
 
 func TestAHistoryCallOrToolTheDoorCannotSendIsRefusedBeforeTheRequest(t *testing.T) {
