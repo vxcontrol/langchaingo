@@ -19,7 +19,7 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnAnthropic(t *testing.T) {
 		Name: "search", Parameters: map[string]any{"type": "object", "properties": map[string]any{}},
 	}}
 	body, resp, err := generateRecording(t, "claude-sonnet-4-5",
-		llms.WithTools([]llms.Tool{{Type: "web_search_20250305"}, named}))
+		llms.WithTools([]llms.Tool{{Type: "function"}, named}))
 	require.NoError(t, err)
 	tools, _ := body["tools"].([]any)
 	require.Len(t, tools, 1, "%v", body)
@@ -34,7 +34,7 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnAnthropic(t *testing.T) {
 	require.Equal(t, "1 tools", dropped.Asked)
 }
 
-func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnAnthropic(t *testing.T) {
+func TestAHistoryCallOrToolTheDoorCannotSendIsRefusedBeforeTheRequestOnAnthropic(t *testing.T) {
 	t.Parallel()
 
 	var requests atomic.Int32
@@ -47,13 +47,24 @@ func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnAnthropic(t 
 	llm, err := anthropic.New(anthropic.WithToken("test-key"), anthropic.WithBaseURL(srv.URL),
 		anthropic.WithModel("claude-sonnet-4-5"))
 	require.NoError(t, err)
-	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
-		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-			llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
-		}},
-	})
-	require.ErrorIs(t, err, llms.ErrInvalidRequest)
-	require.Zero(t, requests.Load(), "no request may go out")
+	for name, call := range map[string]struct {
+		messages []llms.MessageContent
+		opts     []llms.CallOption
+	}{
+		"a history call without a function": {[]llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
+			}},
+		}, nil},
+		"a built-in tool the door cannot send": {
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			[]llms.CallOption{llms.WithTools([]llms.Tool{{Type: "web_search_20250305"}})},
+		},
+	} {
+		_, err = llm.GenerateContent(t.Context(), call.messages, call.opts...)
+		require.ErrorIs(t, err, llms.ErrInvalidRequest, name)
+		require.Zero(t, requests.Load(), "%s: no request may go out", name)
+	}
 }

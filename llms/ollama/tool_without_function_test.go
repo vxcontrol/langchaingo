@@ -47,7 +47,7 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnOllama(t *testing.T) {
 	require.Equal(t, "1 tools", dropped.Asked)
 }
 
-func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnOllama(t *testing.T) {
+func TestAHistoryCallOrToolTheDoorCannotSendIsRefusedBeforeTheRequestOnOllama(t *testing.T) {
 	t.Parallel()
 
 	var requests atomic.Int32
@@ -59,13 +59,24 @@ func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnOllama(t *te
 
 	llm, err := New(WithServerURL(srv.URL), WithModel("gemma3:1b"))
 	require.NoError(t, err)
-	_, err = llm.GenerateContent(t.Context(), []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
-		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-			llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
-		}},
-	})
-	require.ErrorIs(t, err, llms.ErrInvalidRequest)
-	require.Zero(t, requests.Load(), "no request may go out")
+	for name, call := range map[string]struct {
+		messages []llms.MessageContent
+		opts     []llms.CallOption
+	}{
+		"a history call without a function": {[]llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
+			}},
+		}, nil},
+		"a built-in tool the door cannot send": {
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			[]llms.CallOption{llms.WithTools([]llms.Tool{{Type: "web_search"}})},
+		},
+	} {
+		_, err = llm.GenerateContent(t.Context(), call.messages, call.opts...)
+		require.ErrorIs(t, err, llms.ErrInvalidRequest, name)
+		require.Zero(t, requests.Load(), "%s: no request may go out", name)
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -46,7 +47,7 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnGemini(t *testing.T) {
 	require.Equal(t, "1 tools", w.Asked)
 }
 
-func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnGemini(t *testing.T) {
+func TestAHistoryCallOrToolTheDoorCannotSendIsRefusedBeforeTheRequestOnGemini(t *testing.T) {
 	t.Parallel()
 
 	var requests atomic.Int32
@@ -59,13 +60,44 @@ func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnGemini(t *te
 	llm, err := New(context.Background(), WithAPIKey("unit-test-key"), WithEndpoint(srv.URL),
 		WithDefaultModel("gemini-2.5-flash"))
 	require.NoError(t, err)
-	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
+	for name, call := range map[string]struct {
+		messages []llms.MessageContent
+		opts     []llms.CallOption
+	}{
+		"a history call without a function": {[]llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
+			}},
+		}, nil},
+		"a built-in tool the door cannot send": {
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			[]llms.CallOption{llms.WithTools([]llms.Tool{{Type: "google_search"}})},
+		},
+	} {
+		_, err = llm.GenerateContent(context.Background(), call.messages, call.opts...)
+		require.ErrorIs(t, err, llms.ErrInvalidRequest, name)
+		require.Zero(t, requests.Load(), "%s: no request may go out", name)
+	}
+}
+
+func TestCachingAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequest(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	helper, err := NewCachingHelper(context.Background(), WithAPIKey("unit-test-key"), WithEndpoint(srv.URL))
+	require.NoError(t, err)
+	_, err = helper.CreateCachedContent(context.Background(), "gemini-2.5-flash", []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
 		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
-		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-			llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
-		}},
-	})
+	}, time.Hour, "cache")
 	require.ErrorIs(t, err, llms.ErrInvalidRequest)
 	require.Zero(t, requests.Load(), "no request may go out")
 }

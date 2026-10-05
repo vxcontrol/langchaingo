@@ -195,7 +195,11 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	model := o.client.EffectiveModel(opts.GetModel())
 	warn := &llms.Warnings{}
 	warn.AddInherited(model)
-	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
+	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tools = toolsSent
 
 	var thinking *anthropicclient.ThinkingPayload
 	var outputConfig *anthropicclient.OutputConfig

@@ -258,11 +258,15 @@ func (w *Warnings) AddToolChoiceWithoutTools(model string, choice any) {
 	})
 }
 
-func (w *Warnings) ToolsWithAFunction(model string, tools []Tool) []Tool {
+func (w *Warnings) ToolsWithAFunction(model string, tools []Tool) ([]Tool, error) {
 	sent := make([]Tool, 0, len(tools))
-	for _, tool := range tools {
-		if tool.Function != nil {
+	for i, tool := range tools {
+		switch {
+		case tool.Function != nil:
 			sent = append(sent, tool)
+		case tool.Type != "" && tool.Type != "function":
+			return nil, NewError(ErrCodeInvalidRequest, "",
+				fmt.Sprintf("tool %d has type %q and no function, and this door sends only function tools", i, tool.Type))
 		}
 	}
 	if dropped := len(tools) - len(sent); dropped > 0 {
@@ -271,9 +275,9 @@ func (w *Warnings) ToolsWithAFunction(model string, tools []Tool) []Tool {
 			Asked:  strconv.Itoa(dropped) + " tools",
 			Reason: "a tool without a function definition has nothing to send",
 		})
-		return sent
+		return sent, nil
 	}
-	return tools
+	return tools, nil
 }
 
 func (w *Warnings) AddOffFloor(model, floor string) {

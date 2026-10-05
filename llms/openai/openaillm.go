@@ -655,7 +655,11 @@ func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.
 		return err
 	}
 	model := o.effectiveModel(*opts)
-	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
+	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
+	if err != nil {
+		return err
+	}
+	opts.Tools = toolsSent
 	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
 		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
 		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
@@ -1056,7 +1060,7 @@ func (o *LLM) processReasoning(reasoningContent string) *reasoning.ContentReason
 // processToolCalls processes tool calls in the response.
 func (o *LLM) processToolCalls(choice *llms.ContentChoice, c *openaiclient.ChatCompletionChoice) {
 	// legacy function call handling
-	if c.FinishReason == "function_call" {
+	if c.FinishReason == "function_call" && c.Message.FunctionCall != nil {
 		choice.FuncCall = &llms.FunctionCall{
 			Name:      c.Message.FunctionCall.Name,
 			Arguments: c.Message.FunctionCall.Arguments,

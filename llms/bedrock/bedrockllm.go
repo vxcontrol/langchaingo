@@ -121,7 +121,11 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	turn := &llms.Warnings{}
-	opts.Tools = turn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
+	toolsSent, err := turn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tools = toolsSent
 	onTheWire := opts
 	onTheWire.Functions, onTheWire.ExtraBody = nil, nil
 	if err := llms.CheckClaudeTurnLimits(opts.GetModel(), onTheWire, messages, turn); err != nil {

@@ -126,7 +126,11 @@ func (g *GoogleAI) GenerateContent(
 	}
 	warn := &llms.Warnings{}
 	warn.AddInherited(opts.GetModel())
-	opts.Tools = warn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
+	toolsSent, err := warn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tools = toolsSent
 	if endsOnTheModel(messages) && reasoning.GeminiRejectsAssistantPrefill(opts.GetModel()) {
 		return nil, &reasoning.ErrAssistantPrefillUnsupported{Model: opts.GetModel()}
 	}

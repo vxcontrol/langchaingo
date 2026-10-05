@@ -153,7 +153,11 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 	warn := &llms.Warnings{}
 	warn.AddInherited(model)
-	opts.Tools = warn.ToolsWithAFunction(model, opts.Tools)
+	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
+	if err != nil {
+		return nil, err
+	}
+	opts.Tools = toolsSent
 
 	// convert messages to Ollama format
 	chatMsgs, err := o.prepareMessages(messages)

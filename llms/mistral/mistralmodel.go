@@ -79,7 +79,11 @@ func (m *Model) GenerateContent(ctx context.Context, langchainMessages []llms.Me
 		return nil, err
 	}
 	warn := &llms.Warnings{}
-	callOptions.Tools = warn.ToolsWithAFunction(callOptions.GetModel(), callOptions.Tools)
+	toolsSent, err := warn.ToolsWithAFunction(callOptions.GetModel(), callOptions.Tools)
+	if err != nil {
+		return nil, err
+	}
+	callOptions.Tools = toolsSent
 
 	chatOpts, err := mistralChatParamsFromCallOptions(callOptions)
 	if err != nil {

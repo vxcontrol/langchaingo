@@ -50,7 +50,7 @@ func TestAToolWithoutAFunctionIsDroppedAndReportedOnMistral(t *testing.T) {
 	require.Equal(t, "1 tools", dropped.Asked)
 }
 
-func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnMistral(t *testing.T) {
+func TestAHistoryCallOrToolTheDoorCannotSendIsRefusedBeforeTheRequestOnMistral(t *testing.T) {
 	t.Parallel()
 
 	var requests atomic.Int32
@@ -62,13 +62,24 @@ func TestAHistoryToolCallWithoutAFunctionIsRefusedBeforeTheRequestOnMistral(t *t
 
 	llm, err := New(WithAPIKey("test"), WithEndpoint(srv.URL), WithModel("mistral-small-latest"))
 	require.NoError(t, err)
-	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
-		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-			llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
-		}},
-	})
-	require.ErrorIs(t, err, llms.ErrInvalidRequest)
-	require.Zero(t, requests.Load(), "no request may go out")
+	for name, call := range map[string]struct {
+		messages []llms.MessageContent
+		opts     []llms.CallOption
+	}{
+		"a history call without a function": {[]llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "hi"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.ToolCall{ID: "call_1", Type: "function"}}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+				llms.ToolCallResponse{ToolCallID: "call_1", Name: "search", Content: "found"},
+			}},
+		}, nil},
+		"a built-in tool the door cannot send": {
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			[]llms.CallOption{llms.WithTools([]llms.Tool{{Type: "web_search"}})},
+		},
+	} {
+		_, err = llm.GenerateContent(context.Background(), call.messages, call.opts...)
+		require.ErrorIs(t, err, llms.ErrInvalidRequest, name)
+		require.Zero(t, requests.Load(), "%s: no request may go out", name)
+	}
 }
