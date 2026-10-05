@@ -2,7 +2,10 @@ package reasoning
 
 import (
 	"slices"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClaudePredicatesAgreeAcrossNameForms(t *testing.T) {
@@ -51,13 +54,46 @@ func TestClaudePredicatesAgreeAcrossNameForms(t *testing.T) {
 	}
 }
 
+func TestAClaudeIDWrittenGenerationFirstOrWithoutItsMinorAnswersAsItsRelease(t *testing.T) {
+	t.Parallel()
+
+	for form, release := range map[string]string{
+		"claude-5.5-opus": "claude-opus-5-5", "claude-5-5-opus": "claude-opus-5-5", "claude-4.7-opus": "claude-opus-4-7",
+		"claude-4.6-sonnet": "claude-sonnet-4-6", "claude-5-fable": "claude-fable-5", "claude-5.1-fable": "claude-fable-5-1",
+		"claude-5-mythos": "claude-mythos-5", "claude-sonnet-4": "claude-sonnet-4-0", "claude-opus-4": "claude-opus-4-0",
+		"claude-4-sonnet": "claude-sonnet-4-0", "claude-4-opus-20250514": "claude-opus-4-0",
+	} {
+		for _, frame := range []string{"", "anthropic/", "openrouter/anthropic/", "deepinfra/anthropic/"} {
+			assert.Equal(t, tableAnswers(frame+release), tableAnswers(frame+form), frame+form)
+		}
+	}
+}
+
+func TestAClaudeWordInARoutePrefixChangesNoAnswer(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{
+		"claude-opus-4-6", "claude-opus-latest", "claude-opus-6", "claude-5.5-opus", "gpt-5.7", "glm-5.4", "gemini-4-pro",
+	} {
+		for _, prefix := range []string{
+			"claude-proxy/", "@claude-team/", "projects/claude-team/locations/us-central1/publishers/google/models/",
+		} {
+			neutral, prefixed := strings.ReplaceAll(prefix, "claude-", "relay-")+model, prefix+model
+			assert.Equal(t, tableAnswers(neutral), tableAnswers(prefixed), prefixed)
+			documented, inherited := InheritedModel(neutral)
+			gotDocumented, gotInherited := InheritedModel(prefixed)
+			assert.Equal(t, []any{documented, inherited}, []any{gotDocumented, gotInherited}, prefixed)
+		}
+	}
+}
+
 func TestCanonicalClaudeLeavesUnrelatedDotsAlone(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct{ in, want string }{
 		{"claude-opus-4.7", "claude-opus-4-7"},
-		{"us.anthropic.claude-opus-4-7-v1:0", "us.anthropic.claude-opus-4-7-v1:0"},
-		{"claude-sonnet-4@20250514", "claude-sonnet-4-20250514"},
+		{"us.anthropic.claude-opus-4-7-v1:0", "us.anthropic.claude-opus-4-7"},
+		{"claude-sonnet-4@20250514", "claude-sonnet-4-0"},
 		{"CLAUDE-Opus-4.6", "claude-opus-4-6"},
 		{"gpt-4.1", "gpt-4-1"},
 	} {

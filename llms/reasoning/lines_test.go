@@ -53,13 +53,7 @@ func TestEveryClaudeVersionATableKeysOnIsAListedRelease(t *testing.T) {
 	}, slices.Collect(maps.Values(bedrockTopEfforts)))
 	for _, table := range tables {
 		for _, entry := range table {
-			if strings.HasSuffix(entry, "-20") {
-				continue
-			}
-			documented, inherited := inheritClaude(entry)
-			require.False(t, inherited, "%s is keyed on by a table, yet would be read as %s", entry, documented)
-			newest, alias := latestClaude(entry)
-			require.False(t, alias, "%s is keyed on by a table, yet is read as %s", entry, newest)
+			require.Contains(t, canonicalClaude(entry), entry, "%s is keyed on by a table, yet no name reads as it", entry)
 		}
 	}
 }

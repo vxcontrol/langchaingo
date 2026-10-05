@@ -12,9 +12,8 @@ import (
 // InheritedModel returns the documented model whose rules a name follows when the
 // tables do not list the name's own version: claude-opus-6 follows claude-opus-5-5.
 func InheritedModel(model string) (string, bool) {
-	m := claudeName(model)
-	if idx := strings.Index(m, "claude-"); idx != -1 {
-		return inheritClaude(m[idx:])
+	if _, id, ok := claudeID(claudeName(model)); ok {
+		return inheritClaude(id)
 	}
 	_, bare := splitModelName(model)
 	return inheritLine(bare)
@@ -89,13 +88,13 @@ func inheritClaude(canonical string) (string, bool) {
 	return g.members[""], true
 }
 
-func latestClaude(canonical string) (string, bool) {
+func documentedClaude(canonical string) (string, bool) {
 	tier, major, minor, ok := claudeVersion(canonical)
-	if !ok || !strings.HasPrefix(canonical, "claude-"+tier+"-latest") {
+	if !ok {
 		return "", false
 	}
-	g, _, _ := nearest(claudeReleases[tier], major, minor)
-	return g.members[""], true
+	g, _, found := nearest(claudeReleases[tier], major, minor)
+	return g.members[""], found
 }
 
 type generation struct {
