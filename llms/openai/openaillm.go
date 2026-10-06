@@ -330,17 +330,16 @@ func (o *LLM) createChatRequest(
 	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
-	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
-		if opts.StreamingFunc == nil {
-			if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
-				return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
-			}
-			thinkingOff := false
-			req.EnableThinking = &thinkingOff
+	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
+	if dashScope && reasoning.QwenThinkingRequiresStream(model) && opts.StreamingFunc == nil {
+		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
+		thinkingOff := false
+		req.EnableThinking = &thinkingOff
 	}
 
-	if model := o.effectiveModel(opts); (reasoning.QwenThinkingEnabledByFlag(model) ||
+	if (dashScope && reasoning.QwenThinkingEnabledByFlag(model) ||
 		reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host))) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
@@ -605,7 +604,7 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	}
 	route := reasoning.DashScopeRoute(wc.model, o.host)
 	switch {
-	case reasoning.DashScopeTakesThinkingBudget(route):
+	case reasoning.ServedBy(wc.model, o.host) == reasoning.VendorDashScope && reasoning.DashScopeTakesThinkingBudget(route):
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
 		if reasoning.DashScopeBudgetSharesAnswerLimit(route) && opts.GetMaxTokens() > 0 {
 			budget = tokens

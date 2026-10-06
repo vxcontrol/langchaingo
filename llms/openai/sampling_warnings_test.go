@@ -169,7 +169,7 @@ func TestAnAnswerLimitRaisedForTheBudgetIsReported(t *testing.T) {
 func TestAThinkingBudgetAboveTheModelCapIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp, sent := sendForWarningsWith(t, "qwen3-max", nil,
+	resp, sent := sendForWarningsWith(t, "dashscope/qwen3-max", nil,
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 100000))
 
 	w := warningFor(t, resp, "WithReasoning")
@@ -184,7 +184,7 @@ func TestAThinkingBudgetAboveTheModelCapIsReported(t *testing.T) {
 func TestASmallAnswerLimitDoesNotClampTheDashScopeBudget(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "qwen3-max",
+	resp := sendForWarnings(t, "dashscope/qwen3-max",
 		llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 30000))
 
 	for _, w := range resp.Warnings {
@@ -220,7 +220,7 @@ func TestABudgetTheThinkingObjectCarriesIsNotReported(t *testing.T) {
 func TestAnEffortReplacedByABudgetIsReported(t *testing.T) {
 	t.Parallel()
 
-	resp := sendForWarnings(t, "qwen3.8-plus",
+	resp := sendForWarnings(t, "dashscope/qwen3.8-plus",
 		llms.WithMaxTokens(8192), llms.WithReasoning(llms.ReasoningHigh, 4096))
 
 	w := warningFor(t, resp, "WithReasoning")
