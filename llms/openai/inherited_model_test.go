@@ -115,9 +115,13 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 func TestXAIRefusesStopForEveryVersionOfAReasoningGrok(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"grok-4.7", "grok-4.8", "grok-5"} {
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://api.x.ai/v1", "grok-4.7"}, {"https://api.x.ai/v1", "grok-4.8"}, {"https://api.x.ai/v1", "grok-5"},
+		{"http://litellm.internal:4000/v1", "xai/grok-4.8"},
+	} {
+		model := route.model
 		doer := &bodyDoer{}
-		llm := newUnitLLM(t, WithBaseURL("https://api.x.ai/v1"), WithModel(model), WithHTTPClient(doer))
+		llm := newUnitLLM(t, WithBaseURL(route.baseURL), WithModel(model), WithHTTPClient(doer))
 		_, err := llm.GenerateContent(context.Background(),
 			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithStopWords([]string{"END"}))
 
