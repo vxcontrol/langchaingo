@@ -1,12 +1,16 @@
 package ollama
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -274,23 +278,97 @@ func TestTurningOffAModelWithoutTheThinkingCapabilitySendsFalse(t *testing.T) {
 	assert.Equal(t, false, think, "the server refuses only a truthy think on such a model")
 }
 
-func TestAShowThatFailsStopsTheCallBeforeTheChat(t *testing.T) {
+func newFailingShowServer(t *testing.T, status int) (*showServer, *LLM) {
+	t.Helper()
+
+	s := &showServer{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if r.URL.Path != "/api/chat" {
+			s.shows.Add(1)
+			w.WriteHeader(status)
+			_, _ = io.WriteString(w, `{"error":"not served here"}`)
+			return
+		}
+		s.chats.Add(1)
+		s.body.Store(body)
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = io.WriteString(w, `{"model":"m","message":{"role":"assistant","content":"ok"},"done":true,"done_reason":"stop"}`+"\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	llm, err := New(WithServerURL(srv.URL), WithModel("m"))
+	require.NoError(t, err)
+	return s, llm
+}
+
+func TestAShowThatFailsLeavesTheThinkToTheModelNameWithAWarning(t *testing.T) {
 	t.Parallel()
 
+	for name, status := range map[string]int{
+		"a server error":                    http.StatusInternalServerError,
+		"a proxy that serves only the chat": http.StatusNotFound,
+	} {
+		for _, tc := range []struct {
+			options     []llms.CallOption
+			option      string
+			asked, sent string
+			think       any
+		}{
+			{[]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, "WithReasoning", "high", "high", "high"},
+			{[]llms.CallOption{llms.WithReasoning(llms.ReasoningXHigh, 0)}, "WithReasoning", "xhigh", "true", true},
+			{
+				[]llms.CallOption{llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800)},
+				"WithReasoning", "800", "low", "low",
+			},
+			{[]llms.CallOption{llms.WithReasoningDisabled()}, "WithReasoningDisabled", "off", "false", false},
+		} {
+			t.Run(name+" "+tc.asked, func(t *testing.T) {
+				t.Parallel()
+
+				s, llm := newFailingShowServer(t, status)
+				for range 2 {
+					resp, err := ask(t, llm, tc.options...)
+					require.NoError(t, err)
+
+					think, sent := s.sentThink(t)
+					require.True(t, sent)
+					assert.Equal(t, tc.think, think)
+					assert.True(t, slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+						return w.Kind == llms.WarningSubstitute && w.Option == tc.option && w.Asked == tc.asked &&
+							w.Sent == tc.sent && strings.Contains(w.Reason, "show model")
+					}), "%v", resp.Warnings)
+				}
+				assert.Equal(t, int32(2), s.shows.Load(), "a failed show is asked again on the next call")
+			})
+		}
+	}
+}
+
+func TestAShowCutByTheContextStopsTheCallBeforeTheChat(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
 	var chats atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/chat" {
 			chats.Add(1)
+			return
 		}
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = io.WriteString(w, `{"error":"model 'm' not found"}`)
+		_, _ = io.Copy(io.Discard, r.Body)
+		cancel()
+		select {
+		case <-r.Context().Done():
+		case <-time.After(5 * time.Second):
+		}
 	}))
 	t.Cleanup(srv.Close)
 
 	llm, err := New(WithServerURL(srv.URL), WithModel("m"))
 	require.NoError(t, err)
 
-	_, err = ask(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
-	require.ErrorContains(t, err, `ollama: show model "m"`)
+	_, err = llm.GenerateContent(ctx, []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithReasoning(llms.ReasoningHigh, 0))
+	require.ErrorIs(t, err, context.Canceled)
 	assert.Zero(t, chats.Load())
 }
