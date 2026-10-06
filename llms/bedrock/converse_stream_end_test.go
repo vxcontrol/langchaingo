@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream"
@@ -46,6 +47,8 @@ func TestAConverseStreamWithoutMessageStopIsAnError(t *testing.T) {
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
 	require.NotNil(t, resp)
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+	assert.False(t, slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool { return w.Option == "usage" }),
+		"%v", resp.Warnings)
 }
 
 func TestAnExceptionEventInsideAConverseStreamIsAnError(t *testing.T) {
@@ -65,4 +68,38 @@ func TestAnExceptionEventInsideAConverseStreamIsAnError(t *testing.T) {
 	require.ErrorIs(t, err, llms.ErrStreamFailed)
 	require.NotNil(t, resp)
 	assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+}
+
+func TestAConverseStreamCutBeforeItsMetadataWarnsThatItsUsageIsLost(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		metadata bool
+		lost     bool
+	}{
+		"cut after messageStop":      {lost: true},
+		"metadata after messageStop": {metadata: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			resp, err := converseStreamEnding(t, func(w io.Writer, enc *eventstream.Encoder) {
+				writeConverseEvent(t, w, enc, "messageStop", `{"stopReason":"end_turn"}`)
+				if tc.metadata {
+					writeConverseEvent(t, w, enc, "metadata",
+						`{"usage":{"inputTokens":7,"outputTokens":3,"totalTokens":10},"metrics":{"latencyMs":1}}`)
+				}
+			})
+
+			require.NoError(t, err)
+			assert.Equal(t, "sixty rooms are free", resp.Choices[0].Content)
+			lost := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+				return w.Kind == llms.WarningDrop && w.Option == "usage"
+			})
+			assert.Equal(t, tc.lost, lost, "%v", resp.Warnings)
+			if tc.metadata {
+				assert.Equal(t, 3, resp.Choices[0].GenerationInfo["CompletionTokens"])
+			}
+		})
+	}
 }
