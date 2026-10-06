@@ -382,7 +382,8 @@ FROM filtered_embedding_dims AS data
 WHERE %[4]s
 ORDER BY
 	data.distance,
-	data.document
+	data.document,
+	data.cmetadata::text
 LIMIT $3`, s.embeddingTableName, s.collectionTableName, innerQuery, outerQuery)
 	rows, err := s.conn.Query(ctx, sql, args...)
 	if err != nil {
