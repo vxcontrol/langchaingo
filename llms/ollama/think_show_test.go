@@ -310,28 +310,33 @@ func TestAShowThatFailsLeavesTheThinkToTheModelNameWithAWarning(t *testing.T) {
 		"a proxy that serves only the chat": http.StatusNotFound,
 	} {
 		for _, tc := range []struct {
-			option      llms.CallOption
+			options     []llms.CallOption
+			option      string
 			asked, sent string
 			think       any
 		}{
-			{option: llms.WithReasoning(llms.ReasoningHigh, 0), asked: "high", sent: "high", think: "high"},
-			{option: llms.WithReasoning(llms.ReasoningXHigh, 0), asked: "xhigh", sent: "true", think: true},
-			{option: llms.WithReasoningDisabled(), asked: "off", sent: "false", think: false},
+			{[]llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}, "WithReasoning", "high", "high", "high"},
+			{[]llms.CallOption{llms.WithReasoning(llms.ReasoningXHigh, 0)}, "WithReasoning", "xhigh", "true", true},
+			{
+				[]llms.CallOption{llms.WithMaxTokens(4096), llms.WithReasoning(llms.ReasoningNone, 800)},
+				"WithReasoning", "800", "low", "low",
+			},
+			{[]llms.CallOption{llms.WithReasoningDisabled()}, "WithReasoningDisabled", "off", "false", false},
 		} {
 			t.Run(name+" "+tc.asked, func(t *testing.T) {
 				t.Parallel()
 
 				s, llm := newFailingShowServer(t, status)
 				for range 2 {
-					resp, err := ask(t, llm, tc.option)
+					resp, err := ask(t, llm, tc.options...)
 					require.NoError(t, err)
 
 					think, sent := s.sentThink(t)
 					require.True(t, sent)
 					assert.Equal(t, tc.think, think)
-					assert.True(t, slices.ContainsFunc(reasoningWarnings(resp), func(w llms.Warning) bool {
-						return w.Kind == llms.WarningSubstitute && w.Asked == tc.asked && w.Sent == tc.sent &&
-							strings.Contains(w.Reason, "show model")
+					assert.True(t, slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+						return w.Kind == llms.WarningSubstitute && w.Option == tc.option && w.Asked == tc.asked &&
+							w.Sent == tc.sent && strings.Contains(w.Reason, "show model")
 					}), "%v", resp.Warnings)
 				}
 				assert.Equal(t, int32(2), s.shows.Load(), "a failed show is asked again on the next call")

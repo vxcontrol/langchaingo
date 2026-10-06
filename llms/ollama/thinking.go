@@ -56,12 +56,16 @@ func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOption
 func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *llms.Warnings) *api.ThinkValue {
 	think := describedOrNamedThink(name, opts, info, warn)
 	if info.showErr != nil {
-		asked := "off"
-		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
-			asked = string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+		option, asked := "WithReasoningDisabled", "off"
+		switch {
+		case opts.Reasoning.ResolveMode() != llms.ReasoningOn:
+		case budgetOnly(opts.Reasoning):
+			option, asked = "WithReasoning", strconv.Itoa(opts.Reasoning.Tokens)
+		default:
+			option, asked = "WithReasoning", string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 		}
 		warn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: name,
+			Kind: llms.WarningSubstitute, Option: option, Model: name,
 			Asked: asked, Sent: fmt.Sprint(think.Value),
 			Reason: fmt.Sprintf("the server did not describe the model, so think follows its name: %v", info.showErr),
 		})
