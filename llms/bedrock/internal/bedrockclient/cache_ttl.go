@@ -9,7 +9,7 @@ import (
 )
 
 func fitConverseCacheTTLs(warn *llms.Warnings, modelID string, built *bedrockruntime.ConverseInput) {
-	if reasoning.BedrockTakesOneHourCacheTTL(modelID) {
+	if !reasoning.BedrockCachesFiveMinutesOnly(modelID) {
 		return
 	}
 	oneHour := false
@@ -35,7 +35,7 @@ func fitConverseCacheTTLs(warn *llms.Warnings, modelID string, built *bedrockrun
 }
 
 func fitAnthropicCacheTTLs(warn *llms.Warnings, modelID string, messages []*anthropicTextGenerationInputMessage) {
-	if reasoning.BedrockTakesOneHourCacheTTL(modelID) {
+	if !reasoning.BedrockCachesFiveMinutesOnly(modelID) {
 		return
 	}
 	oneHour := false

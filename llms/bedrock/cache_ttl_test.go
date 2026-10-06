@@ -13,29 +13,34 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/bedrock"
 )
 
-func TestBedrockSendsACacheTTLOnlyToModelsThatTakeTheOneHourTTL(t *testing.T) {
+func TestBedrockSendsACacheTTLOnlyWhereTheModelTakesIt(t *testing.T) {
 	t.Parallel()
 
-	messages := []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeSystem, "system prompt"),
-		llms.TextParts(llms.ChatMessageTypeHuman, "first question"),
-		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-			bedrock.WithCacheControl(llms.TextPart("first answer"), bedrock.EphemeralCacheOneHour()),
-		}},
-		llms.TextParts(llms.ChatMessageTypeHuman, "second question"),
-	}
+	const (
+		sonnet45   = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+		appProfile = "arn:aws:bedrock:us-east-1:111122223333:application-inference-profile/a1b2c3d4e5f6"
+	)
+	oneHour := cacheMarkedConversation(bedrock.EphemeralCacheOneHour())
+	fiveMinutes := cacheMarkedConversation(bedrock.EphemeralCache())
+	converseOneHour := []any{"5m", "1h", "1h", "5m"}
 	for _, tc := range []struct {
 		name, model, answer string
 		converse            bool
+		messages            []llms.MessageContent
 		wantTTLs            []any
+		substituted         bool
 	}{
-		{"converse Sonnet 4.5", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", converseAnswer, true, []any{"5m", "1h", "5m"}},
-		{"converse unlisted Opus 6", "anthropic.claude-opus-6-v1:0", converseAnswer, true, []any{"5m", "1h", "5m"}},
-		{"converse Sonnet 4", "anthropic.claude-sonnet-4-20250514-v1:0", converseAnswer, true, nil},
-		{"converse Claude 3.7 Sonnet", "anthropic.claude-3-7-sonnet-20250219-v1:0", converseAnswer, true, nil},
-		{"converse Nova Pro", "us.amazon.nova-pro-v1:0", converseAnswer, true, nil},
-		{"legacy Sonnet 4.5", "us.anthropic.claude-sonnet-4-5-20250929-v1:0", legacyAnswer, false, []any{"1h"}},
-		{"legacy Opus 4.1", "us.anthropic.claude-opus-4-1-20250805-v1:0", legacyAnswer, false, nil},
+		{"converse Sonnet 4.5", sonnet45, converseAnswer, true, oneHour, converseOneHour, false},
+		{"converse unlisted Opus 6", "anthropic.claude-opus-6-v1:0", converseAnswer, true, oneHour, converseOneHour, false},
+		{"converse application profile", appProfile, converseAnswer, true, oneHour, converseOneHour, false},
+		{"converse unknown Claude tier", "anthropic.claude-sonata-4-v1:0", converseAnswer, true, oneHour, converseOneHour, false},
+		{"converse Sonnet 4", "anthropic.claude-sonnet-4-20250514-v1:0", converseAnswer, true, oneHour, nil, true},
+		{"converse Claude 3.7 Sonnet", "anthropic.claude-3-7-sonnet-20250219-v1:0", converseAnswer, true, oneHour, nil, true},
+		{"converse Nova Pro", "us.amazon.nova-pro-v1:0", converseAnswer, true, oneHour, nil, true},
+		{"converse Sonnet 4 five minutes", "anthropic.claude-sonnet-4-20250514-v1:0", converseAnswer, true, fiveMinutes, nil, false},
+		{"legacy Sonnet 4.5", sonnet45, legacyAnswer, false, oneHour, []any{"1h", "1h"}, false},
+		{"legacy Opus 4.1", "us.anthropic.claude-opus-4-1-20250805-v1:0", legacyAnswer, false, oneHour, nil, true},
+		{"legacy Opus 4.1 five minutes", "us.anthropic.claude-opus-4-1-20250805-v1:0", legacyAnswer, false, fiveMinutes, nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -51,7 +56,7 @@ func TestBedrockSendsACacheTTLOnlyToModelsThatTakeTheOneHourTTL(t *testing.T) {
 			if tc.converse {
 				opts = append(opts, bedrock.WithConverseAPI())
 			}
-			resp, err := bedrockLLMAgainst(t, srv, opts...).GenerateContent(t.Context(), messages)
+			resp, err := bedrockLLMAgainst(t, srv, opts...).GenerateContent(t.Context(), tc.messages)
 			require.NoError(t, err)
 
 			key := "cache_control"
@@ -69,16 +74,34 @@ func TestBedrockSendsACacheTTLOnlyToModelsThatTakeTheOneHourTTL(t *testing.T) {
 			require.NotZero(t, points, "%s", raw)
 			require.ElementsMatch(t, tc.wantTTLs, ttls, "%s", raw)
 
-			w, warned := bedrockWarningsByOption(resp.Warnings)["WithCacheControl"]
-			if tc.wantTTLs != nil {
-				require.False(t, warned, "%v", resp.Warnings)
+			var substitutes []llms.Warning
+			for _, w := range resp.Warnings {
+				if w.Option == "WithCacheControl" {
+					substitutes = append(substitutes, w)
+				}
+			}
+			if !tc.substituted {
+				require.Empty(t, substitutes)
 				return
 			}
-			require.True(t, warned, "%v", resp.Warnings)
-			require.Equal(t, llms.WarningSubstitute, w.Kind)
-			require.Equal(t, "1h", w.Asked)
-			require.Equal(t, "5m", w.Sent)
+			require.Len(t, substitutes, 1, "one warning however many marks asked for an hour")
+			require.Equal(t, llms.WarningSubstitute, substitutes[0].Kind)
+			require.Equal(t, "1h", substitutes[0].Asked)
+			require.Equal(t, "5m", substitutes[0].Sent)
 		})
+	}
+}
+
+func cacheMarkedConversation(mark *llms.CacheControl) []llms.MessageContent {
+	return []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeSystem, "system prompt"),
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
+			bedrock.WithCacheControl(llms.TextPart("first question"), mark),
+		}},
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			bedrock.WithCacheControl(llms.TextPart("first answer"), mark),
+		}},
+		llms.TextParts(llms.ChatMessageTypeHuman, "second question"),
 	}
 }
 
