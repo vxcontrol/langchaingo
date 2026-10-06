@@ -1,8 +1,9 @@
 package llms
 
 import (
+	"encoding/json"
 	"fmt"
-	"reflect"
+	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -964,47 +965,92 @@ func ExtraBody(opts CallOptions) map[string]any {
 }
 
 func ExtraBodyTools(extra map[string]any) int {
-	tools := reflect.ValueOf(extra["tools"])
-	if kind := tools.Kind(); kind != reflect.Slice && kind != reflect.Array {
-		return 0
-	}
-	return tools.Len()
+	tools, _ := jsonValues(extra)["tools"].([]any)
+	return len(tools)
 }
 
-func ExtraBodyThinking(extra map[string]any) (on, off bool) {
-	if enabled, ok := extra["enable_thinking"].(bool); ok {
-		on, off = enabled, !enabled
+// ExtraBodyThinking reports whether an extra body switches thinking on or off
+// for model on host. On OpenAI, DeepSeek and Model Studio it reads only the keys
+// their chat APIs take; on any other host, an empty one included, it reads every
+// key it knows.
+func ExtraBodyThinking(model, host string, extra map[string]any) (on, off bool) {
+	values := jsonValues(extra)
+	if host == "api.openai.com" || strings.HasSuffix(host, ".api.openai.com") {
+		return effortSwitch(values["reasoning_effort"])
 	}
-	if thinking, ok := extra["thinking"].(map[string]any); ok {
-		if kind, typed := thinking["type"]; typed {
-			if kind == "disabled" {
-				off = true
-			} else {
-				on = true
-			}
-		}
+	switch reasoning.ServedBy(model, host) { //nolint:exhaustive // the other hosts read every key
+	case reasoning.VendorDashScope:
+		return modelStudioThinkingSwitch(reasoning.DashScopeRoute(model, host), values)
+	case reasoning.VendorDeepSeek:
+		on, off = thinkingObjectSwitch(values["thinking"])
+		effortOn, effortOff := effortSwitch(values["reasoning_effort"])
+		return on || effortOn, off || effortOff
 	}
-	levels := []any{extra["reasoning_effort"]}
-	if nested, ok := extra["reasoning"].(map[string]any); ok {
-		levels = append(levels, nested["effort"])
+	return anyThinkingSwitch(values)
+}
+
+func modelStudioThinkingSwitch(route string, values map[string]any) (on, off bool) {
+	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) { //nolint:exhaustive // a model with no switch reads none
+	case reasoning.OffDisableDashScope, reasoning.OffOmit:
+		enabled, set := values["enable_thinking"].(bool)
+		return set && enabled, set && !enabled
+	case reasoning.OffEffortNone:
+		return effortSwitch(values["reasoning_effort"])
+	case reasoning.OffDisableThinkingObject:
+		return thinkingObjectSwitch(values["thinking"])
+	}
+	return false, false
+}
+
+func anyThinkingSwitch(values map[string]any) (on, off bool) {
+	add := func(switchesOn, switchesOff bool) { on, off = on || switchesOn, off || switchesOff }
+	if enabled, ok := values["enable_thinking"].(bool); ok {
+		add(enabled, !enabled)
+	}
+	add(thinkingObjectSwitch(values["thinking"]))
+	add(effortSwitch(values["reasoning_effort"]))
+	if nested, ok := values["reasoning"].(map[string]any); ok {
+		add(effortSwitch(nested["effort"]))
 		if enabled, set := nested["enabled"].(bool); set {
-			on, off = on || enabled, off || !enabled
+			add(enabled, !enabled)
 		}
-		switch budget := nested["max_tokens"].(type) {
-		case int:
-			on = on || budget > 0
-		case float64:
-			on = on || budget > 0
-		}
-	}
-	for _, level := range levels {
-		if level, ok := level.(string); ok && level != "" {
-			if level == reasoning.OpenAIDisableEffort {
-				off = true
-			} else {
-				on = true
-			}
+		if budget, _ := nested["max_tokens"].(float64); budget > 0 {
+			add(true, false)
 		}
 	}
 	return on, off
+}
+
+func thinkingObjectSwitch(value any) (on, off bool) {
+	thinking, _ := value.(map[string]any)
+	kind, _ := thinking["type"].(string)
+	switch kind {
+	case "":
+		return false, false
+	case "disabled":
+		return false, true
+	}
+	return true, false
+}
+
+func effortSwitch(value any) (on, off bool) {
+	switch level, _ := value.(string); level {
+	case "":
+		return false, false
+	case reasoning.OpenAIDisableEffort:
+		return false, true
+	}
+	return true, false
+}
+
+func jsonValues(extra map[string]any) map[string]any {
+	raw, err := json.Marshal(extra)
+	if err != nil {
+		return extra
+	}
+	var values map[string]any
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return extra
+	}
+	return values
 }

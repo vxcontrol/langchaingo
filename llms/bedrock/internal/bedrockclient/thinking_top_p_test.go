@@ -1,6 +1,7 @@
 package bedrockclient
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,6 +90,11 @@ func TestLegacyClaudeSendsNoToolChoiceWithoutTools(t *testing.T) {
 func TestLegacyClaudeKeepsOneCallPerTurn(t *testing.T) {
 	t.Parallel()
 
-	got := anthropicToolChoiceOnWire(map[string]any{"type": "auto", "disable_parallel_tool_use": true}, true)
-	assert.Equal(t, map[string]any{"type": "auto", "disable_parallel_tool_use": true}, got)
+	for _, choice := range []any{
+		map[string]any{"type": "auto", "disable_parallel_tool_use": true},
+		json.RawMessage(`{"type":"auto","disable_parallel_tool_use":true}`),
+	} {
+		got := anthropicToolChoiceOnWire(choice, true)
+		assert.Equal(t, map[string]any{"type": "auto", "disable_parallel_tool_use": true}, got, "%v", choice)
+	}
 }

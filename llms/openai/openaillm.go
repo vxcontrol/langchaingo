@@ -113,9 +113,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	sendsBudget := (o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()) ||
-		o.sendsClaudeBudget(o.effectiveModel(opts), opts)
-	if err := llms.CheckClaudeToolChoice(o.effectiveModel(opts), opts, sendsBudget, warn); err != nil {
+	if err := o.checkClaudeToolChoice(opts, warn); err != nil {
 		return nil, err
 	}
 
@@ -170,6 +168,21 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	return response, nil
+}
+
+func (o *LLM) checkClaudeToolChoice(opts llms.CallOptions, warn *llms.Warnings) error {
+	model := o.effectiveModel(opts)
+	extra := llms.ExtraBody(opts)
+	if choice, set := extra["tool_choice"]; set {
+		opts.ToolChoice = openaiclient.MergedValue(opts.ToolChoice, choice)
+	}
+	thinking, _ := openaiclient.MergedValue(nil, extra["thinking"]).(map[string]any)
+	if thinking["type"] == "enabled" && reasoning.ClaudeSupportsThinking(model) &&
+		llms.ForcesToolUse(opts.ToolChoice) && llms.OffersTools(opts) {
+		return &reasoning.ErrForcedToolUseWithThinking{Model: model}
+	}
+	sendsBudget := (o.client.UseReasoningMaxTokens && opts.Reasoning.HasExplicitTokens()) || o.sendsClaudeBudget(model, opts)
+	return llms.CheckClaudeToolChoice(model, opts, sendsBudget, warn)
 }
 
 func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
@@ -372,23 +385,24 @@ func (o *LLM) createChatRequest(
 	if err != nil {
 		return nil, err
 	}
-	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, wireEffort, warn); err != nil {
+	thinks := o.thinks(req, o.effectiveModel(opts), opts, wireEffort)
+	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, thinks, warn); err != nil {
 		return nil, err
 	}
-	o.applySamplingPolicy(req, opts, wireEffort, warn)
+	o.applySamplingPolicy(req, opts, thinks, warn)
 
 	return req, nil
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
 ) error {
 	if !llms.OffersTools(opts) {
 		return nil
 	}
 	choice := req.ToolChoice
 	if fromExtraBody, set := llms.ExtraBody(opts)["tool_choice"]; set {
-		choice = fromExtraBody
+		choice = openaiclient.MergedValue(req.ToolChoice, fromExtraBody)
 	}
 	name, forced := llms.ForcedToolName(choice)
 	if !forced {
@@ -399,7 +413,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
-		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && o.thinksOnTheWire(req, model, opts, wireEffort):
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinks:
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
 		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
@@ -435,23 +449,23 @@ func (o *LLM) withholdToolsInsteadOfNone(
 	})
 }
 
-func (o *LLM) thinksOnTheWire(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
-	extra := llms.ExtraBody(opts)
-	on, off := llms.ExtraBodyThinking(extra)
-	if reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope {
-		on, off = modelStudioThinkingSwitch(reasoning.DashScopeRoute(model, o.host), extra)
+func (o *LLM) thinks(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
+	route := reasoning.DashScopeRoute(model, o.host)
+	host := o.host
+	if o.servedByOpenAI() {
+		host = "api.openai.com"
 	}
-	switch {
+	switch on, off := llms.ExtraBodyThinking(model, host, llms.ExtraBody(opts)); {
 	case on:
 		return true
 	case off:
 		_, inherited := reasoning.InheritedModel(model)
-		return !inherited && reasoning.ResolveOff(model, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
+		return !inherited && reasoning.ResolveOff(route, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
 	}
-	if reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host)) {
+	if reasoning.DashScopeGuestThinkingEnabledByFlag(route) {
 		return false
 	}
 	return reasoning.IsReasoningModel(model) && thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
@@ -805,20 +819,20 @@ func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
 }
 
 func (o *LLM) applySamplingPolicy(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
 	if t := req.Temperature; t != nil {
 		switch {
 		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
 			clampTemperature(req, warn, model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
-		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, opts, wireEffort):
+		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, thinks):
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
 	}
 	before := takeSamplingSnapshot(req, opts)
-	reason := samplingReason(model, o.host, opts, wireEffort)
-	o.enforceSamplingPolicy(req, opts, wireEffort)
+	reason := samplingReason(model, o.host, thinks)
+	o.enforceSamplingPolicy(req, opts, thinks)
 	before.report(req, model, reason, warn)
 }
 
@@ -831,7 +845,7 @@ func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model 
 	req.Temperature = &sent
 }
 
-func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, wireEffort string) {
+func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool) {
 	model := o.effectiveModel(opts)
 	if reasoning.RejectsMinP(model) {
 		req.MinP = nil
@@ -847,7 +861,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 	}
 
 	switch {
-	case refusesSamplingWhileThinking(model, opts, wireEffort):
+	case refusesSamplingWhileThinking(model, thinks):
 		switch {
 		case req.Temperature == nil:
 		case reasoning.RejectsSamplingWhileThinking(model):
@@ -866,7 +880,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.LogProbs = false
 		req.TopLogProbs = 0
 	case reasoning.ServedByDeepSeek(model, o.host):
-		if thinkingRuns(model, opts, wireEffort) {
+		if thinks {
 			req.Temperature = nil
 		} else {
 			req.TopP = nil
@@ -876,38 +890,8 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 	}
 }
 
-func refusesSamplingWhileThinking(model string, opts llms.CallOptions, wireEffort string) bool {
-	if !thinkingRuns(model, opts, wireEffort) {
-		return false
-	}
-	return reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)
-}
-
-func modelStudioThinkingSwitch(route string, extra map[string]any) (on, off bool) {
-	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) {
-	case reasoning.OffDisableDashScope, reasoning.OffOmit:
-		enabled, set := extra["enable_thinking"].(bool)
-		return set && enabled, set && !enabled
-	case reasoning.OffEffortNone:
-		return llms.ExtraBodyThinking(map[string]any{"reasoning_effort": extra["reasoning_effort"]})
-	case reasoning.OffDisableThinkingObject:
-		return llms.ExtraBodyThinking(map[string]any{"thinking": extra["thinking"]})
-	default:
-		return false, false
-	}
-}
-
-func thinkingRuns(model string, opts llms.CallOptions, wireEffort string) bool {
-	if !reasoning.IsReasoningModel(model) {
-		return false
-	}
-	switch on, off := llms.ExtraBodyThinking(llms.ExtraBody(opts)); {
-	case on:
-		return true
-	case off:
-		return false
-	}
-	return thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+func refusesSamplingWhileThinking(model string, thinks bool) bool {
+	return thinks && (reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model))
 }
 
 func thinkingRunsWithoutTheExtraBody(model string, opts llms.CallOptions, wireEffort string) bool {

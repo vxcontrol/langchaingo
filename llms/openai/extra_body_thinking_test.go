@@ -55,9 +55,8 @@ func TestTheExtraBodyDecidesThinkingBecauseItWinsOnTheWire(t *testing.T) {
 	assert.NotContains(t, body, "temperature", "DeepSeek V4 thinks unless told otherwise")
 
 	for name, extra := range map[string]map[string]any{
-		"thinking disabled":       {"thinking": map[string]any{"type": "disabled"}},
-		"enable_thinking false":   {"enable_thinking": false},
-		"reasoning enabled false": {"reasoning": map[string]any{"enabled": false}},
+		"thinking disabled": {"thinking": map[string]any{"type": "disabled"}},
+		"effort none":       {"reasoning_effort": "none"},
 	} {
 		body, _ = hostCall(t, deepSeek, "deepseek-v4-pro", llms.WithTemperature(0.7), llms.WithExtraBody(extra))
 		assert.InDelta(t, 0.7, body["temperature"], 1e-9, name)
