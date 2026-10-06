@@ -857,6 +857,27 @@ func mergeExtraBody(payload []byte, extraBody map[string]any) ([]byte, error) {
 	return mergeJSON(payload, extra)
 }
 
+// MergedValue merges extra over base the way mergeExtraBody does on the wire.
+func MergedValue(base, extra any) any {
+	baseJSON, err := json.Marshal(base)
+	if err != nil {
+		return extra
+	}
+	extraJSON, err := json.Marshal(extra)
+	if err != nil {
+		return extra
+	}
+	merged, err := mergeJSON(baseJSON, extraJSON)
+	if err != nil {
+		return extra
+	}
+	var value any
+	if err := json.Unmarshal(merged, &value); err != nil {
+		return extra
+	}
+	return value
+}
+
 func mergeJSON(base, extra json.RawMessage) (json.RawMessage, error) {
 	baseFields, baseIsObject := jsonObject(base)
 	extraFields, extraIsObject := jsonObject(extra)

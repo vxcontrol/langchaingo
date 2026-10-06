@@ -2,6 +2,7 @@ package llms
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -78,6 +79,22 @@ func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {
 			name = functionName(fn)
 		}
 		return kindOf(t, name)
+	}
+	return classifyAsJSON(choice)
+}
+
+func classifyAsJSON(choice any) (ToolChoiceKind, string) {
+	raw, err := json.Marshal(choice)
+	if err != nil {
+		return ToolChoiceUnset, ""
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return ToolChoiceUnset, ""
+	}
+	switch value.(type) {
+	case string, map[string]any:
+		return ClassifyToolChoice(value)
 	}
 	return ToolChoiceUnset, ""
 }

@@ -1,6 +1,7 @@
 package llms
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -119,5 +120,46 @@ func TestAForcedChoiceIsRefusedOnAClaudeModelThatRejectsIt(t *testing.T) {
 	var refused *reasoning.ErrForcedToolChoiceUnsupported
 	if !errors.As(err, &refused) {
 		t.Errorf("the openai door sends legacy functions as tools, got %v", err)
+	}
+}
+
+type namedChoice string
+
+func TestAChoiceIsReadInTheJSONItGoesOutAs(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		choice any
+		kind   ToolChoiceKind
+		tool   string
+	}{
+		"raw JSON string":    {json.RawMessage(`"required"`), ToolChoiceAny, ""},
+		"raw JSON object":    {json.RawMessage(`{"type":"function","function":{"name":"b"}}`), ToolChoiceNamed, "b"},
+		"string map":         {map[string]string{"type": "none"}, ToolChoiceNone, ""},
+		"named string type":  {namedChoice("auto"), ToolChoiceAuto, ""},
+		"a value of no form": {42, ToolChoiceUnset, ""},
+	} {
+		kind, tool := ClassifyToolChoice(tc.choice)
+		if kind != tc.kind || tool != tc.tool {
+			t.Errorf("%s: got (%v, %q), want (%v, %q)", name, kind, tool, tc.kind, tc.tool)
+		}
+	}
+}
+
+func TestToolsInTheExtraBodyAreCountedAsTheWireCarriesThem(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		tools any
+		count int
+	}{
+		"raw JSON":      {json.RawMessage(`[{"type":"function","function":{"name":"a"}}]`), 1},
+		"raw JSON none": {json.RawMessage(`[]`), 0},
+		"typed tools":   {[]Tool{{Type: "function"}, {Type: "function"}}, 2},
+		"decoded JSON":  {[]any{map[string]any{"type": "function"}}, 1},
+	} {
+		if got := ExtraBodyTools(map[string]any{"tools": tc.tools}); got != tc.count {
+			t.Errorf("%s: got %d tools, want %d", name, got, tc.count)
+		}
 	}
 }
