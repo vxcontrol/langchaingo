@@ -43,6 +43,15 @@ func NovaClampTopP(model string, topP float64) float64 {
 	return novaClampSampling(model, topP)
 }
 
+func BedrockTakesOneHourCacheTTL(model string) bool {
+	_, id, ok := claudeID(claudeName(model))
+	if !ok {
+		return false
+	}
+	tier, major, minor, ok := claudeVersion(id)
+	return ok && claudeReleases[tier] != nil && (major > 4 || major == 4 && minor >= 5)
+}
+
 func novaClampSampling(model string, v float64) float64 {
 	m := bedrockModelWithoutRegion(model)
 	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier", "amazon.nova-2-"} {

@@ -96,8 +96,8 @@ func EphemeralCache() *llms.CacheControl {
 }
 
 // EphemeralCacheOneHour creates a 1-hour ephemeral cache control for Bedrock.
-// The door sends the 1-hour TTL for any model; the model card says whether the
-// model takes it.
+// A model that takes the 5-minute TTL only gets the default 5-minute cache
+// point instead, reported in Warnings.
 func EphemeralCacheOneHour() *llms.CacheControl {
 	return &llms.CacheControl{
 		Type:     "ephemeral",
