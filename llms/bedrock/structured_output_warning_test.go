@@ -214,6 +214,14 @@ func TestAnUnlistedVersionOnBedrockIsSentASchemaItsReleaseWouldRefuse(t *testing
 	format, _ := config["format"].(map[string]any)
 	require.Equal(t, "json_schema", format["type"], "%v", body)
 	requireInheritedSchema(t, resp, "legacy anthropic.claude-opus-6-0-v1:0")
+
+	for _, model := range []string{"us.openai.gpt-6.1-luna", "openai.gpt-5.7-sol", "openai.gpt-6.1-astra"} {
+		resp, body := converseStreamSending(t, model, schema)
+		require.Contains(t, body, "outputConfig", model)
+		extra, _ := body["additionalModelRequestFields"].(map[string]any)
+		require.Equal(t, map[string]any{"format": map[string]any{"strict": true}}, extra["text"], model)
+		requireInheritedSchema(t, resp, model)
+	}
 }
 
 func TestAListedReleaseOnBedrockKeepsItsSchemaRefusal(t *testing.T) {
