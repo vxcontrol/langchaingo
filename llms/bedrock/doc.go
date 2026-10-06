@@ -2,8 +2,8 @@
 //
 // # Overview
 //
-// This package implements LLM client for AWS Bedrock, supporting multiple model providers
-// including Anthropic Claude, Amazon Nova, Meta Llama, Cohere, AI21, and DeepSeek.
+// This package implements LLM client for AWS Bedrock, supporting the model
+// providers listed in models_list.go.
 //
 // # Architecture
 //
@@ -40,7 +40,9 @@
 //
 // # Automatic Prompt Caching
 //
-// For Claude 4.x models (Opus 4, Sonnet 4, Haiku 4), automatic caching is available:
+// For Claude models whose IDs contain claude-opus-4, claude-sonnet-4,
+// claude-haiku-4 or a 5.x Opus, Sonnet, Haiku, Fable or Mythos name, automatic
+// caching is available:
 //
 //	llm, err := bedrock.New(
 //	    bedrock.WithModel(bedrock.ModelAnthropicClaudeSonnet45),
@@ -48,16 +50,11 @@
 //	    bedrock.WithAutomaticCaching(),  // Enable automatic caching
 //	)
 //
-// When enabled, the client automatically:
-//   - Detects Claude 4.x models by model ID patterns (anthropic.claude-opus-4, sonnet-4, haiku-4)
-//   - Adds cache points to the last assistant or tool message before new user input
-//   - Uses ephemeral 5-minute TTL by default
-//   - Works transparently without modifying client code
-//
-// Benefits:
-//   - 90% cost reduction on cached input tokens
-//   - No manual cache control wrappers needed
-//   - Automatic conversation history caching
+// When enabled, the client marks the last assistant or tool-result message
+// before the new user turn with a 5-minute cache point. Converse carries that
+// mark on an assistant message only and adds cache points after the system
+// prompt and at the end of the final message; the InvokeModel path sends the
+// system prompt uncached.
 //
 // Manual caching (for fine-grained control):
 //
@@ -94,7 +91,7 @@
 //
 // # Reasoning Support
 //
-// Claude 4.x and 3.7 models support reasoning (thinking) mode:
+// Claude models with thinking, Nova 2 Lite and GPT OSS take reasoning settings:
 //
 //	resp, err := llm.GenerateContent(ctx, messages,
 //	    llms.WithReasoning(llms.ReasoningMedium, 2048),
@@ -127,33 +124,21 @@
 //
 // # Supported Models
 //
-// See models_list.go for complete list. Major providers:
-//
-//   - Anthropic: Claude 4.6 (Opus, Sonnet), Claude 4.5, 4.1, 4, 3.7, 3.5
-//   - Amazon: Nova 2 Lite, Nova Premier, Nova Pro, Nova Lite, Nova Micro
-//   - Meta: Llama 4, Llama 3.3, 3.2, 3.1, 3
-//   - Cohere: Command R, Command R+
-//   - AI21: Jamba 1.5 Large, Mini
-//   - DeepSeek: R1
-//   - OpenAI: GPT-OSS-120B, GPT-OSS-20B
-//   - Qwen: Qwen3 Next, Qwen3 VL, Qwen3 32B, Qwen3 Coder (30B, Next)
-//   - Mistral: Large 3, Magistral Small
-//   - Moonshot: Kimi K2.5, Kimi K2 Thinking
-//   - Z.AI: GLM-4.7, GLM-4.7-Flash
+// models_list.go lists the model IDs this package names, with notes on each.
 //
 // # Error Handling
 //
-// Provider-specific errors are mapped to standardized error codes:
+// Errors come back as the AWS SDK returns them. MapError maps them to the
+// standardized llms error codes:
 //
 //	resp, err := llm.GenerateContent(ctx, messages)
-//	if err != nil {
-//	    if llmErr, ok := err.(*llms.Error); ok {
-//	        switch llmErr.Code {
-//	        case llms.ErrCodeRateLimit:
-//	            // Handle rate limiting
-//	        case llms.ErrCodeAuthentication:
-//	            // Handle auth errors
-//	        }
+//	var llmErr *llms.Error
+//	if errors.As(bedrock.MapError(err), &llmErr) {
+//	    switch llmErr.Code {
+//	    case llms.ErrCodeRateLimit:
+//	        // Handle rate limiting
+//	    case llms.ErrCodeAuthentication:
+//	        // Handle auth errors
 //	    }
 //	}
 //
@@ -170,9 +155,8 @@
 // # Performance Considerations
 //
 //   - Converse API is recommended for new applications (unified, better error handling)
-//   - Automatic caching reduces costs by 90% for cached tokens (Claude 4.x only)
 //   - Streaming reduces latency for interactive applications
-//   - Minimum cache checkpoint: 1024 tokens (Sonnet 4.5), 4096 tokens (Haiku 4.5)
+//   - A cache checkpoint takes effect only above the model's minimum prefix; the model card names it
 //
 // # Maintenance
 //
@@ -194,15 +178,15 @@
 //
 // Tests use httprr for HTTP recording/replay:
 //
-//   - Integration tests: bedrockllm_test.go (requires AWS credentials)
+//   - Integration tests: bedrockllm_test.go (replay needs no credentials; recording needs AWS credentials)
 //   - Unit tests: bedrockllm_unit_test.go (no credentials needed)
-//   - Tool calling: bedrock_tool_integration_test.go
+//   - Tool calling: tool_call_test.go and TestAmazonToolCalling* in bedrockllm_test.go
 //
 // Recording new HTTP interactions:
 //
 //	HTTPRR_RECORD=. go test -v -run TestName ./llms/bedrock/
 //
-// Debug HTTP interactions:
+// Log HTTP traffic:
 //
-//	HTTPRR_RECORD=. HTTPRR_DEBUG=true go test -v -run TestName ./llms/bedrock/
+//	HTTPRR_HTTPDEBUG=true go test -v -run TestName ./llms/bedrock/
 package bedrock

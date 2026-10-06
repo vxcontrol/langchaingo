@@ -5,7 +5,6 @@ This example demonstrates how to use the Bedrock LLM with different model provid
 ## Features
 
 - Automatic provider detection from model ID
-- Explicit provider specification for edge cases
 - Support for Nova models (e.g., `amazon.nova-lite-v1:0`)
 - Support for inference profiles (e.g., `us.amazon.nova-lite-v1:0`)
 
@@ -23,8 +22,8 @@ go run main.go
 # Using inference profile
 go run main.go -model "us.amazon.nova-lite-v1:0"
 
-# Using Anthropic model with explicit provider (for edge cases)
-go run main.go -model "us.anthropic.claude-sonnet-5-5" -provider "anthropic"
+# Using an Anthropic model
+go run main.go -model "us.anthropic.claude-sonnet-5-5"
 
 # Custom prompt
 go run main.go -prompt "What is the capital of France?"
@@ -50,17 +49,5 @@ The Bedrock integration automatically detects the provider from the model ID:
 - **Nova**: Models containing `.nova-` (e.g., `amazon.nova-lite-v1:0`, `us.amazon.nova-pro-v1:0`)
 - **Anthropic**: Models containing `anthropic` (e.g., `anthropic.claude-sonnet-5-5`)
 - **Amazon**: Models containing `amazon` (excluding Nova)
-- **Meta**: Models containing `meta` (e.g., `meta.llama3-1-405b-instruct-v1:0`)
-- **Cohere**: Models containing `cohere` (e.g., `cohere.command-r-plus-v1:0`)
+- **Meta**: Models containing `meta` (e.g., `meta.llama3-3-70b-instruct-v1:0`)
 - **AI21**: Models containing `ai21` (e.g., `ai21.jamba-1-5-large-v1:0`)
-
-## Model Provider Option
-
-For cases where automatic detection doesn't work correctly (e.g., custom inference endpoints), you can explicitly specify the provider:
-
-```go
-llm, err := bedrock.New(
-    bedrock.WithModel("custom.endpoint.model-id"),
-    bedrock.WithModelProvider("anthropic"), // Explicitly set provider
-)
-```

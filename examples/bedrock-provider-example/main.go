@@ -12,11 +12,9 @@ import (
 
 func main() {
 	var (
-		modelID   = flag.String("model", "amazon.nova-lite-v1:0", "Model ID to use")
-		provider  = flag.String("provider", "", "Explicit provider (optional)")
-		prompt    = flag.String("prompt", "Say hello in one word", "Prompt to send")
-		awsRegion = flag.String("region", "us-east-1", "AWS region")
-		verbose   = flag.Bool("verbose", false, "Enable verbose output")
+		modelID = flag.String("model", "amazon.nova-lite-v1:0", "Model ID to use")
+		prompt  = flag.String("prompt", "Say hello in one word", "Prompt to send")
+		verbose = flag.Bool("verbose", false, "Enable verbose output")
 	)
 	flag.Parse()
 
@@ -27,14 +25,6 @@ func main() {
 		bedrock.WithModel(*modelID),
 	}
 
-	// Add explicit provider if specified
-	if *provider != "" {
-		opts = append(opts, bedrock.WithModelProvider(*provider))
-		if *verbose {
-			fmt.Printf("Using explicit provider: %s\n", *provider)
-		}
-	}
-
 	// Create LLM instance
 	llm, err := bedrock.New(opts...)
 	if err != nil {
@@ -43,7 +33,6 @@ func main() {
 
 	if *verbose {
 		fmt.Printf("Model ID: %s\n", *modelID)
-		fmt.Printf("AWS Region: %s\n", *awsRegion)
 		fmt.Printf("Prompt: %s\n", *prompt)
 		fmt.Println("---")
 	}

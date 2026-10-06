@@ -19,11 +19,11 @@ import (
 type ai21TextGenerationInput struct {
 	// The text which the model is requested to continue.
 	Prompt string `json:"prompt"`
-	// Modifies the distribution from which tokens are sampled. Optional, default = 0.7
+	// Modifies the distribution from which tokens are sampled. Optional
 	Temperature *float64 `json:"temperature,omitempty"`
-	// Sample tokens from the corresponding top percentile of probability mass. Optional, default = 1
+	// Sample tokens from the corresponding top percentile of probability mass. Optional
 	TopP float64 `json:"topP,omitempty"`
-	// The maximum number of tokens to generate per result. Optional, default = 16
+	// The maximum number of tokens to generate per result. Optional
 	MaxTokens int `json:"maxTokens,omitempty"`
 	// Stops decoding if any of the strings is generated. Optional.
 	StopSequences []string `json:"stopSequences,omitempty"`
@@ -93,7 +93,7 @@ type ai21StreamingResponseChunk struct {
 // Legacy AI21 response structure for J2 models
 type ai21TextGenerationOutput struct {
 	// The ID of the request
-	ID any `json:"id"` // Docs say it's a string, got number
+	ID any `json:"id"`
 	// The prompt that was used for the request
 
 	// The input fields of the request (minified)

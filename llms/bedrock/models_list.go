@@ -131,7 +131,7 @@ const (
 	// the supported context length to an industry leading 10 million tokens, opening up possibilities for
 	// multi-document summarization, parsing extensive user activity, and reasoning over vast codebases.
 	//
-	// Max tokens: 3.5M
+	// Max tokens: 10M
 	// Languages: English, French, German, Hindi, Italian, Portuguese, Spanish, Thai, Arabic, Indonesian, Tagalog, Vietnamese.
 	ModelMetaLlama4ScoutInstructV1 = "us.meta.llama4-scout-17b-instruct-v1:0"
 
@@ -234,7 +234,7 @@ const (
 	// reasoning, coding, and research use cases. Its balance of capability, cost efficiency, and operational
 	// simplicity has made it one of the most practical and widely deployable models in the Qwen3 family.
 	//
-	// Max tokens: 16384
+	// Max tokens: 32k
 	// Languages: English, Chinese.
 	ModelQwen332BV1 = "qwen.qwen3-32b-v1:0"
 
@@ -362,7 +362,7 @@ const (
 	// performance at competitive cost. Suited for general-purpose chat/coding, tool-using agents,
 	// multilingual assistants, and high-throughput inference.
 	//
-	// Max tokens: 400k
+	// Max tokens: 1M
 	// Languages: English, Chinese.
 	ModelMiniMaxM2 = "minimax.minimax-m2"
 

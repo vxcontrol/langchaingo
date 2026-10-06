@@ -28,7 +28,7 @@ type anthropicBinGenerationInputSource struct {
 	// One of: "base64"
 	Type string `json:"type"`
 	// The MIME type of the source. Required
-	// One of: []"image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp"]
+	// One of: "image/jpeg", "image/png", "image/gif", "image/webp"
 	MediaType string `json:"media_type"`
 	// The data of the source. Required
 	// For example if type is "base64" then data is a base64 encoded string
@@ -104,11 +104,10 @@ type anthropicTextGenerationInput struct {
 	Messages []*anthropicTextGenerationInputMessage `json:"messages"`
 	// The amount of randomness injected into the response. Optional, default = 1
 	Temperature *float64 `json:"temperature,omitempty"`
-	// The probability mass from which tokens are sampled. Optional, default = 1
+	// The probability mass from which tokens are sampled. Optional
 	TopP float64 `json:"top_p,omitempty"`
 	// Only sample from the top K options for each subsequent token.
-	// Use top_k to remove long tail low probability responses.
-	// Optional, default = 250
+	// Use top_k to remove long tail low probability responses. Optional
 	TopK int `json:"top_k,omitempty"`
 	// Sequences that will cause the model to stop generating tokens. Optional
 	StopSequences []string `json:"stop_sequences,omitempty"`
@@ -158,10 +157,9 @@ type anthropicTextGenerationOutput struct {
 	// This will always be "assistant".
 	Role string `json:"role"`
 	// This is an array of content blocks, each of which has a type that determines its shape.
-	// Currently, the only type in responses is "text" or "tool_use".
+	// Responses carry "text", "tool_use", "thinking" and "redacted_thinking" blocks.
 	Content []anthropicContentBlock `json:"content"`
 	// The reason for the completion of the generation.
-	// One of: ["end_turn", "max_tokens", "stop_sequence", "tool_use"]
 	StopReason string `json:"stop_reason"`
 	// Which custom stop sequence was matched, if any.
 	StopSequence string                `json:"stop_sequence"`
@@ -206,7 +204,7 @@ const (
 	AnthropicCompletionReasonStopSequence = "stop_sequence"
 )
 
-// The latest version of the model.
+// AnthropicLatestVersion is the anthropic_version Bedrock requires in a Claude request body.
 const (
 	AnthropicLatestVersion = "bedrock-2023-05-31"
 )

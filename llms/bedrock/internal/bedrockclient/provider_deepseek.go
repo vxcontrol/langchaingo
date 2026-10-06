@@ -44,7 +44,6 @@ func createDeepSeekCompletion(ctx context.Context,
 	options llms.CallOptions,
 	warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
-	// Format prompt with DeepSeek-R1 required formatting
 	prompt := formatDeepSeekPrompt(messages)
 
 	input := deepSeekTextGenerationInput{

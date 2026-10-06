@@ -23,8 +23,7 @@ type options struct {
 
 // WithModel allows setting a custom modelId.
 //
-// If not set, the default model is used
-// i.e. "amazon.titan-text-lite-v1".
+// If not set, ModelAnthropicClaudeHaiku45 is used.
 func WithModel(modelID string) Option {
 	return func(o *options) {
 		o.modelID = modelID
@@ -33,8 +32,8 @@ func WithModel(modelID string) Option {
 
 // WithModelProvider allows setting a custom model provider.
 //
-// If not set, the default model provider is used
-// i.e. "anthropic".
+// Deprecated: the door detects the provider from the model ID, so this option
+// has no effect. For an ID the InvokeModel path cannot place, use WithConverseAPI.
 func WithModelProvider(modelProvider string) Option {
 	return func(o *options) {
 		o.modelProvider = modelProvider
@@ -64,50 +63,27 @@ func WithCallback(callbackHandler callbacks.Handler) Option {
 // WithConverseAPI enables the use of the unified Bedrock Converse API
 // instead of the model-specific legacy implementations.
 //
-// The Converse API provides:
-// - Unified interface for all supported Bedrock models
-// - Built-in tool calling support
-// - Streaming responses with ConverseStream
-// - Reasoning content support for Claude 3.7+ and Nova models
-// - Multimodal input support (text, images, documents)
-// - Better error handling and response consistency
-// - Prompt caching support via cachePoint (requires AWS SDK types)
-//
-// Supported models: All Anthropic Claude, Amazon Nova, Meta Llama,
-// Cohere Command, and AI21 Jamba models available through Bedrock.
+// Through Converse the door sends tool calls, streams with ConverseStream,
+// sends reasoning settings to the Claude, Nova 2 Lite and GPT OSS models it
+// knows, takes text and image input, and places cache points. It serves every
+// model in models_list.go. Cache token counts arrive in each choice's
+// GenerationInfo as CacheReadInputTokens and CacheCreationInputTokens.
 //
 // Note: This is the recommended approach for new applications.
-//
-// Prompt Caching:
-// - Legacy API (InvokeModel) supports Anthropic's cache_control format
-// - Converse API supports cachePoint via SystemContentBlockMemberCachePoint
-// - Cache metrics are returned in response.Usage (CacheReadInputTokens, CacheWriteInputTokens)
-// - Requires minimum tokens per checkpoint (1024 for Sonnet 4.5, 4096 for Haiku 4.5)
-// - Supports 5m and 1h TTL for Claude 4.x models
 func WithConverseAPI() Option {
 	return func(o *options) {
 		o.useConverseAPI = true
 	}
 }
 
-// WithAutomaticCaching enables automatic prompt caching for supported Anthropic models.
+// WithAutomaticCaching enables automatic prompt caching for Claude models whose
+// IDs contain claude-opus-4, claude-sonnet-4, claude-haiku-4 or a 5.x Opus,
+// Sonnet, Haiku, Fable or Mythos name.
 //
-// When enabled, caching is automatically applied for models matching these patterns:
-// - claude-opus-4 (includes 4.6, 4.5, 4.1, 4.0)
-// - claude-sonnet-4 (includes 4.6, 4.5, 4.0)
-// - claude-haiku-4 (includes 4.5)
-//
-// The caching strategy automatically:
-// - Adds cache points to system prompts
-// - Adds cache points to conversation history (last message before new user input)
-// - Uses ephemeral 5-minute TTL by default
-//
-// Benefits:
-// - 90% cost reduction on cached input tokens
-// - No manual cache control wrapper needed on client side
-// - Transparent caching without modifying message chains
-//
-// Note: Automatic caching works with both Legacy and Converse APIs.
+// The door marks the last assistant or tool-result message before the new user
+// turn with a 5-minute cache point. Converse carries that mark on an assistant
+// message only and adds cache points after the system prompt and at the end of
+// the final message; the InvokeModel path sends the system prompt uncached.
 func WithAutomaticCaching() Option {
 	return func(o *options) {
 		o.enableAutoCaching = true
@@ -123,7 +99,6 @@ func EphemeralCache() *llms.CacheControl {
 }
 
 // EphemeralCacheOneHour creates a 1-hour ephemeral cache control for Bedrock.
-// Supported by Claude Opus 4.5, Haiku 4.5, and Sonnet 4.5.
 func EphemeralCacheOneHour() *llms.CacheControl {
 	return &llms.CacheControl{
 		Type:     "ephemeral",
@@ -134,11 +109,8 @@ func EphemeralCacheOneHour() *llms.CacheControl {
 // CachedContent represents content with caching instructions for Bedrock.
 // This wraps any ContentPart and adds cache control metadata.
 //
-// Note: For most use cases, prefer using bedrock.WithAutomaticCaching() option
-// which automatically applies caching to supported Anthropic models (Claude 4.x).
+// Note: For most use cases, prefer the bedrock.WithAutomaticCaching() option.
 // This manual wrapper is only needed for fine-grained cache control.
-//
-// Automatic caching is supported in both Legacy and Converse APIs.
 type CachedContent struct {
 	llms.ContentPart
 	CacheControl *llms.CacheControl `json:"cache_control,omitempty"`
@@ -156,7 +128,8 @@ type CachedContent struct {
 //	    bedrock.EphemeralCache(),
 //	)
 //
-// Supported models: Claude Opus 4, Sonnet 4, Haiku 4 and their variants.
+// The door sends the cache point for any model; the model card says whether
+// the model caches.
 func WithCacheControl(content llms.ContentPart, control *llms.CacheControl) CachedContent {
 	return CachedContent{
 		ContentPart:  content,
