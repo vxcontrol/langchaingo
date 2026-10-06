@@ -17,15 +17,16 @@ type modelThinking struct {
 	reported   bool
 	thinks     bool
 	descriptor *model.Thinking
+	showErr    error
 }
 
-func (o *LLM) thinkingOf(ctx context.Context, name string) (modelThinking, error) {
+func (o *LLM) thinkingOf(ctx context.Context, name string) modelThinking {
 	if cached, ok := o.thinking.Load(name); ok {
-		return cached.(modelThinking), nil
+		return cached.(modelThinking)
 	}
 	resp, err := o.client.Show(ctx, &api.ShowRequest{Model: name})
 	if err != nil {
-		return modelThinking{}, fmt.Errorf("ollama: show model %q: %w", name, err)
+		return modelThinking{showErr: fmt.Errorf("ollama: show model %q: %w", name, err)}
 	}
 	info := modelThinking{
 		reported:   len(resp.Capabilities) > 0,
@@ -33,7 +34,7 @@ func (o *LLM) thinkingOf(ctx context.Context, name string) (modelThinking, error
 		descriptor: resp.Thinking,
 	}
 	o.thinking.Store(name, info)
-	return info, nil
+	return info
 }
 
 func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOptions) (modelThinking, error) {
@@ -45,10 +46,7 @@ func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOption
 		return modelThinking{}, &reasoning.ErrReasoningOffUnsupported{Model: name}
 	}
 
-	info, err := o.thinkingOf(ctx, name)
-	if err != nil {
-		return modelThinking{}, err
-	}
+	info := o.thinkingOf(ctx, name)
 	if mode == llms.ReasoningOff && info.descriptor.Valid() && !info.descriptor.Supports(false) {
 		return modelThinking{}, &reasoning.ErrReasoningOffUnsupported{Model: name}
 	}
@@ -56,6 +54,22 @@ func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOption
 }
 
 func chooseThink(name string, opts llms.CallOptions, info modelThinking, warn *llms.Warnings) *api.ThinkValue {
+	think := describedOrNamedThink(name, opts, info, warn)
+	if info.showErr != nil {
+		asked := "off"
+		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+			asked = string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+		}
+		warn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithReasoning", Model: name,
+			Asked: asked, Sent: fmt.Sprint(think.Value),
+			Reason: fmt.Sprintf("the server did not describe the model, so think follows its name: %v", info.showErr),
+		})
+	}
+	return think
+}
+
+func describedOrNamedThink(name string, opts llms.CallOptions, info modelThinking, warn *llms.Warnings) *api.ThinkValue {
 	switch mode := opts.Reasoning.ResolveMode(); {
 	case mode == llms.ReasoningOff:
 		return &api.ThinkValue{Value: false}
