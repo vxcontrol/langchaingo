@@ -971,10 +971,11 @@ func ExtraBodyTools(extra map[string]any) int {
 
 // ExtraBodyThinking reports whether an extra body switches thinking on or off
 // for model on host. On OpenAI, DeepSeek and Model Studio it reads only the keys
-// their chat APIs take; anywhere else it reads every key it knows.
+// their chat APIs take; on any other host, an empty one included, it reads every
+// key it knows.
 func ExtraBodyThinking(model, host string, extra map[string]any) (on, off bool) {
 	values := jsonValues(extra)
-	if host == "" || host == "api.openai.com" || strings.HasSuffix(host, ".api.openai.com") {
+	if host == "api.openai.com" || strings.HasSuffix(host, ".api.openai.com") {
 		return effortSwitch(values["reasoning_effort"])
 	}
 	switch reasoning.ServedBy(model, host) { //nolint:exhaustive // the other hosts read every key

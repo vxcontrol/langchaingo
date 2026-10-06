@@ -452,7 +452,11 @@ func (o *LLM) withholdToolsInsteadOfNone(
 
 func (o *LLM) thinks(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
 	route := reasoning.DashScopeRoute(model, o.host)
-	switch on, off := llms.ExtraBodyThinking(model, o.host, llms.ExtraBody(opts)); {
+	host := o.host
+	if o.servedByOpenAI() {
+		host = "api.openai.com"
+	}
+	switch on, off := llms.ExtraBodyThinking(model, host, llms.ExtraBody(opts)); {
 	case on:
 		return true
 	case off:

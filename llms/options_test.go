@@ -1223,3 +1223,15 @@ func TestValidateStructuredOutputDoesNotReadTheFilesystem(t *testing.T) {
 		t.Errorf("want the reference refused before any filesystem access, got %v", err)
 	}
 }
+
+func TestAnUnknownHostReadsEveryThinkingKey(t *testing.T) {
+	t.Parallel()
+
+	toggle := map[string]any{"enable_thinking": true}
+	if on, _ := llms.ExtraBodyThinking("gpt-5.4", "", toggle); !on {
+		t.Error("a caller that names no host gets every key read")
+	}
+	if on, _ := llms.ExtraBodyThinking("gpt-5.4", "api.openai.com", toggle); on {
+		t.Error("OpenAI's own API takes no enable_thinking")
+	}
+}

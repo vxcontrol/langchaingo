@@ -21,21 +21,24 @@ func TestTheExtraBodyThinkingSwitchCountsOnlyTheKeysTheHostReads(t *testing.T) {
 		openAI   = "https://api.openai.com/v1"
 		deepSeek = "https://api.deepseek.com"
 	)
+	high := []llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)}
 	for name, tc := range map[string]struct {
 		baseURL, model string
 		extra          map[string]any
 		thinks         bool
+		opts           []llms.CallOption
 	}{
-		"OpenAI does not read enable_thinking":                  {openAI, "gpt-5", map[string]any{"enable_thinking": false}, true},
-		"OpenAI does not switch thinking on by enable_thinking": {openAI, "gpt-5.4", map[string]any{"enable_thinking": true}, false},
-		"a model that always thinks is not switched off":        {openAI, "gpt-5", map[string]any{"reasoning_effort": "none"}, true},
-		"an effort typed as the library's own string":           {openAI, "gpt-5.4", map[string]any{"reasoning_effort": llms.ReasoningHigh}, true},
-		"DeepSeek does not read enable_thinking":                {deepSeek, "deepseek-v4-pro", map[string]any{"enable_thinking": false}, true},
-		"DeepSeek does not read the reasoning object":           {deepSeek, "deepseek-v4-pro", map[string]any{"reasoning": map[string]any{"enabled": false}}, true},
-		"a thinking object typed as a string map":               {deepSeek, "deepseek-v4-pro", map[string]any{"thinking": map[string]string{"type": "disabled"}}, false},
-		"an unknown host reads every key, a budget in int64":    {litellmHost, "anthropic/claude-sonnet-4-5", map[string]any{"reasoning": map[string]any{"max_tokens": int64(2048)}}, true},
+		"OpenAI does not read enable_thinking":                  {openAI, "gpt-5.4", map[string]any{"enable_thinking": false}, true, high},
+		"OpenAI does not switch thinking on by enable_thinking": {openAI, "gpt-5.4", map[string]any{"enable_thinking": true}, false, nil},
+		"a model that always thinks is not switched off":        {openAI, "gpt-5", map[string]any{"reasoning_effort": "none"}, true, nil},
+		"an effort typed as the library's own string":           {openAI, "gpt-5.4", map[string]any{"reasoning_effort": llms.ReasoningHigh}, true, nil},
+		"DeepSeek does not read enable_thinking":                {deepSeek, "deepseek-v4-pro", map[string]any{"enable_thinking": false}, true, nil},
+		"DeepSeek does not read the reasoning object":           {deepSeek, "deepseek-v4-pro", map[string]any{"reasoning": map[string]any{"enabled": false}}, true, nil},
+		"a thinking object typed as a string map":               {deepSeek, "deepseek-v4-pro", map[string]any{"thinking": map[string]string{"type": "disabled"}}, false, nil},
+		"an unknown host reads every key, a budget in int64":    {litellmHost, "anthropic/claude-sonnet-4-5", map[string]any{"reasoning": map[string]any{"max_tokens": int64(2048)}}, true, nil},
 	} {
-		body, _ := hostCall(t, tc.baseURL, tc.model, llms.WithTemperature(0.7), llms.WithExtraBody(tc.extra))
+		body, _ := hostCall(t, tc.baseURL, tc.model,
+			append([]llms.CallOption{llms.WithTemperature(0.7), llms.WithExtraBody(tc.extra)}, tc.opts...)...)
 		temperature, sent := body["temperature"]
 		if tc.thinks {
 			assert.True(t, !sent || temperature == float64(1), "%s: a thinking request keeps no caller temperature: %v", name, body)
@@ -86,4 +89,19 @@ func TestAForcedChoiceIsReadAsTheMergedExtraBodySendsIt(t *testing.T) {
 		&withThinking, "the forced choice set in the extra body")
 	require.NoError(t, call(litellmHost, "anthropic/claude-sonnet-4-5", lookup, llms.WithToolChoice("required"),
 		llms.WithExtraBody(map[string]any{"thinking": map[string]any{"type": "adaptive"}})))
+}
+
+func TestTheDefaultHostReadsTheExtraBodyAsOpenAIDoes(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithModel("gpt-5.4"), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithTemperature(0.7),
+		llms.WithExtraBody(map[string]any{"enable_thinking": false}))
+	require.NoError(t, err)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	assert.NotContains(t, body, "temperature", "OpenAI does not read enable_thinking, so the effort still thinks: %v", body)
 }
