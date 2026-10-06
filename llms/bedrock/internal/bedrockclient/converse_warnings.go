@@ -31,6 +31,8 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		}
 		if sent != nil && !thinkingSetsTheTemperature(sentThinking) {
 			reportTemperatureClamp(warn, model, *input.Temperature)
+			reportConverseRangeClamp(warn, "WithTemperature", model,
+				*input.Temperature, clampTemperature(model, *input.Temperature), *sent)
 		} else {
 			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
 		}
@@ -40,7 +42,11 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.TopP
 		}
-		reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
+		if inRange := converseUnitRange(*input.TopP); sent != nil && inRange != *input.TopP && *sent == float32(inRange) {
+			reportConverseRangeClamp(warn, "WithTopP", model, *input.TopP, *input.TopP, *sent)
+		} else {
+			reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
+		}
 	}
 	if input.MaxTokens != nil && *input.MaxTokens > 0 {
 		var sent *int32
@@ -216,6 +222,18 @@ func converseThinkingBudget(built *bedrockruntime.ConverseInput) int {
 		return 0
 	}
 	return int(budget)
+}
+
+func reportConverseRangeClamp(warn *llms.Warnings, option, model string, asked, family float64, sent float32) {
+	if float32(family) == sent {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: option, Model: model,
+		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(float64(sent), 'g', -1, 32),
+		Reason: "the Converse API takes a value from 0 to 1",
+	})
 }
 
 func reportConverseFloat(warn *llms.Warnings, option, model string, asked float32, sent *float32) {

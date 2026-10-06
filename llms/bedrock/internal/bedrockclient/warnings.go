@@ -89,7 +89,11 @@ func reportLegacyAnthropic(
 		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
 	}
 	if options.TopK != nil && *options.TopK != 0 && input.TopK != *options.TopK {
-		reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
+		if input.TopK != 0 && input.TopK == claudeTopK(*options.TopK) {
+			reportTopKClamp(warn, modelID, *options.TopK, input.TopK)
+		} else {
+			reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
+		}
 	}
 	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {
 		reportLegacyInt(warn, "WithMaxTokens", modelID, reshaped, *options.MaxTokens, input.MaxTokens)
@@ -173,19 +177,34 @@ func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) 
 	}
 }
 
-const novaMaxTopK = 128
+const (
+	novaMaxTopK   = 128
+	claudeMaxTopK = 500
+)
 
 func novaTopK(topK int) int {
 	return min(max(topK, 0), novaMaxTopK)
+}
+
+func claudeTopK(topK int) int {
+	return min(max(topK, 0), claudeMaxTopK)
+}
+
+func converseUnitRange(v float64) float64 {
+	return min(max(v, 0), 1)
 }
 
 func reportTopKClamp(warn *llms.Warnings, modelID string, asked, sent int) {
 	if asked == sent {
 		return
 	}
+	reason := "Nova takes a topK from 0 to 128"
+	if isAnthropicModelID(modelID) {
+		reason = "Claude on Amazon Bedrock takes a top_k from 0 to 500"
+	}
 	warn.Add(llms.Warning{
 		Kind: llms.WarningClamp, Option: "WithTopK", Model: modelID,
-		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: "Nova takes a topK from 0 to 128",
+		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: reason,
 	})
 }
 

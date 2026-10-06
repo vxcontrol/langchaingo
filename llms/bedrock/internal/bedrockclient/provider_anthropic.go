@@ -268,7 +268,7 @@ func createAnthropicCompletion(ctx context.Context,
 		Messages:         inputContents,
 		Temperature:      claudeTemperature(modelID, options.Temperature),
 		TopP:             options.GetTopP(),
-		TopK:             options.GetTopK(),
+		TopK:             claudeTopK(options.GetTopK()),
 		StopSequences:    options.StopWords,
 		Tools:            tools,
 		ToolChoice:       anthropicToolChoiceOnWire(options.ToolChoice, len(tools) > 0),
@@ -857,7 +857,6 @@ func claudeTemperature(modelID string, asked *float64) *float64 {
 func applyAnthropicReasoning(
 	input *anthropicTextGenerationInput, cfg *llms.ReasoningConfig, modelID string, maxTokens int, warn *llms.Warnings,
 ) error {
-	callerTemperature := input.Temperature
 	// Adaptive-only models reject sampling params even without thinking.
 	if reasoning.ClaudeRejectsSampling(modelID) {
 		input.Temperature = nil
@@ -906,18 +905,13 @@ func applyAnthropicReasoning(
 		if reasoning.ClaudeSupportsEffortWithBudget(modelID, reasoning.ProviderBedrock) {
 			input.OutputConfig = &anthropicOutputConfig{Effort: reasoning.ClaudeClampEffort(modelID, string(cfg.GetEffort(maxTokens)), reasoning.ProviderBedrock)}
 		}
-		keepTopP := callerTemperature == nil &&
-			reasoning.ClaudeKeepsTopPWhileThinking(modelID, input.TopP)
-		switch {
-		case reasoning.ClaudeRejectsSampling(modelID), keepTopP:
+		if reasoning.ClaudeRejectsSampling(modelID) {
 			input.Temperature = nil
-		default:
+		} else {
 			thinkingTemperature := 1.0
 			input.Temperature = &thinkingTemperature
 		}
-		if !keepTopP {
-			input.TopP = 0
-		}
+		input.TopP = 0
 		input.TopK = 0
 		return nil
 	}

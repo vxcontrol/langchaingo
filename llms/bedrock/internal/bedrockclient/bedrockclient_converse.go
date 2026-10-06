@@ -157,11 +157,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(maxTokens))
 	}
 	if input.Temperature != nil {
-		temperature := clampTemperature(input.ModelID, *input.Temperature)
+		temperature := converseUnitRange(clampTemperature(input.ModelID, *input.Temperature))
 		inferenceConfig.Temperature = aws.Float32(float32(temperature))
 	}
 	if input.TopP != nil {
-		inferenceConfig.TopP = aws.Float32(float32(*input.TopP))
+		inferenceConfig.TopP = aws.Float32(float32(converseUnitRange(*input.TopP)))
 	}
 	if len(input.StopSequences) > 0 {
 		inferenceConfig.StopSequences = input.StopSequences
@@ -238,14 +238,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 				additionalModelFields.OutputConfig = &converseOutputConfig{Effort: effort}
 			}
 			if isAnthropicModelID(input.ModelID) {
-				keepTopP := input.Temperature == nil && input.TopP != nil &&
-					reasoning.ClaudeKeepsTopPWhileThinking(input.ModelID, *input.TopP)
 				inferenceConfig.Temperature = aws.Float32(1.0)
-				if keepTopP {
-					inferenceConfig.Temperature = nil
-				} else {
-					inferenceConfig.TopP = nil
-				}
+				inferenceConfig.TopP = nil
 			}
 			return nil
 		}
@@ -340,7 +334,8 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	if input.TopK != nil && isAnthropicModelID(input.ModelID) &&
 		additionalModelFields.Thinking == nil &&
 		!reasoning.ClaudeRejectsSampling(input.ModelID) {
-		additionalModelFields.TopK = input.TopK
+		topK := claudeTopK(*input.TopK)
+		additionalModelFields.TopK = &topK
 	}
 	if input.TopK != nil && GetProvider(input.ModelID) == "nova" && !novaClearsSampling {
 		topK := novaTopK(*input.TopK)
@@ -564,7 +559,9 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 	for i, msg := range messages {
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
-			// System messages don't need flushing accumulators
+			if msg.Content == "" {
+				continue
+			}
 			systemPrompts = append(systemPrompts, &types.SystemContentBlockMemberText{
 				Value: msg.Content,
 			})
@@ -761,7 +758,7 @@ func (c *ConverseClient) convertToolsToToolConfig(tools []llms.Tool, choice any)
 
 		toolSpec := types.ToolSpecification{
 			Name:        aws.String(tool.Function.Name),
-			Description: aws.String(tool.Function.Description),
+			Description: ptrStringOrNil(tool.Function.Description),
 		}
 
 		parameters := toolcall.Schema(tool.Function.Parameters)

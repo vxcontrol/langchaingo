@@ -59,20 +59,7 @@ func TestClaudeOnBedrockTakesATemperatureFromZeroToOne(t *testing.T) {
 	}
 }
 
-func TestConverseSendsGptOssTheTemperatureAsAsked(t *testing.T) {
-	t.Parallel()
-
-	resp, body := bedrockWarningsSending(t, converseAnswer,
-		[]bedrock.Option{bedrock.WithModel("openai.gpt-oss-120b-1:0"), bedrock.WithConverseAPI()},
-		llms.WithTemperature(1.5))
-
-	cfg, _ := body["inferenceConfig"].(map[string]any)
-	require.InDelta(t, 1.5, cfg["temperature"], 1e-6)
-	_, reported := bedrockWarningsByOption(resp.Warnings)["WithTemperature"]
-	require.False(t, reported, "%v", resp.Warnings)
-}
-
-func TestConverseKeepsATopPOfExactlyTheThinkingFloor(t *testing.T) {
+func TestConverseDropsTopPBesideABudgetOnBedrock(t *testing.T) {
 	t.Parallel()
 
 	resp, body := bedrockWarningsSending(t, converseAnswer,
@@ -80,10 +67,10 @@ func TestConverseKeepsATopPOfExactlyTheThinkingFloor(t *testing.T) {
 		llms.WithReasoning(llms.ReasoningMedium, 2048), llms.WithTopP(0.95))
 
 	cfg, _ := body["inferenceConfig"].(map[string]any)
-	require.InDelta(t, 0.95, cfg["topP"], 1e-6)
-	require.NotContains(t, cfg, "temperature")
-	_, dropped := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
-	require.False(t, dropped, "%v", resp.Warnings)
+	require.NotContains(t, cfg, "topP")
+	require.InDelta(t, 1.0, cfg["temperature"], 1e-6)
+	w := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
+	require.Equal(t, llms.WarningDrop, w.Kind, "%v", resp.Warnings)
 }
 
 func TestClaudeOpus41OnBedrockIsSentAZeroTemperatureWithoutTopP(t *testing.T) {
