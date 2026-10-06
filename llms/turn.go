@@ -108,8 +108,8 @@ func jsonValue(choice any) any {
 	return value
 }
 
-// DisablesParallelToolUse reports whether a raw map choice asks for at most one
-// tool call per turn, Anthropic's disable_parallel_tool_use.
+// DisablesParallelToolUse reports whether a choice that is or marshals to a JSON
+// object asks for at most one tool call per turn, Anthropic's disable_parallel_tool_use.
 func DisablesParallelToolUse(choice any) bool {
 	c, ok := choice.(map[string]any)
 	if !ok {
