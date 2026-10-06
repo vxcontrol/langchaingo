@@ -157,14 +157,15 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.MaxTokens = aws.Int32(numutil.SaturateInt32(maxTokens))
 	}
 	if input.Temperature != nil {
-		temperature := converseUnitRange(clampTemperature(input.ModelID, *input.Temperature))
+		temperature := unitRange(clampTemperature(input.ModelID, *input.Temperature))
 		inferenceConfig.Temperature = aws.Float32(float32(temperature))
 	}
 	if input.TopP != nil {
-		inferenceConfig.TopP = aws.Float32(float32(converseUnitRange(*input.TopP)))
+		topP := unitRange(reasoning.NovaClampTopP(input.ModelID, *input.TopP))
+		inferenceConfig.TopP = aws.Float32(float32(topP))
 	}
-	if len(input.StopSequences) > 0 {
-		inferenceConfig.StopSequences = input.StopSequences
+	if stops := converseStopSequences(input.StopSequences); len(stops) > 0 {
+		inferenceConfig.StopSequences = stops
 	}
 
 	// Add cachePoint to messages if caching is enabled

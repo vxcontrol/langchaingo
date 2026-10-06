@@ -168,8 +168,10 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 ) ([]byte, error) {
 	inferenceConfig := novaInferenceConfigInput{
 		MaxTokens:     answerLimit(modelID, options, 0),
-		TopP:          options.GetTopP(),
 		StopSequences: options.StopWords,
+	}
+	if options.TopP != nil {
+		inferenceConfig.TopP = reasoning.NovaClampTopP(modelID, *options.TopP)
 	}
 	if options.TopK != nil {
 		topK := novaTopK(*options.TopK)
@@ -207,6 +209,9 @@ func novaInputToJSON(inputContents []*novaTextGenerationInputMessage, systemProm
 	}
 	if inferenceConfig.Temperature != nil {
 		reportTemperatureClamp(warn, modelID, *options.Temperature)
+	}
+	if inferenceConfig.TopP != 0 {
+		reportNovaClamp(warn, "WithTopP", "topP", modelID, *options.TopP, inferenceConfig.TopP)
 	}
 	if inferenceConfig.TopK != nil {
 		reportTopKClamp(warn, modelID, *options.TopK, *inferenceConfig.TopK)

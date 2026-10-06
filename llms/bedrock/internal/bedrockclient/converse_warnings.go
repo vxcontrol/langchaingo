@@ -42,8 +42,10 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.TopP
 		}
-		if inRange := converseUnitRange(*input.TopP); sent != nil && inRange != *input.TopP && *sent == float32(inRange) {
-			reportConverseRangeClamp(warn, "WithTopP", model, *input.TopP, *input.TopP, *sent)
+		if sent != nil {
+			nova := reasoning.NovaClampTopP(model, *input.TopP)
+			reportNovaClamp(warn, "WithTopP", "topP", model, *input.TopP, nova)
+			reportConverseRangeClamp(warn, "WithTopP", model, *input.TopP, nova, *sent)
 		} else {
 			reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
 		}
@@ -67,11 +69,24 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	if len(input.StopSequences) > 0 && (cfg == nil || len(cfg.StopSequences) == 0) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithStopWords", Model: model,
-			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
-		})
+	if asked := len(nonEmptyStops(input.StopSequences)); asked > 0 {
+		sent := 0
+		if cfg != nil {
+			sent = len(cfg.StopSequences)
+		}
+		switch {
+		case sent == 0:
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithStopWords", Model: model,
+				Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
+			})
+		case sent < asked:
+			warn.Add(llms.Warning{
+				Kind: llms.WarningClamp, Option: "WithStopWords", Model: model,
+				Asked: strconv.Itoa(len(input.StopSequences)) + " words", Sent: strconv.Itoa(sent) + " words",
+				Reason: "the Converse API takes at most " + strconv.Itoa(converseMaxStopSequences) + " stop sequences",
+			})
+		}
 	}
 	if input.TopK != nil && *input.TopK != 0 {
 		if sent, carried := converseTopKOnTheWire(built); carried {

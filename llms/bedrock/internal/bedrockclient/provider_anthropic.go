@@ -28,7 +28,6 @@ type anthropicBinGenerationInputSource struct {
 	// One of: "base64"
 	Type string `json:"type"`
 	// The MIME type of the source. Required
-	// One of: "image/jpeg", "image/png", "image/gif", "image/webp"
 	MediaType string `json:"media_type"`
 	// The data of the source. Required
 	// For example if type is "base64" then data is a base64 encoded string
@@ -157,7 +156,6 @@ type anthropicTextGenerationOutput struct {
 	// This will always be "assistant".
 	Role string `json:"role"`
 	// This is an array of content blocks, each of which has a type that determines its shape.
-	// Responses carry "text", "tool_use", "thinking" and "redacted_thinking" blocks.
 	Content []anthropicContentBlock `json:"content"`
 	// The reason for the completion of the generation.
 	StopReason string `json:"stop_reason"`
@@ -265,7 +263,7 @@ func createAnthropicCompletion(ctx context.Context,
 		System:           system,
 		Messages:         inputContents,
 		Temperature:      claudeTemperature(modelID, options.Temperature),
-		TopP:             options.GetTopP(),
+		TopP:             unitRange(options.GetTopP()),
 		TopK:             claudeTopK(options.GetTopK()),
 		StopSequences:    options.StopWords,
 		Tools:            tools,

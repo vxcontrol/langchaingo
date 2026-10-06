@@ -1,6 +1,7 @@
 package bedrock_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -68,9 +69,62 @@ func TestClaudeTopKStaysWithinTheLimitBedrockDocuments(t *testing.T) {
 			w := bedrockWarningsByOption(resp.Warnings)["WithTopK"]
 			require.Equal(t, llms.WarningClamp, w.Kind, "%v", resp.Warnings)
 			require.Equal(t, "500", w.Sent)
+			require.Equal(t, "Claude on Amazon Bedrock takes a top_k from 0 to 500", w.Reason)
 
 			_, body = bedrockWarningsSending(t, tc.answer, tc.opts, llms.WithTopK(40))
 			require.InDelta(t, 40, tc.topK(body), 0, "%v", body)
 		})
 	}
+}
+
+func TestLegacyClaudeSendsATopPInsideTheRangeBedrockDocuments(t *testing.T) {
+	t.Parallel()
+
+	opts := []bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-20250929-v1:0")}
+
+	resp, body := bedrockWarningsSending(t, legacyAnswer, opts, llms.WithTopP(1.3))
+	require.InDelta(t, 1, body["top_p"], 1e-9, "%v", body)
+	w := bedrockWarningsByOption(resp.Warnings)["WithTopP"]
+	require.Equal(t, llms.WarningClamp, w.Kind, "%v", resp.Warnings)
+	require.Equal(t, "1.3", w.Asked)
+	require.Equal(t, "1", w.Sent)
+	require.Equal(t, "Claude on Amazon Bedrock takes a top_p from 0 to 1", w.Reason)
+
+	resp, body = bedrockWarningsSending(t, legacyAnswer, opts, llms.WithTopP(-0.2))
+	require.NotContains(t, body, "top_p", "a negative top_p does not go out")
+	require.Equal(t, llms.WarningDrop, bedrockWarningsByOption(resp.Warnings)["WithTopP"].Kind, "%v", resp.Warnings)
+
+	resp, body = bedrockWarningsSending(t, legacyAnswer, opts, llms.WithTopP(0.9))
+	require.InDelta(t, 0.9, body["top_p"], 1e-9, "%v", body)
+	require.NotContains(t, bedrockWarningsByOption(resp.Warnings), "WithTopP")
+}
+
+func TestConverseSendsOnlyTheStopSequencesTheAPITakes(t *testing.T) {
+	t.Parallel()
+
+	opts := []bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI()}
+	stops := func(body map[string]any) []any {
+		config, _ := body["inferenceConfig"].(map[string]any)
+		sent, _ := config["stopSequences"].([]any)
+		return sent
+	}
+
+	resp, body := bedrockWarningsSending(t, converseAnswer, opts, llms.WithStopWords([]string{"", "END", ""}))
+	require.Equal(t, []any{"END"}, stops(body), "an empty stop sequence stays off the wire")
+	require.NotContains(t, bedrockWarningsByOption(resp.Warnings), "WithStopWords")
+
+	resp, body = bedrockWarningsSending(t, converseAnswer, opts, llms.WithStopWords([]string{""}))
+	require.Empty(t, stops(body))
+	require.NotContains(t, bedrockWarningsByOption(resp.Warnings), "WithStopWords", "an empty stop sequence asks for nothing")
+
+	many := make([]string, 2600)
+	for i := range many {
+		many[i] = "stop" + strconv.Itoa(i)
+	}
+	resp, body = bedrockWarningsSending(t, converseAnswer, opts, llms.WithStopWords(many))
+	require.Len(t, stops(body), 2500)
+	w := bedrockWarningsByOption(resp.Warnings)["WithStopWords"]
+	require.Equal(t, llms.WarningClamp, w.Kind, "%v", resp.Warnings)
+	require.Equal(t, "2600 words", w.Asked)
+	require.Equal(t, "2500 words", w.Sent)
 }
