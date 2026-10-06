@@ -356,6 +356,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 	if err := applyConverseStructuredOutput(input, converseInput); err != nil {
 		return nil, err
 	}
+	fitConverseCacheTTLs(input.Warnings, input.ModelID, converseInput)
 
 	return converseInput, nil
 }

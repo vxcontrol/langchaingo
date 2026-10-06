@@ -103,7 +103,7 @@ sequenceDiagram
 - `supportsCaching()`: pattern matching on the model ID (`cachingPatterns` in `bedrockllm.go`)
 - `applyAutomaticCaching()`: Adds `CacheControl{Type: "ephemeral", TTL: "5m"}` to last cacheable message (assistant or tool response)
 - **Why last message?** Caches conversation history before new user input
-- **TTL Options**: 5 minutes (default) or 1 hour through `EphemeralCacheOneHour()` where the model takes it; AWS gives Claude Sonnet 4 and Opus 4.1 the 5-minute TTL only
+- **TTL Options**: 5 minutes (default) or 1 hour through `EphemeralCacheOneHour()`. The models AWS documents with the 5-minute TTL only, Claude before 4.5 and Nova, get their cache points without a TTL, which AWS reads as 5 minutes, and a 1-hour request on them is reported in `Warnings`; every other model gets the TTL as asked
 
 **Benefits**:
 - 90% cost reduction on cached tokens  

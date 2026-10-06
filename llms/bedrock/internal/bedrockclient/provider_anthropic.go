@@ -283,6 +283,7 @@ func createAnthropicCompletion(ctx context.Context,
 		return nil, err
 	}
 
+	fitAnthropicCacheTTLs(warn, modelID, input.Messages)
 	reportLegacyAnthropic(warn, modelID, options, &input)
 
 	body, err := json.Marshal(input)

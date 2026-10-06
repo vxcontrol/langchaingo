@@ -43,14 +43,29 @@ func NovaClampTopP(model string, topP float64) float64 {
 	return novaClampSampling(model, topP)
 }
 
+func BedrockCachesFiveMinutesOnly(model string) bool {
+	if _, id, ok := claudeID(claudeName(model)); ok {
+		tier, major, minor, ok := claudeVersion(id)
+		return ok && claudeReleases[tier] != nil && (major < 4 || major == 4 && minor < 5)
+	}
+	return isNovaUnderstandingModel(model)
+}
+
 func novaClampSampling(model string, v float64) float64 {
+	if isNovaUnderstandingModel(model) {
+		return min(max(v, NovaMinSampling), 1)
+	}
+	return v
+}
+
+func isNovaUnderstandingModel(model string) bool {
 	m := bedrockModelWithoutRegion(model)
 	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier", "amazon.nova-2-"} {
 		if strings.HasPrefix(m, family) {
-			return min(max(v, NovaMinSampling), 1)
+			return true
 		}
 	}
-	return v
+	return false
 }
 
 // IsBedrockAlwaysReasoningModel reports whether the Bedrock family reasons on
