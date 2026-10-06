@@ -14,7 +14,7 @@ import (
 var image []byte
 
 func main() {
-	// As a prerequisite, you need to add model access permissions for the Anthropic Claude Haiku 4.5 model in the AWS Region where you are running.
+	// As a prerequisite, the identity needs the AWS Marketplace permissions that enable model access, and Anthropic models on Bedrock need the one-time use-case form.
 	// For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html.
 	// Specify the AWS Region and Credentials in the standard AWS SDK way.
 	llm, err := bedrock.New(

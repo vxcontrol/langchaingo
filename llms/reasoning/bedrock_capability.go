@@ -33,16 +33,24 @@ func NovaClearsInferenceConfigAt(effort string) bool {
 	return NovaEffort(effort) == "high"
 }
 
-const NovaMinTemperature = 0.00001
+const NovaMinSampling = 0.00001
 
 func NovaClampTemperature(model string, temperature float64) float64 {
+	return novaClampSampling(model, temperature)
+}
+
+func NovaClampTopP(model string, topP float64) float64 {
+	return novaClampSampling(model, topP)
+}
+
+func novaClampSampling(model string, v float64) float64 {
 	m := bedrockModelWithoutRegion(model)
 	for _, family := range []string{"amazon.nova-micro", "amazon.nova-lite", "amazon.nova-pro", "amazon.nova-premier", "amazon.nova-2-"} {
 		if strings.HasPrefix(m, family) {
-			return min(max(temperature, NovaMinTemperature), 1)
+			return min(max(v, NovaMinSampling), 1)
 		}
 	}
-	return temperature
+	return v
 }
 
 // IsBedrockAlwaysReasoningModel reports whether the Bedrock family reasons on
@@ -93,6 +101,11 @@ var bedrockStructuredOutputModels = []string{
 func BedrockStructuredOutputNeedsStrict(model string) bool {
 	m := bedrockModelWithoutRegion(model)
 	return strings.HasPrefix(m, "openai.gpt-5.6-") || strings.HasPrefix(m, "openai.gpt-6")
+}
+
+func BedrockSchemaOnNonStreamingOnly(model string) bool {
+	return BedrockStructuredOutputNeedsStrict(model) &&
+		!strings.HasPrefix(bedrockModelWithoutRegion(model), "openai.gpt-6.1-sol")
 }
 
 var bedrockRegionPrefixes = []string{"us-gov.", "apac.", "global.", "us.", "eu.", "au.", "jp.", "in.", "ca."}

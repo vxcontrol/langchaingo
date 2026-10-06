@@ -1,6 +1,7 @@
 package bedrockclient
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -86,10 +87,23 @@ func reportLegacyAnthropic(
 		reportClaudeTemperature(warn, modelID, reshaped, *options.Temperature, input.Temperature, sentThinking)
 	}
 	if options.TopP != nil {
-		reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
+		if sent := input.TopP; sent != 0 && sent != *options.TopP && sent == unitRange(*options.TopP) {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningClamp, Option: "WithTopP", Model: modelID,
+				Asked:  strconv.FormatFloat(*options.TopP, 'g', -1, 64),
+				Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
+				Reason: "Claude on Amazon Bedrock takes a top_p from 0 to 1",
+			})
+		} else {
+			reportLegacyFloat(warn, "WithTopP", modelID, reshaped, *options.TopP, input.TopP)
+		}
 	}
 	if options.TopK != nil && *options.TopK != 0 && input.TopK != *options.TopK {
-		reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
+		if input.TopK != 0 && input.TopK == claudeTopK(*options.TopK) {
+			reportTopKClamp(warn, modelID, *options.TopK, input.TopK)
+		} else {
+			reportLegacyInt(warn, "WithTopK", modelID, reshaped, *options.TopK, input.TopK)
+		}
 	}
 	if options.MaxTokens != nil && *options.MaxTokens > 0 && input.MaxTokens != *options.MaxTokens {
 		reportLegacyInt(warn, "WithMaxTokens", modelID, reshaped, *options.MaxTokens, input.MaxTokens)
@@ -163,29 +177,60 @@ func clampTemperature(model string, temperature float64) float64 {
 
 func reportTemperatureClamp(warn *llms.Warnings, modelID string, asked float64) {
 	warn.ClampClaudeTemperature(modelID, &asked)
-	if sent := reasoning.NovaClampTemperature(modelID, asked); sent != asked {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningClamp, Option: "WithTemperature", Model: modelID,
-			Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
-			Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
-			Reason: "Nova takes a temperature from 0.00001 to 1",
-		})
-	}
+	reportNovaClamp(warn, "WithTemperature", "temperature", modelID, asked, reasoning.NovaClampTemperature(modelID, asked))
 }
 
-const novaMaxTopK = 128
+func reportNovaClamp(warn *llms.Warnings, option, param, modelID string, asked, sent float64) {
+	if sent == asked {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: option, Model: modelID,
+		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(sent, 'g', -1, 64),
+		Reason: "Nova takes a " + param + " from " + strconv.FormatFloat(reasoning.NovaMinSampling, 'f', -1, 64) + " to 1",
+	})
+}
+
+const (
+	novaMaxTopK   = 128
+	claudeMaxTopK = 500
+)
 
 func novaTopK(topK int) int {
 	return min(max(topK, 0), novaMaxTopK)
+}
+
+func claudeTopK(topK int) int {
+	return min(max(topK, 0), claudeMaxTopK)
+}
+
+func unitRange(v float64) float64 {
+	return min(max(v, 0), 1)
+}
+
+const converseMaxStopSequences = 2500
+
+func nonEmptyStops(asked []string) []string {
+	return slices.DeleteFunc(slices.Clone(asked), func(stop string) bool { return stop == "" })
+}
+
+func converseStopSequences(asked []string) []string {
+	stops := nonEmptyStops(asked)
+	return stops[:min(len(stops), converseMaxStopSequences)]
 }
 
 func reportTopKClamp(warn *llms.Warnings, modelID string, asked, sent int) {
 	if asked == sent {
 		return
 	}
+	reason := "Nova takes a topK from 0 to " + strconv.Itoa(novaMaxTopK)
+	if isAnthropicModelID(modelID) {
+		reason = "Claude on Amazon Bedrock takes a top_k from 0 to " + strconv.Itoa(claudeMaxTopK)
+	}
 	warn.Add(llms.Warning{
 		Kind: llms.WarningClamp, Option: "WithTopK", Model: modelID,
-		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: "Nova takes a topK from 0 to 128",
+		Asked: strconv.Itoa(asked), Sent: strconv.Itoa(sent), Reason: reason,
 	})
 }
 

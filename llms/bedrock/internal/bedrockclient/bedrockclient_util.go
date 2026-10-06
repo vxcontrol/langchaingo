@@ -142,7 +142,7 @@ func applyConverseStructuredOutput(input *ConverseInput, converseInput *bedrockr
 		return err
 	}
 	if named && reasoning.BedrockStructuredOutputNeedsStrict(model) {
-		if input.StreamingFunc != nil {
+		if input.StreamingFunc != nil && reasoning.BedrockSchemaOnNonStreamingOnly(model) {
 			if err := refuseStructuredOutput(input.Warnings, input.ModelID, so, bedrockStreamedSchemaReason); err != nil {
 				return err
 			}

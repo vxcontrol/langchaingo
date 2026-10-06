@@ -212,7 +212,7 @@ func reportAnswerLimit(warn *llms.Warnings, modelID string, options llms.CallOpt
 		warn.Add(llms.Warning{
 			Kind: llms.WarningSubstitute, Option: "WithMaxTokens", Model: modelID,
 			Asked: strconv.Itoa(*asked), Sent: strconv.Itoa(sent),
-			Reason: "the legacy payload has to name an answer limit, so the door named one",
+			Reason: "a non-positive limit is replaced by the door's default for this payload",
 		})
 	default:
 		warn.Add(llms.Warning{

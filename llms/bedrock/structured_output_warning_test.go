@@ -147,6 +147,20 @@ func TestAStreamedSchemaIsRefusedWhereTheCardDocumentsItForNonStreamingCallsOnly
 	require.NotEmpty(t, *sent)
 }
 
+func TestAStreamedSchemaReachesTheModelsWhoseCardsDocumentItOnConverseStream(t *testing.T) {
+	t.Parallel()
+
+	schema := llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: json.RawMessage(warnSchema)})
+	for _, model := range []string{"us.openai.gpt-6.1-sol", "global.openai.gpt-6.1-sol", "openai.gpt-6.2-sol", "us.openai.gpt-7-sol"} {
+		resp, body := converseStreamSending(t, model, schema)
+		require.Contains(t, body, "outputConfig", model)
+		extra, _ := body["additionalModelRequestFields"].(map[string]any)
+		require.Equal(t, map[string]any{"format": map[string]any{"strict": true}}, extra["text"], model)
+		_, warned := bedrockWarningsByOption(resp.Warnings)["WithStructuredOutput"]
+		require.False(t, warned, "%s: %v", model, resp.Warnings)
+	}
+}
+
 func converseStreamSending(t *testing.T, model string, call ...llms.CallOption) (*llms.ContentResponse, map[string]any) {
 	t.Helper()
 
@@ -201,7 +215,7 @@ func TestAnUnlistedVersionOnBedrockIsSentASchemaItsReleaseWouldRefuse(t *testing
 	require.Equal(t, "json_schema", format["type"], "%v", body)
 	requireInheritedSchema(t, resp, "legacy anthropic.claude-opus-6-0-v1:0")
 
-	for _, model := range []string{"us.openai.gpt-7-sol", "openai.gpt-6.2-sol"} {
+	for _, model := range []string{"us.openai.gpt-6.1-luna", "openai.gpt-5.7-sol", "openai.gpt-6.1-astra"} {
 		resp, body := converseStreamSending(t, model, schema)
 		require.Contains(t, body, "outputConfig", model)
 		extra, _ := body["additionalModelRequestFields"].(map[string]any)

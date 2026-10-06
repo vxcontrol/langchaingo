@@ -9,7 +9,7 @@ import (
 	"github.com/vxcontrol/langchaingo/llms"
 )
 
-func TestLegacyThinkingKeepsTopPAboveTheFloor(t *testing.T) {
+func TestLegacyThinkingSendsNoTopP(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -17,26 +17,23 @@ func TestLegacyThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		model string
 		topP  float64
 		temp  *float64
-		want  float64
 	}{
-		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, 0.97},
-		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), 0},
-		{"a caller's temperature of 0 is set too", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.0), 0},
-		{"exactly at the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.95, nil, 0.95},
-		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, 0},
-		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, 0},
+		{"above Anthropic's floor", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil},
+		{"with a caller's temperature", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3)},
+		{"below Anthropic's floor", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil},
+		{"a model without sampling", "anthropic.claude-sonnet-5-v1:0", 0.97, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			input := anthropicTextGenerationInput{MaxTokens: 4096, TopP: tc.topP, Temperature: tc.temp}
 			require.NoError(t, applyAnthropicReasoning(&input,
 				&llms.ReasoningConfig{Tokens: 1024}, tc.model, 4096, nil))
-			assert.InDelta(t, tc.want, input.TopP, 1e-9)
+			assert.Zero(t, input.TopP)
 		})
 	}
 }
 
-func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
+func TestConverseThinkingSendsNoTopP(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -44,16 +41,12 @@ func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 		model string
 		topP  float64
 		temp  *float64
-		want  *float32
 	}{
-		{"above the floor reaches the wire", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil, ptr(float32(0.97))},
-		{"caller set both — top_p is dropped", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3), nil},
-		{"below the floor is stripped", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil, nil},
-		{
-			"below the floor is stripped where both params may travel together",
-			"anthropic.claude-sonnet-4-20250514-v1:0", 0.5, nil, nil,
-		},
-		{"model without sampling does not get it", "anthropic.claude-sonnet-5-v1:0", 0.97, nil, nil},
+		{"above Anthropic's floor", "anthropic.claude-sonnet-4-5-v1:0", 0.97, nil},
+		{"with a caller's temperature", "anthropic.claude-sonnet-4-5-v1:0", 0.97, ptr(0.3)},
+		{"below Anthropic's floor", "anthropic.claude-sonnet-4-5-v1:0", 0.5, nil},
+		{"where both params may travel together", "anthropic.claude-sonnet-4-20250514-v1:0", 0.5, nil},
+		{"a model without sampling", "anthropic.claude-sonnet-5-v1:0", 0.97, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -67,12 +60,7 @@ func TestConverseThinkingKeepsTopPAboveTheFloor(t *testing.T) {
 				ReasoningConfig: &llms.ReasoningConfig{Tokens: 1024},
 			})
 			require.NoError(t, err)
-			if tc.want == nil {
-				assert.Nil(t, built.InferenceConfig.TopP)
-				return
-			}
-			require.NotNil(t, built.InferenceConfig.TopP)
-			assert.InDelta(t, *tc.want, *built.InferenceConfig.TopP, 1e-6)
+			assert.Nil(t, built.InferenceConfig.TopP)
 		})
 	}
 }

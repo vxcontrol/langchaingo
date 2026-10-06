@@ -21,11 +21,10 @@ import (
 type amazonTextGenerationConfigInput struct {
 	// The maximum number of tokens to generate per result. Optional, default = 512
 	MaxTokens int `json:"maxTokenCount,omitempty"`
-	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional, default = 1
+	// Use a lower value to ignore less probable options and decrease the diversity of responses. Optional
 	TopP        float64  `json:"topP,omitempty"`
 	Temperature *float64 `json:"temperature,omitempty"`
 	// Specify a character sequence to indicate where the model should stop.
-	// Currently only supports: ["|", "User:"]
 	StopSequences []string `json:"stopSequences,omitempty"`
 }
 
@@ -48,7 +47,6 @@ type amazonTextGenerationOutput struct {
 		// The generated text
 		OutputText string `json:"outputText"`
 		// The reason for the completion of the generation
-		// One of: FINISH, LENGTH, CONTENT_FILTERED
 		CompletionReason string `json:"completionReason"`
 	} `json:"results"`
 }

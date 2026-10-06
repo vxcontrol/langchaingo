@@ -100,12 +100,10 @@ sequenceDiagram
 ```
 
 **Implementation**:
-- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`,
-  `claude-haiku-4`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-5`, `claude-fable-5`,
-  `claude-mythos-5`)
+- `supportsCaching()`: pattern matching on the model ID (`cachingPatterns` in `bedrockllm.go`)
 - `applyAutomaticCaching()`: Adds `CacheControl{Type: "ephemeral", TTL: "5m"}` to last cacheable message (assistant or tool response)
 - **Why last message?** Caches conversation history before new user input
-- **TTL Options**: 5 minutes (default) or 1 hour (configurable via `EphemeralCacheOneHour()`)
+- **TTL Options**: 5 minutes (default) or 1 hour through `EphemeralCacheOneHour()` where the model takes it; AWS gives Claude Sonnet 4 and Opus 4.1 the 5-minute TTL only
 
 **Benefits**:
 - 90% cost reduction on cached tokens  
@@ -126,12 +124,11 @@ Different providers use different formats for tool inputs in Converse API:
 | Anthropic | Native JSON objects | `map[string]any` direct |
 | Nova | Native JSON objects | `map[string]any` direct |
 | Qwen / Mistral / MiniMax / Nemotron | Native JSON objects | `map[string]any` direct |
-| GLM (Z.AI) | **String-based** | Not supported |
+| GLM (Z.AI) | Native JSON objects | `map[string]any` direct |
 
 **Problems with specific models**:
-- **GLM (Z.AI)**: Backend expects tool input as string, not JSON object. This breaks Converse API spec.
 - **Meta Llama 3.3/3.1 70B/8B**: Unstable behavior when processing tool call results.
-- **Mistral Magistral Small**: Tool calling not supported.
+- **Mistral Magistral Small**: Tool calls through Converse on the bedrock-runtime endpoint failed in our tests; AWS lists client-side tool calling on the bedrock-mantle endpoint.
 - **Moonshot Kimi K2-Thinking**: Unstable tool calling behavior in streaming mode.
 - **Qwen3-VL**: Unstable tool calling in streaming mode.
 
@@ -145,10 +142,10 @@ The AWS SDK writes a tool's `inputSchema` through its own document encoder, whic
 
 **Why `MarshalSmithyDocument()`?**
 
-When extracting tool call from response, `block.Value.Input` is `document.LazyDocument`, not plain Go type:
+When extracting tool call from response, `block.Value.Input` is a `document.Interface`, not a plain Go type, and `json.Marshal` on it returns `{}`:
 
 ```go
-// WRONG: json.Marshal on document - loses type info
+// WRONG: json.Marshal on the document returns {}
 argsJSON, _ := json.Marshal(block.Value.Input)  
 
 // CORRECT: Use MarshalSmithyDocument to get JSON bytes directly
@@ -179,10 +176,7 @@ configuration on this platform. The rest carry nothing.
   Anthropic body
 - Amazon Nova 2 Lite — `reasoningConfig` inside `inferenceConfig`
 
-**Reasoning models that take no configuration here**: Moonshot Kimi K2-Thinking,
-MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral
-Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them
-changes nothing on the wire.
+**Models that take no reasoning configuration here**: Moonshot Kimi K2-Thinking, MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them changes nothing on the wire.
 
 **Z-AI GLM 4.7/4.7 Flash/5** are not reasoning models here: their AWS model cards
 document neither reasoning nor a field that controls it, `ReasoningSupportFor`
@@ -195,15 +189,15 @@ Claude thinking is not a single flag — the generation resolves adaptive vs. bu
 thinking from the model via the shared `llms/reasoning` capability tables (the same
 source of truth used by the first-party Anthropic provider):
 
-- **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` + `output_config.effort` when the call names an effort (without one the model's own default applies); budget thinking and sampling params are rejected. Bedrock serves `xhigh` on Opus 5 only and `max` on Opus 5, Opus 4.6 and Sonnet 4.6; a higher effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5, Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8, which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to Opus 5 and Sonnet 5 and no effort beside it; Sonnet 5.5, which rejects `disabled`, gets its lowest level `thinking.type=between_tools` with no effort and a `WarningSubstitute`; Fable 5 cannot be disabled. Opus 4.7/4.8 default off, so omitting thinking already yields off.
+- **Adaptive-only** (Opus 4.7/4.8/5, Sonnet 5, Fable 5): `thinking.type=adaptive` + `output_config.effort` when the call names an effort (without one the model's own default applies); budget thinking and sampling params are rejected. AWS lists `xhigh` for Opus 5 and Opus 4.6 and Anthropic does not list it for Opus 4.6, so the door sends `xhigh` to Opus 5 only; `max` goes to Opus 5, Opus 4.6 and Sonnet 4.6; a higher effort on any other Claude model is lowered to the top level it takes, with a warning. Opus 5, Sonnet 5, and Fable 5 think by default (Opus 5 is a breaking change from Opus 4.8, which defaults off). `WithReasoningDisabled()` sends `thinking.type=disabled` to Opus 5 and Sonnet 5 and no effort beside it; Sonnet 5.5, which rejects `disabled`, gets its lowest level `thinking.type=between_tools` with no effort and a `WarningSubstitute`; Fable 5 cannot be disabled. Opus 4.7/4.8 default off, so omitting thinking already yields off.
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
-- **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` + `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on this path; Opus 4.5 accepts it on the first-party API but rejects it here, so this door does not send it.
+- **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` + `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on this path; on Bedrock, effort on Opus 4.5 is a beta behind the `effort-2025-11-24` beta header, which this door does not send, so it leaves the effort off.
 
-Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a listed model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1. A version the tables do not list that only inherits that refusal goes out instead, with the disable of the newest release of its line that documents one (`thinking.type=disabled` for `anthropic.claude-opus-6-v1:0`) or with no disable when none does (an unlisted Fable or Mythos such as `anthropic.claude-fable-6-v1:0`, or `xai.grok-4.8` on Converse), and `Warnings` carries a `WarningInherit` naming what was sent.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` and `topP` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a listed model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1. A version the tables do not list that only inherits that refusal goes out instead, with the disable of the newest release of its line that documents one (`thinking.type=disabled` for `anthropic.claude-opus-6-v1:0`) or with no disable when none does (an unlisted Fable or Mythos such as `anthropic.claude-fable-6-v1:0`, or `xai.grok-4.8` on Converse), and `Warnings` carries a `WarningInherit` naming what was sent.
 
 ## Structured Output
 
-The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku 4.5 (not through the `in.` India inference profile); any other listed Claude model returns a typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3, Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose card is silent return the same typed error. A version the tables do not list yet follows the newest listed release below it in its line: where only that release would refuse the schema, the schema still goes out and `ContentResponse.Warnings` carries a `WarningInherit` naming what was sent. That holds on both paths for an unlisted Claude version such as `anthropic.claude-opus-6-0-v1:0`, and on Converse for an unlisted GPT, GLM, Kimi, MiniMax or Gemma version, such as `zai.glm-6`, `minimax.minimax-m3.5` or a streamed schema on `us.openai.gpt-7-sol`; Bedrock's DeepSeek, Mistral and size-suffixed Qwen ids follow no listed release, so an unlisted one still gets the typed error, and the legacy path still refuses every non-Anthropic model. The final response is guaranteed to be a single JSON value matching the supplied JSON Schema (Draft 2020-12), validated locally against the original schema.
+The provider-neutral `llms.WithStructuredOutput` is supported on both API paths for the Claude models Bedrock serves it for — Opus 4.6 and 4.5, Sonnet 4.6 and 4.5, Haiku 4.5 (not through the `in.` India inference profile); any other listed Claude model returns a typed `ErrStructuredOutputUnsupported` before the request. On the Converse API the other families get it only where their AWS model card lists structured outputs — among them DeepSeek V3.1 and V3.2, GPT OSS, Qwen3, Mistral Large 3, GLM, Kimi, MiniMax and Nemotron. Nova, Llama and every model whose card is silent return the same typed error. A version the tables do not list yet follows the newest listed release below it in its line: where only that release would refuse the schema, the schema still goes out and `ContentResponse.Warnings` carries a `WarningInherit` naming what was sent. That holds on both paths for an unlisted Claude version such as `anthropic.claude-opus-6-0-v1:0`, and on Converse for an unlisted GPT, GLM, Kimi, MiniMax or Gemma version, such as `zai.glm-6` or `minimax.minimax-m3.5`; Bedrock's DeepSeek, Mistral and size-suffixed Qwen ids follow no listed release, so an unlisted one still gets the typed error, and the legacy path still refuses every non-Anthropic model. The final response is guaranteed to be a single JSON value matching the supplied JSON Schema (Draft 2020-12), validated locally against the original schema.
 
 ```go
 schema := json.RawMessage(`{
@@ -218,18 +212,18 @@ resp, err := llm.GenerateContent(ctx, messages,
 ```
 
 **Wire mapping**:
-- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`, except for GPT-5.6 and GPT-6, whose model cards document the schema on non-streaming calls only and ask for `additionalModelRequestFields.text.format.strict`: the door adds that field and refuses a streamed schema with the typed error for the listed releases, while an unlisted version such as `openai.gpt-6.2-sol` is sent the streamed schema with a `WarningInherit`.
+- **Converse**: native `OutputConfig.TextFormat` with a `JsonSchemaDefinition` (AWS SDK types). Rides both `Converse` and `ConverseStream`. GPT-5.6, GPT-6 and GPT-6.1 Sol get `additionalModelRequestFields.text.format.strict`, which their model cards ask for. The GPT-5.6 and GPT-6 cards document the schema on non-streaming calls only, so the door refuses a streamed schema for them with the typed error; the GPT-6.1 Sol card documents it on `ConverseStream` too, so GPT-6.1 Sol and the versions that follow it, such as `openai.gpt-6.2-sol`, stream it.
 - **Legacy (InvokeModel)**: Anthropic-compatible `output_config.format`, merged with reasoning `output_config.effort` when both are set.
 
 **Requirements and behavior**:
-- Every object node must set `additionalProperties: false` — Bedrock rejects a schema that omits it. The SDK enforces this locally with a typed `ErrStructuredOutputConfig` before the request is sent.
+- Every object node must set `additionalProperties: false`: the door refuses a schema that omits it with a typed `ErrStructuredOutputConfig` before the request is sent. AWS documents `additionalProperties` set to anything other than `false` as unsupported.
 - Only Anthropic models are supported on the legacy path; a non-Anthropic legacy model returns a typed unsupported-path error. Converse is not restricted to Claude — a model whose AWS model card lists Structured Outputs gets it; any other listed model returns the typed unsupported error, and an unlisted Claude, GPT, GLM, Kimi, MiniMax or Gemma version that only inherits the refusal is sent the schema with a `WarningInherit`.
 - Only the final normal turn (`end_turn`/`stop_sequence`) is validated; a `tool_use`/`max_tokens`/guardrail/filtered turn is not treated as final JSON.
 - The response `StopReason` is surfaced on `ContentChoice.StopReason` (Converse now transfers it from the response/`MessageStopEvent`).
 
 **Why these models?**
 
-Extended thinking/reasoning capabilities are model-specific features. OpenAI OSS, Moonshot and MiniMax models provide reasoning through the Converse API, while Anthropic models support both APIs.
+Extended thinking/reasoning capabilities are model-specific features. OpenAI GPT OSS models take a reasoning effort through the Converse API, while Anthropic models take thinking on both APIs.
 
 ### Message Structure with Reasoning
 
@@ -379,7 +373,7 @@ go test -v -run TestName
 
 **Test File**:
 
-1. **bedrockllm_test.go**: Integration tests (requires AWS credentials)
+1. **bedrockllm_test.go**: Integration tests (replay needs no credentials; recording needs AWS credentials)
    - Model output validation (Converse and Legacy API)
    - Streaming behavior (Converse and Legacy API)
    - Tool calling workflows (Converse and Legacy API, with streaming variants)
@@ -401,43 +395,18 @@ go test -v -run TestName
 - Integration tests record once, replay forever
 - Tool tests validate complex workflows
 
-### Testing Non-Deterministic Tool Calls
-
-**Challenge**: `map[string]any` serialization order is non-deterministic.
-
-```go
-// First run: {"a": 15, "b": 8}
-// Second run: {"b": 8, "a": 15}  // Different order!
-```
-
-**Solution**: Skip second request in replay mode (`isReplaying` check).
-
-```go
-if isReplaying {
-    return nil  // Don't send tool result
-}
-```
-
 ## Error Handling
 
 ### Error Mapping Strategy
 
 **Why custom mapping?**
 
-AWS errors are provider-specific strings. Need standardized codes for client logic.
-
-```go
-// errors.go
-bedrockErrorMappings = []errorMapping{
-    {patterns: []string{"throttlingexception"}, code: llms.ErrCodeRateLimit},
-    {patterns: []string{"accessdenied"}, code: llms.ErrCodeAuthentication},
-    // ...
-}
-```
+AWS errors are provider-specific strings. The door returns them as the AWS SDK does; `MapError` (`errors.go`) turns the common errors AWS documents into standardized codes for client logic, and returns an error that already carries an `llms` code, such as `ErrCodeTruncated`, unchanged.
 
 **Usage**:
 ```go
-if llmErr, ok := err.(*llms.Error); ok {
+var llmErr *llms.Error
+if errors.As(bedrock.MapError(err), &llmErr) {
     switch llmErr.Code {
     case llms.ErrCodeRateLimit:
         // Implement backoff
@@ -499,21 +468,8 @@ Tool arguments arrive in chunks:
 
 **Criteria**:
 1. Model must support Anthropic prompt caching (Claude 4.x and 5.x)
-2. Add pattern to `supportsCaching()` in `bedrockllm.go`:
-```go
-cachingPatterns := []string{
-    "claude-opus-4",
-    "claude-sonnet-4",
-    "claude-haiku-4",
-    "claude-opus-5",
-    "claude-sonnet-5",
-    "claude-haiku-5",
-    "claude-fable-5",
-    "claude-mythos-5",
-    "claude-new-5",  // Add new model pattern
-}
-```
-3. Ensure model supports minimum 1024 tokens threshold for cache activation
+2. Add its pattern to `cachingPatterns` in `supportsCaching()` (`bedrockllm.go`)
+3. Check the model's minimum prefix per cache checkpoint on its AWS model card (512, 1,024 or 4,096 tokens depending on the model)
 4. Add tests in `TestAmazonAutomaticCachingConverseAPI` and `TestAmazonAutomaticCachingLegacyAPI`
 
 ### Common Pitfalls
@@ -607,7 +563,7 @@ llms/bedrock/
 {
   "content": [
     {"text": "..."},
-    {"cachePoint": {"type": "default", "ttl": "fiveMinutes"}}
+    {"cachePoint": {"type": "default", "ttl": "5m"}}
   ]
 }
 ```
@@ -632,7 +588,7 @@ llms.MessageContent{
 // Output: Flat message array for provider API
 [
     Message{Type: "text", Content: "Describe"},
-    Message{Type: "image", Content: base64Data, MimeType: "image/jpeg"}
+    Message{Type: "image", Content: string(rawImageBytes), MimeType: "image/jpeg"}
 ]
 ```
 
@@ -646,7 +602,7 @@ llms.MessageContent{
 ### Enable HTTP Logging
 
 ```bash
-HTTPRR_DEBUG=true go test -v -run TestName
+HTTPRR_HTTPDEBUG=true go test -v -run TestName
 ```
 
 ### Check Cache Metrics
@@ -673,8 +629,8 @@ if len(arguments) == 0 {
 **"role not supported"**
 - Provider doesn't support message role (e.g., Function role)
 
-**"completed due to max_tokens"**
-- Increase MaxTokens in request
+**A `max_tokens` stop**
+- The response comes back truncated (`Truncated=true`), or as `ErrCodeTruncated` with `llms.WithFailOnTruncation()`
 
 **"cached HTTP response not found"**
 - httprr recording changed, re-record with `HTTPRR_RECORD=.`
@@ -683,18 +639,15 @@ if len(arguments) == 0 {
 
 ### Automatic Caching Impact
 
-**First request**: Cache creation overhead (~50ms)
-**Subsequent requests**: 90% token cost reduction, ~20% latency reduction
+**First request**: writes the cache; AWS can bill cache-write tokens above the standard input rate
+**Subsequent requests**: cached tokens are read at a lower rate
 
 **Best for**:
 - Long conversations (3+ turns)
-- Large system prompts (>1024 tokens)
+- Large system prompts (above the model's minimum checkpoint size)
 - Repeated context (tools, RAG documents)
 
 ### Streaming Latency
-
-**Time to first token**: 200-500ms (depending on model)
-**Chunk frequency**: Every 20-50ms
 
 **Use streaming when**:
 - User-facing chat interfaces
@@ -715,11 +668,7 @@ if len(arguments) == 0 {
    - 1h for long sessions
    - Why: Optimize cost vs cache hit rate
 
-3. **Parallel Tool Calls**
-   - Support multiple simultaneous tools
-   - Why: Some models return parallel tool calls
-
-4. **Structured Output for non-Anthropic legacy models**
+3. **Structured Output for non-Anthropic legacy models**
    - The legacy InvokeModel structured-output path is Anthropic-only; other
      providers currently return a typed unsupported-path error (use Converse)
    - Why: each legacy provider needs its own request shape
@@ -747,8 +696,7 @@ _(Schema-constrained structured output itself is already implemented — see the
 
 ## Supported Model Matrix
 
-Caching applies to Anthropic (Claude) models. See `models_list.go` for the exact
-model IDs.
+Automatic caching applies to Claude models. On Converse `WithCacheControl` sends a cache point for any model, and AWS lists explicit caching for Nova as well; on InvokeModel only the Claude body carries a cache point, and the system prompt goes uncached there. See `models_list.go` for the exact model IDs.
 
 | Provider | Tool Calling | Reasoning | Streaming | Multimodal | Caching | Structured Output |
 |----------|-------------|-----------|-----------|------------|---------|-------------------|
@@ -758,25 +706,23 @@ model IDs.
 | Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (not through `in.`) |
-| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Nova 2 Pro/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Llama 4 / 3.x | Limited | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | Manual (Converse) | ❌ |
+| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | Pro/Lite only | Manual (Converse) | ❌ |
+| Llama 4 / 3.x | Limited | ❌ | ✅ | Some (Llama 4) | ❌ | ❌ |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
 | DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | ❌ |
 | OpenAI GPT (OSS) | ✅ | ✅ | ✅ | ❌ | ❌ | Converse native* |
-| Qwen3 | Varies** | ❌ | ✅ | Some | ❌ | Converse native* |
-| Mistral | ✅*** | ❌ | ✅ | Some | ❌ | Converse native* |
+| Qwen3 | Varies** | Some (32B, Next 80B, 235B 2507; no config sent) | ✅ | Some | ❌ | Converse native* |
+| Mistral | ✅*** | Some (Magistral Small; no config sent) | ✅ | Some | ❌ | Converse native* |
 | Moonshot Kimi | ✅**** | ✅ | ✅ | Some | ❌ | Converse native* |
-| MiniMax M2/M2.1/M2.5 | ✅ | ✅ (always-on) | ✅ | ❌ | ❌ | Converse native* |
-| GLM-4.7/4.7-Flash/5 | ❌***** | ❌ | ✅ | ❌ | ❌ | Converse native* |
-| NVIDIA Nemotron 3 Super | ✅ | ❌****** | ✅ | ❌ | ❌ | Converse native* |
+| MiniMax M2/M2.1/M2.5 | ✅ | Not documented by AWS | ✅ | ❌ | ❌ | Converse native* |
+| GLM-4.7/4.7-Flash/5 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
+| NVIDIA Nemotron 3 Super | ✅ | Not documented by AWS***** | ✅ | ❌ | ❌ | Converse native* |
 
 *Converse native: structured output is passed via AWS `OutputConfig.TextFormat`; only for the models whose AWS model card lists Structured Outputs. The legacy InvokeModel structured-output path is implemented for Anthropic only.  
 **Qwen3: Most models support tools, except Qwen3-VL (unstable in streaming)  
-***Mistral: Large 3 and Large 2402 support tools, Magistral Small 2509 does not  
+***Mistral: Large 3 and Large 2402 support tools; tool calls through Converse on the bedrock-runtime endpoint failed in our tests for Magistral Small 2509, whose AWS card lists client-side tool calling on the bedrock-mantle endpoint  
 ****Moonshot: K2.5 supports tools, K2-Thinking is unstable in streaming  
-*****GLM models: Backend incompatibility with Converse API tool format (requires string instead of JSON)  
-******Nemotron 3 Super reasons on its own, but this door sends it no thinking instruction: it belongs to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on it is a no-op here.
+*****Nemotron 3 Super: this door sends it no thinking instruction: it belongs to no family that has one on Bedrock, so `ResolveMechanism` returns none and a reasoning request on it is a no-op here.
 
 See `models_list.go` for the complete model list and detailed capabilities.

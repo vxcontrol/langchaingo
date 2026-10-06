@@ -31,6 +31,8 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		}
 		if sent != nil && !thinkingSetsTheTemperature(sentThinking) {
 			reportTemperatureClamp(warn, model, *input.Temperature)
+			reportConverseRangeClamp(warn, "WithTemperature", model,
+				*input.Temperature, clampTemperature(model, *input.Temperature), *sent)
 		} else {
 			reportConverseFloat(warn, "WithTemperature", model, float32(*input.Temperature), sent)
 		}
@@ -40,7 +42,13 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 		if cfg != nil {
 			sent = cfg.TopP
 		}
-		reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
+		if sent != nil {
+			nova := reasoning.NovaClampTopP(model, *input.TopP)
+			reportNovaClamp(warn, "WithTopP", "topP", model, *input.TopP, nova)
+			reportConverseRangeClamp(warn, "WithTopP", model, *input.TopP, nova, *sent)
+		} else {
+			reportConverseFloat(warn, "WithTopP", model, float32(*input.TopP), sent)
+		}
 	}
 	if input.MaxTokens != nil && *input.MaxTokens > 0 {
 		var sent *int32
@@ -61,11 +69,24 @@ func reportConverseInput(warn *llms.Warnings, input *ConverseInput, built *bedro
 			})
 		}
 	}
-	if len(input.StopSequences) > 0 && (cfg == nil || len(cfg.StopSequences) == 0) {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithStopWords", Model: model,
-			Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
-		})
+	if asked := len(nonEmptyStops(input.StopSequences)); asked > 0 {
+		sent := 0
+		if cfg != nil {
+			sent = len(cfg.StopSequences)
+		}
+		switch {
+		case sent == 0:
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithStopWords", Model: model,
+				Asked: strconv.Itoa(len(input.StopSequences)) + " words", Reason: omitted,
+			})
+		case sent < asked:
+			warn.Add(llms.Warning{
+				Kind: llms.WarningClamp, Option: "WithStopWords", Model: model,
+				Asked: strconv.Itoa(len(input.StopSequences)) + " words", Sent: strconv.Itoa(sent) + " words",
+				Reason: "the Converse API takes at most " + strconv.Itoa(converseMaxStopSequences) + " stop sequences",
+			})
+		}
 	}
 	if input.TopK != nil && *input.TopK != 0 {
 		if sent, carried := converseTopKOnTheWire(built); carried {
@@ -216,6 +237,18 @@ func converseThinkingBudget(built *bedrockruntime.ConverseInput) int {
 		return 0
 	}
 	return int(budget)
+}
+
+func reportConverseRangeClamp(warn *llms.Warnings, option, model string, asked, family float64, sent float32) {
+	if float32(family) == sent {
+		return
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningClamp, Option: option, Model: model,
+		Asked:  strconv.FormatFloat(asked, 'g', -1, 64),
+		Sent:   strconv.FormatFloat(float64(sent), 'g', -1, 32),
+		Reason: "the Converse API takes a value from 0 to 1",
+	})
 }
 
 func reportConverseFloat(warn *llms.Warnings, option, model string, asked float32, sent *float32) {
