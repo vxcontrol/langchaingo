@@ -52,7 +52,7 @@ func (c *ConverseClient) CreateCompletionConverse(ctx context.Context, input *Co
 
 	var resp *llms.ContentResponse
 	if input.StreamingFunc != nil {
-		resp, err = c.handleStreamingResponse(ctx, converseInput, input.StreamingFunc)
+		resp, err = c.handleStreamingResponse(ctx, converseInput, input.StreamingFunc, warn)
 	} else {
 		resp, err = c.handleNonStreamingResponse(ctx, converseInput)
 	}
@@ -856,7 +856,9 @@ func (c *ConverseClient) handleNonStreamingResponse(ctx context.Context, input *
 }
 
 // handleStreamingResponse handles streaming responses
-func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bedrockruntime.ConverseInput, callback streaming.Callback) (*llms.ContentResponse, error) {
+func (c *ConverseClient) handleStreamingResponse(
+	ctx context.Context, input *bedrockruntime.ConverseInput, callback streaming.Callback, warn *llms.Warnings,
+) (*llms.ContentResponse, error) {
 	streamInput := &bedrockruntime.ConverseStreamInput{
 		ModelId:                      input.ModelId,
 		Messages:                     input.Messages,
@@ -874,7 +876,7 @@ func (c *ConverseClient) handleStreamingResponse(ctx context.Context, input *bed
 		return nil, fmt.Errorf("converse stream API call failed: %w", err)
 	}
 
-	return c.processStreamingResponse(ctx, response, callback)
+	return c.processStreamingResponse(ctx, response, callback, aws.ToString(input.ModelId), warn)
 }
 
 func deliverToolCall(
@@ -905,7 +907,10 @@ func salvageToolCalls(
 	return calls, nil
 }
 
-func (c *ConverseClient) processStreamingResponse(ctx context.Context, response *bedrockruntime.ConverseStreamOutput, callback streaming.Callback) (*llms.ContentResponse, error) {
+func (c *ConverseClient) processStreamingResponse(
+	ctx context.Context, response *bedrockruntime.ConverseStreamOutput, callback streaming.Callback,
+	modelID string, warn *llms.Warnings,
+) (*llms.ContentResponse, error) {
 	var fullContent strings.Builder
 	var reasoningDeltas converseReasoningStream
 	var toolCalls []llms.ToolCall
@@ -999,6 +1004,12 @@ DoStream:
 
 	if streamErr == nil {
 		streamErr = streamEndError(ctx, stopped, stream.Err())
+	}
+	if streamErr == nil && usage == nil {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "usage", Model: modelID, Asked: "token counts",
+			Reason: "the stream ended after messageStop and before its metadata event",
+		})
 	}
 
 	choice := &llms.ContentChoice{
