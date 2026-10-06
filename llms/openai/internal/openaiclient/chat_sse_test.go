@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -572,4 +573,18 @@ func TestStreamedDelta_UnmarshalsRefusal(t *testing.T) {
 	if delta.Refusal != "I cannot help with that" {
 		t.Errorf("streaming delta must carry refusal, got %q", delta.Refusal)
 	}
+}
+
+func TestAStreamThatNumbersItsToolCallsFromOneGivesNoEmptyCall(t *testing.T) {
+	t.Parallel()
+
+	resp, err := parseStream(t.Context(), t, strings.NewReader(
+		`data: {"choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":1,"id":"call_1",`+
+			`"type":"function","function":{"name":"weather","arguments":"{\"city\":\"Paris\"}"}}]}}]}`+"\n\n"+
+			`data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`+"\n\n"+
+			"data: [DONE]\n\n"))
+
+	require.NoError(t, err)
+	require.Len(t, resp.Choices[0].Message.ToolCalls, 1)
+	assert.Equal(t, "call_1", resp.Choices[0].Message.ToolCalls[0].ID)
 }

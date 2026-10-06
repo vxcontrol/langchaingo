@@ -23,7 +23,8 @@ const (
 	WarningInherit WarningKind = "inherit"
 )
 
-// Warning reports one caller option that did not reach the vendor as asked.
+// Warning reports one caller option that did not reach the vendor as asked, or
+// the token usage a cut stream did not deliver to the caller.
 // Asked and Sent are rendered values; an empty Sent means nothing reached the wire.
 type Warning struct {
 	Kind   WarningKind

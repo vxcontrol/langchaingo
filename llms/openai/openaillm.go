@@ -144,7 +144,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		unwrapEmulatedAnswers(result)
 	}
 
-	response := o.processResponse(result, warn)
+	response := o.processResponse(result, warn, o.effectiveModel(opts))
 
 	if refusal, choice := refusalFrom(result); refusal != nil {
 		if opts.StructuredOutput != nil {
@@ -991,7 +991,7 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 func (o *LLM) partialWithTruncation(
 	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings, opts llms.CallOptions, cause error,
 ) (*llms.ContentResponse, error) {
-	partial := o.processResponse(result, warn)
+	partial := o.processResponse(result, warn, o.effectiveModel(opts))
 	if truncated := llms.CheckTruncation(partial, opts); truncated != nil {
 		return partial, errors.Join(cause, truncated)
 	}
@@ -1000,8 +1000,14 @@ func (o *LLM) partialWithTruncation(
 }
 
 func (o *LLM) processResponse(
-	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings,
+	result *openaiclient.ChatCompletionResponse, warn *llms.Warnings, model string,
 ) *llms.ContentResponse {
+	if result.UsageLost {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "usage", Model: model, Asked: "token counts",
+			Reason: "the stream ended after every choice finished and before its usage chunk",
+		})
+	}
 	choices := make([]*llms.ContentChoice, len(result.Choices))
 
 	for i, c := range result.Choices {

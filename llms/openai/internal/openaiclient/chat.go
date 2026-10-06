@@ -615,6 +615,7 @@ type ChatCompletionResponse struct {
 	Usage             ChatUsage               `json:"usage,omitempty"`
 	SystemFingerprint string                  `json:"system_fingerprint"`
 	Error             *providerError          `json:"error,omitempty"`
+	UsageLost         bool                    `json:"-"`
 }
 
 func (r *ChatCompletionResponse) providerError() error {
@@ -1027,6 +1028,7 @@ func combineStreamingChatResponse(
 		streamErr error
 		readErr   error
 		completed bool
+		usageSeen bool
 	)
 
 DoStream:
@@ -1045,6 +1047,7 @@ DoStream:
 		}
 
 		updateChatUsage(&response.Usage, streamResponse.Usage)
+		usageSeen = usageSeen || streamResponse.Usage != nil
 
 		if len(streamResponse.Choices) == 0 {
 			continue
@@ -1117,6 +1120,7 @@ DoStream:
 
 	if streamErr == nil {
 		streamErr = streamEndError(ctx, completed, readErr, &response)
+		response.UsageLost = streamErr == nil && !completed && !usageSeen
 	}
 
 	return &response, streamErr
@@ -1259,7 +1263,6 @@ func updateToolCall(message *ChatMessage, delta *StreamedToolCall, nameCache map
 	}
 }
 
-// some providers starts streaming tool calls since the first index number istead of zero
 func dropUnfinishedToolCalls(response *ChatCompletionResponse) {
 	for _, choice := range response.Choices {
 		choice.Message.ToolCalls = slices.DeleteFunc(choice.Message.ToolCalls, func(toolCall ToolCall) bool {
