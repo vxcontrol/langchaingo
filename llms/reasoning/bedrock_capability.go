@@ -95,6 +95,11 @@ func BedrockStructuredOutputNeedsStrict(model string) bool {
 	return strings.HasPrefix(m, "openai.gpt-5.6-") || strings.HasPrefix(m, "openai.gpt-6")
 }
 
+func BedrockSchemaOnNonStreamingOnly(model string) bool {
+	return BedrockStructuredOutputNeedsStrict(model) &&
+		!strings.HasPrefix(bedrockModelWithoutRegion(model), "openai.gpt-6.1-sol")
+}
+
 var bedrockRegionPrefixes = []string{"us-gov.", "apac.", "global.", "us.", "eu.", "au.", "jp.", "in.", "ca."}
 
 func bedrockModelWithoutRegion(model string) string {
