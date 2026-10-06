@@ -32,10 +32,6 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	require.Len(t, body["tools"], 1)
 	inherited(warnings, "WithTools")
 
-	body, warnings = hostCall(t, "https://api.x.ai/v1", "grok-4.8", llms.WithStopWords([]string{"END"}))
-	require.Equal(t, []any{"END"}, body["stop"])
-	inherited(warnings, "WithStopWords")
-
 	body, warnings = hostCall(t, "https://api.x.ai/v1", "grok-4.8", llms.WithReasoningDisabled())
 	require.Equal(t, "none", body["reasoning_effort"], "grok-4.3 is the newest grok that documents none")
 	inherited(warnings, "WithReasoningDisabled")
@@ -114,6 +110,21 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	require.ErrorAs(t, call("https://api.minimax.io/v1", "MiniMax-M2.7", llms.WithReasoningDisabled()), &off)
 	var cyber *reasoning.ErrChatCompletionsUnsupported
 	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-5.6-cyber"), &cyber)
+}
+
+func TestXAIRefusesStopForEveryVersionOfAReasoningGrok(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"grok-4.7", "grok-4.8", "grok-5"} {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL("https://api.x.ai/v1"), WithModel(model), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(),
+			[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithStopWords([]string{"END"}))
+
+		var stop *reasoning.ErrStopWordsUnsupported
+		require.ErrorAs(t, err, &stop, model)
+		require.Nil(t, doer.body, "%s: the refusal comes before the request", model)
+	}
 }
 
 func TestAHostThatRejectsAForcedToolWhileThinkingRefusesItForEveryVersion(t *testing.T) {

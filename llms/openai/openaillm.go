@@ -681,7 +681,7 @@ func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
 		stop := strings.Join(opts.StopWords, ", ")
-		if warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
+		if reasoning.GrokFamily(model) || warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
 			return refusal
 		}
 	}
