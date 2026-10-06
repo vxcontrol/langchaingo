@@ -294,7 +294,7 @@ func createNovaCompletion(ctx context.Context,
 		stopReason != NovaCompletionReasonStopSequence &&
 		stopReason != NovaCompletionReasonMaxTokens &&
 		stopReason != NovaCompletionReasonContentFiltered {
-		return nil, errors.New("completed due to " + stopReason + ". Maybe try increasing max tokens")
+		return nil, fmt.Errorf("nova returned stop reason %q, which this door does not handle", stopReason)
 	}
 	if len(content) == 0 {
 		content = []novaOutputContent{{}}

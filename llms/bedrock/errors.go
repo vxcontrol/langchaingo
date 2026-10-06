@@ -16,7 +16,12 @@ type errorMapping struct {
 // bedrockErrorMappings defines the error mappings for AWS Bedrock.
 var bedrockErrorMappings = []errorMapping{
 	{
-		patterns: []string{"accessdeniedexception", "unauthorized", "invalid security token"},
+		patterns: []string{"accessdeniedexception"},
+		code:     llms.ErrCodeAuthentication,
+		message:  "Access denied: the identity lacks the IAM permission or the model access",
+	},
+	{
+		patterns: []string{"unrecognizedclientexception", "unauthorized", "invalid security token"},
 		code:     llms.ErrCodeAuthentication,
 		message:  "Invalid or missing AWS credentials",
 	},

@@ -39,4 +39,4 @@ func unreadBedrockOptions(model string, converse bool, opts llms.CallOptions) []
 	return warn.List()
 }
 
-const extraBodyUnread = "the door builds its request through a vendor SDK and has nowhere to merge them"
+const extraBodyUnread = "this door does not merge WithExtraBody into the request"
