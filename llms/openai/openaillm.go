@@ -330,17 +330,16 @@ func (o *LLM) createChatRequest(
 	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
-	if model := o.effectiveModel(opts); reasoning.QwenThinkingRequiresStream(model) {
-		if opts.StreamingFunc == nil {
-			if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
-				return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
-			}
-			thinkingOff := false
-			req.EnableThinking = &thinkingOff
+	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
+	if dashScope && reasoning.QwenThinkingRequiresStream(model) && opts.StreamingFunc == nil {
+		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
+		thinkingOff := false
+		req.EnableThinking = &thinkingOff
 	}
 
-	if model := o.effectiveModel(opts); (reasoning.QwenThinkingEnabledByFlag(model) ||
+	if (dashScope && reasoning.QwenThinkingEnabledByFlag(model) ||
 		reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host))) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
