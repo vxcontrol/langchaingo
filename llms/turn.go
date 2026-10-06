@@ -84,19 +84,28 @@ func ClassifyToolChoice(choice any) (ToolChoiceKind, string) {
 }
 
 func classifyAsJSON(choice any) (ToolChoiceKind, string) {
-	raw, err := json.Marshal(choice)
-	if err != nil {
-		return ToolChoiceUnset, ""
-	}
-	var value any
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return ToolChoiceUnset, ""
-	}
-	switch value.(type) {
+	switch value := jsonValue(choice).(type) {
 	case string, map[string]any:
 		return ClassifyToolChoice(value)
 	}
 	return ToolChoiceUnset, ""
+}
+
+func asJSONObject(choice any) (map[string]any, bool) {
+	object, ok := jsonValue(choice).(map[string]any)
+	return object, ok
+}
+
+func jsonValue(choice any) any {
+	raw, err := json.Marshal(choice)
+	if err != nil {
+		return nil
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil
+	}
+	return value
 }
 
 // DisablesParallelToolUse reports whether a raw map choice asks for at most one
@@ -104,10 +113,10 @@ func classifyAsJSON(choice any) (ToolChoiceKind, string) {
 func DisablesParallelToolUse(choice any) bool {
 	c, ok := choice.(map[string]any)
 	if !ok {
-		return false
+		c, ok = asJSONObject(choice)
 	}
 	disabled, _ := c["disable_parallel_tool_use"].(bool)
-	return disabled
+	return ok && disabled
 }
 
 // ForcesToolUse reports whether a tool choice demands a tool call rather than

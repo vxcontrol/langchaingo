@@ -69,6 +69,16 @@ func TestToolChoiceReachesTheWireInTheMessagesSpelling(t *testing.T) {
 			map[string]any{"type": "any", "disable_parallel_tool_use": true},
 			map[string]any{"type": "any", "disable_parallel_tool_use": true},
 		},
+		{
+			"any tool, one call per turn, as raw JSON",
+			json.RawMessage(`{"type":"any","disable_parallel_tool_use":true}`),
+			map[string]any{"type": "any", "disable_parallel_tool_use": true},
+		},
+		{
+			"named, one call per turn, as raw JSON",
+			json.RawMessage(`{"type":"tool","name":"get_weather","disable_parallel_tool_use":true}`),
+			map[string]any{"type": "tool", "name": "get_weather", "disable_parallel_tool_use": true},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
