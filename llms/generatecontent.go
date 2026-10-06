@@ -151,7 +151,8 @@ func (ToolCallResponse) isPart() {}
 type ContentResponse struct {
 	Choices []*ContentChoice
 
-	// Warnings lists the caller options this request lost, clamped or replaced.
+	// Warnings lists the caller options this request lost, clamped or replaced,
+	// and the token usage a cut stream did not deliver (Option "usage").
 	// An empty list is not a promise that every option reached the vendor.
 	Warnings []Warning
 }
