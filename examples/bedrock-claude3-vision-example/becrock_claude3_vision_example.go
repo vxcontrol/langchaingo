@@ -14,7 +14,7 @@ import (
 var image []byte
 
 func main() {
-	// As a prerequisite, Anthropic models on Bedrock need the one-time use-case form; other model access is on by default with AWS Marketplace permissions.
+	// As a prerequisite, the identity needs the AWS Marketplace permissions that enable model access, and Anthropic models on Bedrock need the one-time use-case form.
 	// For more information, see https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html.
 	// Specify the AWS Region and Credentials in the standard AWS SDK way.
 	llm, err := bedrock.New(

@@ -38,37 +38,18 @@
 //	    llms.WithMaxTokens(1024),
 //	)
 //
-// # Automatic Prompt Caching
+// # Prompt Caching
 //
-// For Claude models whose IDs contain claude-opus-4, claude-sonnet-4,
-// claude-haiku-4 or a 5.x Opus, Sonnet, Haiku, Fable or Mythos name, automatic
-// caching is available:
+// WithAutomaticCaching places cache points for the Claude models it names, and
+// WithCacheControl marks a single part:
 //
 //	llm, err := bedrock.New(
 //	    bedrock.WithModel(bedrock.ModelAnthropicClaudeSonnet45),
 //	    bedrock.WithConverseAPI(),
-//	    bedrock.WithAutomaticCaching(),  // Enable automatic caching
+//	    bedrock.WithAutomaticCaching(),
 //	)
 //
-// When enabled, the client marks the last assistant or tool-result message
-// before the new user turn with a 5-minute cache point. Converse carries that
-// mark on an assistant message only and adds cache points after the system
-// prompt and at the end of the final message; the InvokeModel path sends the
-// system prompt uncached.
-//
-// Manual caching (for fine-grained control):
-//
-//	messages := []llms.MessageContent{
-//	    {
-//	        Role: llms.ChatMessageTypeAI,
-//	        Parts: []llms.ContentPart{
-//	            bedrock.WithCacheControl(
-//	                llms.TextPart("long context..."),
-//	                bedrock.EphemeralCache(),
-//	            ),
-//	        },
-//	    },
-//	}
+//	part := bedrock.WithCacheControl(llms.TextPart("long context..."), bedrock.EphemeralCache())
 //
 // # Tool Calling
 //
@@ -91,7 +72,8 @@
 //
 // # Reasoning Support
 //
-// Claude models with thinking, Nova 2 Lite and GPT OSS take reasoning settings:
+// A model family that takes a reasoning configuration on Bedrock gets one from
+// llms.WithReasoning; README.md lists the families for each API:
 //
 //	resp, err := llm.GenerateContent(ctx, messages,
 //	    llms.WithReasoning(llms.ReasoningMedium, 2048),

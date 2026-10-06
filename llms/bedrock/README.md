@@ -100,9 +100,7 @@ sequenceDiagram
 ```
 
 **Implementation**:
-- `supportsCaching()`: Pattern matching on model ID (`claude-opus-4`, `claude-sonnet-4`,
-  `claude-haiku-4`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-5`, `claude-fable-5`,
-  `claude-mythos-5`)
+- `supportsCaching()`: pattern matching on the model ID (`cachingPatterns` in `bedrockllm.go`)
 - `applyAutomaticCaching()`: Adds `CacheControl{Type: "ephemeral", TTL: "5m"}` to last cacheable message (assistant or tool response)
 - **Why last message?** Caches conversation history before new user input
 - **TTL Options**: 5 minutes (default) or 1 hour through `EphemeralCacheOneHour()` where the model takes it; AWS gives Claude Sonnet 4 and Opus 4.1 the 5-minute TTL only
@@ -178,10 +176,7 @@ configuration on this platform. The rest carry nothing.
   Anthropic body
 - Amazon Nova 2 Lite — `reasoningConfig` inside `inferenceConfig`
 
-**Models that take no reasoning configuration here**: Moonshot Kimi K2-Thinking,
-MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral
-Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them
-changes nothing on the wire.
+**Models that take no reasoning configuration here**: Moonshot Kimi K2-Thinking, MiniMax M2/M2.1/M2.5, DeepSeek R1, NVIDIA Nemotron 3 Super, Qwen3 32B, Magistral Small. AWS documents no reasoning field for them, so a `WithReasoning` call on them changes nothing on the wire.
 
 **Z-AI GLM 4.7/4.7 Flash/5** are not reasoning models here: their AWS model cards
 document neither reasoning nor a field that controls it, `ReasoningSupportFor`
@@ -198,7 +193,7 @@ source of truth used by the first-party Anthropic provider):
 - **Adaptive + budget** (Opus 4.6, Sonnet 4.6): either mechanism; caller preference honored.
 - **Budget-only** (Opus 4.5, Sonnet 4.5, Haiku 4.5): `thinking.type=enabled` + `budget_tokens`. Opus 4.6 and Sonnet 4.6 also carry `output_config.effort` on this path; on Bedrock, effort on Opus 4.5 is a beta behind the `effort-2025-11-24` beta header, which this door does not send, so it leaves the effort off.
 
-Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a listed model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1. A version the tables do not list that only inherits that refusal goes out instead, with the disable of the newest release of its line that documents one (`thinking.type=disabled` for `anthropic.claude-opus-6-v1:0`) or with no disable when none does (an unlisted Fable or Mythos such as `anthropic.claude-fable-6-v1:0`, or `xai.grok-4.8` on Converse), and `Warnings` carries a `WarningInherit` naming what was sent.
+Nova 2 carries `type` plus `maxReasoningEffort` (low/medium/high) on both paths, and its top effort clears `maxTokens`, `temperature`, `topP` and `topK`, which Nova refuses beside it. Nova refuses `type` without an effort, so `WithAdaptiveReasoning` with no effort goes out as `medium` and is reported in `Warnings`. On every Nova model both paths keep `temperature` and `topP` within 0.00001–1, `topK` within 0–128 and the answer limit within the documented maximum, and report a clamped value in `Warnings`. Grok carries an effort and nothing else. GPT OSS carries only `reasoning_effort`: `low`, `medium` or `high`; `minimal` rises to `low`, `xhigh` and `max` fall to `high`. `WithReasoningDisabled()` returns a typed `ErrReasoningOffUnsupported` for a listed model whose thinking can be neither turned off nor lowered, such as Fable, Mythos, GPT OSS or DeepSeek R1. A version the tables do not list that only inherits that refusal goes out instead, with the disable of the newest release of its line that documents one (`thinking.type=disabled` for `anthropic.claude-opus-6-v1:0`) or with no disable when none does (an unlisted Fable or Mythos such as `anthropic.claude-fable-6-v1:0`, or `xai.grok-4.8` on Converse), and `Warnings` carries a `WarningInherit` naming what was sent.
 
 ## Structured Output
 
@@ -406,16 +401,7 @@ go test -v -run TestName
 
 **Why custom mapping?**
 
-AWS errors are provider-specific strings. The door returns them as the AWS SDK does; `MapError` turns them into standardized codes for client logic.
-
-```go
-// errors.go
-bedrockErrorMappings = []errorMapping{
-    {patterns: []string{"accessdeniedexception"}, code: llms.ErrCodeAuthentication},
-    {patterns: []string{"throttlingexception", "toomanyrequestsexception"}, code: llms.ErrCodeRateLimit},
-    // ...
-}
-```
+AWS errors are provider-specific strings. The door returns them as the AWS SDK does; `MapError` (`errors.go`) turns the common errors AWS documents into standardized codes for client logic, and returns an error that already carries an `llms` code, such as `ErrCodeTruncated`, unchanged.
 
 **Usage**:
 ```go
@@ -482,20 +468,7 @@ Tool arguments arrive in chunks:
 
 **Criteria**:
 1. Model must support Anthropic prompt caching (Claude 4.x and 5.x)
-2. Add pattern to `supportsCaching()` in `bedrockllm.go`:
-```go
-cachingPatterns := []string{
-    "claude-opus-4",
-    "claude-sonnet-4",
-    "claude-haiku-4",
-    "claude-opus-5",
-    "claude-sonnet-5",
-    "claude-haiku-5",
-    "claude-fable-5",
-    "claude-mythos-5",
-    "claude-new-5",  // Add new model pattern
-}
-```
+2. Add its pattern to `cachingPatterns` in `supportsCaching()` (`bedrockllm.go`)
 3. Check the model's minimum prefix per cache checkpoint on its AWS model card (512, 1,024 or 4,096 tokens depending on the model)
 4. Add tests in `TestAmazonAutomaticCachingConverseAPI` and `TestAmazonAutomaticCachingLegacyAPI`
 
@@ -723,9 +696,7 @@ _(Schema-constrained structured output itself is already implemented — see the
 
 ## Supported Model Matrix
 
-Automatic caching applies to Claude models; `WithCacheControl` sends a cache point
-for any model, and AWS lists explicit caching for Nova as well. See `models_list.go`
-for the exact model IDs.
+Automatic caching applies to Claude models. On Converse `WithCacheControl` sends a cache point for any model, and AWS lists explicit caching for Nova as well; on InvokeModel only the Claude body carries a cache point, and the system prompt goes uncached there. See `models_list.go` for the exact model IDs.
 
 | Provider | Tool Calling | Reasoning | Streaming | Multimodal | Caching | Structured Output |
 |----------|-------------|-----------|-----------|------------|---------|-------------------|
@@ -735,8 +706,8 @@ for the exact model IDs.
 | Claude Sonnet 5 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Claude Sonnet 4.6/4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Claude Haiku 4.5 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (not through `in.`) |
-| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | Manual | ❌ |
-| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | Pro/Lite only | Manual | ❌ |
+| Nova 2 Lite | ✅ | ✅ | ✅ | ✅ | Manual (Converse) | ❌ |
+| Nova Pro/Lite/Micro | ✅ | ❌ | ✅ | Pro/Lite only | Manual (Converse) | ❌ |
 | Llama 4 / 3.x | Limited | ❌ | ✅ | Some (Llama 4) | ❌ | ❌ |
 | DeepSeek V3.2 | ✅ | ❌ | ✅ | ❌ | ❌ | Converse native* |
 | DeepSeek R1 | ❌ | ✅ (always-on) | ✅ | ❌ | ❌ | ❌ |

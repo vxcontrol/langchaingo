@@ -13,7 +13,6 @@ import (
 type Option func(*options)
 
 type options struct {
-	modelProvider     string
 	modelID           string
 	client            *bedrockruntime.Client
 	callbackHandler   callbacks.Handler
@@ -34,10 +33,8 @@ func WithModel(modelID string) Option {
 //
 // Deprecated: the door detects the provider from the model ID, so this option
 // has no effect. For an ID the InvokeModel path cannot place, use WithConverseAPI.
-func WithModelProvider(modelProvider string) Option {
-	return func(o *options) {
-		o.modelProvider = modelProvider
-	}
+func WithModelProvider(string) Option {
+	return func(*options) {}
 }
 
 // WithClient allows setting a custom bedrockruntime.Client.
@@ -64,9 +61,9 @@ func WithCallback(callbackHandler callbacks.Handler) Option {
 // instead of the model-specific legacy implementations.
 //
 // Through Converse the door sends tool calls, streams with ConverseStream,
-// sends reasoning settings to the Claude, Nova 2 Lite and GPT OSS models it
-// knows, takes text and image input, and places cache points. It serves every
-// model in models_list.go. Cache token counts arrive in each choice's
+// sends reasoning settings to every model family that takes them on Bedrock,
+// takes text and image input, and places cache points. It serves every model in
+// models_list.go. Cache token counts arrive in each choice's
 // GenerationInfo as CacheReadInputTokens and CacheCreationInputTokens.
 //
 // Note: This is the recommended approach for new applications.
@@ -99,6 +96,8 @@ func EphemeralCache() *llms.CacheControl {
 }
 
 // EphemeralCacheOneHour creates a 1-hour ephemeral cache control for Bedrock.
+// The door sends the 1-hour TTL for any model; the model card says whether the
+// model takes it.
 func EphemeralCacheOneHour() *llms.CacheControl {
 	return &llms.CacheControl{
 		Type:     "ephemeral",
@@ -128,8 +127,9 @@ type CachedContent struct {
 //	    bedrock.EphemeralCache(),
 //	)
 //
-// The door sends the cache point for any model; the model card says whether
-// the model caches.
+// On Converse the door sends the cache point for any model, and the model card
+// says whether the model caches. On InvokeModel only the Claude body carries a
+// cache point, and the system prompt goes uncached there.
 func WithCacheControl(content llms.ContentPart, control *llms.CacheControl) CachedContent {
 	return CachedContent{
 		ContentPart:  content,
