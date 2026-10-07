@@ -17,9 +17,8 @@ const (
 	// release it follows. It is handled as literal pass-through (the caller's
 	// requested mechanism is sent unchanged).
 	ClaudeReasoningUnknown ClaudeReasoningKind = iota
-	// ClaudeReasoningAdaptiveOnly is the newest generation (Opus 4.7/4.8/5,
-	// Sonnet 5, Haiku 5.5, Fable 5, Mythos 5): it is sent thinking.type=adaptive
-	// and never budget_tokens.
+	// ClaudeReasoningAdaptiveOnly is sent thinking.type=adaptive and never
+	// budget_tokens.
 	ClaudeReasoningAdaptiveOnly
 	// ClaudeReasoningAdaptiveAndBudget accepts both adaptive and budget thinking
 	// (Opus 4.6, Sonnet 4.6, Mythos Preview).
@@ -148,18 +147,12 @@ func claudeEffortsOn(model string, p Provider) []string {
 }
 
 func claudeReleaseIn(model string, releases []string) bool {
-	for _, form := range modelSpellings(model) {
-		tier, major, minor, ok := claudeVersion(canonicalClaude(form))
-		if !ok {
-			continue
-		}
-		for _, release := range releases {
-			if t, ma, mi, ok := claudeVersion(release); ok && t == tier && ma == major && mi == minor {
-				return true
-			}
-		}
+	_, id, ok := claudeID(claudeName(model))
+	if !ok {
+		return false
 	}
-	return false
+	release, ok := documentedClaude(id)
+	return ok && slices.Contains(releases, release)
 }
 
 func claudeNamedIn(model string, families []string) bool {

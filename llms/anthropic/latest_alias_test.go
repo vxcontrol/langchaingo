@@ -41,13 +41,9 @@ func TestTheHaikuLatestAliasIsSentNoSampling(t *testing.T) {
 	require.NoError(t, err)
 	require.NotContains(t, body, "temperature")
 	require.NotContains(t, body, "top_p")
-	dropped := map[string]bool{}
-	for _, w := range resp.Warnings {
-		if w.Kind == llms.WarningDrop {
-			dropped[w.Option] = true
-		}
-	}
-	require.True(t, dropped["WithTemperature"] && dropped["WithTopP"], "%v", resp.Warnings)
+	got := warningsByOption(resp.Warnings)
+	require.Equal(t, llms.WarningDrop, got["WithTemperature"].Kind, "%v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, got["WithTopP"].Kind, "%v", resp.Warnings)
 }
 
 func TestTurningThinkingOffOnTheSonnetLatestAliasSendsItsLowestSetting(t *testing.T) {

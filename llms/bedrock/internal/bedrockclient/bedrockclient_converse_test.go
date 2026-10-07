@@ -531,7 +531,7 @@ func TestConverseClient_AdaptiveReasoningNewModelFamily(t *testing.T) {
 	thinking, _ := fields["thinking"].(map[string]any)
 	assert.Equal(t, "adaptive", thinking["type"])
 	outputConfig, _ := fields["output_config"].(map[string]any)
-	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 only")
+	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 and Haiku 5.5 only")
 
 	mockClient.AssertExpectations(t)
 }

@@ -199,23 +199,37 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 		sentAdditionalFields(t, sent)["thinking"], "the warning reports the budget the request carries")
 }
 
-func TestConverseReportsAnEffortItLowered(t *testing.T) {
+func TestConverseSendsTheTopEffortsBedrockServesAndReportsTheOnesItLowers(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"anthropic.claude-opus-4-6-v1:0", "us.anthropic.claude-opus-5-5"} {
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		sent   string
+	}{
+		{"anthropic.claude-opus-4-6-v1:0", llms.ReasoningXHigh, "high"},
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningXHigh, "high"},
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningMax, "high"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningXHigh, "xhigh"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningMax, "max"},
+	} {
 		maxTokens := 8000
-		resp := converseCall(t, &ConverseInput{
+		resp, sent := converseCallSending(t, &ConverseInput{
 			Messages:        humanTurn(),
-			ModelID:         model,
+			ModelID:         tc.model,
 			MaxTokens:       &maxTokens,
-			ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
+			ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: tc.effort},
 		})
 
-		w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
-		require.True(t, ok, "%s: no reasoning warning in %v", model, resp.Warnings)
-		require.Equal(t, llms.WarningClamp, w.Kind, model)
-		require.Equal(t, "xhigh", w.Asked, model)
-		require.Equal(t, "high", w.Sent, model)
+		outputConfig, _ := sentAdditionalFields(t, sent)["output_config"].(map[string]any)
+		require.Equal(t, tc.sent, outputConfig["effort"], "%s at %s", tc.model, tc.effort)
+		w, lowered := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.Equal(t, tc.sent != string(tc.effort), lowered, "%s at %s: %v", tc.model, tc.effort, resp.Warnings)
+		if lowered {
+			require.Equal(t, llms.WarningClamp, w.Kind, tc.model)
+			require.Equal(t, string(tc.effort), w.Asked, tc.model)
+			require.Equal(t, tc.sent, w.Sent, tc.model)
+		}
 	}
 }
 
