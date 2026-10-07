@@ -235,7 +235,9 @@ func TestAListedReleaseOnBedrockKeepsItsSchemaRefusal(t *testing.T) {
 		{legacySchemaAnswer, nil},
 		{converseSchemaAnswer, []bedrock.Option{bedrock.WithConverseAPI()}},
 	} {
-		for _, model := range []string{"anthropic.claude-opus-5-5-v1:0", "us.anthropic.claude-opus-4-7-v1:0"} {
+		for _, model := range []string{
+			"anthropic.claude-opus-5-5-v1:0", "us.anthropic.claude-opus-4-7-v1:0", "us.anthropic.claude-haiku-5-5",
+		} {
 			llm, sent := legacyLLMCapturing(t, door.answer, append([]bedrock.Option{bedrock.WithModel(model)}, door.opts...)...)
 			_, err := llm.GenerateContent(t.Context(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, schema)

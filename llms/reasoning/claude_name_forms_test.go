@@ -282,6 +282,7 @@ func TestBedrockServesTheTopEffortsOnlyWhereItsGuideSays(t *testing.T) {
 		{"us.anthropic.claude-opus-4-8", []string{"low", "medium", "high"}},
 		{"us.anthropic.claude-fable-5", []string{"low", "medium", "high"}},
 		{"us.anthropic.claude-fable-5-1", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-haiku-5-5", []string{"low", "medium", "high", "xhigh", "max"}},
 	} {
 		if got := ClaudeEffortsFor(tc.model, ProviderBedrock); !slices.Equal(got, tc.want) {
 			t.Errorf("ClaudeEffortsFor(%q, Bedrock) = %v, want %v", tc.model, got, tc.want)

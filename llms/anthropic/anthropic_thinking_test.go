@@ -727,6 +727,44 @@ func TestAnthropic_Opus5AdaptiveOnlyDefaultOnWire(t *testing.T) {
 	})
 }
 
+func TestAnthropic_Haiku55TakesAdaptiveThinkingAndADisableWithoutSampling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a budget request goes out as adaptive thinking", func(t *testing.T) {
+		t.Parallel()
+		p, _ := captureMessagesRequestModel(t, "claude-haiku-5-5",
+			llms.WithReasoning(llms.ReasoningMedium, 0), llms.WithMaxTokens(4096))
+		th, _ := p["thinking"].(map[string]any)
+		assert.Equal(t, "adaptive", th["type"])
+		assert.NotContains(t, th, "budget_tokens")
+	})
+
+	t.Run("an explicit disable is sent", func(t *testing.T) {
+		t.Parallel()
+		p, _ := captureMessagesRequestModel(t, "claude-haiku-5-5",
+			llms.WithReasoningDisabled(), llms.WithMaxTokens(64))
+		th, _ := p["thinking"].(map[string]any)
+		assert.Equal(t, "disabled", th["type"])
+	})
+
+	t.Run("sampling never reaches the wire", func(t *testing.T) {
+		t.Parallel()
+		p, _ := captureMessagesRequestModel(t, "claude-haiku-5-5",
+			llms.WithTemperature(0.7), llms.WithTopP(0.9), llms.WithTopK(40), llms.WithMaxTokens(64))
+		assert.NotContains(t, p, "temperature")
+		assert.NotContains(t, p, "top_p")
+		assert.NotContains(t, p, "top_k")
+	})
+
+	t.Run("max reaches the wire", func(t *testing.T) {
+		t.Parallel()
+		p, _ := captureMessagesRequestModel(t, "claude-haiku-5-5",
+			llms.WithAdaptiveReasoning(llms.ReasoningMax), llms.WithMaxTokens(4096))
+		outputConfig, _ := p["output_config"].(map[string]any)
+		assert.Equal(t, "max", outputConfig["effort"])
+	})
+}
+
 // TestAnthropic_DefaultModelCapabilityResolution locks that a client created
 // without a model classifies against the package default (claude-sonnet-5,
 // adaptive-only and default-on) — the same model the request runs on — rather
@@ -1128,7 +1166,9 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 		t.Parallel()
 
 		systemAfter := append(slices.Clone(prefilled), llms.TextParts(llms.ChatMessageTypeSystem, "be brief"))
-		for _, model := range []string{"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7", "claude-opus-latest"} {
+		for _, model := range []string{
+			"claude-opus-4-6", "claude-haiku-5", "claude-sonnet-4-7", "claude-opus-latest", "claude-haiku-latest",
+		} {
 			for _, messages := range [][]llms.MessageContent{prefilled, systemAfter} {
 				llm, hits := newLLM(t, model)
 				_, err := llm.GenerateContent(t.Context(), messages)
@@ -1144,7 +1184,7 @@ func TestAnthropic_AssistantPrefill(t *testing.T) {
 	t.Run("still allowed on the 4.5 generation", func(t *testing.T) {
 		t.Parallel()
 
-		for _, model := range []string{"claude-sonnet-4-5", "claude-haiku-latest"} {
+		for _, model := range []string{"claude-sonnet-4-5", "claude-haiku-4-5"} {
 			llm, hits := newLLM(t, model)
 			_, err := llm.GenerateContent(t.Context(), prefilled)
 
@@ -1394,14 +1434,14 @@ func TestUnversionedAliasRunsItsTiersMechanism(t *testing.T) {
 			"an adaptive-only model must not be sent temperature, got %v", payload)
 	})
 
-	t.Run("a budget tier alias keeps budget thinking", func(t *testing.T) {
+	t.Run("the haiku alias follows Haiku 5.5 to adaptive thinking", func(t *testing.T) {
 		t.Parallel()
 		payload, _ := captureMessagesRequestModel(t, "claude-haiku-latest",
 			llms.WithReasoning(llms.ReasoningHigh, 2048))
 
 		thinking, ok := payload["thinking"].(map[string]any)
 		require.True(t, ok, "thinking must reach the wire, got %v", payload)
-		require.Equal(t, "enabled", thinking["type"])
+		require.Equal(t, "adaptive", thinking["type"])
 	})
 }
 

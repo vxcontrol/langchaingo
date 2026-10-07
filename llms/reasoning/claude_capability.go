@@ -18,8 +18,8 @@ const (
 	// requested mechanism is sent unchanged).
 	ClaudeReasoningUnknown ClaudeReasoningKind = iota
 	// ClaudeReasoningAdaptiveOnly is the newest generation (Opus 4.7/4.8/5,
-	// Sonnet 5, Fable 5, Mythos 5): it is sent thinking.type=adaptive and never
-	// budget_tokens.
+	// Sonnet 5, Haiku 5.5, Fable 5, Mythos 5): it is sent thinking.type=adaptive
+	// and never budget_tokens.
 	ClaudeReasoningAdaptiveOnly
 	// ClaudeReasoningAdaptiveAndBudget accepts both adaptive and budget thinking
 	// (Opus 4.6, Sonnet 4.6, Mythos Preview).
@@ -39,6 +39,7 @@ var (
 	adaptiveOnlyClaude = []string{
 		"claude-opus-4-7", "claude-opus-4-8", "claude-opus-5",
 		"claude-sonnet-5", "claude-fable-5", "claude-mythos-5",
+		"claude-haiku-5-5",
 	}
 	dualClaude = []string{
 		"claude-opus-4-6", "claude-sonnet-4-6", "claude-mythos-preview",
@@ -88,7 +89,7 @@ var (
 	}
 	betweenToolsOffClaude = []string{"claude-sonnet-5-5"}
 	defaultOnClaude       = []string{
-		"claude-opus-5", "claude-sonnet-5",
+		"claude-opus-5", "claude-sonnet-5", "claude-haiku-5-5",
 		"claude-fable-5", "claude-mythos-5", "claude-mythos-preview",
 	}
 )
@@ -127,8 +128,8 @@ var claudeEffortsByKind = map[ClaudeReasoningKind][]string{
 }
 
 var bedrockTopEfforts = map[string][]string{
-	"xhigh": {"claude-opus-5"},
-	"max":   {"claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-5"},
+	"xhigh": {"claude-opus-5", "claude-haiku-5-5"},
+	"max":   {"claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-5", "claude-haiku-5-5"},
 }
 
 func claudeEffortsOn(model string, p Provider) []string {
@@ -393,6 +394,7 @@ func ClaudePredatesAdaptive(model string) bool {
 var rejectsSamplingClaude = []string{
 	"claude-fable-5", "claude-mythos-5", "claude-mythos-preview",
 	"claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-5",
+	"claude-haiku-5-5",
 }
 
 // ClaudeThinkingTopPFloor is the lowest top_p Anthropic accepts while the model

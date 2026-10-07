@@ -344,7 +344,9 @@ func TestConverseClient_AdaptiveReasoning(t *testing.T) {
 }
 
 func TestConverseClient_ReasoningOffDefaultOnSendsDisabled(t *testing.T) {
-	for _, model := range []string{"us.anthropic.claude-sonnet-5-v1:0", "us.anthropic.claude-opus-5-v1:0"} {
+	for _, model := range []string{
+		"us.anthropic.claude-sonnet-5-v1:0", "us.anthropic.claude-opus-5-v1:0", "us.anthropic.claude-haiku-5-5",
+	} {
 		t.Run(model, func(t *testing.T) {
 			mockClient := &MockBedrockRuntimeClient{}
 			client := NewConverseClient(mockClient)
@@ -378,7 +380,7 @@ func TestConverseClient_ReasoningOffDefaultOnSendsDisabled(t *testing.T) {
 			var fields map[string]any
 			require.NoError(t, json.Unmarshal(raw, &fields))
 			assert.Equal(t, map[string]any{"type": "disabled"}, fields["thinking"])
-			assert.NotContains(t, fields, "output_config", "Opus 5 rejects xhigh and max next to disabled thinking")
+			assert.NotContains(t, fields, "output_config", "xhigh and max next to disabled thinking are rejected")
 			mockClient.AssertExpectations(t)
 		})
 	}

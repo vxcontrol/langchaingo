@@ -29,7 +29,7 @@ var claudeReleases = map[string][]generation{
 		only(4, 0, "claude-sonnet-4-0"), only(4, 5, "claude-sonnet-4-5"), only(4, 6, "claude-sonnet-4-6"),
 		only(5, 0, "claude-sonnet-5"), only(5, 5, "claude-sonnet-5-5"),
 	},
-	"haiku":  {only(4, 5, "claude-haiku-4-5")},
+	"haiku":  {only(4, 5, "claude-haiku-4-5"), only(5, 5, "claude-haiku-5-5")},
 	"fable":  {only(5, 0, "claude-fable-5"), only(5, 1, "claude-fable-5-1")},
 	"mythos": {only(5, 0, "claude-mythos-5"), only(5, 1, "claude-mythos-5-1")},
 }
