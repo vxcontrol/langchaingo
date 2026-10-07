@@ -160,9 +160,6 @@ qwen	qwen3-vl-plus	true	false	false	false	0		false	omit	0	false	-
 qwen	qwen3-vl-flash	true	false	false	false	0		false	omit	0	false	-
 qwen	qwen3-next-80b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false	-
 qwen	qwen3-next-80b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
-qwen	qwen3-32b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-14b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-8b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	glm-5.3-prime	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
 qwen	glm-5.2-fast-preview	true	false	false	false	0		-	disable-thinking-object	0	false	-
 qwen	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false	-
