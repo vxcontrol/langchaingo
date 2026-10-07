@@ -10,7 +10,9 @@ import (
 func TestMistralReasoningModelsTakeOnlyTheHighEffort(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"mistral-small-latest", "mistral-medium-latest", "mistral-medium-3-5"} {
+	for _, model := range []string{
+		"mistral-small-latest", "mistral-medium-latest", "mistral-medium-3-5", "mistral-large-4", "mistral-large-4-0",
+	} {
 		for _, effort := range []llms.ReasoningEffort{llms.ReasoningLow, llms.ReasoningMedium, llms.ReasoningXHigh} {
 			if body := sendForWire(t, model, llms.WithReasoning(effort, 0)); !strings.Contains(body, `"reasoning_effort":"high"`) {
 				t.Errorf("%s at %s: Mistral documents only high, got body: %s", model, effort, body)
@@ -23,6 +25,16 @@ func TestMistralReasoningModelsTakeOnlyTheHighEffort(t *testing.T) {
 		}
 		if body := sendForWire(t, model, llms.WithReasoning(llms.ReasoningHigh, 0)); !strings.Contains(body, `"reasoning_effort":"high"`) {
 			t.Errorf("%s: high must reach the wire, got body: %s", model, body)
+		}
+	}
+}
+
+func TestMistralLarge4IsTurnedOffWithTheNoneEffort(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"mistral-large-4", "mistral-large-4-0", "mistral/mistral-large-4"} {
+		if body := sendForWire(t, model, llms.WithReasoningDisabled()); !strings.Contains(body, `"reasoning_effort":"none"`) {
+			t.Errorf("%s: Mistral documents none as the way to omit thinking, got body: %s", model, body)
 		}
 	}
 }
