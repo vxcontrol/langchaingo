@@ -1,6 +1,8 @@
 catalogue	model	supported	known	cannot_disable	rejects_sampling	mechanism	efforts	default_on	off	effort_with_tools	no_thinking_depth	inherited
 anthropic	claude-fable-5-1	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
 anthropic	claude-opus-5-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
+anthropic	claude-sonnet-5-5	true	true	false	true	1	low,medium,high,xhigh,max	true	between-tools-claude	0	false	-
+anthropic	claude-haiku-5-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
 anthropic	claude-fable-5	true	true	true	true	1	low,medium,high,xhigh,max	true	unsupported	0	false	-
 anthropic	claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
 anthropic	claude-sonnet-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
@@ -15,6 +17,9 @@ bedrock	us.amazon.nova-2-lite-v1:0	true	true	false	false	1	low,medium,high	false
 bedrock	us.amazon.nova-pro-v1:0	false	false	false	false	0		-	omit	0	false	-
 bedrock	us.amazon.nova-lite-v1:0	false	false	false	false	0		-	omit	0	false	-
 bedrock	us.amazon.nova-micro-v1:0	false	false	false	false	0		-	omit	0	false	-
+bedrock	us.anthropic.claude-opus-5-5	true	true	true	true	1	low,medium,high	true	unsupported	0	false	-
+bedrock	us.anthropic.claude-sonnet-5-5	true	true	false	true	1	low,medium,high	true	between-tools-claude	0	false	-
+bedrock	us.anthropic.claude-haiku-5-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
 bedrock	us.anthropic.claude-opus-5	true	true	false	true	1	low,medium,high,xhigh,max	true	disable-claude	0	false	-
 bedrock	us.anthropic.claude-fable-5-1	true	true	true	true	1	low,medium,high	true	unsupported	0	false	-
 bedrock	us.anthropic.claude-fable-5	true	true	true	true	1	low,medium,high	true	unsupported	0	false	-
@@ -98,6 +103,7 @@ minimax	MiniMax-M3	true	false	false	false	0		-	disable-thinking-object	0	true	-
 minimax	MiniMax-M2.7	true	false	true	false	0		-	unsupported	0	true	-
 minimax	MiniMax-M2.7-highspeed	true	false	true	false	0		-	unsupported	0	true	-
 mistral	mistral-medium-latest	true	true	false	false	1	high	-	omit	0	false	-
+mistral	mistral-large-4	true	true	false	false	1	high	-	effort-none	0	false	-
 mistral	mistral-large-latest	false	false	false	false	0		-	omit	0	false	-
 mistral	mistral-small-latest	true	true	false	false	1	high	-	omit	0	false	-
 mistral	codestral-latest	false	false	false	false	0		-	omit	0	false	-
@@ -129,6 +135,7 @@ openai	o4-mini	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
 openai	o3	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
 openai	o1	true	true	true	true	1	low,medium,high	-	unsupported	0	false	-
 qwen	qwen3.8-max	true	false	false	false	0		-	effort-none	0	false	-
+qwen	qwen3.8-max-0902	true	false	false	false	0		-	effort-none	0	false	-
 qwen	qwen3.8-flash	true	false	false	false	0		-	effort-none	0	false	-
 qwen	qwen3.8-omni-flash	true	false	false	false	0		-	effort-none	0	false	-
 qwen	qwen3.8-27b	true	false	false	false	0		-	effort-none	0	false	-
@@ -136,7 +143,6 @@ qwen	qwen3.8-2.4t-a95b	true	false	true	false	0		-	unsupported	0	false	-
 qwen	qwen3.7-plus	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.7-max	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.7-flash	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3.6-max-preview	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.6-plus	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.6-flash	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.6-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false	-
@@ -147,19 +153,12 @@ qwen	qwen3.5-397b-a17b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.5-122b-a10b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.5-35b-a3b	true	false	false	false	0		-	disable-dashscope	0	false	-
 qwen	qwen3.5-27b	true	false	false	false	0		-	disable-dashscope	0	false	-
-qwen	qwen3-max	true	false	false	false	0		false	omit	0	false	-
 qwen	qwen-max	true	false	false	false	0		-	omit	0	false	-
 qwen	qwen-plus	true	false	false	false	0		false	omit	0	false	-
 qwen	qwen-flash	true	false	false	false	0		false	omit	0	false	-
-qwen	qwen3-coder-plus	true	false	false	false	0		-	omit	0	false	-
 qwen	qwen3-coder-flash	true	false	false	false	0		-	omit	0	false	-
-qwen	qwen3-coder-next	true	false	false	false	0		-	omit	0	false	-
-qwen	qwen3-coder-30b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
-qwen	qwen3-coder-480b-a35b-instruct	true	false	false	false	0		-	omit	0	false	-
 qwen	qwen3-vl-plus	true	false	false	false	0		false	omit	0	false	-
-qwen	qwen3-vl-flash	true	false	false	false	0		false	omit	0	false	-
-qwen	qwen3-next-80b-a3b-thinking	true	false	true	false	0		-	unsupported	0	false	-
-qwen	qwen3-next-80b-a3b-instruct	true	false	false	false	0		-	omit	0	false	-
+qwen	glm-5.3	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
 qwen	glm-5.3-prime	true	true	true	false	1	low,high,max	-	unsupported	0	false	-
 qwen	glm-5.2-fast-preview	true	false	false	false	0		-	disable-thinking-object	0	false	-
 qwen	glm-5.2	true	false	false	false	0		-	disable-thinking-object	0	false	-
