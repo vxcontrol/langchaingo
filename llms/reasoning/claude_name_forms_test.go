@@ -282,6 +282,9 @@ func TestBedrockServesTheTopEffortsOnlyWhereItsGuideSays(t *testing.T) {
 		{"us.anthropic.claude-opus-4-8", []string{"low", "medium", "high"}},
 		{"us.anthropic.claude-fable-5", []string{"low", "medium", "high"}},
 		{"us.anthropic.claude-fable-5-1", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-haiku-5-5", []string{"low", "medium", "high", "xhigh", "max"}},
+		{"us.anthropic.claude-opus-5-5", []string{"low", "medium", "high"}},
+		{"us.anthropic.claude-sonnet-5-5", []string{"low", "medium", "high"}},
 	} {
 		if got := ClaudeEffortsFor(tc.model, ProviderBedrock); !slices.Equal(got, tc.want) {
 			t.Errorf("ClaudeEffortsFor(%q, Bedrock) = %v, want %v", tc.model, got, tc.want)
@@ -297,6 +300,9 @@ func TestBedrockServesTheTopEffortsOnlyWhereItsGuideSays(t *testing.T) {
 		{"us.anthropic.claude-opus-4-6-v1", "max", "max"},
 		{"us.anthropic.claude-opus-5", "xhigh", "xhigh"},
 		{"us.anthropic.claude-opus-5", "max", "max"},
+		{"us.anthropic.claude-opus-5-5", "xhigh", "high"},
+		{"global.anthropic.claude-opus-5-5", "max", "high"},
+		{"us.anthropic.claude-haiku-5-5", "max", "max"},
 	} {
 		if got := ClaudeClampEffort(tc.model, tc.effort, ProviderBedrock); got != tc.want {
 			t.Errorf("ClaudeClampEffort(%q, %q, Bedrock) = %q, want %q", tc.model, tc.effort, got, tc.want)

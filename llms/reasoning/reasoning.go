@@ -291,6 +291,7 @@ func mistralReasons(model string) bool {
 	for _, prefix := range []string{
 		"mistral-medium-3", "mistral-medium-latest", "mistral-medium-2604",
 		"mistral-small-2603", "mistral-small-latest",
+		"mistral-large-4",
 		"mistral-vibe-cli",
 	} {
 		if strings.HasPrefix(model, prefix) {

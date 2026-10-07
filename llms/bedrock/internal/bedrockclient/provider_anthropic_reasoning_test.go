@@ -18,6 +18,28 @@ func marshalAnthropicInput(t *testing.T, input anthropicTextGenerationInput) map
 	return fields
 }
 
+func TestApplyAnthropicReasoning_SendsTheTopEffortsBedrockServes(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		sent   string
+	}{
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningXHigh, "high"},
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningMax, "high"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningXHigh, "xhigh"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningMax, "max"},
+	} {
+		input := anthropicTextGenerationInput{MaxTokens: 2048}
+		require.NoError(t, applyAnthropicReasoning(&input,
+			&llms.ReasoningConfig{Effort: tc.effort, Adaptive: true}, tc.model, 2048, nil))
+
+		outputConfig, _ := marshalAnthropicInput(t, input)["output_config"].(map[string]any)
+		assert.Equal(t, tc.sent, outputConfig["effort"], "%s at %s", tc.model, tc.effort)
+	}
+}
+
 func TestApplyAnthropicReasoning_Adaptive(t *testing.T) {
 	t.Parallel()
 
@@ -40,7 +62,7 @@ func TestApplyAnthropicReasoning_Adaptive(t *testing.T) {
 	assert.False(t, hasBudget, "adaptive thinking must not carry a token budget")
 
 	outputConfig, _ := fields["output_config"].(map[string]any)
-	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 only")
+	assert.Equal(t, "high", outputConfig["effort"], "Bedrock serves xhigh on Opus 5 and Haiku 5.5 only")
 
 	for _, key := range []string{"temperature", "top_p", "top_k"} {
 		_, has := fields[key]

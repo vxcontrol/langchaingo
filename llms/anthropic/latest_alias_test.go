@@ -34,18 +34,16 @@ func TestALatestAliasIsRefusedWhatTheNewestReleaseOfItsTierRefuses(t *testing.T)
 	}
 }
 
-func TestTheHaikuLatestAliasIsSentOnlyOneOfTemperatureAndTopP(t *testing.T) {
+func TestTheHaikuLatestAliasIsSentNoSampling(t *testing.T) {
 	t.Parallel()
 
 	body, resp, err := generateRecording(t, "claude-haiku-latest", llms.WithTemperature(0.5), llms.WithTopP(0.9))
 	require.NoError(t, err)
-	require.InDelta(t, 0.5, body["temperature"], 1e-9)
+	require.NotContains(t, body, "temperature")
 	require.NotContains(t, body, "top_p")
-	var dropped bool
-	for _, w := range resp.Warnings {
-		dropped = dropped || w.Option == "WithTopP" && w.Kind == llms.WarningDrop
-	}
-	require.True(t, dropped, "%v", resp.Warnings)
+	got := warningsByOption(resp.Warnings)
+	require.Equal(t, llms.WarningDrop, got["WithTemperature"].Kind, "%v", resp.Warnings)
+	require.Equal(t, llms.WarningDrop, got["WithTopP"].Kind, "%v", resp.Warnings)
 }
 
 func TestTurningThinkingOffOnTheSonnetLatestAliasSendsItsLowestSetting(t *testing.T) {

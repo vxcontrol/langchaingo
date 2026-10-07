@@ -29,8 +29,18 @@ func replayedReasoning(t *testing.T, model string) []any {
 func assistantTurnsSent(t *testing.T, model string) []map[string]any {
 	t.Helper()
 
+	return assistantTurnsSentVia(t, "", model, replayHistory())
+}
+
+func assistantTurnsSentTo(t *testing.T, baseURL, model string) []map[string]any {
+	t.Helper()
+
+	return assistantTurnsSentVia(t, baseURL, model, replayHistory())
+}
+
+func replayHistory() []llms.MessageContent {
 	thought := func(text string) *reasoning.ContentReasoning { return &reasoning.ContentReasoning{Content: text} }
-	return assistantTurnsSentFor(t, model, []llms.MessageContent{
+	return []llms.MessageContent{
 		llms.TextParts(llms.ChatMessageTypeHuman, "first"),
 		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
 			llms.TextPartWithReasoning("answered in text", thought("text turn thought")),
@@ -43,10 +53,16 @@ func assistantTurnsSent(t *testing.T, model string) []map[string]any {
 		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
 			llms.ToolCallResponse{ToolCallID: "c1", Name: "f", Content: "done"},
 		}},
-	})
+	}
 }
 
 func assistantTurnsSentFor(t *testing.T, model string, history []llms.MessageContent) []map[string]any {
+	t.Helper()
+
+	return assistantTurnsSentVia(t, "", model, history)
+}
+
+func assistantTurnsSentVia(t *testing.T, baseURL, model string, history []llms.MessageContent) []map[string]any {
 	t.Helper()
 
 	var body map[string]any
@@ -67,7 +83,11 @@ func assistantTurnsSentFor(t *testing.T, model string, history []llms.MessageCon
 	}))
 	defer server.Close()
 
-	llm, err := New(WithBaseURL(server.URL), WithToken("token"), WithModel(model), WithPreserveReasoningContent())
+	opts := []Option{WithBaseURL(server.URL), WithToken("token"), WithModel(model), WithPreserveReasoningContent()}
+	if baseURL != "" {
+		opts = append(opts, WithBaseURL(baseURL), WithHTTPClient(clientDialing(t, server)))
+	}
+	llm, err := New(opts...)
 	require.NoError(t, err)
 
 	tools := []llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{

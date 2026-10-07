@@ -199,22 +199,38 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 		sentAdditionalFields(t, sent)["thinking"], "the warning reports the budget the request carries")
 }
 
-func TestConverseReportsAnEffortItLowered(t *testing.T) {
+func TestConverseSendsTheTopEffortsBedrockServesAndReportsTheOnesItLowers(t *testing.T) {
 	t.Parallel()
 
-	maxTokens := 8000
-	resp := converseCall(t, &ConverseInput{
-		Messages:        humanTurn(),
-		ModelID:         "anthropic.claude-opus-4-6-v1:0",
-		MaxTokens:       &maxTokens,
-		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
-	})
+	for _, tc := range []struct {
+		model  string
+		effort llms.ReasoningEffort
+		sent   string
+	}{
+		{"anthropic.claude-opus-4-6-v1:0", llms.ReasoningXHigh, "high"},
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningXHigh, "high"},
+		{"us.anthropic.claude-opus-5-5", llms.ReasoningMax, "high"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningXHigh, "xhigh"},
+		{"us.anthropic.claude-haiku-5-5", llms.ReasoningMax, "max"},
+	} {
+		maxTokens := 8000
+		resp, sent := converseCallSending(t, &ConverseInput{
+			Messages:        humanTurn(),
+			ModelID:         tc.model,
+			MaxTokens:       &maxTokens,
+			ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: tc.effort},
+		})
 
-	w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
-	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
-	require.Equal(t, llms.WarningClamp, w.Kind)
-	require.Equal(t, "xhigh", w.Asked)
-	require.Equal(t, "high", w.Sent)
+		outputConfig, _ := sentAdditionalFields(t, sent)["output_config"].(map[string]any)
+		require.Equal(t, tc.sent, outputConfig["effort"], "%s at %s", tc.model, tc.effort)
+		w, lowered := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.Equal(t, tc.sent != string(tc.effort), lowered, "%s at %s: %v", tc.model, tc.effort, resp.Warnings)
+		if lowered {
+			require.Equal(t, llms.WarningClamp, w.Kind, tc.model)
+			require.Equal(t, string(tc.effort), w.Asked, tc.model)
+			require.Equal(t, tc.sent, w.Sent, tc.model)
+		}
+	}
 }
 
 func TestConverseReportsAToolChoiceItTurnsIntoAuto(t *testing.T) {

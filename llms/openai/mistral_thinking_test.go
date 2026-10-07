@@ -171,6 +171,15 @@ func TestAReasoningMistralModelGetsItsThinkingBackAsAChunkOfContent(t *testing.T
 	}
 }
 
+func TestAMistralNameServedByAnotherPublicHostGetsNoMistralThinkingChunk(t *testing.T) {
+	t.Parallel()
+
+	turns := assistantTurnsSentTo(t, "http://ollama.com/v1", "mistral-large-4")
+	require.Len(t, turns, 2)
+	assert.Equal(t, "answered in text", turns[0]["content"])
+	assert.Empty(t, turns[1]["content"])
+}
+
 func TestAMistralModelThatDoesNotReasonGetsNoThinkingBack(t *testing.T) {
 	t.Parallel()
 

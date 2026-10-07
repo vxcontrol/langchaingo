@@ -218,7 +218,7 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant {
 			switch {
 			case reasoning.ServedByMistral(model):
-				if reasoning.ReplaysThinkingInContent(model) {
+				if reasoning.ReplaysThinkingInContent(model) && o.reachesMistral(model) {
 					msg.Thinking = extractReasoningContent(mc.Parts)
 				}
 			case reasoning.ReplaysReasoningInThinkTags(model):
@@ -539,7 +539,11 @@ func (o *LLM) setReasoning(
 
 	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
+	caps := reasoning.OpenAIReasoningCapsFor(model)
+	if reasoning.ServedByMistral(model) && !o.reachesMistral(model) {
+		caps = reasoning.OpenAIReasoningCaps{}
+	}
+	effort := caps.ClampEffort(askedEffort)
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
@@ -785,6 +789,9 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 	switch off { //nolint:exhaustive // only OpenAI-relevant wires are handled; others are a no-op
 	case reasoning.OffEffortNone:
 		o.writeDisableEffort(req)
+		if reasoning.ServedByMistral(model) && o.reachesMistral(model) {
+			warn.AddOffFloor(model, "none")
+		}
 	case reasoning.OffDisableDashScope:
 		thinkingOff := false
 		req.EnableThinking = &thinkingOff
@@ -795,6 +802,13 @@ func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptio
 		warn.AddOffFloor(model, req.Thinking.Type)
 	}
 	return nil
+}
+
+func (o *LLM) reachesMistral(model string) bool {
+	if vendor := reasoning.ServedBy(model, o.host); vendor != reasoning.VendorUnknown {
+		return vendor == reasoning.VendorMistral
+	}
+	return !reasoning.PublicProviderHost(o.host)
 }
 
 func (o *LLM) carriesOff(model string, off reasoning.OffWire) bool {
