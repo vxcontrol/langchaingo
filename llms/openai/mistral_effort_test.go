@@ -49,6 +49,8 @@ func TestMistralLarge4ReportsNoneAsItsLowestThinkingLevelOnlyOnMistral(t *testin
 		{"http://api.mistral.ai/v1", "mistral-large-4", true},
 		{gatewayBaseURL, "mistral/mistral-large-4", true},
 		{"http://ollama.com/v1", "mistral-large-4", false},
+		{gatewayBaseURL, "gpt-5.1", false},
+		{gatewayBaseURL, "openai/gpt-5.1", false},
 	} {
 		body, warnings := hostCall(t, tc.baseURL, tc.model, llms.WithReasoningDisabled())
 		if body["reasoning_effort"] != "none" {
@@ -57,6 +59,20 @@ func TestMistralLarge4ReportsNoneAsItsLowestThinkingLevelOnlyOnMistral(t *testin
 		w, reported := warnings["WithReasoningDisabled"]
 		if reported != tc.floor || reported && (w.Kind != llms.WarningSubstitute || w.Sent != "none") {
 			t.Errorf("%s on %s: warning = %+v (reported %v), want a substitute only on Mistral", tc.model, tc.baseURL, w, reported)
+		}
+	}
+}
+
+func TestAMistralNameOnAnotherPublicHostTakesTheEffortAsAsked(t *testing.T) {
+	t.Parallel()
+
+	for _, effort := range []llms.ReasoningEffort{llms.ReasoningLow, llms.ReasoningMedium} {
+		body, warnings := hostCall(t, "http://ollama.com/v1", "mistral-large-4", llms.WithReasoning(effort, 0))
+		if body["reasoning_effort"] != string(effort) {
+			t.Errorf("at %s: reasoning_effort = %v, want the asked level on a host that is not Mistral", effort, body["reasoning_effort"])
+		}
+		if w, clamped := warnings["WithReasoning"]; clamped {
+			t.Errorf("at %s: unexpected warning %+v", effort, w)
 		}
 	}
 }

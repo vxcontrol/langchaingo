@@ -539,7 +539,11 @@ func (o *LLM) setReasoning(
 
 	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-	effort := reasoning.OpenAIReasoningCapsFor(model).ClampEffort(askedEffort)
+	caps := reasoning.OpenAIReasoningCapsFor(model)
+	if reasoning.ServedByMistral(model) && !o.reachesMistral(model) {
+		caps = reasoning.OpenAIReasoningCaps{}
+	}
+	effort := caps.ClampEffort(askedEffort)
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
