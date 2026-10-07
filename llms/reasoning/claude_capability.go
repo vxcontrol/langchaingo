@@ -139,12 +139,27 @@ func claudeEffortsOn(model string, p Provider) []string {
 	}
 	served := make([]string, 0, len(accepted))
 	for _, level := range accepted {
-		if families, gated := bedrockTopEfforts[level]; gated && !claudeNamedIn(model, families) {
+		if releases, gated := bedrockTopEfforts[level]; gated && !claudeReleaseIn(model, releases) {
 			continue
 		}
 		served = append(served, level)
 	}
 	return served
+}
+
+func claudeReleaseIn(model string, releases []string) bool {
+	for _, form := range modelSpellings(model) {
+		tier, major, minor, ok := claudeVersion(canonicalClaude(form))
+		if !ok {
+			continue
+		}
+		for _, release := range releases {
+			if t, ma, mi, ok := claudeVersion(release); ok && t == tier && ma == major && mi == minor {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func claudeNamedIn(model string, families []string) bool {

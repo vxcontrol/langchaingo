@@ -202,19 +202,21 @@ func TestConverseReportsAThinkingBudgetItCut(t *testing.T) {
 func TestConverseReportsAnEffortItLowered(t *testing.T) {
 	t.Parallel()
 
-	maxTokens := 8000
-	resp := converseCall(t, &ConverseInput{
-		Messages:        humanTurn(),
-		ModelID:         "anthropic.claude-opus-4-6-v1:0",
-		MaxTokens:       &maxTokens,
-		ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
-	})
+	for _, model := range []string{"anthropic.claude-opus-4-6-v1:0", "us.anthropic.claude-opus-5-5"} {
+		maxTokens := 8000
+		resp := converseCall(t, &ConverseInput{
+			Messages:        humanTurn(),
+			ModelID:         model,
+			MaxTokens:       &maxTokens,
+			ReasoningConfig: &llms.ReasoningConfig{Mode: llms.ReasoningOn, Effort: llms.ReasoningXHigh},
+		})
 
-	w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
-	require.True(t, ok, "no reasoning warning in %v", resp.Warnings)
-	require.Equal(t, llms.WarningClamp, w.Kind)
-	require.Equal(t, "xhigh", w.Asked)
-	require.Equal(t, "high", w.Sent)
+		w, ok := converseWarningsByOption(resp.Warnings)["WithReasoning"]
+		require.True(t, ok, "%s: no reasoning warning in %v", model, resp.Warnings)
+		require.Equal(t, llms.WarningClamp, w.Kind, model)
+		require.Equal(t, "xhigh", w.Asked, model)
+		require.Equal(t, "high", w.Sent, model)
+	}
 }
 
 func TestConverseReportsAToolChoiceItTurnsIntoAuto(t *testing.T) {
