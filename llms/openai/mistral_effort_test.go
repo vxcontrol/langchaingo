@@ -34,7 +34,29 @@ func TestMistralLarge4IsTurnedOffWithTheNoneEffort(t *testing.T) {
 
 	for _, model := range []string{"mistral-large-4", "mistral-large-4-0", "mistral/mistral-large-4"} {
 		if body := sendForWire(t, model, llms.WithReasoningDisabled()); !strings.Contains(body, `"reasoning_effort":"none"`) {
-			t.Errorf("%s: Mistral documents none as the way to omit thinking, got body: %s", model, body)
+			t.Errorf("%s: Mistral documents none as the lowest effort that leaves out the thinking chunk, got body: %s", model, body)
+		}
+	}
+}
+
+func TestMistralLarge4ReportsNoneAsItsLowestThinkingLevelOnlyOnMistral(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		baseURL, model string
+		floor          bool
+	}{
+		{"http://api.mistral.ai/v1", "mistral-large-4", true},
+		{gatewayBaseURL, "mistral/mistral-large-4", true},
+		{"http://ollama.com/v1", "mistral-large-4", false},
+	} {
+		body, warnings := hostCall(t, tc.baseURL, tc.model, llms.WithReasoningDisabled())
+		if body["reasoning_effort"] != "none" {
+			t.Errorf("%s on %s: reasoning_effort = %v, want none", tc.model, tc.baseURL, body["reasoning_effort"])
+		}
+		w, reported := warnings["WithReasoningDisabled"]
+		if reported != tc.floor || reported && (w.Kind != llms.WarningSubstitute || w.Sent != "none") {
+			t.Errorf("%s on %s: warning = %+v (reported %v), want a substitute only on Mistral", tc.model, tc.baseURL, w, reported)
 		}
 	}
 }
