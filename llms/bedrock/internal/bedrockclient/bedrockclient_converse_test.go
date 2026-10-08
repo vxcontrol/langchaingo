@@ -1017,7 +1017,7 @@ func TestConvertMessages_MultipleToolCallVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			messages, systemPrompts, err := client.convertMessages(tt.messages)
+			messages, _, systemPrompts, err := client.convertMessages(tt.messages)
 
 			assert.NoError(t, err)
 			assert.Empty(t, systemPrompts)
@@ -1122,7 +1122,7 @@ func TestConverseClient_DropsTopPWhenBothSamplingParamsSet(t *testing.T) {
 		t.Run(model, func(t *testing.T) {
 			client := NewConverseClient(&MockBedrockRuntimeClient{})
 			temp, topP := 0.5, 0.9
-			got, err := client.buildConverseInput(&ConverseInput{
+			got, _, err := client.buildConverseInput(&ConverseInput{
 				ModelID:     model,
 				Messages:    []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 				Temperature: &temp,
@@ -1158,7 +1158,7 @@ func TestConverseMaxTokensSaturatesInsteadOfWrapping(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			maxTokens := int(tc.in)
-			got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+			got, _, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 				ModelID:   "anthropic.claude-3-sonnet-20240229-v1:0",
 				Messages:  []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 				MaxTokens: &maxTokens,
@@ -1176,7 +1176,7 @@ func TestConverseBudgetPinsTemperatureOnlyForClaude(t *testing.T) {
 	build := func(t *testing.T, model string) *types.InferenceConfiguration {
 		t.Helper()
 		temp, topP, maxTokens := 0.2, 0.9, 8192
-		got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+		got, _, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 			ModelID:         model,
 			Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 			Temperature:     &temp,
@@ -1496,12 +1496,13 @@ func TestConverseRefusesANamedToolChoiceOnFamiliesAWSDoesNotListForIt(t *testing
 	}}}
 	named := map[string]any{"type": "function", "function": map[string]any{"name": "echo"}}
 	build := func(model string, choice any) (*bedrockruntime.ConverseInput, error) {
-		return NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+		built, _, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 			ModelID:    model,
 			Messages:   []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 			Tools:      tools,
 			ToolChoice: choice,
 		})
+		return built, err
 	}
 
 	for _, model := range []string{"us.meta.llama4-maverick-17b-instruct-v1:0", "openai.gpt-oss-120b-1:0", "qwen.qwen3-32b-v1:0"} {
@@ -1513,7 +1514,7 @@ func TestConverseRefusesANamedToolChoiceOnFamiliesAWSDoesNotListForIt(t *testing
 		require.NoError(t, err, "%s: AWS names no family limit for any", model)
 		assert.IsType(t, &types.ToolChoiceMemberAny{}, got.ToolConfig.ToolChoice, model)
 
-		got, err = NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+		got, _, err = NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 			ModelID:    model,
 			Messages:   []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 			ToolChoice: named,

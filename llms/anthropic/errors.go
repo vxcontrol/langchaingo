@@ -1,9 +1,12 @@
 package anthropic
 
 import (
+	"errors"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/vendorerr"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
@@ -85,3 +88,11 @@ func MapError(err error) error {
 type ErrAssistantPrefillUnsupported = reasoning.ErrAssistantPrefillUnsupported
 
 type ErrForcedToolUseWithThinking = reasoning.ErrForcedToolUseWithThinking
+
+func vendorRefusal(err error, origins []int) error {
+	var apiErr *anthropicclient.APIError
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+	return vendorerr.Classify(err, apiErr.StatusCode, apiErr.Message, origins)
+}

@@ -191,7 +191,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	// the default (an adaptive-only model that rejects budget thinking and sampling).
 	model := o.client.EffectiveModel(opts.GetModel())
 
-	chatMessages, systemPrompt, err := processMessages(messages, model)
+	chatMessages, origins, systemPrompt, err := processMessages(messages, model)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
 	}
@@ -364,7 +364,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	})
 	if err != nil {
 		// The closing callback is emitted once by GenerateContent's deferred handler.
-		wrapped := fmt.Errorf("anthropic: failed to create message: %w", err)
+		wrapped := fmt.Errorf("anthropic: failed to create message: %w", vendorRefusal(err, origins))
 		if result == nil {
 			return nil, wrapped
 		}
@@ -703,44 +703,46 @@ func markLastContentBlockForCaching(contents []anthropicclient.Content, cacheCon
 	}
 }
 
-func processMessages(messages []llms.MessageContent, target string) ([]anthropicclient.ChatMessage, any, error) {
+// processMessages also returns, for each message it renders, the index in
+// messages of the message it came from.
+func processMessages(messages []llms.MessageContent, target string) ([]anthropicclient.ChatMessage, []int, any, error) {
 	chatMessages := make([]anthropicclient.ChatMessage, 0, len(messages))
+	origins := make([]int, 0, len(messages))
 	var systemBlocks []anthropicclient.Content
 
-	for _, msg := range messages {
+	for i, msg := range messages {
+		var chatMessage anthropicclient.ChatMessage
+		var err error
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
-			blocks, err := systemTextBlocks(msg)
-			if err != nil {
-				return nil, "", err
+			var blocks []anthropicclient.Content
+			if blocks, err = systemTextBlocks(msg); err != nil {
+				return nil, nil, "", err
 			}
 			systemBlocks = append(systemBlocks, blocks...)
+			continue
 		case llms.ChatMessageTypeHuman:
-			chatMessage, err := handleHumanMessage(msg)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle human message: %w", err)
+			if chatMessage, err = handleHumanMessage(msg); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle human message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeAI:
-			chatMessage, err := handleAIMessage(msg, target)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle AI message: %w", err)
+			if chatMessage, err = handleAIMessage(msg, target); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle AI message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeTool:
-			chatMessage, err := handleToolMessage(msg)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle tool message: %w", err)
+			if chatMessage, err = handleToolMessage(msg); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle tool message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeGeneric, llms.ChatMessageTypeFunction:
-			return nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
+			return nil, nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
 		default:
-			return nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
+			return nil, nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
 		}
+		chatMessages = append(chatMessages, chatMessage)
+		origins = append(origins, i)
 	}
 
-	return chatMessages, systemParam(systemBlocks), nil
+	return chatMessages, origins, systemParam(systemBlocks), nil
 }
 
 func systemParam(blocks []anthropicclient.Content) any {

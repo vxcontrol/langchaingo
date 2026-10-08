@@ -14,7 +14,7 @@ func TestConverseLeavesOutEmptyTextTheAPIRejects(t *testing.T) {
 	t.Parallel()
 
 	client := NewConverseClient(&MockBedrockRuntimeClient{})
-	built, err := client.buildConverseInput(&ConverseInput{
+	built, _, err := client.buildConverseInput(&ConverseInput{
 		ModelID: "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
 		Messages: []Message{
 			{Role: llms.ChatMessageTypeSystem, Content: "", Type: "text"},

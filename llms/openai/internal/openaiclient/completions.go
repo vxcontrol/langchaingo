@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 
@@ -55,26 +54,33 @@ type CompletionResponse struct {
 
 const maxErrorBodyBytes = 64 << 10
 
-func statusError(statusCode int, body io.Reader) error {
-	msg := fmt.Sprintf("API returned unexpected status code: %d", statusCode)
+type StatusError struct {
+	StatusCode int
+	Message    string
+}
 
+func (e *StatusError) Error() string {
+	msg := fmt.Sprintf("API returned unexpected status code: %d", e.StatusCode)
+	if e.Message == "" {
+		return msg
+	}
+	return msg + ": " + e.Message
+}
+
+func statusError(statusCode int, body io.Reader) error {
 	raw, err := io.ReadAll(io.LimitReader(body, maxErrorBodyBytes))
 	if err != nil {
-		return errors.New(msg) //nolint:err113 // the provider gave no readable body
+		return &StatusError{StatusCode: statusCode}
 	}
 	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 {
-		return errors.New(msg) //nolint:err113 // the provider gave no readable body
-	}
 
 	var errResp struct {
 		Error *providerError `json:"error"`
 	}
 	if err := json.Unmarshal(raw, &errResp); err == nil && errResp.Error != nil && errResp.Error.Message != "" {
-		return fmt.Errorf("%s: %s", msg, errResp.Error.Message) //nolint:err113 // provider-supplied text
+		return &StatusError{StatusCode: statusCode, Message: errResp.Error.Message}
 	}
-
-	return fmt.Errorf("%s: %s", msg, raw) //nolint:err113 // provider-supplied text
+	return &StatusError{StatusCode: statusCode, Message: string(raw)}
 }
 
 func (c *Client) setCompletionDefaults(payload *CompletionRequest) {

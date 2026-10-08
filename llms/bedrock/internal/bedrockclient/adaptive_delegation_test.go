@@ -25,7 +25,7 @@ func TestNovaTakesTheDelegationAtAnEffortThatKeepsTheLimits(t *testing.T) {
 	t.Parallel()
 
 	client := NewConverseClient(nil)
-	built, err := client.buildConverseInput(
+	built, _, err := client.buildConverseInput(
 		converseFieldsFor(t, "amazon.nova-2-lite-v1:0", &llms.ReasoningConfig{Adaptive: true}))
 	require.NoError(t, err)
 
@@ -78,7 +78,7 @@ func TestClaudeOnConverseLeavesADelegatedDepthToTheVendor(t *testing.T) {
 		llms.ReasoningNone: "",
 		llms.ReasoningLow:  `"output_config":{"effort":"low"}`,
 	} {
-		built, err := client.buildConverseInput(converseFieldsFor(t, "us.anthropic.claude-sonnet-5-5",
+		built, _, err := client.buildConverseInput(converseFieldsFor(t, "us.anthropic.claude-sonnet-5-5",
 			&llms.ReasoningConfig{Adaptive: true, Effort: effort}))
 		require.NoError(t, err)
 

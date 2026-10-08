@@ -39,7 +39,7 @@ func TestASystemMessageDoesNotSplitTwoHumanTurns(t *testing.T) {
 	t.Parallel()
 
 	client := NewConverseClient(nil)
-	built, err := client.buildConverseInput(&ConverseInput{
+	built, _, err := client.buildConverseInput(&ConverseInput{
 		ModelID: "us.anthropic.claude-haiku-4-5-v1:0",
 		Messages: []Message{
 			{Role: llms.ChatMessageTypeHuman, Content: "first", Type: "text"},

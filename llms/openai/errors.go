@@ -1,9 +1,12 @@
 package openai
 
 import (
+	"errors"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/vendorerr"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
 )
 
 // errorMapping represents a mapping from error patterns to error codes.
@@ -77,4 +80,12 @@ func MapError(err error) error {
 	// Use the generic error mapper for unrecognized errors
 	mapper := llms.NewErrorMapper("openai")
 	return mapper.Map(err)
+}
+
+func vendorRefusal(err error) error {
+	var statusErr *openaiclient.StatusError
+	if !errors.As(err, &statusErr) {
+		return err
+	}
+	return vendorerr.Classify(err, statusErr.StatusCode, statusErr.Message, nil)
 }
