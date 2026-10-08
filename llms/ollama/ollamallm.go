@@ -639,6 +639,9 @@ func isEmptyChoice(choice *llms.ContentChoice) bool {
 func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse {
 	contentReasoning, content := reasoning.SplitContentWithReasoning(resp.Message.Content)
 	contentReasoning.Content += resp.Message.Thinking
+	if !contentReasoning.IsEmpty() {
+		contentReasoning.WrittenBy(resp.Model)
+	}
 	choices := []*llms.ContentChoice{
 		{
 			Content:    content,

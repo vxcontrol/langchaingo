@@ -140,7 +140,7 @@ func TestProcessMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, systemPrompt, err := processMessages(tt.messages)
+			result, systemPrompt, err := processMessages(tt.messages, "claude-sonnet-4-5")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -555,7 +555,7 @@ func TestHandleAIMessage_ThinkingBlockLeadsToolUse(t *testing.T) {
 		},
 	}
 
-	out, err := handleAIMessage(msg)
+	out, err := handleAIMessage(msg, "claude-sonnet-4-5")
 	require.NoError(t, err)
 
 	thinkingIdx, toolIdx := -1, -1

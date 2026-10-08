@@ -137,8 +137,11 @@ type converseGptOssFields struct {
 // buildConverseInput converts our input to AWS Converse format
 func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockruntime.ConverseInput, error) {
 	messages := input.Messages
-	if reasoning.BedrockRejectsReasoningReplay(input.ModelID) {
+	switch {
+	case reasoning.BedrockRejectsReasoningReplay(input.ModelID):
 		messages = withoutReasoning(messages)
+	case reasoning.IsClaude(input.ModelID):
+		messages = withReasoningFor(messages, input.ModelID)
 	}
 	converseMessages, systemPrompts, err := c.convertMessages(messages)
 	if err != nil {
@@ -796,6 +799,14 @@ func withoutReasoning(messages []Message) []Message {
 	return stripped
 }
 
+func withReasoningFor(messages []Message, claude string) []Message {
+	kept := slices.Clone(messages)
+	for i := range kept {
+		kept[i].Reasoning = reasoning.ForClaude(kept[i].Reasoning, claude)
+	}
+	return kept
+}
+
 func carriesToolBlocks(messages []types.Message) bool {
 	for _, message := range messages {
 		for _, block := range message.Content {
@@ -854,7 +865,7 @@ func (c *ConverseClient) handleNonStreamingResponse(ctx context.Context, input *
 		return nil, fmt.Errorf("converse API call failed: %w", err)
 	}
 
-	return c.convertConverseResponse(response)
+	return c.convertConverseResponse(response, aws.ToString(input.ModelId))
 }
 
 // handleStreamingResponse handles streaming responses
@@ -1062,7 +1073,7 @@ DoStream:
 		Content:        fullContent.String(),
 		ToolCalls:      toolCalls,
 		GenerationInfo: make(map[string]any),
-		Reasoning:      reasoningDeltas.result(),
+		Reasoning:      reasoningDeltas.result().WrittenBy(modelID),
 		StopReason:     stopReason,
 		Truncated:      llms.IsTruncated(stopReason),
 	}
@@ -1126,7 +1137,9 @@ func (a *converseReasoningStream) add(index int32, delta types.ReasoningContentB
 }
 
 // convertConverseResponse converts Converse response to ContentResponse
-func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.ConverseOutput) (*llms.ContentResponse, error) {
+func (c *ConverseClient) convertConverseResponse(
+	response *bedrockruntime.ConverseOutput, modelID string,
+) (*llms.ContentResponse, error) {
 	if response.Output == nil {
 		return &llms.ContentResponse{}, nil
 	}
@@ -1187,7 +1200,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 			}
 		}
 	}
-	choice.Reasoning = thoughts.Reasoning()
+	choice.Reasoning = thoughts.Reasoning().WrittenBy(modelID)
 	choice.Parts = parts.With(choice.Reasoning)
 
 	// The stop reason lives on the response, not inside types.Message. Surfacing it

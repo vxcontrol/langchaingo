@@ -101,7 +101,7 @@ func TestAGatewaysThinkingBlocksKeepTheirSignature(t *testing.T) {
 			t.Parallel()
 			got := reasoningOf(t, "application/json", wholeGatewayAnswer(`"reasoning_content":"plan","thinking_blocks":[`+
 				`{"type":"thinking","thinking":"plan","signature":"sig1"}]`), opts)
-			require.Equal(t, &reasoning.ContentReasoning{Content: "plan"}, got)
+			require.Equal(t, (&reasoning.ContentReasoning{Content: "plan"}).WrittenBy("anthropic/claude-sonnet-4-5"), got)
 			require.Nil(t, reasoningOf(t, "application/json", wholeGatewayAnswer(
 				`"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]`), opts))
 		})
@@ -221,4 +221,17 @@ func (r redirectTo) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
 	req.URL.Scheme, req.URL.Host = r.target.Scheme, r.target.Host
 	return http.DefaultTransport.RoundTrip(req)
+}
+
+func TestOnlyThinkingClaudeWroteGoesBackAsBlocks(t *testing.T) {
+	t.Parallel()
+
+	signedBy := func(model string) *reasoning.ContentReasoning {
+		return reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("sig1")}}).WrittenBy(model)
+	}
+	const claude = "anthropic/claude-sonnet-4-5"
+
+	require.Equal(t, []any{map[string]any{"type": "thinking", "thinking": "plan", "signature": "sig1"}},
+		gatewayTurns(t, claude, signedBy("claude-opus-4-8"), WithThinkingBlocks())[1]["thinking_blocks"])
+	require.NotContains(t, gatewayTurns(t, claude, signedBy("gemini-2.5-pro"), WithThinkingBlocks())[1], "thinking_blocks")
 }
