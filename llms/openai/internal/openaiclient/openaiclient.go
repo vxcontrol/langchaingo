@@ -47,6 +47,7 @@ type Client struct {
 	ModernReasoningFormat bool
 
 	PreserveReasoningContent bool
+	ThinkingBlocks           bool
 }
 
 // Option is an option for the OpenAI client.
@@ -56,6 +57,13 @@ type Option func(*Client) error
 func WithEmbeddingDimensions(dimensions int) Option {
 	return func(c *Client) error {
 		c.EmbeddingDimensions = dimensions
+		return nil
+	}
+}
+
+func WithThinkingBlocks() Option {
+	return func(c *Client) error {
+		c.ThinkingBlocks = true
 		return nil
 	}
 }

@@ -1,6 +1,7 @@
 package bedrockclient
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/vxcontrol/langchaingo/internal/answer"
 	"github.com/vxcontrol/langchaingo/internal/numutil"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
@@ -363,16 +365,16 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 
 // aiMessageAccumulator accumulates consecutive AI messages into a single assistant message
 type aiMessageAccumulator struct {
-	textBlocks    []string
-	thoughts      []reasoning.Block
-	toolUseBlocks []types.ContentBlock
-	cacheControl  *CacheControl
+	blocks       []types.ContentBlock
+	toolUses     int
+	thoughts     []reasoning.Block
+	cacheControl *CacheControl
 }
 
 // addTextContent adds text content to the accumulator
 func (a *aiMessageAccumulator) addTextContent(content string, reasoningContent *reasoning.ContentReasoning) {
 	if content != "" {
-		a.textBlocks = append(a.textBlocks, content)
+		a.blocks = append(a.blocks, &types.ContentBlockMemberText{Value: content})
 	}
 
 	a.thoughts = append(a.thoughts, reasoningContent.Sequence()...)
@@ -384,13 +386,14 @@ func (a *aiMessageAccumulator) addToolUse(toolCall *ToolCall) error {
 		return nil
 	}
 
-	a.toolUseBlocks = append(a.toolUseBlocks, &types.ContentBlockMemberToolUse{
+	a.blocks = append(a.blocks, &types.ContentBlockMemberToolUse{
 		Value: types.ToolUseBlock{
 			ToolUseId: aws.String(toolCall.ID),
 			Name:      aws.String(toolCall.Name),
 			Input:     document.NewLazyDocument(toolCall.Arguments),
 		},
 	})
+	a.toolUses++
 
 	return nil
 }
@@ -404,16 +407,16 @@ func (a *aiMessageAccumulator) setCacheControl(cacheControl *CacheControl) {
 
 // build creates a Converse Message from accumulated data
 func (a *aiMessageAccumulator) build() types.Message {
-	placed := reasoning.GroupByToolCalls(a.thoughts, len(a.toolUseBlocks))
+	placed := reasoning.GroupByToolCalls(a.thoughts, a.toolUses)
 	content := converseReasoningBlocks(placed[0])
 
-	for _, text := range a.textBlocks {
-		content = append(content, &types.ContentBlockMemberText{Value: text})
-	}
-
-	for i, toolUse := range a.toolUseBlocks {
-		content = append(content, toolUse)
-		content = append(content, converseReasoningBlocks(placed[i+1])...)
+	emitted := 0
+	for _, block := range a.blocks {
+		content = append(content, block)
+		if _, ok := block.(*types.ContentBlockMemberToolUse); ok {
+			emitted++
+			content = append(content, converseReasoningBlocks(placed[emitted])...)
+		}
 	}
 
 	// Add cache point if needed
@@ -460,15 +463,15 @@ func converseReasoningBlocks(blocks []reasoning.Block) []types.ContentBlock {
 
 // reset clears the accumulator
 func (a *aiMessageAccumulator) reset() {
-	a.textBlocks = nil
+	a.blocks = nil
+	a.toolUses = 0
 	a.thoughts = nil
-	a.toolUseBlocks = nil
 	a.cacheControl = nil
 }
 
 // isEmpty returns true if no content has been accumulated
 func (a *aiMessageAccumulator) isEmpty() bool {
-	return len(a.textBlocks) == 0 && len(a.thoughts) == 0 && len(a.toolUseBlocks) == 0
+	return len(a.blocks) == 0 && len(a.thoughts) == 0
 }
 
 // toolResultAccumulator accumulates consecutive tool result messages into a single user message
@@ -891,6 +894,43 @@ func deliverToolCall(
 	return builder.toolCall(), nil
 }
 
+type answerBlock struct {
+	index int32
+	text  strings.Builder
+	call  *llms.ToolCall
+}
+
+type answerBlocks []*answerBlock
+
+func (b *answerBlocks) text(index int32, delta string) {
+	for _, block := range *b {
+		if block.index == index && block.call == nil {
+			block.text.WriteString(delta)
+			return
+		}
+	}
+	block := &answerBlock{index: index}
+	block.text.WriteString(delta)
+	*b = append(*b, block)
+}
+
+func (b *answerBlocks) toolCall(index int32, call llms.ToolCall) {
+	*b = append(*b, &answerBlock{index: index, call: &call})
+}
+
+func (b answerBlocks) answer() answer.Parts {
+	sorted := slices.SortedStableFunc(slices.Values(b), func(x, y *answerBlock) int { return cmp.Compare(x.index, y.index) })
+	var parts answer.Parts
+	for _, block := range sorted {
+		if block.call != nil {
+			parts.ToolCall(*block.call)
+			continue
+		}
+		parts.Text(block.text.String())
+	}
+	return parts
+}
+
 func salvageToolCalls(
 	ctx context.Context, callback streaming.Callback, pending map[int32]*converseToolCallBuilder,
 ) ([]llms.ToolCall, error) {
@@ -913,6 +953,7 @@ func (c *ConverseClient) processStreamingResponse(
 	var fullContent strings.Builder
 	var reasoningDeltas converseReasoningStream
 	var toolCalls []llms.ToolCall
+	var blocks answerBlocks
 	var stopReason string
 	var streamErr error
 	var usage *types.TokenUsage
@@ -932,6 +973,7 @@ DoStream:
 				switch delta := e.Value.Delta.(type) {
 				case *types.ContentBlockDeltaMemberText:
 					fullContent.WriteString(delta.Value)
+					blocks.text(aws.ToInt32(e.Value.ContentBlockIndex), delta.Value)
 					if callback != nil {
 						chunk := streaming.Chunk{
 							Type:    streaming.ChunkTypeText,
@@ -982,6 +1024,7 @@ DoStream:
 					break DoStream
 				}
 				toolCalls = append(toolCalls, call)
+				blocks.toolCall(index, call)
 			}
 		case *types.ConverseStreamOutputMemberMessageStop:
 			// The terminal event carries the stop reason (end_turn, tool_use,
@@ -989,8 +1032,12 @@ DoStream:
 			stopReason = string(e.Value.StopReason)
 			stopped = true
 			// Stream completed - ensure any remaining tool calls are added
+			pending := slices.Sorted(maps.Keys(currentToolCalls))
 			salvaged, err := salvageToolCalls(ctx, callback, currentToolCalls)
 			toolCalls = append(toolCalls, salvaged...)
+			for i, call := range salvaged {
+				blocks.toolCall(pending[i], call)
+			}
 			currentToolCalls = nil
 			if err != nil {
 				streamErr = err
@@ -1019,6 +1066,7 @@ DoStream:
 		StopReason:     stopReason,
 		Truncated:      llms.IsTruncated(stopReason),
 	}
+	choice.Parts = blocks.answer().With(choice.Reasoning)
 	applyConverseUsage(choice.GenerationInfo, usage)
 
 	result := &llms.ContentResponse{
@@ -1087,6 +1135,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 		GenerationInfo: make(map[string]any),
 	}
 	var thoughts reasoning.Collector
+	var parts answer.Parts
 
 	// Handle different output types
 	switch output := response.Output.(type) {
@@ -1096,6 +1145,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 			switch block := contentBlock.(type) {
 			case *types.ContentBlockMemberText:
 				choice.Content += block.Value
+				parts.Text(block.Value)
 			case *types.ContentBlockMemberToolUse:
 				// Convert tool use to ToolCall
 				// Extract input from document.LazyDocument
@@ -1121,6 +1171,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 					},
 				}
 				choice.ToolCalls = append(choice.ToolCalls, toolCall)
+				parts.ToolCall(toolCall)
 				thoughts.ToolCall()
 			case *types.ContentBlockMemberReasoningContent:
 				switch content := block.Value.(type) {
@@ -1137,6 +1188,7 @@ func (c *ConverseClient) convertConverseResponse(response *bedrockruntime.Conver
 		}
 	}
 	choice.Reasoning = thoughts.Reasoning()
+	choice.Parts = parts.With(choice.Reasoning)
 
 	// The stop reason lives on the response, not inside types.Message. Surfacing it
 	// distinguishes end_turn from tool_use, max_tokens, guardrail_intervened,
