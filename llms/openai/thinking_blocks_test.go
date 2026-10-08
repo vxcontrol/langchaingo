@@ -112,32 +112,9 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	t.Parallel()
 
 	signed := reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("sig1")}})
-	sentTurns := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) []map[string]any {
-		t.Helper()
-
-		llm, raw := gatewayAnswering(t, "application/json", wholeGatewayAnswer(`"reasoning_content":""`),
-			append([]Option{WithModel(model)}, opts...)...)
-		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
-			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPartWithReasoning("look it up", thought)}},
-			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
-				llms.TextPartWithReasoning("", thought),
-				llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{}`}},
-			}},
-			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
-				llms.ToolCallResponse{ToolCallID: "c1", Name: "lookup", Content: "done"},
-			}},
-		})
-		require.NoError(t, err)
-
-		var body struct {
-			Messages []map[string]any `json:"messages"`
-		}
-		require.NoError(t, json.Unmarshal(*raw, &body))
-		return body.Messages
-	}
 	sent := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) map[string]any {
 		t.Helper()
-		return sentTurns(t, model, thought, opts...)[1]
+		return gatewayTurns(t, model, thought, opts...)[1]
 	}
 	const claude = "anthropic/claude-sonnet-4-5"
 
@@ -179,30 +156,7 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	})
 	t.Run("a user turn takes no blocks", func(t *testing.T) {
 		t.Parallel()
-		require.NotContains(t, sentTurns(t, claude, signed, WithThinkingBlocks())[0], "thinking_blocks")
-	})
-	t.Run("a public provider host takes no blocks", func(t *testing.T) {
-		t.Parallel()
-		var raw []byte
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			raw, _ = io.ReadAll(r.Body)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, wholeGatewayAnswer(`"reasoning_content":""`))
-		}))
-		t.Cleanup(srv.Close)
-		target, err := url.Parse(srv.URL)
-		require.NoError(t, err)
-
-		llm := newUnitLLM(t, WithBaseURL("https://openrouter.ai/api/v1"), WithModel(claude),
-			WithThinkingBlocks(), WithHTTPClient(redirectTo{target}))
-		_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
-			llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
-			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("ok", signed)}},
-			llms.TextParts(llms.ChatMessageTypeHuman, "go on"),
-		})
-		require.NoError(t, err)
-		require.NotEmpty(t, raw)
-		require.NotContains(t, string(raw), "thinking_blocks")
+		require.NotContains(t, gatewayTurns(t, claude, signed, WithThinkingBlocks())[0], "thinking_blocks")
 	})
 	t.Run("an OpenRouter route takes no blocks", func(t *testing.T) {
 		t.Parallel()
@@ -211,9 +165,60 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	})
 }
 
+func TestThinkingBlocksDoNotGoToAPublicProviderHost(t *testing.T) {
+	t.Parallel()
+
+	signed := reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("sig1")}})
+	var raw []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, wholeGatewayAnswer(`"reasoning_content":""`))
+	}))
+	t.Cleanup(srv.Close)
+	target, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+
+	llm := newUnitLLM(t, WithBaseURL("https://openrouter.ai/api/v1"), WithModel("anthropic/claude-sonnet-4-5"),
+		WithThinkingBlocks(), WithHTTPClient(&http.Client{Transport: redirectTo{target}}))
+	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("ok", signed)}},
+		llms.TextParts(llms.ChatMessageTypeHuman, "go on"),
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, raw)
+	require.NotContains(t, string(raw), "thinking_blocks")
+}
+
+func gatewayTurns(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) []map[string]any {
+	t.Helper()
+
+	llm, raw := gatewayAnswering(t, "application/json", wholeGatewayAnswer(`"reasoning_content":""`),
+		append([]Option{WithModel(model)}, opts...)...)
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+		{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPartWithReasoning("look it up", thought)}},
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.TextPartWithReasoning("", thought),
+			llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{}`}},
+		}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "c1", Name: "lookup", Content: "done"},
+		}},
+	})
+	require.NoError(t, err)
+
+	var body struct {
+		Messages []map[string]any `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(*raw, &body))
+	return body.Messages
+}
+
 type redirectTo struct{ target *url.URL }
 
-func (r redirectTo) Do(req *http.Request) (*http.Response, error) {
+func (r redirectTo) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
 	req.URL.Scheme, req.URL.Host = r.target.Scheme, r.target.Host
-	return http.DefaultClient.Do(req)
+	return http.DefaultTransport.RoundTrip(req)
 }
