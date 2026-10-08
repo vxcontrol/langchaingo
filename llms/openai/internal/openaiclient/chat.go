@@ -345,6 +345,20 @@ type ThinkingBlock struct {
 	Data      string `json:"data,omitempty"`
 }
 
+func (b ThinkingBlock) MarshalJSON() ([]byte, error) {
+	if b.Type == "redacted_thinking" {
+		return json.Marshal(struct {
+			Type string `json:"type"`
+			Data string `json:"data"`
+		}{b.Type, b.Data})
+	}
+	return json.Marshal(struct {
+		Type      string `json:"type"`
+		Thinking  string `json:"thinking"`
+		Signature string `json:"signature,omitempty"`
+	}{b.Type, b.Thinking, b.Signature})
+}
+
 type contentChunk struct {
 	Type     string         `json:"type"`
 	Text     string         `json:"text,omitempty"`

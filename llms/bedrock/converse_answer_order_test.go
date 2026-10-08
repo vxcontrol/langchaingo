@@ -105,9 +105,48 @@ func TestAStreamedConverseAnswerKeepsItsOrder(t *testing.T) {
 	first, ok := parts[0].(llms.TextContent)
 	require.True(t, ok)
 	require.Equal(t, "A", first.Text)
+	require.NotEmpty(t, first.Reasoning.Sequence())
 	require.Equal(t, "plan", first.Reasoning.Sequence()[0].Text)
 	call, ok := parts[1].(llms.ToolCall)
 	require.True(t, ok)
+	require.Equal(t, "tu1", call.ID)
+	require.Equal(t, llms.TextContent{Text: "B"}, parts[2])
+}
+
+func TestAToolCallFinishedOnlyByTheStreamEndKeepsItsPlace(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/vnd.amazon.eventstream")
+		enc := eventstream.NewEncoder()
+		for _, event := range [][2]string{
+			{"messageStart", `{"role":"assistant"}`},
+			{"contentBlockDelta", `{"contentBlockIndex":0,"delta":{"text":"A"}}`},
+			{"contentBlockStart", `{"contentBlockIndex":1,"start":{"toolUse":{"toolUseId":"tu1","name":"lookup"}}}`},
+			{"contentBlockDelta", `{"contentBlockIndex":1,"delta":{"toolUse":{"input":"{}"}}}`},
+			{"contentBlockDelta", `{"contentBlockIndex":2,"delta":{"text":"B"}}`},
+			{"contentBlockStop", `{"contentBlockIndex":2}`},
+			{"messageStop", `{"stopReason":"tool_use"}`},
+			{"metadata", `{"usage":{"inputTokens":1,"outputTokens":1,"totalTokens":2}}`},
+		} {
+			writeConverseEvent(t, w, enc, event[0], event[1])
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := bedrockLLMAgainst(t, srv,
+		bedrock.WithModel("us.anthropic.claude-sonnet-4-5-20250929-v1:0"), bedrock.WithConverseAPI())
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithStreamingFunc(func(_ context.Context, _ streaming.Chunk) error { return nil }))
+	require.NoError(t, err)
+
+	parts := resp.Choices[0].Parts
+	require.Len(t, parts, 3)
+	require.Equal(t, llms.TextContent{Text: "A"}, parts[0])
+	call, ok := parts[1].(llms.ToolCall)
+	require.True(t, ok, "%#v", parts[1])
 	require.Equal(t, "tu1", call.ID)
 	require.Equal(t, llms.TextContent{Text: "B"}, parts[2])
 }

@@ -227,9 +227,9 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 				msg.ReasoningContent = extractReasoningContent(mc.Parts)
 				msg.KeepsEmptyReasoning = reasoning.ReplaysEmptyReasoning(model)
 			}
-			if reasoning.ClaudeSupportsThinking(model) && o.sendsClaudeThinkingObject(model) {
-				msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts)
-			}
+		}
+		if o.sendsThinkingBlocks(model) && msg.Role == RoleAssistant {
+			msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts)
 		}
 
 		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {
@@ -1067,7 +1067,15 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 }
 
 // processReasoning processes reasoning content in the response.
+func (o *LLM) sendsThinkingBlocks(model string) bool {
+	return o.client != nil && o.client.ThinkingBlocks &&
+		reasoning.ClaudeSupportsThinking(model) && o.sendsClaudeThinkingObject(model)
+}
+
 func (o *LLM) processReasoning(reasoningContent string, blocks []openaiclient.ThinkingBlock) *reasoning.ContentReasoning {
+	if o.client == nil || !o.client.ThinkingBlocks {
+		blocks = nil
+	}
 	var thoughts reasoning.Collector
 	for _, block := range blocks {
 		if block.Type == "redacted_thinking" {

@@ -175,6 +175,7 @@ data: {"type":"message_stop"}
 	first, ok := parts[0].(llms.TextContent)
 	require.True(t, ok)
 	require.Equal(t, "A", first.Text)
+	require.NotEmpty(t, first.Reasoning.Sequence())
 	require.Equal(t, "plan", first.Reasoning.Sequence()[0].Text)
 	call, ok := parts[1].(llms.ToolCall)
 	require.True(t, ok)

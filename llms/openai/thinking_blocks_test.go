@@ -29,45 +29,76 @@ func gatewayAnswering(t *testing.T, contentType, answer string, opts ...Option) 
 	return newUnitLLM(t, append([]Option{WithBaseURL(srv.URL)}, opts...)...), &raw
 }
 
+func wholeGatewayAnswer(message string) string {
+	return `{"id":"x","object":"chat.completion","created":1,"model":"anthropic/claude-sonnet-4-5",` +
+		`"choices":[{"index":0,"message":{"role":"assistant","content":"ok",` + message + `},"finish_reason":"stop"}]}`
+}
+
+func streamedGatewayAnswer(deltas ...string) string {
+	var out string
+	for _, delta := range deltas {
+		out += `data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":` +
+			delta + `}]}` + "\n\n"
+	}
+	return out + `data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,` +
+		`"delta":{"content":"ok"},"finish_reason":"stop"}]}` + "\n\n" + "data: [DONE]\n\n"
+}
+
 func TestAGatewaysThinkingBlocksKeepTheirSignature(t *testing.T) {
 	t.Parallel()
 
-	want := []reasoning.Block{{Text: "plan", Signature: []byte("sig1")}, {Redacted: []byte("opaque")}}
 	ask := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
+	streamed := llms.WithStreamingFunc(func(_ context.Context, _ streaming.Chunk) error { return nil })
+	reasoningOf := func(t *testing.T, contentType, answer string, opts []Option, call ...llms.CallOption) *reasoning.ContentReasoning {
+		t.Helper()
+
+		llm, _ := gatewayAnswering(t, contentType, answer, append([]Option{WithModel("anthropic/claude-sonnet-4-5")}, opts...)...)
+		resp, err := llm.GenerateContent(context.Background(), ask, call...)
+		require.NoError(t, err)
+		return resp.Choices[0].Reasoning
+	}
+	thinkingBlocks := []Option{WithThinkingBlocks()}
+	signedAndRedacted := []reasoning.Block{{Text: "plan", Signature: []byte("sig1")}, {Redacted: []byte("opaque")}}
 
 	t.Run("in a whole answer", func(t *testing.T) {
 		t.Parallel()
-
-		llm, _ := gatewayAnswering(t, "application/json", `{"id":"x","object":"chat.completion","created":1,`+
-			`"model":"anthropic/claude-sonnet-4-5","choices":[{"index":0,"message":{"role":"assistant","content":"ok",`+
-			`"reasoning_content":"plan","thinking_blocks":[{"type":"thinking","thinking":"plan","signature":"sig1"},`+
-			`{"type":"redacted_thinking","data":"opaque"}]},"finish_reason":"stop"}]}`,
-			WithModel("anthropic/claude-sonnet-4-5"))
-		resp, err := llm.GenerateContent(context.Background(), ask)
-		require.NoError(t, err)
-		require.Equal(t, want, resp.Choices[0].Reasoning.Sequence())
+		got := reasoningOf(t, "application/json", wholeGatewayAnswer(`"reasoning_content":"plan","thinking_blocks":[`+
+			`{"type":"thinking","thinking":"plan","signature":"sig1"},{"type":"redacted_thinking","data":"opaque"}]`),
+			thinkingBlocks)
+		require.Equal(t, signedAndRedacted, got.Sequence())
 	})
 
 	t.Run("in a stream", func(t *testing.T) {
 		t.Parallel()
+		got := reasoningOf(t, "text/event-stream", streamedGatewayAnswer(
+			`{"role":"assistant","reasoning_content":"pl","thinking_blocks":[{"type":"thinking","thinking":"pl"}]}`,
+			`{"reasoning_content":"an","thinking_blocks":[{"type":"thinking","thinking":"an"}]}`,
+			`{"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]}`,
+			`{"thinking_blocks":[{"type":"redacted_thinking","data":"opaque"}]}`,
+		), thinkingBlocks, streamed)
+		require.Equal(t, signedAndRedacted, got.Sequence())
+	})
 
-		chunk := func(delta string) string {
-			return `data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,"delta":` +
-				delta + `}]}` + "\n\n"
+	t.Run("a block whose thinking is omitted keeps its signature", func(t *testing.T) {
+		t.Parallel()
+		whole := reasoningOf(t, "application/json", wholeGatewayAnswer(
+			`"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]`), thinkingBlocks)
+		stream := reasoningOf(t, "text/event-stream", streamedGatewayAnswer(
+			`{"role":"assistant","thinking_blocks":[{"type":"thinking","thinking":""}]}`,
+			`{"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]}`,
+		), thinkingBlocks, streamed)
+		for _, got := range []*reasoning.ContentReasoning{whole, stream} {
+			require.Equal(t, []reasoning.Block{{Signature: []byte("sig1")}}, got.Sequence())
 		}
-		llm, _ := gatewayAnswering(t, "text/event-stream",
-			chunk(`{"role":"assistant","reasoning_content":"pl","thinking_blocks":[{"type":"thinking","thinking":"pl"}]}`)+
-				chunk(`{"reasoning_content":"an","thinking_blocks":[{"type":"thinking","thinking":"an"}]}`)+
-				chunk(`{"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]}`)+
-				chunk(`{"thinking_blocks":[{"type":"redacted_thinking","data":"opaque"}]}`)+
-				`data: {"id":"x","object":"chat.completion.chunk","created":1,"model":"m","choices":[{"index":0,`+
-				`"delta":{"content":"ok"},"finish_reason":"stop"}]}`+"\n\n"+
-				"data: [DONE]\n\n",
-			WithModel("anthropic/claude-sonnet-4-5"))
-		resp, err := llm.GenerateContent(context.Background(), ask,
-			llms.WithStreamingFunc(func(_ context.Context, _ streaming.Chunk) error { return nil }))
-		require.NoError(t, err)
-		require.Equal(t, want, resp.Choices[0].Reasoning.Sequence())
+	})
+
+	t.Run("by default the reasoning is what reasoning_content carried", func(t *testing.T) {
+		t.Parallel()
+		got := reasoningOf(t, "application/json", wholeGatewayAnswer(`"reasoning_content":"plan","thinking_blocks":[`+
+			`{"type":"thinking","thinking":"plan","signature":"sig1"}]`), nil)
+		require.Equal(t, &reasoning.ContentReasoning{Content: "plan"}, got)
+		require.Nil(t, reasoningOf(t, "application/json", wholeGatewayAnswer(
+			`"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]`), nil))
 	})
 }
 
@@ -75,12 +106,10 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	t.Parallel()
 
 	signed := reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("sig1")}})
-	unsigned := &reasoning.ContentReasoning{Content: "plan"}
 	sent := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) map[string]any {
 		t.Helper()
 
-		llm, raw := gatewayAnswering(t, "application/json", `{"id":"x","object":"chat.completion","created":1,`+
-			`"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`,
+		llm, raw := gatewayAnswering(t, "application/json", wholeGatewayAnswer(`"reasoning_content":""`),
 			append([]Option{WithModel(model)}, opts...)...)
 		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
 			llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
@@ -100,25 +129,45 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 		require.NoError(t, json.Unmarshal(*raw, &body))
 		return body.Messages[1]
 	}
+	const claude = "anthropic/claude-sonnet-4-5"
 
-	t.Run("signed blocks go back when replay is on", func(t *testing.T) {
+	t.Run("signed blocks go back when asked", func(t *testing.T) {
 		t.Parallel()
-		got := sent(t, "anthropic/claude-sonnet-4-5", signed, WithPreserveReasoningContent())
 		require.Equal(t, []any{map[string]any{"type": "thinking", "thinking": "plan", "signature": "sig1"}},
-			got["thinking_blocks"])
+			sent(t, claude, signed, WithThinkingBlocks())["thinking_blocks"])
+	})
+	t.Run("a block whose thinking is omitted goes back with an empty thinking", func(t *testing.T) {
+		t.Parallel()
+		omitted := reasoning.FromBlocks([]reasoning.Block{{Signature: []byte("sig1")}})
+		require.Equal(t, []any{map[string]any{"type": "thinking", "thinking": "", "signature": "sig1"}},
+			sent(t, claude, omitted, WithThinkingBlocks())["thinking_blocks"])
+	})
+	t.Run("a redacted block goes back as its data", func(t *testing.T) {
+		t.Parallel()
+		redacted := reasoning.FromBlocks([]reasoning.Block{{Redacted: []byte("opaque")}})
+		require.Equal(t, []any{map[string]any{"type": "redacted_thinking", "data": "opaque"}},
+			sent(t, claude, redacted, WithThinkingBlocks())["thinking_blocks"])
 	})
 	t.Run("nothing goes back by default", func(t *testing.T) {
 		t.Parallel()
-		require.NotContains(t, sent(t, "anthropic/claude-sonnet-4-5", signed), "thinking_blocks")
+		require.NotContains(t, sent(t, claude, signed), "thinking_blocks")
+	})
+	t.Run("preserving reasoning alone sends no blocks", func(t *testing.T) {
+		t.Parallel()
+		require.NotContains(t, sent(t, claude, signed, WithPreserveReasoningContent()), "thinking_blocks")
 	})
 	t.Run("an unsigned thought is not a block", func(t *testing.T) {
 		t.Parallel()
-		require.NotContains(t, sent(t, "anthropic/claude-sonnet-4-5", unsigned, WithPreserveReasoningContent()),
+		require.NotContains(t, sent(t, claude, &reasoning.ContentReasoning{Content: "plan"}, WithThinkingBlocks()),
 			"thinking_blocks")
 	})
 	t.Run("a model that is not Claude takes no blocks", func(t *testing.T) {
 		t.Parallel()
-		require.NotContains(t, sent(t, "deepseek/deepseek-chat", signed, WithPreserveReasoningContent()),
+		require.NotContains(t, sent(t, "deepseek/deepseek-chat", signed, WithThinkingBlocks()), "thinking_blocks")
+	})
+	t.Run("an OpenRouter route takes no blocks", func(t *testing.T) {
+		t.Parallel()
+		require.NotContains(t, sent(t, "openrouter/anthropic/claude-sonnet-4-5", signed, WithThinkingBlocks()),
 			"thinking_blocks")
 	})
 }

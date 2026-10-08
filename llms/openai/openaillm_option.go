@@ -42,6 +42,8 @@ type options struct {
 	// preserve reasoning content in multi-turn conversations with tool calls
 	preserveReasoningContent bool
 
+	thinkingBlocks bool
+
 	// carry a structured-output schema in the prompt for vendors without json_schema
 	structuredOutputFallback bool
 
@@ -186,12 +188,21 @@ func WithModernReasoningFormat() Option {
 // ("deepseek-") assistant turn that holds no reasoning goes back with an empty
 // reasoning_content, which DeepSeek's thinking mode requires after the last user
 // message; keep the reasoning DeepSeek returned in the history, since the empty
-// field also stops DeepSeek from restoring it by the turn's tool call ID. A Claude
-// model behind a gateway outside the public providers, such as LiteLLM, also takes
-// its signed thinking blocks back as thinking_blocks on every assistant turn.
+// field also stops DeepSeek from restoring it by the turn's tool call ID.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true
+	}
+}
+
+// WithThinkingBlocks keeps the signed thinking_blocks that a gateway outside the
+// public providers, such as LiteLLM, returns for a Claude model, and sends them back
+// on every assistant turn to such a gateway. Claude binds each block to everything
+// sent before it, so use this only when the history going back is the history
+// received: a block behind an edited prefix fails the request.
+func WithThinkingBlocks() Option {
+	return func(opts *options) {
+		opts.thinkingBlocks = true
 	}
 }
 
