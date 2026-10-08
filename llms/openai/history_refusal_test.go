@@ -108,6 +108,15 @@ func TestAGatewaysTooLargeRequestIsAnOverflow(t *testing.T) {
 	require.EqualError(t, err, "API returned unexpected status code: 413: <html><body>413 Request Entity Too Large</body></html>")
 }
 
+func TestARefusalWithoutABodyKeepsItsText(t *testing.T) {
+	t.Parallel()
+
+	for _, body := range []string{"", "  \n"} {
+		err := gatewayRefusing(t, http.StatusBadGateway, body)
+		require.EqualError(t, err, "API returned unexpected status code: 502", "body %q", body)
+	}
+}
+
 func TestAGatewaysOtherRefusalKeepsItsPlainError(t *testing.T) {
 	t.Parallel()
 

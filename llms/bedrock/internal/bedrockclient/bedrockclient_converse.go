@@ -526,7 +526,7 @@ func (t *toolResultAccumulator) isEmpty() bool {
 // All consecutive AI messages (with or without tool calls) are combined into a single assistant message
 // All consecutive tool result messages are combined into a single user message
 // convertMessages also returns, for each Converse message, the MessageIndex of
-// the first part merged into it.
+// the first part merged into an assistant message, or -1 for a user message.
 func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, []int, []types.SystemContentBlock, error) {
 	var converseMessages []types.Message
 	var origins []int
@@ -534,7 +534,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 
 	aiAccum := &aiMessageAccumulator{}
 	toolAccum := &toolResultAccumulator{}
-	var aiFrom, toolFrom, humanFrom int
+	var aiFrom int
 
 	// Helper to flush AI accumulator
 	flushAI := func() error {
@@ -550,7 +550,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 	flushToolResults := func() error {
 		if !toolAccum.isEmpty() {
 			converseMessages = append(converseMessages, toolAccum.build())
-			origins = append(origins, toolFrom)
+			origins = append(origins, -1)
 			toolAccum.reset()
 		}
 		return nil
@@ -568,7 +568,7 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 				Role:    types.ConversationRoleUser,
 				Content: humanBlocks,
 			})
-			origins = append(origins, humanFrom)
+			origins = append(origins, -1)
 		}
 		humanBlocks = nil
 	}
@@ -598,9 +598,6 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 			}
 			if msg.CacheControl != nil {
 				converseMsg.Content = append(converseMsg.Content, c.createCachePointBlock(msg.CacheControl))
-			}
-			if len(humanBlocks) == 0 {
-				humanFrom = msg.MessageIndex
 			}
 			humanBlocks = append(humanBlocks, converseMsg.Content...)
 
@@ -647,9 +644,6 @@ func (c *ConverseClient) convertMessages(messages []Message) ([]types.Message, [
 				return nil, nil, nil, err
 			}
 
-			if toolAccum.isEmpty() {
-				toolFrom = msg.MessageIndex
-			}
 			// Accumulate tool result
 			if err := toolAccum.addToolResult(msg.ToolResult); err != nil {
 				return nil, nil, nil, err

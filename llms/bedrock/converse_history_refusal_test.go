@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/aws/smithy-go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
@@ -82,8 +83,41 @@ func TestARefusedConverseHistoryNamesTheMessageInTheCallersChain(t *testing.T) {
 			require.Equal(t, tc.chain, rejected.Message, operation)
 			require.EqualError(t, err, prefix+"operation error Bedrock Runtime: "+operation+
 				", https response error StatusCode: 400, RequestID: , ValidationException: "+tc.message)
+			var apiErr smithy.APIError
+			require.ErrorAs(t, err, &apiErr, operation)
+			require.Equal(t, "ValidationException", apiErr.ErrorCode(), operation)
 		}
 	}
+}
+
+func TestARefusedBlockInAMergedConverseTurnNamesItsFirstMessage(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Amzn-Errortype", "ValidationException")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = io.WriteString(w, `{"message":"messages.1.content.0: Invalid `+"`signature`"+` in `+"`thinking`"+` block"}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	thought := (&reasoning.ContentReasoning{Content: "plan", Signature: []byte("sig")}).WrittenBy(converseClaude)
+	_, err := bedrockLLMAgainst(t, srv, bedrock.WithModel(converseClaude), bedrock.WithConverseAPI()).
+		GenerateContent(t.Context(), []llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "a"),
+			llms.TextParts(llms.ChatMessageTypeAI, "first"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+				llms.TextPartWithReasoning("", thought),
+				llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "nmap", Arguments: `{}`}},
+			}},
+			{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{llms.ToolCallResponse{ToolCallID: "c1", Name: "nmap", Content: "open"}}},
+			llms.TextParts(llms.ChatMessageTypeHuman, "b"),
+		})
+
+	var rejected *llms.ErrHistoryRejected
+	require.ErrorAs(t, err, &rejected)
+	require.Equal(t, 1, rejected.Message, "the thinking of message 2 rides in the turn Converse built from messages 1 and 2")
 }
 
 func TestAConversePromptOverTheContextWindowIsAnOverflow(t *testing.T) {
@@ -93,6 +127,9 @@ func TestAConversePromptOverTheContextWindowIsAnOverflow(t *testing.T) {
 
 	var overflow *llms.ErrContextOverflow
 	require.ErrorAs(t, err, &overflow)
+	var apiErr smithy.APIError
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, "ValidationException", apiErr.ErrorCode())
 	require.EqualError(t, err, "converse API call failed: operation error Bedrock Runtime: Converse, "+
 		"https response error StatusCode: 400, RequestID: , ValidationException: prompt is too long: 215000 tokens > 200000 maximum")
 }

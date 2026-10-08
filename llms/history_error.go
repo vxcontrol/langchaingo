@@ -20,8 +20,9 @@ const (
 type ErrHistoryRejected struct {
 	Fault HistoryFault
 	// Message is the index, in the messages passed to GenerateContent, of the
-	// message holding the block the vendor named, or -1 when the door cannot
-	// tell: a gateway builds the vendor's messages itself.
+	// message holding the block the vendor named or, when the door merged
+	// several messages into the one the vendor named, of the first of them; -1
+	// when the door cannot tell: a gateway builds the vendor's messages itself.
 	Message int
 	Cause   error
 }

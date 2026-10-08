@@ -225,6 +225,7 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 	bedrockMsgs := make([]bedrockclient.Message, 0, len(messages))
 
 	for i, m := range messages {
+		first := len(bedrockMsgs)
 		for _, part := range m.Parts {
 			switch part := part.(type) {
 			case CachedContent:
@@ -235,7 +236,6 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				case llms.TextContent:
 					bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
 						Role:         m.Role,
-						MessageIndex: i,
 						Content:      wrapped.Text,
 						Type:         "text",
 						Reasoning:    wrapped.Reasoning,
@@ -244,7 +244,6 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				case llms.BinaryContent:
 					bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
 						Role:         m.Role,
-						MessageIndex: i,
 						Content:      string(wrapped.Data),
 						MimeType:     wrapped.MIMEType,
 						Type:         "image",
@@ -255,19 +254,17 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				}
 			case llms.TextContent:
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
-					Role:         m.Role,
-					MessageIndex: i,
-					Content:      part.Text,
-					Type:         "text",
-					Reasoning:    part.Reasoning,
+					Role:      m.Role,
+					Content:   part.Text,
+					Type:      "text",
+					Reasoning: part.Reasoning,
 				})
 			case llms.BinaryContent:
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
-					Role:         m.Role,
-					MessageIndex: i,
-					Content:      string(part.Data),
-					MimeType:     part.MIMEType,
-					Type:         "image",
+					Role:     m.Role,
+					Content:  string(part.Data),
+					MimeType: part.MIMEType,
+					Type:     "image",
 				})
 			case llms.ToolCall:
 				arguments := map[string]any{}
@@ -279,9 +276,8 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 					arguments = decoded
 				}
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
-					Role:         m.Role,
-					MessageIndex: i,
-					Type:         "tool_use",
+					Role: m.Role,
+					Type: "tool_use",
 					ToolCall: &bedrockclient.ToolCall{
 						ID:        part.ID,
 						Name:      part.FunctionCall.Name,
@@ -290,9 +286,8 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				})
 			case llms.ToolCallResponse:
 				bedrockMsgs = append(bedrockMsgs, bedrockclient.Message{
-					Role:         m.Role,
-					MessageIndex: i,
-					Type:         "tool_result",
+					Role: m.Role,
+					Type: "tool_result",
 					ToolResult: &bedrockclient.ToolResult{
 						ToolCallID: part.ToolCallID,
 						ToolName:   part.Name,
@@ -303,6 +298,9 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				// Check if it's unknown type - might be a specific provider type
 				return nil, errors.New("unsupported message type")
 			}
+		}
+		for j := first; j < len(bedrockMsgs); j++ {
+			bedrockMsgs[j].MessageIndex = i
 		}
 	}
 
