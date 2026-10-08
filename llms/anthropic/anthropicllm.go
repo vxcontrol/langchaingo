@@ -185,16 +185,16 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		return nil, err
 	}
 
-	chatMessages, systemPrompt, err := processMessages(messages)
-	if err != nil {
-		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
-	}
-
 	// Resolve through the same chain the request uses (per-call, then client, then
 	// package default), so the capability resolver classifies the exact model the
 	// API will run — otherwise an unset model reads as unknown while the wire runs
 	// the default (an adaptive-only model that rejects budget thinking and sampling).
 	model := o.client.EffectiveModel(opts.GetModel())
+
+	chatMessages, systemPrompt, err := processMessages(messages, model)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
+	}
 	warn := &llms.Warnings{}
 	warn.AddInherited(model)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
@@ -369,7 +369,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 			return nil, wrapped
 		}
 		result.DropUnfinishedToolUses()
-		partial, buildErr := processAnthropicResponse(result, warn)
+		partial, buildErr := processAnthropicResponse(result, model, warn)
 		if buildErr != nil {
 			return nil, wrapped
 		}
@@ -378,7 +378,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 		return partial, wrapped
 	}
-	response, err := processAnthropicResponse(result, warn)
+	response, err := processAnthropicResponse(result, model, warn)
 	if err != nil {
 		return response, err
 	}
@@ -423,7 +423,7 @@ func anthropicRefusal(result *anthropicclient.MessageResponsePayload) *ErrModelR
 
 // processAnthropicResponse converts Anthropic API response to standard ContentResponse
 func processAnthropicResponse(
-	result *anthropicclient.MessageResponsePayload, warn *llms.Warnings,
+	result *anthropicclient.MessageResponsePayload, model string, warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	if result == nil {
 		return nil, ErrEmptyResponse
@@ -464,7 +464,7 @@ func processAnthropicResponse(
 			thoughts.ToolCall()
 		}
 	}
-	contentReasoning := thoughts.Reasoning()
+	contentReasoning := thoughts.Reasoning().WrittenBy(model)
 
 	// Build response choice - reasoning ALWAYS goes to choice, not tool calls
 	choice := &llms.ContentChoice{
@@ -703,7 +703,7 @@ func markLastContentBlockForCaching(contents []anthropicclient.Content, cacheCon
 	}
 }
 
-func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMessage, any, error) {
+func processMessages(messages []llms.MessageContent, target string) ([]anthropicclient.ChatMessage, any, error) {
 	chatMessages := make([]anthropicclient.ChatMessage, 0, len(messages))
 	var systemBlocks []anthropicclient.Content
 
@@ -722,7 +722,7 @@ func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMess
 			}
 			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeAI:
-			chatMessage, err := handleAIMessage(msg)
+			chatMessage, err := handleAIMessage(msg, target)
 			if err != nil {
 				return nil, "", fmt.Errorf("anthropic: failed to handle AI message: %w", err)
 			}
@@ -842,13 +842,13 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 	}, nil
 }
 
-func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
+func handleAIMessage(msg llms.MessageContent, target string) (anthropicclient.ChatMessage, error) {
 	var thoughts []reasoning.Block
 	toolCalls := 0
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
 		case llms.TextContent:
-			thoughts = append(thoughts, p.Reasoning.Sequence()...)
+			thoughts = append(thoughts, replayedReasoning(p.Reasoning, target).Sequence()...)
 		case llms.ToolCall:
 			toolCalls++
 		}
@@ -901,6 +901,13 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 	}
 
 	return message, nil
+}
+
+func replayedReasoning(r *reasoning.ContentReasoning, target string) *reasoning.ContentReasoning {
+	if reasoning.IsClaude(target) {
+		return reasoning.ForClaude(r, target)
+	}
+	return r
 }
 
 func thinkingContents(blocks []reasoning.Block) []anthropicclient.Content {

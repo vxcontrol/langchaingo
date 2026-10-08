@@ -229,7 +229,7 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 			}
 		}
 		if o.sendsThinkingBlocks(model) && msg.Role == RoleAssistant {
-			msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts)
+			msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts, model)
 		}
 
 		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {
@@ -1014,7 +1014,7 @@ func (o *LLM) processResponse(
 		stopReason := string(c.FinishReason)
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
-			Reasoning:      o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks),
+			Reasoning:      o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks).WrittenBy(model),
 			StopReason:     stopReason,
 			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
@@ -1181,14 +1181,14 @@ func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
 	return parts, nil
 }
 
-func signedThinkingBlocks(parts []llms.ContentPart) []openaiclient.ThinkingBlock {
+func signedThinkingBlocks(parts []llms.ContentPart, claude string) []openaiclient.ThinkingBlock {
 	var blocks []openaiclient.ThinkingBlock
 	for _, part := range parts {
 		text, ok := part.(llms.TextContent)
 		if !ok {
 			continue
 		}
-		for _, block := range text.Reasoning.Sequence() {
+		for _, block := range reasoning.ForClaude(text.Reasoning, claude).Sequence() {
 			switch {
 			case block.Redacted != nil:
 				blocks = append(blocks, openaiclient.ThinkingBlock{Type: "redacted_thinking", Data: string(block.Redacted)})
