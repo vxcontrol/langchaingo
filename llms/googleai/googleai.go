@@ -335,7 +335,7 @@ func (g *GoogleAI) generateFromMessages(
 		}
 
 		if msg.Role == llms.ChatMessageTypeSystem {
-			systemInstruction = content
+			systemInstruction = withSystemParts(systemInstruction, content)
 		} else {
 			contents = append(contents, content)
 		}
@@ -831,6 +831,14 @@ func convertContent(content llms.MessageContent) (*genai.Content, error) {
 		Parts: parts,
 		Role:  role,
 	}, nil
+}
+
+func withSystemParts(instruction, system *genai.Content) *genai.Content {
+	if instruction == nil {
+		return system
+	}
+	instruction.Parts = append(instruction.Parts, system.Parts...)
+	return instruction
 }
 
 func googleToolConfig(choice any) *genai.ToolConfig {

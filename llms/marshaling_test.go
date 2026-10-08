@@ -449,6 +449,15 @@ func TestRoundtripping(t *testing.T) { // nolint:funlen // We make an exception 
 			assertedYAML: "role: user\ntext: Hello, world!\n",
 		},
 		{
+			name: "single empty text part",
+			in: MessageContent{
+				Role:  "system",
+				Parts: []ContentPart{TextContent{Text: ""}},
+			},
+			assertedJSON: `{"role":"system","text":""}`,
+			assertedYAML: "role: system\ntext: \"\"\n",
+		},
+		{
 			name: "multiple parts",
 			in: MessageContent{
 				Role: "user",

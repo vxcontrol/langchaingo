@@ -31,6 +31,7 @@ var (
 	ErrInvalidContentType       = errors.New("invalid content type")
 	ErrUnsupportedMessageType   = errors.New("unsupported message type")
 	ErrUnsupportedContentType   = errors.New("unsupported content type")
+	ErrEmptySystemMessage       = errors.New("system message has no parts")
 )
 
 // ErrModelRefusal is the shared refusal error, aliased for callers of this door.
@@ -699,17 +700,16 @@ func markLastContentBlockForCaching(contents []anthropicclient.Content, cacheCon
 
 func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMessage, any, error) {
 	chatMessages := make([]anthropicclient.ChatMessage, 0, len(messages))
-	var systemPrompt any = ""
 	var systemBlocks []anthropicclient.Content
 
 	for _, msg := range messages {
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
-			var err error
-			systemPrompt, systemBlocks, err = processSystemParts(msg, systemPrompt, systemBlocks)
+			blocks, err := systemTextBlocks(msg)
 			if err != nil {
 				return nil, "", err
 			}
+			systemBlocks = append(systemBlocks, blocks...)
 		case llms.ChatMessageTypeHuman:
 			chatMessage, err := handleHumanMessage(msg)
 			if err != nil {
@@ -735,74 +735,41 @@ func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMess
 		}
 	}
 
-	// If we collected system blocks, use them instead of string
-	if len(systemBlocks) > 0 {
-		systemPrompt = systemBlocks
-	}
-
-	return chatMessages, systemPrompt, nil
+	return chatMessages, systemParam(systemBlocks), nil
 }
 
-func processSystemParts(msg llms.MessageContent, systemPrompt any, systemBlocks []anthropicclient.Content) (any, []anthropicclient.Content, error) {
-	hasCacheControl := false
+func systemParam(blocks []anthropicclient.Content) any {
+	switch len(blocks) {
+	case 0:
+		return ""
+	case 1:
+		if text, ok := blocks[0].(*anthropicclient.TextContent); ok && text.CacheControl == nil {
+			return text.Text
+		}
+	}
+	return blocks
+}
+
+func systemTextBlocks(msg llms.MessageContent) ([]anthropicclient.Content, error) {
+	if len(msg.Parts) == 0 {
+		return nil, fmt.Errorf("anthropic: %w", ErrEmptySystemMessage)
+	}
+	blocks := make([]anthropicclient.Content, 0, len(msg.Parts))
 	for _, part := range msg.Parts {
-		if _, ok := part.(CachedContent); ok {
-			hasCacheControl = true
-			break
+		var cacheControl *anthropicclient.CacheControl
+		if cached, ok := part.(CachedContent); ok {
+			part, cacheControl = cached.ContentPart, convertCacheControl(cached.CacheControl)
 		}
-	}
-
-	if hasCacheControl {
-		for _, part := range msg.Parts {
-			switch p := part.(type) {
-			case CachedContent:
-				cacheControl := convertCacheControl(p.CacheControl)
-				if textContent, ok := p.ContentPart.(llms.TextContent); ok {
-					systemBlocks = append(systemBlocks, &anthropicclient.TextContent{
-						Type:         "text",
-						Text:         textContent.Text,
-						CacheControl: cacheControl,
-					})
-				}
-			case llms.TextContent:
-				systemBlocks = append(systemBlocks, &anthropicclient.TextContent{
-					Type: "text",
-					Text: p.Text,
-				})
-			}
+		text, ok := part.(llms.TextContent)
+		if !ok {
+			return nil, fmt.Errorf("anthropic: %w for system message", ErrInvalidContentType)
 		}
-	} else {
-		content, err := handleSystemMessage(msg)
-		if err != nil {
-			return nil, nil, fmt.Errorf("anthropic: failed to handle system message: %w", err)
+		if text.Text == "" && cacheControl == nil {
+			continue
 		}
-		if sysStr, ok := systemPrompt.(string); ok {
-			systemPrompt = sysStr + content
-		}
+		blocks = append(blocks, &anthropicclient.TextContent{Type: "text", Text: text.Text, CacheControl: cacheControl})
 	}
-
-	return systemPrompt, systemBlocks, nil
-}
-
-func handleSystemMessage(msg llms.MessageContent) (string, error) {
-	// System message in Anthropic doesn't support cache_control directly
-	// Cache control for system messages is handled via system parameter
-	// For now, just extract text and ignore cache control
-	// TODO: Handle system message caching via array format if needed
-
-	part := msg.Parts[0]
-
-	// If it's cached content, unwrap it
-	if cached, ok := part.(CachedContent); ok {
-		part = cached.ContentPart
-	}
-
-	// Extract text from the part
-	if textContent, ok := part.(llms.TextContent); ok {
-		return textContent.Text, nil
-	}
-
-	return "", fmt.Errorf("anthropic: %w for system message", ErrInvalidContentType)
+	return blocks, nil
 }
 
 func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {

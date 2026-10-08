@@ -41,7 +41,7 @@ func (mc MessageContent) MarshalJSON() ([]byte, error) {
 func (mc *MessageContent) UnmarshalJSON(data []byte) error {
 	var m struct {
 		Role  ChatMessageType `json:"role"`
-		Text  string          `json:"text"`
+		Text  *string         `json:"text"`
 		Parts []struct {
 			Type      string                      `json:"type"`
 			Text      string                      `json:"text,omitempty"`
@@ -109,8 +109,8 @@ func (mc *MessageContent) UnmarshalJSON(data []byte) error {
 		}
 	}
 	// Special case: handle single text part directly:
-	if len(mc.Parts) == 0 && m.Text != "" {
-		mc.Parts = []ContentPart{TextContent{Text: m.Text}}
+	if len(mc.Parts) == 0 && m.Text != nil {
+		mc.Parts = []ContentPart{TextContent{Text: *m.Text}}
 	}
 	return nil
 }
