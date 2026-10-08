@@ -977,7 +977,7 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 		if c.Message.Refusal == "" {
 			continue
 		}
-		cached := result.Usage.PromptTokensDetails.CachedTokens
+		cached := result.Usage.CachedInputTokens()
 		return &llms.ErrModelRefusal{
 			Provider:             "openai",
 			Message:              c.Message.Refusal,
@@ -1046,9 +1046,9 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 		"ReasoningTokens":   usage.CompletionTokensDetails.ReasoningTokens,
 		"PromptAudioTokens": usage.PromptTokensDetails.AudioTokens,
 		// Standardized fields for cross-provider compatibility
-		"PromptCachedTokens":                 usage.PromptTokensDetails.CachedTokens,
-		"CacheReadInputTokens":               usage.PromptTokensDetails.CachedTokens,
-		"CacheCreationInputTokens":           usage.PromptTokensDetails.CacheWriteTokens,
+		"PromptCachedTokens":                 usage.CachedInputTokens(),
+		"CacheReadInputTokens":               usage.CachedInputTokens(),
+		"CacheCreationInputTokens":           usage.CacheWriteInputTokens(),
 		"CompletionAudioTokens":              usage.CompletionTokensDetails.AudioTokens,
 		"CompletionReasoningTokens":          usage.CompletionTokensDetails.ReasoningTokens,
 		"CompletionAcceptedPredictionTokens": usage.CompletionTokensDetails.AcceptedPredictionTokens,

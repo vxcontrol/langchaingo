@@ -655,6 +655,9 @@ func (o *LLM) createContentResponse(resp api.ChatResponse) *llms.ContentResponse
 			},
 		},
 	}
+	if resp.PromptEvalCachedCount != nil {
+		choices[0].GenerationInfo["CacheReadInputTokens"] = *resp.PromptEvalCachedCount
+	}
 
 	for _, tc := range resp.Message.ToolCalls {
 		choices[0].ToolCalls = append(choices[0].ToolCalls, llms.ToolCall{
