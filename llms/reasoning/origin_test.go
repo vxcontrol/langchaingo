@@ -43,6 +43,7 @@ func TestClaudeGetsOnlySignedReasoningNoOtherModelWrote(t *testing.T) {
 	require.Equal(t, signed("my-alias"), ForClaude(signed("my-alias"), "my-alias"), "the target itself")
 	require.Nil(t, ForClaude(signed("gemini-2.5-pro"), target))
 	require.Nil(t, ForClaude(signed("deepseek-reasoner"), target))
+	require.Nil(t, ForClaude(signed("pentagi-sonnet"), target), "a writer whose name does not say Claude")
 	require.Nil(t, ForClaude(&ContentReasoning{Content: "plan"}, target), "no signature")
 	require.Equal(t,
 		[]Block{{Text: "plan", Signature: []byte("sig")}, {Redacted: []byte("opaque"), AfterToolCalls: 1}},
