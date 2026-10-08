@@ -227,6 +227,9 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 				msg.ReasoningContent = extractReasoningContent(mc.Parts)
 				msg.KeepsEmptyReasoning = reasoning.ReplaysEmptyReasoning(model)
 			}
+			if reasoning.ClaudeSupportsThinking(model) && o.sendsClaudeThinkingObject(model) {
+				msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts)
+			}
 		}
 
 		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {
@@ -1011,7 +1014,7 @@ func (o *LLM) processResponse(
 		stopReason := string(c.FinishReason)
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
-			Reasoning:      o.processReasoning(c.Message.ReasoningContent),
+			Reasoning:      o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks),
 			StopReason:     stopReason,
 			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
@@ -1064,7 +1067,18 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 }
 
 // processReasoning processes reasoning content in the response.
-func (o *LLM) processReasoning(reasoningContent string) *reasoning.ContentReasoning {
+func (o *LLM) processReasoning(reasoningContent string, blocks []openaiclient.ThinkingBlock) *reasoning.ContentReasoning {
+	var thoughts reasoning.Collector
+	for _, block := range blocks {
+		if block.Type == "redacted_thinking" {
+			thoughts.Encrypted([]byte(block.Data))
+			continue
+		}
+		thoughts.Thought(block.Thinking, []byte(block.Signature))
+	}
+	if signed := thoughts.Reasoning(); !signed.IsEmpty() {
+		return signed
+	}
 	if reasoningContent == "" {
 		return nil
 	}
@@ -1157,6 +1171,27 @@ func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
 		parts[i] = llms.ImageURLContent{URL: binary.String()}
 	}
 	return parts, nil
+}
+
+func signedThinkingBlocks(parts []llms.ContentPart) []openaiclient.ThinkingBlock {
+	var blocks []openaiclient.ThinkingBlock
+	for _, part := range parts {
+		text, ok := part.(llms.TextContent)
+		if !ok {
+			continue
+		}
+		for _, block := range text.Reasoning.Sequence() {
+			switch {
+			case block.Redacted != nil:
+				blocks = append(blocks, openaiclient.ThinkingBlock{Type: "redacted_thinking", Data: string(block.Redacted)})
+			case len(block.Signature) > 0:
+				blocks = append(blocks, openaiclient.ThinkingBlock{
+					Type: "thinking", Thinking: block.Text, Signature: string(block.Signature),
+				})
+			}
+		}
+	}
+	return blocks
 }
 
 // extractReasoningContent extracts reasoning content from message parts.

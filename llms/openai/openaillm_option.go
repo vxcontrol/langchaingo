@@ -186,7 +186,9 @@ func WithModernReasoningFormat() Option {
 // ("deepseek-") assistant turn that holds no reasoning goes back with an empty
 // reasoning_content, which DeepSeek's thinking mode requires after the last user
 // message; keep the reasoning DeepSeek returned in the history, since the empty
-// field also stops DeepSeek from restoring it by the turn's tool call ID.
+// field also stops DeepSeek from restoring it by the turn's tool call ID. A Claude
+// model behind a gateway outside the public providers, such as LiteLLM, also takes
+// its signed thinking blocks back as thinking_blocks on every assistant turn.
 func WithPreserveReasoningContent() Option {
 	return func(opts *options) {
 		opts.preserveReasoningContent = true

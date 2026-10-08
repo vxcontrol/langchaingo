@@ -15,6 +15,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/internal/answer"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
@@ -433,6 +434,7 @@ func processAnthropicResponse(
 	var thoughts reasoning.Collector
 	var toolCalls []llms.ToolCall
 	var textContent strings.Builder
+	var parts answer.Parts
 
 	for _, content := range result.Content {
 		switch cv := content.(type) {
@@ -442,6 +444,7 @@ func processAnthropicResponse(
 			thoughts.Encrypted([]byte(cv.Data))
 		case *anthropicclient.TextContent:
 			textContent.WriteString(cv.Text)
+			parts.Text(cv.Text)
 		case *anthropicclient.ToolUseContent:
 			argumentsJSON, err := json.Marshal(cv.Input)
 			if err != nil {
@@ -456,6 +459,7 @@ func processAnthropicResponse(
 				},
 			}
 			toolCalls = append(toolCalls, toolCall)
+			parts.ToolCall(toolCall)
 			thoughts.ToolCall()
 		}
 	}
@@ -466,6 +470,7 @@ func processAnthropicResponse(
 		Content:    textContent.String(),
 		Reasoning:  contentReasoning, // Always in choice for Anthropic
 		ToolCalls:  toolCalls,
+		Parts:      parts.With(contentReasoning),
 		StopReason: result.StopReason,
 		Truncated:  llms.IsTruncated(result.StopReason),
 		GenerationInfo: map[string]any{

@@ -272,7 +272,7 @@ func TestAMergedConverseTurnKeepsTheReasoningOfEveryPart(t *testing.T) {
 		}, want: both},
 		"a tool call ahead of the reasoning part": {turn: []llms.MessageContent{
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{callA, llms.TextPartWithReasoning("t1", first)}},
-		}, want: []string{"thought one/s1", "text t1", "tool A"}},
+		}, want: []string{"thought one/s1", "tool A", "text t1"}},
 		"an empty reasoning ahead of a real one": {turn: []llms.MessageContent{{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
 			llms.TextPartWithReasoning("t1", &reasoning.ContentReasoning{}),
 			llms.TextPartWithReasoning("t2", second),

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
@@ -184,6 +185,24 @@ type ContentChoice struct {
 	// This field is only used with reasoning models and represents the reasoning contents of the assistant message in completion mode.
 	// If the model response has tool calls, this field will be nil and the reasoning contents will be dedicated to each tool call.
 	Reasoning *reasoning.ContentReasoning
+
+	// Parts is the answer in the order the vendor returned it, each text block
+	// separate; set only by doors that receive the answer as blocks.
+	Parts []ContentPart
+}
+
+func (c *ContentChoice) Message() MessageContent {
+	if len(c.Parts) > 0 {
+		return MessageContent{Role: ChatMessageTypeAI, Parts: slices.Clone(c.Parts)}
+	}
+	msg := MessageContent{Role: ChatMessageTypeAI}
+	if c.Content != "" || !c.Reasoning.IsEmpty() {
+		msg.Parts = append(msg.Parts, TextContent{Text: c.Content, Reasoning: c.Reasoning})
+	}
+	for _, call := range c.ToolCalls {
+		msg.Parts = append(msg.Parts, call)
+	}
+	return msg
 }
 
 // TextParts is a helper function to create a MessageContent with a role and a

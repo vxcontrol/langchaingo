@@ -334,6 +334,15 @@ type ChatMessage struct { //nolint:musttag
 	// KeepsEmptyReasoning sends reasoning_content even when it is empty, for a
 	// vendor that refuses an assistant turn without the field. Requests only.
 	KeepsEmptyReasoning bool
+
+	ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
+}
+
+type ThinkingBlock struct {
+	Type      string `json:"type"`
+	Thinking  string `json:"thinking,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	Data      string `json:"data,omitempty"`
 }
 
 type contentChunk struct {
@@ -423,6 +432,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 			Thinking string `json:"-"`
 
 			KeepsEmptyReasoning bool `json:"-"`
+
+			ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 		}(m)
 		if msg.ReasoningContent == "" && msg.Reasoning != "" {
 			msg.ReasoningContent = msg.Reasoning
@@ -452,6 +463,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		Thinking string `json:"-"`
 
 		KeepsEmptyReasoning bool `json:"-"`
+
+		ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 	}(m)
 	if msg.ReasoningContent == "" && msg.Reasoning != "" {
 		msg.ReasoningContent = msg.Reasoning
@@ -502,6 +515,8 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 		Thinking string `json:"-"`
 
 		KeepsEmptyReasoning bool `json:"-"`
+
+		ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 	}
 	var msg struct {
 		fields
@@ -675,6 +690,8 @@ type StreamedChatResponseChunkDelta struct {
 	// Refusal streams in when the model declines under Structured Outputs; it must
 	// be accumulated and surfaced separately from Content, never validated as JSON.
 	Refusal string `json:"refusal,omitempty"`
+
+	ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 }
 
 func (d *StreamedChatResponseChunkDelta) UnmarshalJSON(data []byte) error {
@@ -1099,6 +1116,7 @@ DoStream:
 			accum.content.WriteString(content)
 			accum.reasoningContent.WriteString(reasoningContent)
 			accum.refusal.WriteString(choice.Delta.Refusal)
+			accum.addThinkingBlocks(choice.Delta.ThinkingBlocks)
 
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
@@ -1168,12 +1186,32 @@ type streamedText struct {
 	content          strings.Builder
 	reasoningContent strings.Builder
 	refusal          strings.Builder
+	thinkingBlocks   []ThinkingBlock
+}
+
+func (t *streamedText) addThinkingBlocks(blocks []ThinkingBlock) {
+	for _, block := range blocks {
+		if block.Type == "redacted_thinking" {
+			t.thinkingBlocks = append(t.thinkingBlocks, block)
+			continue
+		}
+		last := len(t.thinkingBlocks) - 1
+		if last < 0 || t.thinkingBlocks[last].Type != "thinking" || t.thinkingBlocks[last].Signature != "" {
+			t.thinkingBlocks = append(t.thinkingBlocks, ThinkingBlock{Type: "thinking"})
+			last++
+		}
+		t.thinkingBlocks[last].Thinking += block.Thinking
+		if block.Signature != "" {
+			t.thinkingBlocks[last].Signature = block.Signature
+		}
+	}
 }
 
 func (t *streamedText) flushInto(msg *ChatMessage) {
 	msg.Content = t.content.String()
 	msg.ReasoningContent = t.reasoningContent.String()
 	msg.Refusal = t.refusal.String()
+	msg.ThinkingBlocks = t.thinkingBlocks
 }
 
 func getChunkContent(choice StreamedChatResponseChunk, splitter reasoning.ChunkContentSplitter) (string, string) {
