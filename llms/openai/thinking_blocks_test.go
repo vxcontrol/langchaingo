@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -92,27 +93,32 @@ func TestAGatewaysThinkingBlocksKeepTheirSignature(t *testing.T) {
 		}
 	})
 
-	t.Run("by default the reasoning is what reasoning_content carried", func(t *testing.T) {
-		t.Parallel()
-		got := reasoningOf(t, "application/json", wholeGatewayAnswer(`"reasoning_content":"plan","thinking_blocks":[`+
-			`{"type":"thinking","thinking":"plan","signature":"sig1"}]`), nil)
-		require.Equal(t, &reasoning.ContentReasoning{Content: "plan"}, got)
-		require.Nil(t, reasoningOf(t, "application/json", wholeGatewayAnswer(
-			`"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]`), nil))
-	})
+	for name, opts := range map[string][]Option{
+		"by default":                     nil,
+		"when only preserving reasoning": {WithPreserveReasoningContent()},
+	} {
+		t.Run(name+" the reasoning is what reasoning_content carried", func(t *testing.T) {
+			t.Parallel()
+			got := reasoningOf(t, "application/json", wholeGatewayAnswer(`"reasoning_content":"plan","thinking_blocks":[`+
+				`{"type":"thinking","thinking":"plan","signature":"sig1"}]`), opts)
+			require.Equal(t, &reasoning.ContentReasoning{Content: "plan"}, got)
+			require.Nil(t, reasoningOf(t, "application/json", wholeGatewayAnswer(
+				`"thinking_blocks":[{"type":"thinking","thinking":"","signature":"sig1"}]`), opts))
+		})
+	}
 }
 
 func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	t.Parallel()
 
 	signed := reasoning.FromBlocks([]reasoning.Block{{Text: "plan", Signature: []byte("sig1")}})
-	sent := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) map[string]any {
+	sentTurns := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) []map[string]any {
 		t.Helper()
 
 		llm, raw := gatewayAnswering(t, "application/json", wholeGatewayAnswer(`"reasoning_content":""`),
 			append([]Option{WithModel(model)}, opts...)...)
 		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
-			llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+			{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{llms.TextPartWithReasoning("look it up", thought)}},
 			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
 				llms.TextPartWithReasoning("", thought),
 				llms.ToolCall{ID: "c1", Type: "function", FunctionCall: &llms.FunctionCall{Name: "lookup", Arguments: `{}`}},
@@ -127,7 +133,11 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 			Messages []map[string]any `json:"messages"`
 		}
 		require.NoError(t, json.Unmarshal(*raw, &body))
-		return body.Messages[1]
+		return body.Messages
+	}
+	sent := func(t *testing.T, model string, thought *reasoning.ContentReasoning, opts ...Option) map[string]any {
+		t.Helper()
+		return sentTurns(t, model, thought, opts...)[1]
 	}
 	const claude = "anthropic/claude-sonnet-4-5"
 
@@ -163,11 +173,47 @@ func TestThinkingBlocksGoBackToAClaudeGatewayOnlyWhenAsked(t *testing.T) {
 	})
 	t.Run("a model that is not Claude takes no blocks", func(t *testing.T) {
 		t.Parallel()
-		require.NotContains(t, sent(t, "deepseek/deepseek-chat", signed, WithThinkingBlocks()), "thinking_blocks")
+		for _, model := range []string{"deepseek/deepseek-chat", "gpt-5", "vertex_ai/gemini-2.5-pro"} {
+			require.NotContains(t, sent(t, model, signed, WithThinkingBlocks()), "thinking_blocks", model)
+		}
+	})
+	t.Run("a user turn takes no blocks", func(t *testing.T) {
+		t.Parallel()
+		require.NotContains(t, sentTurns(t, claude, signed, WithThinkingBlocks())[0], "thinking_blocks")
+	})
+	t.Run("a public provider host takes no blocks", func(t *testing.T) {
+		t.Parallel()
+		var raw []byte
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, wholeGatewayAnswer(`"reasoning_content":""`))
+		}))
+		t.Cleanup(srv.Close)
+		target, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+
+		llm := newUnitLLM(t, WithBaseURL("https://openrouter.ai/api/v1"), WithModel(claude),
+			WithThinkingBlocks(), WithHTTPClient(redirectTo{target}))
+		_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{
+			llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+			{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning("ok", signed)}},
+			llms.TextParts(llms.ChatMessageTypeHuman, "go on"),
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, raw)
+		require.NotContains(t, string(raw), "thinking_blocks")
 	})
 	t.Run("an OpenRouter route takes no blocks", func(t *testing.T) {
 		t.Parallel()
 		require.NotContains(t, sent(t, "openrouter/anthropic/claude-sonnet-4-5", signed, WithThinkingBlocks()),
 			"thinking_blocks")
 	})
+}
+
+type redirectTo struct{ target *url.URL }
+
+func (r redirectTo) Do(req *http.Request) (*http.Response, error) {
+	req.URL.Scheme, req.URL.Host = r.target.Scheme, r.target.Host
+	return http.DefaultClient.Do(req)
 }
