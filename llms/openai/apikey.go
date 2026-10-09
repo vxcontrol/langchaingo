@@ -46,6 +46,13 @@ func hostnameFromURL(raw string) string {
 	return strings.ToLower(u.Hostname())
 }
 
+// ServedByOpenAI reports whether a door built on baseURL calls OpenAI's own API: the default URL,
+// api.openai.com, or a LiteLLM route that forwards to it unchanged.
+func ServedByOpenAI(baseURL string) bool {
+	host := hostnameFromURL(baseURL)
+	return host == "" || reasoning.OpenAIHost(host) || openAIPassthrough(baseURL)
+}
+
 // openAIPassthrough reports a LiteLLM route that forwards to OpenAI's own API unchanged.
 func openAIPassthrough(raw string) bool {
 	raw = strings.TrimSpace(raw)

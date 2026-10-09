@@ -614,3 +614,22 @@ func TestStopWordsAnInheritedModelCannotCarryAreReportedNotRefused(t *testing.T)
 	require.Equal(t, "END", stop[0].Asked)
 	require.Empty(t, stop[0].Sent)
 }
+
+func TestServedByOpenAIIsWhereAToolTurnWithReasoningGoesToResponses(t *testing.T) {
+	t.Parallel()
+
+	for baseURL, served := range map[string]bool{
+		"":                          true,
+		"https://api.openai.com/v1": true,
+		"https://llm.pentagi.net/openai_passthrough/v1":           true,
+		"http://host.docker.internal:18089/openai_passthrough/v1": true,
+		"https://llm.pentagi.net/openai/v1":                       false,
+		"https://llm.pentagi.net":                                 false,
+		"https://openrouter.ai/api/v1":                            false,
+		"https://openrouter.ai/openai_passthrough/v1":             false,
+	} {
+		require.Equal(t, served, ServedByOpenAI(baseURL), baseURL)
+		path, _ := routedCall(t, baseURL, "gpt-6-luna", llms.WithTools([]llms.Tool{astraTool()}))
+		require.Equal(t, served, strings.HasSuffix(path, "/responses"), "%q sent the tool turn to %s", baseURL, path)
+	}
+}
