@@ -237,7 +237,7 @@ func TestALiteLLMPassThroughToOpenAIIsOpenAIsOwnAPI(t *testing.T) {
 	t.Parallel()
 
 	tools := llms.WithTools([]llms.Tool{astraTool()})
-	for baseURL, path := range map[string]string{
+	for baseURL, path := range map[string]string{ //nolint:gosec
 		"https://llm.pentagi.net/openai/v1":             "/openai/v1/responses",
 		"https://llm.pentagi.net/openai/v1/":            "/openai/v1/responses",
 		"https://llm.pentagi.net/openai_passthrough/v1": "/openai_passthrough/v1/responses",
