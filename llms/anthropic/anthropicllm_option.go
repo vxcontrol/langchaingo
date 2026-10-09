@@ -120,7 +120,7 @@ func WithAnthropicBetaHeader(value string) Option {
 //	    }),
 //	)
 //
-// Call-level strategies override client-level on a per-field basis.
+// A call-level WithCacheStrategy replaces it for that call.
 func WithDefaultCacheStrategy(strategy CacheStrategy) Option {
 	return func(opts *options) {
 		opts.defaultCacheStrategy = &strategy
