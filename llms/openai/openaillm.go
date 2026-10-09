@@ -130,6 +130,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 	result, err := o.client.CreateChat(ctx, req)
 	if err != nil {
+		err = vendorRefusal(err)
 		if result == nil || len(result.Choices) == 0 {
 			return nil, err
 		}

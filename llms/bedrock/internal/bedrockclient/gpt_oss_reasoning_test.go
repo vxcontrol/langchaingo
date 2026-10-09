@@ -70,7 +70,7 @@ func TestConverseSendsGptOssTheReasoningEffortItDocuments(t *testing.T) {
 				t.Parallel()
 
 				temperature, maxTokens := 0.3, 4096
-				got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
+				got, _, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(&ConverseInput{
 					ModelID:         model,
 					Messages:        humanTurn(),
 					Temperature:     &temperature,

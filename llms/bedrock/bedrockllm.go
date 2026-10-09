@@ -224,7 +224,8 @@ func processMessages(messages []llms.MessageContent) ([]bedrockclient.Message, e
 func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool) ([]bedrockclient.Message, error) {
 	bedrockMsgs := make([]bedrockclient.Message, 0, len(messages))
 
-	for _, m := range messages {
+	for i, m := range messages {
+		first := len(bedrockMsgs)
 		for _, part := range m.Parts {
 			switch part := part.(type) {
 			case CachedContent:
@@ -297,6 +298,9 @@ func processMessagesWithCaching(messages []llms.MessageContent, autoCaching bool
 				// Check if it's unknown type - might be a specific provider type
 				return nil, errors.New("unsupported message type")
 			}
+		}
+		for j := first; j < len(bedrockMsgs); j++ {
+			bedrockMsgs[j].MessageIndex = i
 		}
 	}
 
