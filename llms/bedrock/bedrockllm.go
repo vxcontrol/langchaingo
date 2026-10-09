@@ -137,7 +137,9 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 			Kind: llms.WarningDrop, Option: "WithCacheLayout", Model: opts.GetModel(), Asked: "growing",
 			Reason: "the InvokeModel request places only the door's own markers",
 		}
-		if l.enableAutoCaching {
+		if l.enableAutoCaching && slices.ContainsFunc(messages, func(m llms.MessageContent) bool {
+			return m.Role == llms.ChatMessageTypeAI || m.Role == llms.ChatMessageTypeTool
+		}) {
 			dropped.Kind, dropped.Sent = llms.WarningSubstitute, "the door's own markers"
 		}
 		turn.Add(dropped)

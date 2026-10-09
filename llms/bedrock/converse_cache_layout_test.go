@@ -170,6 +170,8 @@ func TestNoConverseLayoutPlacesNoPoints(t *testing.T) {
 	require.Empty(t, marks.points)
 }
 
+const growingConverseModel = "anthropic.claude-sonnet-4-5-20250929-v1:0"
+
 type converseMark struct {
 	after int
 	kind  string
@@ -209,7 +211,7 @@ func converseWideLoop(model string, steps int, step converseStep) []llms.Message
 	return chain
 }
 
-func converseMarksAfterBlocks(t *testing.T, model string, chain []llms.MessageContent, callOpts ...llms.CallOption) (
+func converseMarksAfterBlocks(t *testing.T, chain []llms.MessageContent, callOpts ...llms.CallOption) (
 	[]string, []converseMark, *llms.ContentResponse,
 ) {
 	t.Helper()
@@ -222,7 +224,7 @@ func converseMarksAfterBlocks(t *testing.T, model string, chain []llms.MessageCo
 	}))
 	t.Cleanup(srv.Close)
 
-	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(model), bedrock.WithConverseAPI())
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(growingConverseModel), bedrock.WithConverseAPI())
 	resp, err := llm.GenerateContent(context.Background(), chain, append([]llms.CallOption{
 		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
 			Name: "nmap", Parameters: map[string]any{"type": "object"},
@@ -263,7 +265,6 @@ func converseMarksAfterBlocks(t *testing.T, model string, chain []llms.MessageCo
 func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testing.T) {
 	t.Parallel()
 
-	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
 	for _, step := range []converseStep{
 		{1, "checking", false}, {2, "", false}, {3, "", false}, {3, "checking", false}, {6, "checking", false},
 		{8, "checking", false}, {10, "checking", false}, {2, "", true}, {3, "checking", true},
@@ -274,7 +275,7 @@ func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testin
 			width++
 		}
 		for steps := range 30 {
-			system, marks, _ := converseMarksAfterBlocks(t, model, converseWideLoop(model, steps, step),
+			system, marks, _ := converseMarksAfterBlocks(t, converseWideLoop(growingConverseModel, steps, step),
 				llms.WithCacheLayout(llms.CacheLayoutGrowing))
 			require.LessOrEqual(t, len(system)+len(marks), 4, "%d calls a step, %d steps", parallel, steps)
 			furthest, reached := -1, previous < 0
@@ -298,16 +299,22 @@ func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testin
 	}
 }
 
+func TestAGrowingConverseHistoryMovesItsHourLongPointEveryTwelveBlocks(t *testing.T) {
+	t.Parallel()
+
+	_, marks, _ := converseMarksAfterBlocks(t, converseLoop(11), llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Equal(t, []converseMark{{0, "text", "1h"}, {12, "toolResult", "1h"}, {22, "toolResult", "5m"}}, marks)
+}
+
 func TestAGrowingConverseHistoryPlacesThePointsInPlaceOfTheCallersOwn(t *testing.T) {
 	t.Parallel()
 
-	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
-	chain := converseWideLoop(model, 14, converseStep{1, "checking", false})
+	chain := converseWideLoop(growingConverseModel, 14, converseStep{1, "checking", false})
 	chain[1] = llms.MessageContent{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
 		bedrock.WithCacheControl(llms.TextPart("the report"), bedrock.EphemeralCache()),
 	}}
 
-	system, marks, resp := converseMarksAfterBlocks(t, model, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	system, marks, resp := converseMarksAfterBlocks(t, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.LessOrEqual(t, len(system)+len(marks), 4)
 	for _, mark := range marks[:len(marks)-1] {
 		require.Equal(t, "1h", mark.ttl, "an hour-long point before a five-minute one")
@@ -323,50 +330,44 @@ func TestAGrowingConverseHistoryPlacesThePointsInPlaceOfTheCallersOwn(t *testing
 	require.Equal(t, "1 marker", dropped[0].Asked)
 }
 
+func invokeModelRequest(t *testing.T, clientOpts []bedrock.Option, chain []llms.MessageContent, opts ...llms.CallOption) (
+	[]byte, *llms.ContentResponse,
+) {
+	t.Helper()
+
+	var raw []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, legacyAnswer)
+	}))
+	t.Cleanup(srv.Close)
+	resp, err := bedrockLLMAgainst(t, srv, append([]bedrock.Option{bedrock.WithModel("us.anthropic.claude-sonnet-4-5-20250929-v1:0")}, clientOpts...)...).
+		GenerateContent(t.Context(), chain, opts...)
+	require.NoError(t, err)
+	return raw, resp
+}
+
 func TestTheInvokeModelRequestHonoursNoLayoutAndReportsAGrowingOne(t *testing.T) {
 	t.Parallel()
 
-	const model = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-	sent := func(t *testing.T, opts ...llms.CallOption) ([]byte, *llms.ContentResponse) {
-		t.Helper()
-		var raw []byte
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			raw, _ = io.ReadAll(r.Body)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, legacyAnswer)
-		}))
-		t.Cleanup(srv.Close)
-		resp, err := bedrockLLMAgainst(t, srv, bedrock.WithModel(model), bedrock.WithAutomaticCaching()).
-			GenerateContent(t.Context(), converseLoop(3), opts...)
-		require.NoError(t, err)
-		return raw, resp
-	}
-
-	raw, _ := sent(t)
+	auto := []bedrock.Option{bedrock.WithAutomaticCaching()}
+	raw, _ := invokeModelRequest(t, auto, converseLoop(3))
 	require.NotEmpty(t, collectJSONObjects(t, raw, "cache_control"), "the door's automatic caching as before")
 
-	raw, resp := sent(t, llms.WithCacheLayout(llms.CacheLayoutNone))
+	raw, resp := invokeModelRequest(t, auto, converseLoop(3), llms.WithCacheLayout(llms.CacheLayoutNone))
 	require.Empty(t, collectJSONObjects(t, raw, "cache_control"))
 	require.Empty(t, resp.Warnings)
 
-	raw, resp = sent(t, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	raw, resp = invokeModelRequest(t, auto, converseLoop(3), llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.NotEmpty(t, collectJSONObjects(t, raw, "cache_control"), "the door's own markers")
 	layout := layoutWarnings(resp)
 	require.Len(t, layout, 1)
 	require.Equal(t, llms.WarningSubstitute, layout[0].Kind)
 	require.NotEmpty(t, layout[0].Sent)
 
-	var raw2 []byte
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		raw2, _ = io.ReadAll(r.Body)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, legacyAnswer)
-	}))
-	t.Cleanup(srv.Close)
-	resp, err := bedrockLLMAgainst(t, srv, bedrock.WithModel(model)).
-		GenerateContent(t.Context(), converseLoop(3), llms.WithCacheLayout(llms.CacheLayoutGrowing))
-	require.NoError(t, err)
-	require.Empty(t, collectJSONObjects(t, raw2, "cache_control"))
+	raw, resp = invokeModelRequest(t, nil, converseLoop(3), llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Empty(t, collectJSONObjects(t, raw, "cache_control"))
 	layout = layoutWarnings(resp)
 	require.Len(t, layout, 1, "without automatic caching nothing reaches the wire")
 	require.Equal(t, llms.WarningDrop, layout[0].Kind)
@@ -377,11 +378,23 @@ func TestTheInvokeModelRequestHonoursNoLayoutAndReportsAGrowingOne(t *testing.T)
 		_, _ = io.WriteString(w, `{"generations":[{"text":"ok","finish_reason":"COMPLETE"}]}`)
 	}))
 	t.Cleanup(cohere.Close)
-	resp, err = bedrockLLMAgainst(t, cohere, bedrock.WithModel("cohere.command-text-v14")).
+	resp, err := bedrockLLMAgainst(t, cohere, bedrock.WithModel("cohere.command-text-v14")).
 		GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 			llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.NoError(t, err)
 	require.Empty(t, layoutWarnings(resp), "a model the door does not cache has no markers to place")
+}
+
+func TestAFirstInvokeModelRequestReportsAGrowingLayoutAsDropped(t *testing.T) {
+	t.Parallel()
+
+	raw, resp := invokeModelRequest(t, []bedrock.Option{bedrock.WithAutomaticCaching()}, converseLoop(0),
+		llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Empty(t, collectJSONObjects(t, raw, "cache_control"), "no answer for the door to mark")
+	layout := layoutWarnings(resp)
+	require.Len(t, layout, 1)
+	require.Equal(t, llms.WarningDrop, layout[0].Kind)
+	require.Empty(t, layout[0].Sent)
 }
 
 func layoutWarnings(resp *llms.ContentResponse) []llms.Warning {
@@ -397,7 +410,6 @@ func layoutWarnings(resp *llms.ContentResponse) []llms.Warning {
 func TestAGrowingConverseHistoryPointsAtTheStartOfTheLatestTurn(t *testing.T) {
 	t.Parallel()
 
-	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
 	chain := append(converseLoop(6),
 		llms.TextParts(llms.ChatMessageTypeAI, "done"),
 		llms.TextParts(llms.ChatMessageTypeHuman, "now the web server"))
@@ -409,6 +421,6 @@ func TestAGrowingConverseHistoryPointsAtTheStartOfTheLatestTurn(t *testing.T) {
 			llms.ToolCallResponse{ToolCallID: "call_web", Name: "nmap", Content: "open"},
 		}})
 
-	_, marks, _ := converseMarksAfterBlocks(t, model, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	_, marks, _ := converseMarksAfterBlocks(t, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.Contains(t, marks, converseMark{14, "text", "1h"}, "the second human message")
 }

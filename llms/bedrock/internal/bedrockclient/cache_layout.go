@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	converseGrowingCacheStep  = 6
+	converseGrowingCacheStep  = 12
 	converseGrowingCacheReach = 18
 )
 
@@ -61,19 +61,24 @@ func placeGrowingCachePoints(system *[]types.SystemContentBlock, messages []type
 }
 
 func converseMovingPoint(messages []types.Message, blocks []converseBlock) int {
-	moving := -1
+	placed := -1
 	for b, at := range blocks {
 		last := b == len(blocks)-1
 		if !last && (messages[at.message].Role != types.ConversationRoleUser || blocks[b+1].message == at.message) {
 			continue
 		}
-		line := b / converseGrowingCacheStep * converseGrowingCacheStep
-		if moving >= 0 {
-			line = min(line, moving+converseGrowingCacheReach)
+		target := b / converseGrowingCacheStep * converseGrowingCacheStep
+		if placed >= 0 {
+			target = min(target, placed+converseGrowingCacheReach)
 		}
-		moving = max(moving, line)
+		for ; target > placed; target-- {
+			if isMarkable(messages, blocks[target]) {
+				placed = target
+				break
+			}
+		}
 	}
-	return moving
+	return placed
 }
 
 func converseTurnStart(messages []types.Message, blocks []converseBlock) int {
