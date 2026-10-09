@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
 type responsesDoer struct {
@@ -252,4 +254,66 @@ func TestALiteLLMPassThroughToOpenAIIsOpenAIsOwnAPI(t *testing.T) {
 		require.NoError(t, err, baseURL)
 		require.Equal(t, path, doer.path, baseURL)
 	}
+}
+
+func TestResponsesCarriesStructuredOutputAndVerbosityInText(t *testing.T) {
+	t.Parallel()
+
+	schema := `{"type":"object","properties":{"host":{"type":"string"}},"required":["host"],"additionalProperties":false}`
+	doer := &bodyDoer{content: `{"host":"A"}`}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "scan")},
+		llms.WithTools([]llms.Tool{astraTool()}), llms.WithVerbosity("low"),
+		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "scan", Schema: json.RawMessage(schema)}))
+	require.NoError(t, err)
+	require.Equal(t, `{"host":"A"}`, resp.Choices[0].Content)
+	require.Equal(t, "/v1/responses", doer.path)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	var wantSchema any
+	require.NoError(t, json.Unmarshal([]byte(schema), &wantSchema))
+	require.Equal(t, map[string]any{
+		"format":    map[string]any{"type": "json_schema", "name": "scan", "schema": wantSchema, "strict": true},
+		"verbosity": "low",
+	}, body["text"])
+	require.NotContains(t, body, "response_format")
+}
+
+func TestAStreamedResponsesAnswerReachesTheCallerAsItComes(t *testing.T) {
+	t.Parallel()
+
+	var final bytes.Buffer
+	require.NoError(t, json.Compact(&final, []byte(responsesToolAnswer)))
+	doer := &responsesDoer{answer: "event: response.output_text.delta\n" +
+		`data: {"type":"response.output_text.delta","item_id":"msg_1","output_index":1,"content_index":0,"delta":"Starting "}` + "\n\n" +
+		"event: response.output_text.delta\n" +
+		`data: {"type":"response.output_text.delta","item_id":"msg_1","output_index":1,"content_index":0,"delta":"a scan."}` + "\n\n" +
+		"event: response.output_item.done\n" +
+		`data: {"type":"response.output_item.done","output_index":2,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"lookup","arguments":"{\"host\":\"A\"}"}}` + "\n\n" +
+		"event: response.completed\n" +
+		`data: {"type":"response.completed","response":` + final.String() + "}\n\n"}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+
+	var text strings.Builder
+	var calls []streaming.ToolCall
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "scan")},
+		llms.WithTools([]llms.Tool{astraTool()}),
+		llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+			text.WriteString(chunk.Content)
+			if chunk.Type == streaming.ChunkTypeToolCall {
+				calls = append(calls, chunk.ToolCall)
+			}
+			return nil
+		}))
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.Equal(t, true, body["stream"])
+	require.Equal(t, "Starting a scan.", text.String())
+	require.Equal(t, []streaming.ToolCall{streaming.NewToolCall("call_1", "lookup", `{"host":"A"}`)}, calls)
+	require.Equal(t, "Starting a scan.", resp.Choices[0].Content)
+	require.Len(t, resp.Choices[0].Reasoning.Sequence(), 2)
+	require.Equal(t, 1116, resp.Choices[0].GenerationInfo["TotalTokens"])
 }
