@@ -30,6 +30,9 @@ type ResponsesRequest struct {
 	Stream          bool                `json:"stream,omitempty"`
 	Metadata        map[string]any      `json:"metadata,omitempty"`
 
+	PromptCacheKey     string              `json:"prompt_cache_key,omitempty"`
+	PromptCacheOptions *PromptCacheOptions `json:"prompt_cache_options,omitempty"`
+
 	ExtraBody     map[string]any     `json:"-"`
 	StreamingFunc streaming.Callback `json:"-"`
 }

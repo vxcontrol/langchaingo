@@ -539,3 +539,17 @@ func TestTheSamplingAModelTakesReachesResponses(t *testing.T) {
 	require.InDelta(t, 0.3, body["temperature"], 0)
 	require.InDelta(t, 0.9, body["top_p"], 0)
 }
+
+func TestTheResponsesRequestCarriesThePromptCacheKeyAndOptions(t *testing.T) {
+	t.Parallel()
+
+	path, body := routedCall(t, "https://api.openai.com/v1", "gpt-6-luna", llms.WithTools([]llms.Tool{astraTool()}),
+		llms.WithPromptCacheKey("flow-7"), llms.WithCacheLayout(llms.CacheLayoutNone))
+	require.Equal(t, "/responses", path)
+	require.Equal(t, "flow-7", body["prompt_cache_key"])
+	require.Equal(t, map[string]any{"mode": "explicit"}, body["prompt_cache_options"])
+
+	_, body = routedCall(t, "https://api.openai.com/v1", "gpt-6-luna", llms.WithTools([]llms.Tool{astraTool()}))
+	require.NotContains(t, body, "prompt_cache_key")
+	require.NotContains(t, body, "prompt_cache_options")
+}

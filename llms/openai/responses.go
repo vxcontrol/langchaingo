@@ -67,6 +67,7 @@ func responsesRequest(req *openaiclient.ChatRequest, input []any, warn *llms.War
 	r := &openaiclient.ResponsesRequest{
 		Model: req.Model, Input: input, MaxOutputTokens: req.MaxCompletionTokens,
 		Temperature: req.Temperature, TopP: req.TopP, Metadata: req.Metadata, StreamingFunc: req.StreamingFunc,
+		PromptCacheKey: req.PromptCacheKey, PromptCacheOptions: req.PromptCacheOptions,
 	}
 	if r.MaxOutputTokens == nil {
 		r.MaxOutputTokens = req.MaxTokens
