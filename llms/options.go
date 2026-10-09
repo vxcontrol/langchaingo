@@ -3,7 +3,6 @@ package llms
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
@@ -975,7 +974,7 @@ func ExtraBodyTools(extra map[string]any) int {
 // key it knows.
 func ExtraBodyThinking(model, host string, extra map[string]any) (on, off bool) {
 	values := jsonValues(extra)
-	if host == "api.openai.com" || strings.HasSuffix(host, ".api.openai.com") {
+	if reasoning.OpenAIHost(host) {
 		return effortSwitch(values["reasoning_effort"])
 	}
 	switch reasoning.ServedBy(model, host) { //nolint:exhaustive // the other hosts read every key

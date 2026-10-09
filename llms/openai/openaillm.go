@@ -713,7 +713,7 @@ func (o *LLM) prepareCall(
 }
 
 func (o *LLM) servedByOpenAI() bool {
-	return o.openAIPassthrough || o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+	return o.openAIPassthrough || o.host == "" || reasoning.OpenAIHost(o.host)
 }
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {

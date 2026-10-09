@@ -167,6 +167,24 @@ func ChatToolsUnsupported(model string) bool {
 	return false
 }
 
+// OpenAITakesResponses reports whether a call to OpenAI's own API goes to the
+// Responses API: the model has no Chat Completions, its function tools exist
+// only there, or Chat Completions would carry the tools only at effort none
+// while the call thinks, as asked or by the model's default.
+func OpenAITakesResponses(model string, tools bool, mode ThinkingMode) bool {
+	switch {
+	case ChatCompletionsUnsupported(model):
+		return true
+	case !tools:
+		return false
+	case ChatToolsUnsupported(model):
+		return true
+	case mode == ThinkingOff, EffortWithTools(model) == EffortToolsFree:
+		return false
+	}
+	return mode != ThinkingDefault || !OpenAIThinkingOptIn(model)
+}
+
 func ChatCompletionsUnsupported(model string) bool {
 	for _, form := range modelSpellings(model) {
 		for _, family := range []string{"gpt-5.6-cyber", "gpt-daybreak-red", "gpt-daybreak-blue"} {

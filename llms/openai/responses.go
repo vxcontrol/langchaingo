@@ -17,23 +17,18 @@ func (o *LLM) takesResponses(model string, opts llms.CallOptions) bool {
 	if !o.servedByOpenAI() {
 		return false
 	}
-	if reasoning.ChatCompletionsUnsupported(model) {
-		return true
-	}
-	if len(opts.Tools)+len(opts.Functions) == 0 {
-		return false
-	}
-	if reasoning.ChatToolsUnsupported(model) {
-		return true
-	}
-	rule := reasoning.EffortWithTools(model)
-	switch o.toolTurnMode(model, opts) { //nolint:exhaustive // the default mode is handled after the switch
+	mode := reasoning.ThinkingDefault
+	switch o.toolTurnMode(model, opts) { //nolint:exhaustive // the default mode keeps ThinkingDefault
 	case llms.ReasoningOff:
-		return false
+		mode = reasoning.ThinkingOff
 	case llms.ReasoningOn:
-		return rule != reasoning.EffortToolsFree
+		mode = reasoning.ThinkingBudget
+	default:
+		if len(opts.StopWords) > 0 {
+			mode = reasoning.ThinkingOff
+		}
 	}
-	return rule != reasoning.EffortToolsFree && !reasoning.OpenAIThinkingOptIn(model) && len(opts.StopWords) == 0
+	return reasoning.OpenAITakesResponses(model, len(opts.Tools)+len(opts.Functions) > 0, mode)
 }
 
 func (o *LLM) toolTurnMode(model string, opts llms.CallOptions) llms.ReasoningMode {

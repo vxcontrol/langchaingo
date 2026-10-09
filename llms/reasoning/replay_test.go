@@ -38,6 +38,7 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 	dropsPast := Replay{HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 	inLoop := Replay{Needs: PastReasoningOpenLoop, HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 	asSent := Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+	ownTurns := Replay{Needs: PastReasoningOwnTurns, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 	geminiEveryTurn := Replay{Binding: BindingCurrentTurn, Needs: PastReasoningEveryTurn,
 		OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}
 
@@ -159,8 +160,15 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Mistral through a gateway's route", on("mistral/magistral-medium-latest", gateway, ReplayChat), everyTurn},
 		{"Mistral without reasoning", on("mistral-large-latest", "api.mistral.ai", ReplayChat), asSent},
 		{"Mistral with its thinking off", thinkingOff(on("magistral-medium-latest", "api.mistral.ai", ReplayChat)), asSent},
-		{"Grok", on("grok-4.7", "api.x.ai", ReplayChat), Replay{Needs: PastReasoningOwnTurns, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}},
-		{"GPT", on("gpt-5.6", "api.openai.com", ReplayChat), asSent},
+		{"Grok", on("grok-4.7", "api.x.ai", ReplayChat), ownTurns},
+		{"GPT on Responses", on("gpt-5.6", "api.openai.com", ReplayChat), ownTurns},
+		{"GPT on a regional host", byDefault(on("gpt-6-luna", "eu.api.openai.com", ReplayChat)), ownTurns},
+		{"GPT with tools only on Responses", byDefault(on("gpt-6-astra", "api.openai.com", ReplayChat)), ownTurns},
+		{"GPT with its thinking off", thinkingOff(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
+		{"GPT without tools", withoutTools(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
+		{"GPT that thinks only when asked", byDefault(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), asSent},
+		{"GPT asked to think", onBudget(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), ownTurns},
+		{"GPT behind a gateway", on("gpt-5.6", gateway, ReplayChat), asSent},
 		{"Ollama", on("deepseek-v4-pro", "localhost", ReplayOllama), asSent},
 		{"a name outside every line", on("my-model", gateway, ReplayChat), asSent},
 	} {
