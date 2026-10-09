@@ -50,3 +50,34 @@ func TestThePromptCacheKeyReachesTheHostsThatDocumentIt(t *testing.T) {
 		})
 	}
 }
+
+func TestNoCacheLayoutTurnsOffTheWriteOpenAIMakesOnItsOwn(t *testing.T) {
+	t.Parallel()
+
+	const openAI = "http://api.openai.com/v1"
+	explicit := map[string]any{"mode": "explicit"}
+	none := llms.WithCacheLayout(llms.CacheLayoutNone)
+	for name, tc := range map[string]struct {
+		baseURL, model string
+		opts           []llms.CallOption
+		want           any
+	}{
+		"gpt-5.6":           {openAI, "gpt-5.6-terra", []llms.CallOption{none}, explicit},
+		"gpt-6.1":           {openAI, "gpt-6.1-sol", []llms.CallOption{none}, explicit},
+		"a later pro":       {openAI, "gpt-6.2-pro", []llms.CallOption{none}, explicit},
+		"gpt-5.5":           {openAI, "gpt-5.5", []llms.CallOption{none}, nil},
+		"gpt-5.4-mini":      {openAI, "gpt-5.4-mini", []llms.CallOption{none}, nil},
+		"the door's layout": {openAI, "gpt-5.6-terra", nil, nil},
+		"a growing history": {openAI, "gpt-5.6-terra", []llms.CallOption{llms.WithCacheLayout(llms.CacheLayoutGrowing)}, nil},
+		"a gateway":         {gatewayBaseURL, "gpt-5.6-terra", []llms.CallOption{none}, nil},
+		"azure":             {"http://pentagi.openai.azure.com/openai/v1", "gpt-5.6-terra", []llms.CallOption{none}, nil},
+		"openrouter":        {openRouterBaseURL, "openai/gpt-5.6-terra", []llms.CallOption{none}, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			body, _ := sendToHost(t, tc.baseURL, tc.model, tc.opts...)
+			require.Equal(t, tc.want, body["prompt_cache_options"])
+		})
+	}
+}

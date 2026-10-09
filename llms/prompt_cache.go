@@ -6,10 +6,14 @@ type CacheLayout int
 const (
 	// CacheLayoutDoor leaves the markers to the door's own settings.
 	CacheLayoutDoor CacheLayout = iota
+	// CacheLayoutNone keeps the request out of the prompt cache: the door places
+	// no markers and turns off a cache the vendor writes on its own where the API
+	// allows it.
 	CacheLayoutNone
-	// CacheLayoutGrowing places the markers of a history that only grows: on the
-	// system prompt, on the start of the current turn and on a block that moves
-	// forward with the history for an hour, and on the last block for five minutes.
+	// CacheLayoutGrowing places the markers of a history that only grows, where
+	// the door's API takes them: on the system prompt, on the start of the current
+	// turn and on a block that moves forward with the history for an hour, and on
+	// the last block for five minutes.
 	CacheLayoutGrowing
 )
 

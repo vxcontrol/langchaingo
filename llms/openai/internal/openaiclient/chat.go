@@ -71,6 +71,8 @@ type ChatRequest struct {
 	Seed                *int             `json:"seed,omitempty"`
 	PromptCacheKey      string           `json:"prompt_cache_key,omitempty"`
 
+	PromptCacheOptions *PromptCacheOptions `json:"prompt_cache_options,omitempty"`
+
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.
 	// Do not use ReasoningEffort together with Reasoning; only one should be set at a time.
@@ -792,6 +794,30 @@ type FunctionDefinition struct {
 	Parameters any `json:"parameters"`
 	// Strict is a flag to enable structured output mode.
 	Strict bool `json:"strict,omitempty"`
+
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+type PromptCacheOptions struct {
+	Mode string `json:"mode,omitempty"`
+}
+
+type CacheControl struct {
+	Type string `json:"type"`
+	TTL  string `json:"ttl,omitempty"`
+}
+
+type CachedText struct {
+	llms.TextContent
+	CacheControl *CacheControl
+}
+
+func (c CachedText) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string        `json:"type"`
+		Text         string        `json:"text"`
+		CacheControl *CacheControl `json:"cache_control,omitempty"`
+	}{"text", c.Text, c.CacheControl})
 }
 
 // FunctionCallBehavior is the behavior to use when calling functions.

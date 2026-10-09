@@ -397,6 +397,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 	o.applySamplingPolicy(req, opts, thinks, warn)
+	o.placeCacheLayout(req, opts.CacheLayout, model)
 
 	return req, nil
 }
