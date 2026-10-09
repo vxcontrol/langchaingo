@@ -44,6 +44,9 @@ const (
 	PastReasoningUnused PastReasoning = iota
 	// PastReasoningOpenLoop: the answers of an unfinished tool loop.
 	PastReasoningOpenLoop
+	// PastReasoningOwnTurns: every earlier answer of the model itself, for the
+	// host's cache; another model's answers need none.
+	PastReasoningOwnTurns
 	PastReasoningEveryTurn
 )
 
@@ -56,10 +59,17 @@ const (
 	LoopInSummary
 )
 
-// ReplayOptions are switches a caller sends the host about earlier reasoning.
-type ReplayOptions struct {
+// ReplayTarget is the model a history goes back to and the way it gets there.
+type ReplayTarget struct {
+	Model string
+	// Host is the lowercase host name of the endpoint, without a port.
+	Host  string
+	API   ReplayAPI
+	Tools bool
+	Mode  ThinkingMode
 	// KeepsPastReasoning: the caller asks the host to keep the reasoning of
-	// earlier turns where the host makes it a switch (Z.ai, Kimi K2.6).
+	// earlier turns where the host makes it a switch: Z.ai's and DashScope's
+	// clear_thinking false or preserve_thinking true, Moonshot's thinking.keep.
 	KeepsPastReasoning bool
 }
 
@@ -77,62 +87,64 @@ type Replay struct {
 	// Inherits is the listed release whose rules a version the tables do not
 	// list follows, or "".
 	Inherits string
-
-	reader readerOf
 }
 
-type readerOf struct {
-	model    string
-	family   string
-	onBudget bool
-}
-
-// ReplayPolicy returns how the history goes back to model on host through api.
-func ReplayPolicy(model, host string, api ReplayAPI, tools bool, mode ThinkingMode, opts ReplayOptions) Replay {
-	r := replayFor(model, host, api, tools, mode, opts)
-	if documented, inherited := InheritedModel(model); inherited {
+// ReplayPolicy returns how the history goes back to target.
+func ReplayPolicy(target ReplayTarget) Replay {
+	r := replayFor(target)
+	if documented, inherited := InheritedModel(target.Model); inherited {
 		r.Inherits = documented
 	}
-	r.reader = readerOf{model: model, family: vendorFamily(model), onBudget: claudeOnBudget(model, mode)}
 	return r
 }
 
-func replayFor(model, host string, api ReplayAPI, tools bool, mode ThinkingMode, opts ReplayOptions) Replay {
-	asSent := Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
-	switch api {
+// NeedsBoundary reports whether target has to start a new epoch before it
+// continues a history writer wrote. openLoop is a history that ends in a tool
+// loop writer left unfinished.
+func NeedsBoundary(target ReplayTarget, writer string, openLoop bool) bool {
+	if writer == "" {
+		return false
+	}
+	if replayFor(target).Needs == PastReasoningEveryTurn && vendorFamily(writer) != vendorFamily(target.Model) {
+		return true
+	}
+	return openLoop && claudeOnBudget(target.Model, target.Mode) && claudeRelease(writer) != claudeRelease(target.Model)
+}
+
+var asSent = Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+
+func replayFor(t ReplayTarget) Replay {
+	switch t.API {
 	case ReplayMessages:
-		if vendorOfHost(host) != VendorUnknown {
-			return vendorReplay(model, host, tools, opts)
+		if vendorOfHost(t.Host) != VendorUnknown {
+			return vendorReplay(t)
 		}
-		if IsClaude(model) {
-			return claudeOverMessages(model, tools, mode)
+		if IsClaude(t.Model) {
+			return claudeOverMessages(t.Model, t.Tools, t.Mode)
 		}
 	case ReplayConverse:
-		if IsClaude(model) {
-			r := claudeReplay(model, tools)
-			r.Binding, r.OwnLoop, r.ForeignLoop = BindingAllMessages, LoopInSummary, LoopInSummary
-			return r
+		if IsClaude(t.Model) {
+			return claudeOnConverse(t.Model, t.Tools)
 		}
 	case ReplayChat:
-		if IsClaude(model) {
-			if PublicProviderHost(host) {
-				return asSent
-			}
-			r := claudeReplay(model, tools)
-			r.OwnLoop, r.ForeignLoop = LoopAsSent, LoopInSummary
-			if r.ChecksPrefix {
-				r.Binding, r.OwnLoop = BindingPrefix, LoopWithoutThinking
-			}
-			return r
+		if !IsClaude(t.Model) {
+			return vendorReplay(t)
 		}
-		return vendorReplay(model, host, tools, opts)
+		switch {
+		case PublicProviderHost(t.Host):
+			return asSent
+		case bedrockConverseRoute(t.Model):
+			return claudeOnConverse(t.Model, t.Tools)
+		}
+		r := claudeReplay(t.Model, t.Tools)
+		r.OwnLoop, r.ForeignLoop = LoopAsSent, LoopInSummary
+		if r.ChecksPrefix {
+			r.Binding, r.OwnLoop = BindingPrefix, LoopWithoutThinking
+		}
+		return r
 	case ReplayGemini:
-		if GeminiUsesThinkingLevel(model) {
-			r := Replay{Binding: BindingCurrentTurn, OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}
-			if tools {
-				r.Needs = PastReasoningOpenLoop
-			}
-			return r
+		if GeminiUsesThinkingLevel(t.Model) {
+			return geminiReplay(t.Model, t.Tools)
 		}
 	case ReplayOllama:
 	}
@@ -172,54 +184,124 @@ func claudeOverMessages(model string, tools bool, mode ThinkingMode) Replay {
 	return r
 }
 
+func claudeOnConverse(model string, tools bool) Replay {
+	r := claudeReplay(model, tools)
+	r.Binding, r.OwnLoop, r.ForeignLoop = BindingAllMessages, LoopInSummary, LoopInSummary
+	return r
+}
+
 func claudeOnBudget(model string, mode ThinkingMode) bool {
 	return IsClaude(model) && mode != ThinkingOff && !ResolveClaudeAdaptive(model, mode == ThinkingAdaptive)
 }
 
-func vendorReplay(model, host string, tools bool, opts ReplayOptions) Replay {
-	everyTurn := Replay{Needs: PastReasoningEveryTurn, OwnLoop: LoopAsSent, ForeignLoop: LoopInSummary}
-	dropsPast := Replay{HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
-	switch ServedBy(model, host) { //nolint:exhaustive // the other vendors replay as sent
+func bedrockConverseRoute(model string) bool {
+	route := strings.ToLower(model)
+	return strings.HasPrefix(route, "bedrock/") && !strings.HasPrefix(route, "bedrock/invoke/")
+}
+
+func geminiReplay(model string, tools bool) Replay {
+	r := Replay{Binding: BindingCurrentTurn, OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}
+	switch {
+	case geminiFrom(model, 3, 5):
+		r.Needs = PastReasoningEveryTurn
+	case tools:
+		r.Needs, r.HostDropsPast = PastReasoningOpenLoop, true
+	default:
+		r.HostDropsPast = true
+	}
+	return r
+}
+
+func geminiFrom(model string, major, minor int) bool {
+	for i := range lineFamilies {
+		if lineFamilies[i].prefix != "gemini-" {
+			continue
+		}
+		p, ok := lineFamilies[i].parse(baseModelName(model))
+		return ok && (p.major > major || p.major == major && p.minor >= minor)
+	}
+	return false
+}
+
+var (
+	everyTurn = Replay{Needs: PastReasoningEveryTurn, OwnLoop: LoopAsSent, ForeignLoop: LoopInSummary}
+	dropsPast = Replay{HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+)
+
+func vendorReplay(t ReplayTarget) Replay {
+	switch ServedBy(t.Model, t.Host) { //nolint:exhaustive // the other vendors replay as sent
 	case VendorDeepSeek:
-		if !ServedByDeepSeek(model, host) {
-			break
-		}
-		if tools {
-			return everyTurn
-		}
-		return dropsPast
-	case VendorMoonshot:
-		switch {
-		case namesGeneration(model, "kimi-k3"), namesGeneration(model, "kimi-k2.7-code"):
-			return everyTurn
-		case namesGeneration(model, "kimi-k2.6"):
-			if opts.KeepsPastReasoning {
+		if ServedByDeepSeek(t.Model, t.Host) && t.Mode != ThinkingOff {
+			if t.Tools {
 				return everyTurn
 			}
 			return dropsPast
 		}
+	case VendorMoonshot:
+		switch {
+		case namesGeneration(t.Model, "kimi-k3"), namesGeneration(t.Model, "kimi-k2.7-code"):
+			return everyTurn
+		case namesGeneration(t.Model, "kimi-k2.6"):
+			return keptOnRequest(t)
+		}
 	case VendorMiniMax:
-		if tools && namesMiniMax(model, "minimax-m") {
+		if t.Tools && namesMiniMax(t.Model, "minimax-m") {
 			return everyTurn
 		}
 	case VendorDashScope:
-		if namesFamily(model, "qwen3.8") {
+		return dashScopeReplay(t)
+	case VendorZAI:
+		return keptOnRequest(t)
+	case VendorMistral:
+		if t.Mode != ThinkingOff && ReplaysThinkingInContent(t.Model) {
 			return everyTurn
 		}
-	case VendorZAI:
-		if !ServedByZAI(model, host) {
-			break
+	case VendorXAI:
+		if GrokFamily(t.Model) && IsReasoningModel(t.Model) {
+			return Replay{Needs: PastReasoningOwnTurns, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 		}
-		if opts.KeepsPastReasoning {
+	}
+	return asSent
+}
+
+func keptOnRequest(t ReplayTarget) Replay {
+	switch {
+	case t.Mode == ThinkingOff:
+		return asSent
+	case t.KeepsPastReasoning:
+		return everyTurn
+	}
+	r := dropsPast
+	if t.Tools {
+		r.Needs = PastReasoningOpenLoop
+	}
+	return r
+}
+
+var (
+	dashScopeKeepsByDefault = []string{
+		"qwen3.8-max", "qwen3.8-flash", "qwen3.8-omni-flash", "kimi-k2.7-code", "glm-5.2", "glm-5.1", "glm-5", "glm-4.7",
+	}
+	dashScopeKeepsWhenAsked = []string{
+		"qwen3.7-max", "qwen3.7-plus", "qwen3.7-flash", "qwen3.6-max", "qwen3.6-plus", "qwen3.6-flash", "kimi-k2.6",
+		"glm-5.3",
+	}
+)
+
+func dashScopeReplay(t ReplayTarget) Replay {
+	always := namesGeneration(t.Model, "kimi-k2.7-code")
+	switch {
+	case !always && t.Mode == ThinkingOff:
+		return asSent
+	case namesAnyGeneration(t.Model, dashScopeKeepsWhenAsked):
+		if t.KeepsPastReasoning {
 			return everyTurn
 		}
 		return dropsPast
-	case VendorMistral:
-		if ReplaysThinkingInContent(model) {
-			return everyTurn
-		}
+	case namesAnyGeneration(t.Model, dashScopeKeepsByDefault):
+		return everyTurn
 	}
-	return Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+	return asSent
 }
 
 func namesGeneration(model, generation string) bool {
@@ -231,17 +313,13 @@ func namesGeneration(model, generation string) bool {
 	return false
 }
 
-// NeedsBoundaryAfter reports whether the model a policy was made for has to
-// start a new epoch before it continues a history writer wrote. openLoop is a
-// history that ends in a tool loop writer left unfinished.
-func (r Replay) NeedsBoundaryAfter(writer string, openLoop bool) bool {
-	if writer == "" {
-		return false
+func namesAnyGeneration(model string, generations []string) bool {
+	for _, generation := range generations {
+		if namesGeneration(model, generation) {
+			return true
+		}
 	}
-	if r.Needs == PastReasoningEveryTurn && vendorFamily(writer) != r.reader.family {
-		return true
-	}
-	return openLoop && r.reader.onBudget && claudeRelease(writer) != claudeRelease(r.reader.model)
+	return false
 }
 
 func claudeRelease(model string) string {
@@ -255,15 +333,13 @@ func claudeRelease(model string) string {
 
 func vendorFamily(model string) string {
 	switch {
-	case IsClaude(model):
-		return "claude"
 	case IsGemini(model):
 		return "gemini"
 	case ServedByMistral(model):
 		return "mistral"
 	}
 	for _, form := range modelSpellings(model) {
-		for _, family := range []string{"deepseek", "kimi-", "minimax-", "qwen", "glm-", "grok-", "gpt-"} {
+		for _, family := range []string{"deepseek", "kimi-", "minimax-", "qwen", "glm-"} {
 			if strings.HasPrefix(form, family) {
 				return family
 			}
