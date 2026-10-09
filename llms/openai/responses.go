@@ -44,6 +44,9 @@ func (o *LLM) send(
 	if err != nil {
 		return nil, err
 	}
+	if req.Model == "" {
+		req.Model = o.effectiveModel(llms.CallOptions{})
+	}
 	resp, err := o.client.CreateResponse(ctx, responsesRequest(req, input, warn))
 	if resp == nil {
 		return nil, err
@@ -100,8 +103,12 @@ func responsesToolChoice(choice any) any {
 
 func reportChatOnlyFields(req *openaiclient.ChatRequest, warn *llms.Warnings) {
 	const reason = "the Responses API has no such field"
+	choices := req.N
+	if choices != nil && *choices == 1 {
+		choices = nil
+	}
 	for _, field := range []struct{ option, asked string }{
-		{"WithN", askedInt(req.N)},
+		{"WithN", askedInt(choices)},
 		{"WithSeed", askedInt(req.Seed)},
 		{"WithFrequencyPenalty", askedFloat(req.FrequencyPenalty)},
 		{"WithPresencePenalty", askedFloat(req.PresencePenalty)},

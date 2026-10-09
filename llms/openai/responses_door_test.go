@@ -76,10 +76,15 @@ func TestOnlyWhatChatCompletionsCannotCarryGoesToOpenAIsResponses(t *testing.T) 
 	} {
 		path, body := routedCall(t, tc.baseURL, tc.model, tc.opts...)
 		require.True(t, strings.HasSuffix(path, tc.path), "%s: %s", name, path)
+		require.Equal(t, tc.model, body["model"], name)
 		if tc.path == "/responses" {
 			require.Equal(t, false, body["store"], name)
 		}
 	}
+
+	path, body := routedCall(t, openAI, "gpt-4.1", tools, llms.WithModel("gpt-6-astra"))
+	require.Equal(t, "/responses", path)
+	require.Equal(t, "gpt-6-astra", body["model"])
 }
 
 func TestAToolTurnGoesBackAsResponsesItems(t *testing.T) {
@@ -217,6 +222,7 @@ func TestTheResponsesRequestReportsWhatItHasNoFieldFor(t *testing.T) {
 	for _, w := range resp.Warnings {
 		if w.Kind == llms.WarningDrop {
 			dropped[w.Option] = w.Asked
+			require.Equal(t, "gpt-6-luna", w.Model)
 		}
 	}
 	require.Equal(t, "7", dropped["WithSeed"])
@@ -225,6 +231,16 @@ func TestTheResponsesRequestReportsWhatItHasNoFieldFor(t *testing.T) {
 	require.NoError(t, json.Unmarshal(doer.body, &body))
 	require.NotContains(t, body, "seed")
 	require.NotContains(t, body, "n")
+
+	doer = &bodyDoer{}
+	llm = newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	resp, err = llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		tools, llms.WithN(1))
+	require.NoError(t, err)
+	require.Empty(t, resp.Warnings, "one choice is all the Responses API returns")
+	var single map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &single))
+	require.NotContains(t, single, "n")
 
 	doer = &bodyDoer{}
 	llm = newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
