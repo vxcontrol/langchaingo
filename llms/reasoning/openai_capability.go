@@ -168,9 +168,7 @@ func ChatToolsUnsupported(model string) bool {
 }
 
 // OpenAITakesResponses reports whether a call to OpenAI's own API goes to the
-// Responses API: the model has no Chat Completions, its function tools exist
-// only there, or Chat Completions would carry the tools only at effort none
-// while the call thinks, as asked or by the model's default.
+// Responses API rather than Chat Completions.
 func OpenAITakesResponses(model string, tools bool, mode ThinkingMode) bool {
 	switch {
 	case ChatCompletionsUnsupported(model):
