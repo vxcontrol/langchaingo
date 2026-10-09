@@ -1,6 +1,9 @@
 package reasoning
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // ReplayAPI is the request format a door sends the history in.
 type ReplayAPI int
@@ -69,9 +72,11 @@ type ReplayTarget struct {
 	API   ReplayAPI
 	Tools bool
 	Mode  ThinkingMode
-	// KeepsPastReasoning: the caller asks the host to keep the reasoning of
-	// earlier turns where the host makes it a switch: Z.ai's and DashScope's
-	// clear_thinking false or preserve_thinking true, Moonshot's thinking.keep.
+	// KeepsPastReasoning: the host keeps the reasoning of earlier turns because
+	// the caller asks it where the host makes it a switch (Z.ai's and
+	// DashScope's clear_thinking false or preserve_thinking true, Moonshot's
+	// thinking.keep) or because the endpoint keeps it unasked (Z.ai's Coding
+	// Plan endpoint, on the same host as its standard one).
 	KeepsPastReasoning bool
 }
 
@@ -289,22 +294,26 @@ var (
 		"qwen3.7-max", "qwen3.7-plus", "qwen3.7-flash", "qwen3.6-max", "qwen3.6-plus", "kimi-k2.6",
 		"glm-5.3",
 	}
+	dashScopeKeepsUnnamed = []string{
+		"qwen3.7-max-preview", "qwen3.7-max-2026-05-17", "kimi/kimi-k2.6", "glm-5.2-fast-preview",
+	}
 )
 
 func dashScopeReplay(t ReplayTarget) Replay {
+	keeps := namesAnyGeneration(t.Model, dashScopeKeepsByDefault)
 	switch {
+	case slices.Contains(dashScopeKeepsUnnamed, strings.TrimPrefix(strings.ToLower(t.Model), "dashscope/")):
+		keeps = false
 	case namesAnyGeneration(t.Model, dashScopeKeepsWhenAsked):
-		switch {
-		case t.KeepsPastReasoning:
-			return everyTurn
-		case !t.thinks():
-			return asSent
-		}
-		return dropsPast
-	case namesAnyGeneration(t.Model, dashScopeKeepsByDefault):
-		return everyTurn
+		keeps = t.KeepsPastReasoning
 	}
-	return asSent
+	switch {
+	case keeps:
+		return everyTurn
+	case !t.thinks():
+		return asSent
+	}
+	return dropsPast
 }
 
 func namesGeneration(model, generation string) bool {

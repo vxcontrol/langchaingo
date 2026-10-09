@@ -110,7 +110,7 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"DeepSeek with its thinking off", thinkingOff(on("deepseek-flash", "api.deepseek.com", ReplayChat)), asSent},
 		{"DeepSeek thinking by default", byDefault(on("deepseek-v4-pro", "api.deepseek.com", ReplayChat)), everyTurn},
 		{"a DeepSeek that does not reason", byDefault(on("deepseek-chat", "api.deepseek.com", ReplayChat)), asSent},
-		{"DeepSeek on another vendor's host", on("deepseek-v4-pro", dashscope, ReplayChat), asSent},
+		{"DeepSeek on another vendor's host", on("deepseek-v4-pro", dashscope, ReplayChat), dropsPast},
 		{"Kimi K3", withoutTools(on("kimi-k3", "api.moonshot.ai", ReplayChat)), everyTurn},
 		{"Kimi K3 through a gateway's route", on("moonshot/kimi-k3", gateway, ReplayChat), everyTurn},
 		{"Kimi K2.7 Code always thinks", thinkingOff(on("kimi-k2.7-code", "api.moonshot.ai", ReplayChat)), everyTurn},
@@ -126,7 +126,8 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Qwen 3.8", on("qwen3.8-max", dashscope, ReplayChat), everyTurn},
 		{"Qwen 3.8 through a gateway's route", on("dashscope/qwen3.8-max", gateway, ReplayChat), everyTurn},
 		{"Qwen 3.8 with its thinking off", thinkingOff(on("qwen3.8-max", dashscope, ReplayChat)), everyTurn},
-		{"a Qwen 3.8 that preserves nothing", on("qwen3.8-27b", dashscope, ReplayChat), asSent},
+		{"a Qwen 3.8 that preserves nothing", on("qwen3.8-27b", dashscope, ReplayChat), dropsPast},
+		{"a Qwen 3.8 that preserves nothing with its thinking off", thinkingOff(on("qwen3.8-27b", dashscope, ReplayChat)), asSent},
 		{"Qwen 3.7", on("qwen3.7-plus", dashscope, ReplayChat), dropsPast},
 		{"Qwen 3.7 keeping its thinking", keeping(on("qwen3.7-plus", dashscope, ReplayChat)), everyTurn},
 		{"Qwen 3.7 with its thinking off", thinkingOff(on("qwen3.7-plus", dashscope, ReplayChat)), asSent},
@@ -135,7 +136,10 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Kimi K2.7 Code on DashScope with its thinking off", thinkingOff(on("kimi-k2.7-code", dashscope, ReplayChat)), everyTurn},
 		{"Kimi K2.6 on DashScope", on("kimi-k2.6", dashscope, ReplayChat), dropsPast},
 		{"Qwen 3.8 Flash", on("qwen3.8-flash", dashscope, ReplayChat), everyTurn},
-		{"Qwen 3.6 Flash, which one copy of the docs leaves out", keeping(on("qwen3.6-flash", dashscope, ReplayChat)), asSent},
+		{"Qwen 3.6 Flash, which one copy of the docs leaves out", keeping(on("qwen3.6-flash", dashscope, ReplayChat)), dropsPast},
+		{"a GLM 5.2 deployment the docs do not name", on("glm-5.2-fast-preview", dashscope, ReplayChat), dropsPast},
+		{"Kimi K2.6 that only one copy of the docs names", keeping(on("kimi/kimi-k2.6", dashscope, ReplayChat)), dropsPast},
+		{"the same Kimi through a gateway's route", keeping(on("dashscope/kimi/kimi-k2.6", gateway, ReplayChat)), dropsPast},
 		{"GLM 5.2 on DashScope", on("glm-5.2", dashscope, ReplayChat), everyTurn},
 		{"GLM 5.2 on DashScope with its thinking off", thinkingOff(on("glm-5.2", dashscope, ReplayChat)), everyTurn},
 		{"GLM 5.3 on DashScope", on("glm-5.3", dashscope, ReplayChat), dropsPast},
@@ -219,5 +223,7 @@ func TestAnExecutorChangeNeedsABoundaryOnlyWhereTheReaderCannotContinue(t *testi
 	require.False(t, NeedsBoundary(adaptive, "claude-fable-5-1", true), "the API drops the blocks the model cannot read")
 	require.False(t, NeedsBoundary(adaptive, "gemini-3-pro-preview", true))
 
-	require.False(t, NeedsBoundary(on("gpt-5.6", "api.openai.com", ReplayChat), "claude-opus-5-5", true))
+	for _, writer := range []string{"claude-opus-5-5", "deepseek-v4-pro", "gemini-3.5-flash", "kimi-k3", "qwen3.8-max"} {
+		require.False(t, NeedsBoundary(on("gpt-5.6", "api.openai.com", ReplayChat), writer, true), "%s before GPT", writer)
+	}
 }
