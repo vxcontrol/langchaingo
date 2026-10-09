@@ -24,7 +24,7 @@ type LLM struct {
 	client           *openaiclient.Client
 	host             string
 
-	openAIPassthrough        bool
+	openAIServed             bool
 	structuredOutputFallback bool
 }
 
@@ -48,7 +48,7 @@ func New(opts ...Option) (*LLM, error) {
 		client:                   c,
 		CallbacksHandler:         opt.callbackHandler,
 		host:                     hostnameFromURL(opt.baseURL),
-		openAIPassthrough:        openAIPassthrough(opt.baseURL),
+		openAIServed:             ServedByOpenAI(opt.baseURL),
 		structuredOutputFallback: opt.structuredOutputFallback,
 	}, err
 }
@@ -720,7 +720,7 @@ func (o *LLM) prepareCall(
 }
 
 func (o *LLM) servedByOpenAI() bool {
-	return o.openAIPassthrough || o.host == "" || reasoning.OpenAIHost(o.host)
+	return o.openAIServed
 }
 
 var promptCacheKeyVendors = []reasoning.Vendor{reasoning.VendorXAI, reasoning.VendorMistral, reasoning.VendorMoonshot}
