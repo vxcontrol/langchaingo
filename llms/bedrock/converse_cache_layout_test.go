@@ -266,9 +266,13 @@ func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testin
 	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
 	for _, step := range []converseStep{
 		{1, "checking", false}, {2, "", false}, {3, "", false}, {3, "checking", false}, {6, "checking", false},
-		{8, "checking", false}, {2, "", true}, {3, "checking", true},
+		{8, "checking", false}, {10, "checking", false}, {2, "", true}, {3, "checking", true},
 	} {
 		parallel, previous := step.parallel, -1
+		width := 1 + 2*parallel
+		if step.text != "" {
+			width++
+		}
 		for steps := range 30 {
 			system, marks, _ := converseMarksAfterBlocks(t, model, converseWideLoop(model, steps, step),
 				llms.WithCacheLayout(llms.CacheLayoutGrowing))
@@ -285,6 +289,10 @@ func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testin
 				}
 			}
 			require.True(t, reached, "%d calls a step, %d steps: no hour-long point reads the write at block %d", parallel, steps, previous)
+			if width <= 18 {
+				require.Less(t, marks[len(marks)-1].after-furthest, 20,
+					"%d calls a step, %d steps: the hour-long write keeps up with a step of %d blocks", parallel, steps, width)
+			}
 			previous = furthest
 		}
 	}
@@ -343,14 +351,47 @@ func TestTheInvokeModelRequestHonoursNoLayoutAndReportsAGrowingOne(t *testing.T)
 
 	raw, resp = sent(t, llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.NotEmpty(t, collectJSONObjects(t, raw, "cache_control"), "the door's own markers")
+	layout := layoutWarnings(resp)
+	require.Len(t, layout, 1)
+	require.Equal(t, llms.WarningSubstitute, layout[0].Kind)
+	require.NotEmpty(t, layout[0].Sent)
+
+	var raw2 []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw2, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, legacyAnswer)
+	}))
+	t.Cleanup(srv.Close)
+	resp, err := bedrockLLMAgainst(t, srv, bedrock.WithModel(model)).
+		GenerateContent(t.Context(), converseLoop(3), llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.NoError(t, err)
+	require.Empty(t, collectJSONObjects(t, raw2, "cache_control"))
+	layout = layoutWarnings(resp)
+	require.Len(t, layout, 1, "without automatic caching nothing reaches the wire")
+	require.Equal(t, llms.WarningDrop, layout[0].Kind)
+	require.Empty(t, layout[0].Sent)
+
+	cohere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"generations":[{"text":"ok","finish_reason":"COMPLETE"}]}`)
+	}))
+	t.Cleanup(cohere.Close)
+	resp, err = bedrockLLMAgainst(t, cohere, bedrock.WithModel("cohere.command-text-v14")).
+		GenerateContent(t.Context(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.NoError(t, err)
+	require.Empty(t, layoutWarnings(resp), "a model the door does not cache has no markers to place")
+}
+
+func layoutWarnings(resp *llms.ContentResponse) []llms.Warning {
 	var layout []llms.Warning
 	for _, w := range resp.Warnings {
 		if w.Option == "WithCacheLayout" {
 			layout = append(layout, w)
 		}
 	}
-	require.Len(t, layout, 1)
-	require.Equal(t, llms.WarningSubstitute, layout[0].Kind)
+	return layout
 }
 
 func TestAGrowingConverseHistoryPointsAtTheStartOfTheLatestTurn(t *testing.T) {

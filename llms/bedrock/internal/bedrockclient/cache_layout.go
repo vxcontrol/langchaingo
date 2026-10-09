@@ -6,7 +6,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 )
 
-const converseGrowingCacheStep = 12
+const (
+	converseGrowingCacheStep  = 6
+	converseGrowingCacheReach = 18
+)
 
 type converseBlock struct {
 	message, block int
@@ -66,7 +69,7 @@ func converseMovingPoint(messages []types.Message, blocks []converseBlock) int {
 		}
 		line := b / converseGrowingCacheStep * converseGrowingCacheStep
 		if moving >= 0 {
-			line = min(line, moving+converseGrowingCacheStep)
+			line = min(line, moving+converseGrowingCacheReach)
 		}
 		moving = max(moving, line)
 	}

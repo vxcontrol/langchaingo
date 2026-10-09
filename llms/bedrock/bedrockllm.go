@@ -132,12 +132,15 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	if !l.useConverseAPI && opts.CacheLayout == llms.CacheLayoutGrowing {
-		turn.Add(llms.Warning{
-			Kind: llms.WarningSubstitute, Option: "WithCacheLayout", Model: opts.GetModel(),
-			Asked: "growing", Sent: "the door's own markers",
+	if !l.useConverseAPI && opts.CacheLayout == llms.CacheLayoutGrowing && l.supportsCaching(opts.GetModel()) {
+		dropped := llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithCacheLayout", Model: opts.GetModel(), Asked: "growing",
 			Reason: "the InvokeModel request places only the door's own markers",
-		})
+		}
+		if l.enableAutoCaching {
+			dropped.Kind, dropped.Sent = llms.WarningSubstitute, "the door's own markers"
+		}
+		turn.Add(dropped)
 	}
 
 	// Use Converse API if enabled
