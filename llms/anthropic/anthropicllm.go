@@ -284,8 +284,14 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	}
 
-	if strategy := cacheStrategyFor(o.defaultCacheStrategy, opts); strategy != nil {
-		applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *strategy)
+	switch opts.CacheLayout {
+	case llms.CacheLayoutNone:
+	case llms.CacheLayoutGrowing:
+		placeGrowingCacheMarkers(tools, &systemPrompt, chatMessages)
+	default:
+		if strategy := cacheStrategyFor(o.defaultCacheStrategy, opts); strategy != nil {
+			applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *strategy)
+		}
 	}
 
 	betaHeaders := extractBetaHeaders(opts, thinking)
@@ -538,8 +544,6 @@ func parseBase64URI(uri string) (string, string, error) {
 	return matches[2], matches[1], nil
 }
 
-// cacheStrategyFor returns the call's strategy when the call sets one, and the
-// client's otherwise.
 func cacheStrategyFor(clientStrategy *CacheStrategy, opts *llms.CallOptions) *CacheStrategy {
 	if strategy, ok := opts.Metadata["anthropic:cache_strategy"].(CacheStrategy); ok {
 		return &strategy
