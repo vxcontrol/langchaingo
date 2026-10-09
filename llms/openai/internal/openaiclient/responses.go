@@ -16,27 +16,25 @@ import (
 )
 
 type ResponsesRequest struct {
-	Model             string              `json:"model"`
-	Input             []any               `json:"input"`
-	MaxOutputTokens   *int                `json:"max_output_tokens,omitempty"`
-	Temperature       *float64            `json:"temperature,omitempty"`
-	TopP              *float64            `json:"top_p,omitempty"`
-	Reasoning         *ResponsesReasoning `json:"reasoning,omitempty"`
-	Tools             []ResponsesTool     `json:"tools,omitempty"`
-	ToolChoice        any                 `json:"tool_choice,omitempty"`
-	ParallelToolCalls *bool               `json:"parallel_tool_calls,omitempty"`
-	Text              *ResponsesText      `json:"text,omitempty"`
-	Store             bool                `json:"store"`
-	Stream            bool                `json:"stream,omitempty"`
-	Metadata          map[string]any      `json:"metadata,omitempty"`
+	Model           string              `json:"model"`
+	Input           []any               `json:"input"`
+	MaxOutputTokens *int                `json:"max_output_tokens,omitempty"`
+	Temperature     *float64            `json:"temperature,omitempty"`
+	TopP            *float64            `json:"top_p,omitempty"`
+	Reasoning       *ResponsesReasoning `json:"reasoning,omitempty"`
+	Tools           []ResponsesTool     `json:"tools,omitempty"`
+	ToolChoice      any                 `json:"tool_choice,omitempty"`
+	Text            *ResponsesText      `json:"text,omitempty"`
+	Store           bool                `json:"store"`
+	Stream          bool                `json:"stream,omitempty"`
+	Metadata        map[string]any      `json:"metadata,omitempty"`
 
 	ExtraBody     map[string]any     `json:"-"`
 	StreamingFunc streaming.Callback `json:"-"`
 }
 
 type ResponsesReasoning struct {
-	Effort  string `json:"effort,omitempty"`
-	Summary string `json:"summary,omitempty"`
+	Effort string `json:"effort,omitempty"`
 }
 
 type ResponsesTool struct {
