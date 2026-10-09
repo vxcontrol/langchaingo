@@ -311,6 +311,11 @@ type CallOptions struct {
 	// Reasoning is the configuration for thinking of the model.
 	Reasoning *ReasoningConfig `json:"reasoning,omitempty"`
 
+	// CacheLayout is how the door places the vendor's prompt cache markers.
+	CacheLayout CacheLayout `json:"cache_layout,omitempty"`
+
+	PromptCacheKey string `json:"prompt_cache_key,omitempty"`
+
 	// JSONMode is a flag to enable JSON mode.
 	JSONMode bool `json:"json"`
 

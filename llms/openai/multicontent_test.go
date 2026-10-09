@@ -671,6 +671,10 @@ func TestFunctionCall(t *testing.T) {
 			}
 			assert.NotNil(t, c1.FuncCall)
 			assert.Len(t, c1.ToolCalls, 1)
+			assert.Equal(t, c1.GenerationInfo["PromptCachedTokens"], c1.GenerationInfo["CacheReadInputTokens"])
+			if test.name == "deepseek" {
+				assert.Positive(t, c1.GenerationInfo["CacheReadInputTokens"], "the recorded answer read from the cache")
+			}
 
 			if len(c1.ToolCalls) >= 1 && c1.FuncCall != nil {
 				assert.Equal(t, c1.ToolCalls[0].FunctionCall.Name, c1.FuncCall.Name)

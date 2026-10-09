@@ -183,6 +183,11 @@ func OpenAITakesResponses(model string, tools bool, mode ThinkingMode) bool {
 	return mode != ThinkingDefault || !OpenAIThinkingOptIn(model)
 }
 
+func TakesPromptCacheOptions(model string) bool {
+	major, minor, ok := generationAfter("gpt-", routedName(model))
+	return ok && (major > 5 || major == 5 && minor >= 6)
+}
+
 func ChatCompletionsUnsupported(model string) bool {
 	for _, form := range modelSpellings(model) {
 		for _, family := range []string{"gpt-5.6-cyber", "gpt-daybreak-red", "gpt-daybreak-blue"} {
