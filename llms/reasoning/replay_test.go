@@ -165,6 +165,7 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"GPT on a regional host", byDefault(on("gpt-6-luna", "eu.api.openai.com", ReplayChat)), ownTurns},
 		{"GPT with tools only on Responses", byDefault(on("gpt-6-astra", "api.openai.com", ReplayChat)), ownTurns},
 		{"GPT with its thinking off", thinkingOff(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
+		{"GPT on Responses with its thinking off", thinkingOff(on("gpt-6-astra", "api.openai.com", ReplayChat)), asSent},
 		{"GPT without tools", withoutTools(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
 		{"GPT that thinks only when asked", byDefault(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), asSent},
 		{"GPT asked to think", onBudget(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), ownTurns},

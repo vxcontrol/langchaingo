@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -530,14 +531,13 @@ func TestAResponsesRefusalAndAFilteredAnswerReachTheCaller(t *testing.T) {
 	require.Equal(t, "content_filter", resp.Choices[0].StopReason)
 }
 
-func TestTheSamplingAModelTakesReachesResponses(t *testing.T) {
+func TestTheResponsesRequestCarriesTheSamplingTheChatRequestKept(t *testing.T) {
 	t.Parallel()
 
-	path, body := routedCall(t, "https://api.openai.com/v1", "gpt-daybreak-red-latest",
-		llms.WithTemperature(0.3), llms.WithTopP(0.9))
-	require.Equal(t, "/responses", path)
-	require.InDelta(t, 0.3, body["temperature"], 0)
-	require.InDelta(t, 0.9, body["top_p"], 0)
+	temperature, topP := 0.3, 0.9
+	r := responsesRequest(&openaiclient.ChatRequest{Model: "gpt-6-luna", Temperature: &temperature, TopP: &topP}, nil, nil)
+	require.Equal(t, &temperature, r.Temperature)
+	require.Equal(t, &topP, r.TopP)
 }
 
 func TestTheResponsesRequestCarriesThePromptCacheKeyAndOptions(t *testing.T) {
@@ -552,4 +552,62 @@ func TestTheResponsesRequestCarriesThePromptCacheKeyAndOptions(t *testing.T) {
 	_, body = routedCall(t, "https://api.openai.com/v1", "gpt-6-luna", llms.WithTools([]llms.Tool{astraTool()}))
 	require.NotContains(t, body, "prompt_cache_key")
 	require.NotContains(t, body, "prompt_cache_options")
+}
+
+func TestAResponsesAnswerReplayedOnChatCompletionsSendsPlainTextParts(t *testing.T) {
+	t.Parallel()
+
+	answer, err := json.Marshal(map[string]any{"id": "resp_1", "model": "gpt-6-luna", "status": "completed", "output": []any{
+		wireReasoning("rs_1"),
+		map[string]any{"type": "message", "id": "msg_1", "status": "completed", "role": "assistant", "phase": "commentary",
+			"content": []any{map[string]any{"type": "output_text", "text": "I'll inspect the logs.", "annotations": []any{}}}},
+		map[string]any{"type": "message", "id": "msg_2", "status": "completed", "role": "assistant", "phase": "final_answer",
+			"content": []any{map[string]any{"type": "output_text", "text": "Root cause: race.", "annotations": []any{}}}},
+	}})
+	require.NoError(t, err)
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(&responsesDoer{answer: string(answer)}))
+	question := llms.TextParts(llms.ChatMessageTypeHuman, "Why did it fail?")
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{question}, llms.WithTools([]llms.Tool{astraTool()}))
+	require.NoError(t, err)
+	require.Equal(t, "gpt-6-luna", resp.Choices[0].Parts[0].(llms.TextContent).Reasoning.Model)
+
+	doer := &bodyDoer{}
+	chat := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	_, err = chat.GenerateContent(context.Background(), []llms.MessageContent{question, resp.Choices[0].Message(),
+		llms.TextParts(llms.ChatMessageTypeHuman, "Thanks.")})
+	require.NoError(t, err)
+	require.Equal(t, "/v1/chat/completions", doer.path)
+	var sent struct {
+		Messages []map[string]any `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(doer.body, &sent))
+	require.Equal(t, []any{
+		map[string]any{"type": "text", "text": "I'll inspect the logs."},
+		map[string]any{"type": "text", "text": "Root cause: race."},
+	}, sent.Messages[1]["content"])
+}
+
+func TestStopWordsAnInheritedModelCannotCarryAreReportedNotRefused(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithModel("gpt-6.2-mini"), WithHTTPClient(doer))
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{astraTool()}), llms.WithStopWords([]string{"END"}))
+	require.NoError(t, err)
+	require.Equal(t, "/v1/responses", doer.path)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.NotContains(t, body, "stop")
+	var stop []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithStopWords" {
+			stop = append(stop, w)
+		}
+	}
+	require.Len(t, stop, 1)
+	require.Equal(t, llms.WarningInherit, stop[0].Kind)
+	require.Equal(t, "END", stop[0].Asked)
+	require.Empty(t, stop[0].Sent)
 }

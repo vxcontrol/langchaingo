@@ -704,7 +704,10 @@ func (o *LLM) prepareCall(
 	opts.Tools = toolsSent
 	responses = o.takesResponses(model, *opts)
 	if len(opts.StopWords) > 0 && responses {
-		return nil, false, &reasoning.ErrStopWordsUnsupported{Model: model}
+		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithStopWords", strings.Join(opts.StopWords, ", "), "", refusal) {
+			return nil, false, refusal
+		}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
