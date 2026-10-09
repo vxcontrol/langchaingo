@@ -49,8 +49,8 @@ const (
 	PastReasoningUnused PastReasoning = iota
 	// PastReasoningOpenLoop: the answers of an unfinished tool loop.
 	PastReasoningOpenLoop
-	// PastReasoningOwnTurns: every earlier answer of the model itself, for the
-	// host's cache; another model's answers need none.
+	// PastReasoningOwnTurns: every earlier answer of the model itself; another
+	// model's answers need none.
 	PastReasoningOwnTurns
 	PastReasoningEveryTurn
 )
@@ -67,7 +67,8 @@ const (
 // ReplayTarget is the model a history goes back to and the way it gets there.
 type ReplayTarget struct {
 	Model string
-	// Host is the lowercase host name of the endpoint, without a port.
+	// Host is the lowercase host name of the endpoint, without a port; a LiteLLM
+	// pass-through to OpenAI's own API (/openai_passthrough) is api.openai.com.
 	Host  string
 	API   ReplayAPI
 	Tools bool
@@ -237,6 +238,12 @@ var (
 )
 
 func vendorReplay(t ReplayTarget) Replay {
+	if OpenAIHost(t.Host) {
+		if OpenAITakesResponses(t.Model, t.Tools, t.Mode) && t.thinks() {
+			return Replay{Needs: PastReasoningOwnTurns, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+		}
+		return asSent
+	}
 	switch ServedBy(t.Model, t.Host) { //nolint:exhaustive // the other vendors replay as sent
 	case VendorDeepSeek:
 		if ServedByDeepSeek(t.Model, t.Host) && t.thinks() {

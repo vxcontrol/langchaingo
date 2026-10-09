@@ -42,6 +42,7 @@ func TestALoneBlockThatIsEncryptedOrPlacedStaysABlock(t *testing.T) {
 		"encrypted":            {Redacted: []byte("opaque")},
 		"after a tool call":    {Text: "update", Signature: []byte("s"), AfterToolCalls: 1},
 		"encrypted and placed": {Redacted: []byte("opaque"), AfterToolCalls: 2},
+		"an item by its id":    {ID: "rs_1", Text: "summary"},
 	} {
 		got := FromBlocks([]Block{block})
 		require.NotNil(t, got, name)
@@ -170,6 +171,7 @@ func TestBlocksSurviveARoundTrip(t *testing.T) {
 		{Text: "a", Signature: []byte("s1")},
 		{Redacted: []byte("opaque")},
 		{Signature: []byte("s2"), AfterToolCalls: 1},
+		{ID: "rs_1", Text: "plan", Redacted: []byte("enc"), AfterToolCalls: 1},
 	})
 
 	data, err := json.Marshal(sent)

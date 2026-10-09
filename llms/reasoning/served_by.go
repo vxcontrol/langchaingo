@@ -66,6 +66,11 @@ func ServedBy(model, host string) Vendor {
 	return litellmRoutes[route]
 }
 
+// OpenAIHost reports OpenAI's own API host.
+func OpenAIHost(host string) bool {
+	return host == "api.openai.com" || strings.HasSuffix(host, ".api.openai.com")
+}
+
 func vendorOfHost(host string) Vendor {
 	if strings.HasSuffix(host, ".maas.aliyuncs.com") {
 		return VendorDashScope

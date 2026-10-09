@@ -75,6 +75,9 @@ func (cc CacheControl) isPart() {}
 type TextContent struct {
 	Text      string                      `json:"text,omitempty"`
 	Reasoning *reasoning.ContentReasoning `json:"reasoning,omitempty"`
+	// Phase is the label the vendor gave an assistant text within its turn
+	// (OpenAI's commentary or final_answer); the door sends it back unchanged.
+	Phase string `json:"phase,omitempty"`
 }
 
 func (tc TextContent) String() string {

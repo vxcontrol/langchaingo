@@ -20,7 +20,7 @@ func droppedDelegationFor(t *testing.T, model string) bool {
 	_, err := llm.setReasoning(req, llms.CallOptions{
 		Model:     &model,
 		Reasoning: &llms.ReasoningConfig{Adaptive: true},
-	}, warn)
+	}, warn, false)
 	require.NoError(t, err)
 
 	for _, w := range warn.List() {

@@ -24,6 +24,7 @@ type LLM struct {
 	client           *openaiclient.Client
 	host             string
 
+	openAIPassthrough        bool
 	structuredOutputFallback bool
 }
 
@@ -47,6 +48,7 @@ func New(opts ...Option) (*LLM, error) {
 		client:                   c,
 		CallbacksHandler:         opt.callbackHandler,
 		host:                     hostnameFromURL(opt.baseURL),
+		openAIPassthrough:        openAIPassthrough(opt.baseURL),
 		structuredOutputFallback: opt.structuredOutputFallback,
 	}, err
 }
@@ -108,8 +110,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	warn := warningsFor(o.effectiveModel(opts))
-	if err := o.refuseBeforeTheNetwork(messages, &opts, warn); err != nil {
+	warn, responses, err := o.prepareCall(messages, &opts)
+	if err != nil {
 		return nil, err
 	}
 
@@ -123,12 +125,12 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	reportOpenAIUnread(warn, o.effectiveModel(opts), opts)
-	req, err := o.createChatRequest(chatMsgs, opts, warn)
+	req, err := o.createChatRequest(chatMsgs, opts, warn, responses)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := o.client.CreateChat(ctx, req)
+	result, err := o.send(ctx, messages, req, warn, responses)
 	if err != nil {
 		err = vendorRefusal(err)
 		if result == nil || len(result.Choices) == 0 {
@@ -315,7 +317,7 @@ func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
 
 // createChatRequest creates an OpenAI chat request with the given parameters.
 func (o *LLM) createChatRequest(
-	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings,
+	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings, responses bool,
 ) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
 		Model:                opts.GetModel(),
@@ -375,7 +377,7 @@ func (o *LLM) createChatRequest(
 	setJSONMode(req, model, o.host, opts, warn)
 
 	// add tools from functions and tool definitions
-	if err := o.addToolsToRequest(req, opts, warn); err != nil {
+	if err := o.addToolsToRequest(req, opts, warn, responses); err != nil {
 		return nil, err
 	}
 	o.withholdToolsInsteadOfNone(req, opts, model, warn)
@@ -388,7 +390,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
-	wireEffort, err := o.setReasoning(req, opts, warn)
+	wireEffort, err := o.setReasoning(req, opts, warn, responses)
 	if err != nil {
 		return nil, err
 	}
@@ -525,11 +527,11 @@ func wireEffortOf(sent bool, effort llms.ReasoningEffort) string {
 
 // setReasoning writes the reasoning fields and reports the effort that reached the wire.
 func (o *LLM) setReasoning(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool,
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if toolsOnTheWire(req) {
+	if toolsOnTheWire(req) && !responses {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
@@ -684,37 +686,41 @@ func warningsFor(model string) *llms.Warnings {
 	return warn
 }
 
-func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.CallOptions, warn *llms.Warnings) error {
+func (o *LLM) prepareCall(
+	messages []llms.MessageContent, opts *llms.CallOptions,
+) (warn *llms.Warnings, responses bool, err error) {
+	model := o.effectiveModel(*opts)
+	warn = warningsFor(model)
 	if err := opts.ValidateReasoning(); err != nil {
-		return err
+		return nil, false, err
 	}
 	if err := llms.CheckToolCalls(messages); err != nil {
-		return err
+		return nil, false, err
 	}
-	model := o.effectiveModel(*opts)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	opts.Tools = toolsSent
-	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
-		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
-		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
-			return refusal
+	responses = o.takesResponses(model, *opts)
+	if len(opts.StopWords) > 0 && responses {
+		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithStopWords", strings.Join(opts.StopWords, ", "), "", refusal) {
+			return nil, false, refusal
 		}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
 		stop := strings.Join(opts.StopWords, ", ")
 		if reasoning.GrokFamily(model) || warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
-			return refusal
+			return nil, false, refusal
 		}
 	}
-	return nil
+	return warn, responses, nil
 }
 
 func (o *LLM) servedByOpenAI() bool {
-	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+	return o.openAIPassthrough || o.host == "" || reasoning.OpenAIHost(o.host)
 }
 
 var promptCacheKeyVendors = []reasoning.Vendor{reasoning.VendorXAI, reasoning.VendorMistral, reasoning.VendorMoonshot}
@@ -943,8 +949,10 @@ func isThinkingOnTheWire(wireEffort string) bool {
 }
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
-func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
-	if offered := len(opts.Tools) + len(opts.Functions) + llms.ExtraBodyTools(llms.ExtraBody(opts)); offered > 0 {
+func (o *LLM) addToolsToRequest(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool,
+) error {
+	if offered := len(opts.Tools) + len(opts.Functions) + llms.ExtraBodyTools(llms.ExtraBody(opts)); offered > 0 && !responses {
 		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
 			refusal := &reasoning.ErrChatToolsUnsupported{Model: model}
 			if asked := strconv.Itoa(offered); warn.KeepRefusal(model, "WithTools", asked, asked, refusal) {
@@ -1023,12 +1031,22 @@ func (o *LLM) processResponse(
 
 	for i, c := range result.Choices {
 		stopReason := string(c.FinishReason)
+		thoughts := c.Reasoning
+		if thoughts == nil {
+			thoughts = o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks)
+		}
+		for _, part := range c.Parts {
+			if text, ok := part.(llms.TextContent); ok {
+				text.Reasoning.WrittenBy(model)
+			}
+		}
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
-			Reasoning:      o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks).WrittenBy(model),
+			Reasoning:      thoughts.WrittenBy(model),
 			StopReason:     stopReason,
 			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
+			Parts:          c.Parts,
 		}
 
 		// Surface a Structured Outputs refusal so callers can tell it apart from a

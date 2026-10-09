@@ -167,6 +167,22 @@ func ChatToolsUnsupported(model string) bool {
 	return false
 }
 
+// OpenAITakesResponses reports whether a call to OpenAI's own API goes to the
+// Responses API rather than Chat Completions.
+func OpenAITakesResponses(model string, tools bool, mode ThinkingMode) bool {
+	switch {
+	case ChatCompletionsUnsupported(model):
+		return true
+	case !tools:
+		return false
+	case ChatToolsUnsupported(model):
+		return true
+	case mode == ThinkingOff, EffortWithTools(model) == EffortToolsFree:
+		return false
+	}
+	return mode != ThinkingDefault || !OpenAIThinkingOptIn(model)
+}
+
 func TakesPromptCacheOptions(model string) bool {
 	major, minor, ok := generationAfter("gpt-", routedName(model))
 	return ok && (major > 5 || major == 5 && minor >= 6)
@@ -181,14 +197,6 @@ func ChatCompletionsUnsupported(model string) bool {
 		}
 	}
 	return false
-}
-
-type ErrChatCompletionsUnsupported struct {
-	Model string
-}
-
-func (e *ErrChatCompletionsUnsupported) Error() string {
-	return fmt.Sprintf("model %q is served only by the responses API, not by chat completions", e.Model)
 }
 
 // ErrChatToolsUnsupported reports a request that carries function tools for a

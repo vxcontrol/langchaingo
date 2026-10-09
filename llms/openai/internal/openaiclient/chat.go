@@ -425,6 +425,7 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		m.MultiContent = nil
 	}
 	if len(m.MultiContent) > 0 {
+		m.MultiContent = chatContent(m.MultiContent)
 		msg := struct {
 			Role         string             `json:"role"`
 			Content      string             `json:"-"`
@@ -498,6 +499,17 @@ func marshalRequestMessage(msg any, emptyReasoning bool) ([]byte, error) {
 		return out, err
 	}
 	return append(out[:len(out)-1], `,"reasoning_content":""}`...), nil
+}
+
+func chatContent(parts []llms.ContentPart) []llms.ContentPart {
+	content := make([]llms.ContentPart, len(parts))
+	for i, part := range parts {
+		if text, isText := part.(llms.TextContent); isText {
+			part = llms.TextContent{Text: text.Text}
+		}
+		content[i] = part
+	}
+	return content
 }
 
 func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
@@ -613,6 +625,9 @@ type ChatCompletionChoice struct {
 	FinishReason FinishReason   `json:"finish_reason"`
 	LogProbs     *LogProbs      `json:"logprobs,omitempty"`
 	Error        *providerError `json:"error,omitempty"`
+
+	Reasoning *reasoning.ContentReasoning `json:"-"`
+	Parts     []llms.ContentPart          `json:"-"`
 }
 
 // ChatUsage is the usage of a chat completion request.

@@ -9,24 +9,13 @@ import (
 )
 
 func (mc MessageContent) MarshalJSON() ([]byte, error) {
-	hasSingleTextPart := false
-	hasReasoning := false
 	if len(mc.Parts) == 1 {
-		tp, ok := mc.Parts[0].(TextContent)
-		if ok {
-			hasSingleTextPart = true
-			if tp.Reasoning != nil && !tp.Reasoning.IsEmpty() {
-				hasReasoning = true
-			}
+		if tp, ok := mc.Parts[0].(TextContent); ok && tp.Reasoning.IsEmpty() && tp.Phase == "" {
+			return json.Marshal(struct {
+				Role ChatMessageType `json:"role"`
+				Text string          `json:"text"`
+			}{Role: mc.Role, Text: tp.Text})
 		}
-	}
-	// Use simple format only if it's a single text part without reasoning
-	if hasSingleTextPart && !hasReasoning {
-		tp, _ := mc.Parts[0].(TextContent)
-		return json.Marshal(struct {
-			Role ChatMessageType `json:"role"`
-			Text string          `json:"text"`
-		}{Role: mc.Role, Text: tp.Text})
 	}
 
 	return json.Marshal(struct {
@@ -46,6 +35,7 @@ func (mc *MessageContent) UnmarshalJSON(data []byte) error {
 			Type      string                      `json:"type"`
 			Text      string                      `json:"text,omitempty"`
 			Reasoning *reasoning.ContentReasoning `json:"reasoning,omitempty"`
+			Phase     string                      `json:"phase,omitempty"`
 			ImageURL  struct {
 				URL    string `json:"url"`
 				Detail string `json:"detail,omitempty"`
@@ -79,6 +69,7 @@ func (mc *MessageContent) UnmarshalJSON(data []byte) error {
 			mc.Parts = append(mc.Parts, TextContent{
 				Text:      part.Text,
 				Reasoning: part.Reasoning,
+				Phase:     part.Phase,
 			})
 		case "image_url":
 			mc.Parts = append(mc.Parts, ImageURLContent{
@@ -123,6 +114,9 @@ func (tc TextContent) MarshalJSON() ([]byte, error) {
 	if tc.Reasoning != nil && !tc.Reasoning.IsEmpty() {
 		m["reasoning"] = tc.Reasoning
 	}
+	if tc.Phase != "" {
+		m["phase"] = tc.Phase
+	}
 	return json.Marshal(m)
 }
 
@@ -140,6 +134,7 @@ func (tc *TextContent) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid text field in TextContent")
 	}
 	tc.Text = text
+	tc.Phase, _ = m["phase"].(string)
 
 	if reasoningData, ok := m["reasoning"]; ok && reasoningData != nil {
 		reasoningBytes, err := json.Marshal(reasoningData)
