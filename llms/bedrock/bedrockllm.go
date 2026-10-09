@@ -132,6 +132,14 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
+	if !l.useConverseAPI && opts.CacheLayout == llms.CacheLayoutGrowing {
+		turn.Add(llms.Warning{
+			Kind: llms.WarningSubstitute, Option: "WithCacheLayout", Model: opts.GetModel(),
+			Asked: "growing", Sent: "the door's own markers",
+			Reason: "the InvokeModel request places only the door's own markers",
+		})
+	}
+
 	// Use Converse API if enabled
 	if l.useConverseAPI {
 		resp, err = l.generateContentWithConverseAPI(ctx, messages, opts)
@@ -210,7 +218,7 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 // generateContentWithLegacyAPI uses the original model-specific implementations
 func (l *LLM) generateContentWithLegacyAPI(ctx context.Context, messages []llms.MessageContent, opts llms.CallOptions) (*llms.ContentResponse, error) {
 	// Apply automatic caching to bedrock messages if enabled
-	shouldAutoCache := l.enableAutoCaching && l.supportsCaching(opts.GetModel())
+	shouldAutoCache := l.enableAutoCaching && l.supportsCaching(opts.GetModel()) && opts.CacheLayout != llms.CacheLayoutNone
 	m, err := processMessagesWithCaching(messages, shouldAutoCache)
 	if err != nil {
 		return nil, err

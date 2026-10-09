@@ -95,11 +95,14 @@ func TestAGrowingHistoryMarksClaudeBehindAGatewayWhereLiteLLMTakesTheMarker(t *t
 			[]cacheMark{{"system 0 part 1", hour}, {"user 1 part 0", hour}}},
 		"bedrock for five minutes": {gatewayBaseURL, "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0", loop,
 			[]cacheMark{{"system 0 part 1", nil}, {"user 1 part 0", nil}}},
-		"vertex":     {gatewayBaseURL, "vertex_ai/claude-sonnet-5-5", loop, nil},
-		"openrouter": {openRouterBaseURL, "anthropic/claude-sonnet-5-5", loop, nil},
-		"gemini":     {gatewayBaseURL, "gemini/gemini-3.5-pro", loop, nil},
-		"gpt":        {gatewayBaseURL, "openai/gpt-5.5", loop, nil},
-		"gpt alias":  {gatewayBaseURL, "gpt-5.5", loop, nil},
+		"bedrock with no system prompt": {gatewayBaseURL, "bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0", noSystem,
+			[]cacheMark{{"user 0 part 0", hour}}},
+		"Anthropic's own compatibility API": {"http://api.anthropic.com/v1", "claude-sonnet-5-5", loop, nil},
+		"vertex":                            {gatewayBaseURL, "vertex_ai/claude-sonnet-5-5", loop, nil},
+		"openrouter":                        {openRouterBaseURL, "anthropic/claude-sonnet-5-5", loop, nil},
+		"gemini":                            {gatewayBaseURL, "gemini/gemini-3.5-pro", loop, nil},
+		"gpt":                               {gatewayBaseURL, "openai/gpt-5.5", loop, nil},
+		"gpt alias":                         {gatewayBaseURL, "gpt-5.5", loop, nil},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

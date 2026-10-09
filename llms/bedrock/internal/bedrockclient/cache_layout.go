@@ -32,13 +32,16 @@ func placeGrowingCachePoints(system *[]types.SystemContentBlock, messages []type
 	if len(blocks) == 0 {
 		return
 	}
-	last := len(blocks) - 1
-	points := map[int]types.CacheTTL{last / converseGrowingCacheStep * converseGrowingCacheStep: hour}
-	if start, ok := converseTurnStart(messages, blocks); ok {
-		points[start] = hour
+	points := map[int]types.CacheTTL{}
+	latestHour := -1
+	for _, at := range []int{converseMovingPoint(messages, blocks), converseTurnStart(messages, blocks)} {
+		if block, ok := markableBlock(messages, blocks, at); ok {
+			points[block] = hour
+			latestHour = max(latestHour, block)
+		}
 	}
-	if _, ok := points[last]; !ok {
-		points[last] = types.CacheTTLFiveMinutes
+	if tail, ok := markableBlock(messages, blocks, len(blocks)-1); ok && tail > latestHour {
+		points[tail] = types.CacheTTLFiveMinutes
 	}
 
 	at := make([]int, 0, len(points))
@@ -54,15 +57,72 @@ func placeGrowingCachePoints(system *[]types.SystemContentBlock, messages []type
 	}
 }
 
-func converseTurnStart(messages []types.Message, blocks []converseBlock) (int, bool) {
+func converseMovingPoint(messages []types.Message, blocks []converseBlock) int {
+	moving := -1
+	for b, at := range blocks {
+		last := b == len(blocks)-1
+		if !last && (messages[at.message].Role != types.ConversationRoleUser || blocks[b+1].message == at.message) {
+			continue
+		}
+		line := b / converseGrowingCacheStep * converseGrowingCacheStep
+		if moving >= 0 {
+			line = min(line, moving+converseGrowingCacheStep)
+		}
+		moving = max(moving, line)
+	}
+	return moving
+}
+
+func converseTurnStart(messages []types.Message, blocks []converseBlock) int {
 	for b := len(blocks) - 1; b >= 0; b-- {
 		msg := messages[blocks[b].message]
 		if msg.Role != types.ConversationRoleUser {
 			continue
 		}
 		if _, isResult := msg.Content[blocks[b].block].(*types.ContentBlockMemberToolResult); !isResult {
+			return b
+		}
+	}
+	return -1
+}
+
+func markableBlock(messages []types.Message, blocks []converseBlock, at int) (int, bool) {
+	if at < 0 {
+		return 0, false
+	}
+	message := blocks[at].message
+	for b := at; b < len(blocks) && blocks[b].message == message; b++ {
+		if isMarkable(messages, blocks[b]) {
+			return b, true
+		}
+	}
+	for b := at - 1; b >= 0 && blocks[b].message == message; b-- {
+		if isMarkable(messages, blocks[b]) {
 			return b, true
 		}
 	}
 	return 0, false
+}
+
+func isMarkable(messages []types.Message, at converseBlock) bool {
+	_, reasoning := messages[at.message].Content[at.block].(*types.ContentBlockMemberReasoningContent)
+	return !reasoning
+}
+
+func dropCachePoints(system *[]types.SystemContentBlock, messages []types.Message) int {
+	before := len(*system)
+	*system = slices.DeleteFunc(*system, func(block types.SystemContentBlock) bool {
+		_, point := block.(*types.SystemContentBlockMemberCachePoint)
+		return point
+	})
+	dropped := before - len(*system)
+	for i := range messages {
+		before := len(messages[i].Content)
+		messages[i].Content = slices.DeleteFunc(messages[i].Content, func(block types.ContentBlock) bool {
+			_, point := block.(*types.ContentBlockMemberCachePoint)
+			return point
+		})
+		dropped += before - len(messages[i].Content)
+	}
+	return dropped
 }

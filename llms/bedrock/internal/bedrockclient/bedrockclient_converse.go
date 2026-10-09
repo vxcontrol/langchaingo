@@ -178,6 +178,7 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 
 	switch {
 	case input.CacheLayout == llms.CacheLayoutGrowing:
+		input.Warnings.AddDroppedCacheMarkers(input.ModelID, dropCachePoints(&systemPrompts, converseMessages))
 		placeGrowingCachePoints(&systemPrompts, converseMessages, !reasoning.BedrockCachesFiveMinutesOnly(input.ModelID))
 	case input.EnableCaching && len(converseMessages) > 0:
 		c.addCachePointToMessages(converseMessages)

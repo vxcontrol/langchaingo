@@ -103,17 +103,43 @@ func markAt(messages []anthropicclient.ChatMessage, position cachePosition, cach
 }
 
 func markBlock(block anthropicclient.Content, cacheControl *anthropicclient.CacheControl) bool {
+	field := cacheControlOf(block)
+	if field != nil {
+		*field = cacheControl
+	}
+	return field != nil
+}
+
+func cacheControlOf(block anthropicclient.Content) **anthropicclient.CacheControl {
 	switch c := block.(type) {
 	case *anthropicclient.TextContent:
-		c.CacheControl = cacheControl
+		return &c.CacheControl
 	case *anthropicclient.ToolResultContent:
-		c.CacheControl = cacheControl
+		return &c.CacheControl
 	case *anthropicclient.ImageContent:
-		c.CacheControl = cacheControl
+		return &c.CacheControl
 	case *anthropicclient.ToolUseContent:
-		c.CacheControl = cacheControl
-	default:
-		return false
+		return &c.CacheControl
 	}
-	return true
+	return nil
+}
+
+func dropCacheMarkers(systemPrompt any, messages []anthropicclient.ChatMessage) int {
+	system, _ := systemPrompt.([]anthropicclient.Content)
+	dropped := dropMarkers(system)
+	for _, msg := range messages {
+		dropped += dropMarkers(msg.Content)
+	}
+	return dropped
+}
+
+func dropMarkers(blocks []anthropicclient.Content) int {
+	dropped := 0
+	for _, block := range blocks {
+		if field := cacheControlOf(block); field != nil && *field != nil {
+			*field = nil
+			dropped++
+		}
+	}
+	return dropped
 }

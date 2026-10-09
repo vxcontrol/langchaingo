@@ -13,6 +13,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/bedrock"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 type conversePoint struct {
@@ -167,4 +168,187 @@ func TestNoConverseLayoutPlacesNoPoints(t *testing.T) {
 	marks, _ = converseCacheMarksFor(t, "us.deepseek.r1-v1:0", converseLoop(3), nil, llms.WithCacheLayout(llms.CacheLayoutGrowing))
 	require.Empty(t, marks.system, "a model Bedrock does not cache")
 	require.Empty(t, marks.points)
+}
+
+type converseMark struct {
+	after int
+	kind  string
+	ttl   string
+}
+
+type converseStep struct {
+	parallel   int
+	text       string
+	afterCalls bool
+}
+
+func converseWideLoop(model string, steps int, step converseStep) []llms.MessageContent {
+	chain := make([]llms.MessageContent, 0, 2+2*steps)
+	chain = append(chain,
+		llms.TextParts(llms.ChatMessageTypeSystem, "rules"),
+		llms.TextParts(llms.ChatMessageTypeHuman, "scan the host"),
+	)
+	for i := range steps {
+		block := reasoning.Block{Text: "plan", Signature: []byte("sig")}
+		if step.afterCalls {
+			block.AfterToolCalls = step.parallel
+		}
+		thought := reasoning.FromBlocks([]reasoning.Block{block}).WrittenBy(model)
+		answer := llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.TextPartWithReasoning(step.text, thought),
+		}}
+		results := llms.MessageContent{Role: llms.ChatMessageTypeTool}
+		for j := range step.parallel {
+			id := fmt.Sprintf("call_%d_%d", i, j)
+			answer.Parts = append(answer.Parts,
+				llms.ToolCall{ID: id, Type: "function", FunctionCall: &llms.FunctionCall{Name: "nmap", Arguments: `{}`}})
+			results.Parts = append(results.Parts, llms.ToolCallResponse{ToolCallID: id, Name: "nmap", Content: "open"})
+		}
+		chain = append(chain, answer, results)
+	}
+	return chain
+}
+
+func converseMarksAfterBlocks(t *testing.T, model string, chain []llms.MessageContent, callOpts ...llms.CallOption) (
+	[]string, []converseMark, *llms.ContentResponse,
+) {
+	t.Helper()
+
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, converseAnswer)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(model), bedrock.WithConverseAPI())
+	resp, err := llm.GenerateContent(context.Background(), chain, append([]llms.CallOption{
+		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+			Name: "nmap", Parameters: map[string]any{"type": "object"},
+		}}}),
+	}, callOpts...)...)
+	require.NoError(t, err)
+
+	var sent struct {
+		System   []map[string]any `json:"system"`
+		Messages []struct {
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	require.NoError(t, json.Unmarshal(body, &sent))
+	var system []string
+	for _, block := range sent.System {
+		if point, ok := block["cachePoint"].(map[string]any); ok {
+			system = append(system, fmt.Sprint(point["ttl"]))
+		}
+	}
+	var marks []converseMark
+	blocks, kind := 0, ""
+	for _, msg := range sent.Messages {
+		for _, block := range msg.Content {
+			if point, ok := block["cachePoint"].(map[string]any); ok {
+				marks = append(marks, converseMark{blocks - 1, kind, fmt.Sprint(point["ttl"])})
+				continue
+			}
+			for key := range block {
+				kind = key
+			}
+			blocks++
+		}
+	}
+	return system, marks, resp
+}
+
+func TestAGrowingConverseHistoryChainsItsHourLongWritesAcrossWideSteps(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
+	for _, step := range []converseStep{
+		{1, "checking", false}, {2, "", false}, {3, "", false}, {3, "checking", false}, {6, "checking", false},
+		{8, "checking", false}, {2, "", true}, {3, "checking", true},
+	} {
+		parallel, previous := step.parallel, -1
+		for steps := range 30 {
+			system, marks, _ := converseMarksAfterBlocks(t, model, converseWideLoop(model, steps, step),
+				llms.WithCacheLayout(llms.CacheLayoutGrowing))
+			require.LessOrEqual(t, len(system)+len(marks), 4, "%d calls a step, %d steps", parallel, steps)
+			furthest, reached := -1, previous < 0
+			for i, mark := range marks {
+				require.NotEqual(t, "reasoningContent", mark.kind, "%d calls a step, %d steps: a point after reasoning", parallel, steps)
+				if i < len(marks)-1 {
+					require.Equal(t, "1h", mark.ttl, "%d calls a step, %d steps: an hour-long point before a five-minute one", parallel, steps)
+				}
+				if mark.ttl == "1h" {
+					furthest = max(furthest, mark.after)
+					reached = reached || mark.after >= previous && mark.after-previous < 20
+				}
+			}
+			require.True(t, reached, "%d calls a step, %d steps: no hour-long point reads the write at block %d", parallel, steps, previous)
+			previous = furthest
+		}
+	}
+}
+
+func TestAGrowingConverseHistoryPlacesThePointsInPlaceOfTheCallersOwn(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
+	chain := converseWideLoop(model, 14, converseStep{1, "checking", false})
+	chain[1] = llms.MessageContent{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
+		bedrock.WithCacheControl(llms.TextPart("the report"), bedrock.EphemeralCache()),
+	}}
+
+	system, marks, resp := converseMarksAfterBlocks(t, model, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.LessOrEqual(t, len(system)+len(marks), 4)
+	for _, mark := range marks[:len(marks)-1] {
+		require.Equal(t, "1h", mark.ttl, "an hour-long point before a five-minute one")
+	}
+	var dropped []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithCacheControl" {
+			dropped = append(dropped, w)
+		}
+	}
+	require.Len(t, dropped, 1)
+	require.Equal(t, llms.WarningDrop, dropped[0].Kind)
+	require.Equal(t, "1 marker", dropped[0].Asked)
+}
+
+func TestTheInvokeModelRequestHonoursNoLayoutAndReportsAGrowingOne(t *testing.T) {
+	t.Parallel()
+
+	const model = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+	sent := func(t *testing.T, opts ...llms.CallOption) ([]byte, *llms.ContentResponse) {
+		t.Helper()
+		var raw []byte
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			raw, _ = io.ReadAll(r.Body)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, legacyAnswer)
+		}))
+		t.Cleanup(srv.Close)
+		resp, err := bedrockLLMAgainst(t, srv, bedrock.WithModel(model), bedrock.WithAutomaticCaching()).
+			GenerateContent(t.Context(), converseLoop(3), opts...)
+		require.NoError(t, err)
+		return raw, resp
+	}
+
+	raw, _ := sent(t)
+	require.NotEmpty(t, collectJSONObjects(t, raw, "cache_control"), "the door's automatic caching as before")
+
+	raw, resp := sent(t, llms.WithCacheLayout(llms.CacheLayoutNone))
+	require.Empty(t, collectJSONObjects(t, raw, "cache_control"))
+	require.Empty(t, resp.Warnings)
+
+	raw, resp = sent(t, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.NotEmpty(t, collectJSONObjects(t, raw, "cache_control"), "the door's own markers")
+	var layout []llms.Warning
+	for _, w := range resp.Warnings {
+		if w.Option == "WithCacheLayout" {
+			layout = append(layout, w)
+		}
+	}
+	require.Len(t, layout, 1)
+	require.Equal(t, llms.WarningSubstitute, layout[0].Kind)
 }

@@ -24,6 +24,7 @@ type sentCacheMarks struct {
 	system   []string
 	messages []cacheMark
 	lastAt   int
+	warnings []llms.Warning
 }
 
 type loopShape struct {
@@ -79,7 +80,7 @@ func growingCacheMarks(t *testing.T, chain []llms.MessageContent, opts ...llms.C
 	llm, err := anthropic.New(anthropic.WithToken("test-key"), anthropic.WithBaseURL(srv.URL), anthropic.WithModel("claude-opus-5-5"),
 		anthropic.WithDefaultCacheStrategy(anthropic.CacheStrategy{CacheTools: true, CacheSystem: true, CacheMessages: true}))
 	require.NoError(t, err)
-	_, err = llm.GenerateContent(t.Context(), chain, append([]llms.CallOption{
+	resp, err := llm.GenerateContent(t.Context(), chain, append([]llms.CallOption{
 		llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
 			Name: "nmap", Parameters: map[string]any{"type": "object"},
 		}}}),
@@ -123,6 +124,7 @@ func growingCacheMarks(t *testing.T, chain []llms.MessageContent, opts ...llms.C
 		}
 	}
 	marks.lastAt = position
+	marks.warnings = resp.Warnings
 	return marks
 }
 
@@ -181,4 +183,32 @@ func TestNoLayoutPlacesNoMarkers(t *testing.T) {
 	marks := growingCacheMarks(t, agentLoop(3, loopShape{}), llms.WithCacheLayout(llms.CacheLayoutNone))
 	require.Empty(t, marks.system)
 	require.Empty(t, marks.messages)
+}
+
+func TestAGrowingHistoryPlacesTheMarkersInPlaceOfTheCallersOwn(t *testing.T) {
+	t.Parallel()
+
+	chain := agentLoop(20, loopShape{})
+	chain[0] = llms.MessageContent{Role: llms.ChatMessageTypeSystem, Parts: []llms.ContentPart{
+		anthropic.WithCacheControl(llms.TextPart("rules"), anthropic.EphemeralCache()), llms.TextPart("the scope"),
+	}}
+	chain[1] = llms.MessageContent{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
+		anthropic.WithCacheControl(llms.TextPart("the report"), anthropic.EphemeralCache()), llms.TextPart("scan the host"),
+	}}
+
+	marks := growingCacheMarks(t, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Equal(t, []string{"1h"}, marks.system)
+	require.LessOrEqual(t, len(marks.system)+len(marks.messages), 4)
+	for _, mark := range marks.messages[:len(marks.messages)-1] {
+		require.Equal(t, "1h", mark.ttl, "an hour-long write before a five-minute one")
+	}
+	require.Len(t, marks.warnings, 1)
+	require.Equal(t, llms.WarningDrop, marks.warnings[0].Kind)
+	require.Equal(t, "WithCacheControl", marks.warnings[0].Option)
+	require.Equal(t, "2 markers", marks.warnings[0].Asked)
+
+	marks = growingCacheMarks(t, chain, llms.WithCacheLayout(llms.CacheLayoutNone))
+	require.Equal(t, []string{"5m"}, marks.system, "no layout keeps the caller's own markers")
+	require.Len(t, marks.messages, 1)
+	require.Empty(t, marks.warnings)
 }

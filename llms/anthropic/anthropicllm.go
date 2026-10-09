@@ -287,6 +287,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	switch opts.CacheLayout {
 	case llms.CacheLayoutNone:
 	case llms.CacheLayoutGrowing:
+		warn.AddDroppedCacheMarkers(model, dropCacheMarkers(systemPrompt, chatMessages))
 		placeGrowingCacheMarkers(tools, &systemPrompt, chatMessages)
 	default:
 		if strategy := cacheStrategyFor(o.defaultCacheStrategy, opts); strategy != nil {

@@ -22,7 +22,7 @@ func (o *LLM) placeCacheLayout(req *openaiclient.ChatRequest, layout llms.CacheL
 
 func (o *LLM) passesCacheControl(model string) bool {
 	route, _, routed := strings.Cut(strings.ToLower(model), "/")
-	return reasoning.IsClaude(model) && !reasoning.PublicProviderHost(o.host) &&
+	return reasoning.IsClaude(model) && !reasoning.PublicProviderHost(o.host) && o.host != anthropicAPIHost &&
 		(!routed || slices.Contains(cacheControlRoutes, route))
 }
 
@@ -32,7 +32,7 @@ func markClaudeHistory(req *openaiclient.ChatRequest, model string) {
 	if route == "bedrock" && reasoning.BedrockCachesFiveMinutesOnly(model) {
 		control.TTL = ""
 	}
-	if !markLastText(req.Messages, RoleSystem, control) && len(req.Tools) > 0 {
+	if !markLastText(req.Messages, RoleSystem, control) && route != "bedrock" && len(req.Tools) > 0 {
 		req.Tools[len(req.Tools)-1].Function.CacheControl = control
 	}
 	markLastText(req.Messages, RoleUser, control)
