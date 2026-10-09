@@ -199,6 +199,15 @@ func ChatCompletionsUnsupported(model string) bool {
 	return false
 }
 
+// Deprecated: no door returns ErrChatCompletionsUnsupported.
+type ErrChatCompletionsUnsupported struct {
+	Model string
+}
+
+func (e *ErrChatCompletionsUnsupported) Error() string {
+	return fmt.Sprintf("model %q is served only by the responses API, not by chat completions", e.Model)
+}
+
 // ErrChatToolsUnsupported reports a request that carries function tools for a
 // model whose chat completions endpoint does not serve them.
 type ErrChatToolsUnsupported struct {

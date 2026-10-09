@@ -1,6 +1,8 @@
 package reasoning
 
 import (
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -279,5 +281,14 @@ func TestTheGptOssCapsACallerChangesStayTheCallers(t *testing.T) {
 	}
 	if got := GptOssEfforts(); !slices.Equal(got, want) {
 		t.Errorf("GptOssEfforts() = %v after a caller changed its copy, want %v", got, want)
+	}
+}
+
+func TestACallerMatchesTheChatCompletionsRefusalThroughAWrap(t *testing.T) {
+	t.Parallel()
+	var refusal *ErrChatCompletionsUnsupported
+	err := fmt.Errorf("generate: %w", &ErrChatCompletionsUnsupported{Model: "gpt-5.6-cyber"})
+	if !errors.As(err, &refusal) || refusal.Model != "gpt-5.6-cyber" {
+		t.Fatalf("errors.As on %q found %+v", err, refusal)
 	}
 }
