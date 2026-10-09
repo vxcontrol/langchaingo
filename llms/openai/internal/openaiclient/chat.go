@@ -69,6 +69,9 @@ type ChatRequest struct {
 	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
 	Verbosity           *string          `json:"verbosity,omitempty"`
 	Seed                *int             `json:"seed,omitempty"`
+	PromptCacheKey      string           `json:"prompt_cache_key,omitempty"`
+
+	PromptCacheOptions *PromptCacheOptions `json:"prompt_cache_options,omitempty"`
 
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.
@@ -614,10 +617,12 @@ type ChatCompletionChoice struct {
 
 // ChatUsage is the usage of a chat completion request.
 type ChatUsage struct {
-	PromptTokens        int `json:"prompt_tokens"`
-	CompletionTokens    int `json:"completion_tokens"`
-	TotalTokens         int `json:"total_tokens"`
-	PromptTokensDetails struct {
+	PromptTokens             int `json:"prompt_tokens"`
+	CompletionTokens         int `json:"completion_tokens"`
+	TotalTokens              int `json:"total_tokens"`
+	PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	PromptTokensDetails      struct {
 		CachedTokens     int `json:"cached_tokens"`
 		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
 		AudioTokens      int `json:"audio_tokens,omitempty"`
@@ -664,10 +669,12 @@ func (r *ChatCompletionResponse) providerError() error {
 }
 
 type Usage struct {
-	PromptTokens        int `json:"prompt_tokens"`
-	CompletionTokens    int `json:"completion_tokens"`
-	TotalTokens         int `json:"total_tokens"`
-	PromptTokensDetails struct {
+	PromptTokens             int `json:"prompt_tokens"`
+	CompletionTokens         int `json:"completion_tokens"`
+	TotalTokens              int `json:"total_tokens"`
+	PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	PromptTokensDetails      struct {
 		CachedTokens     int `json:"cached_tokens"`
 		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
 		AudioTokens      int `json:"audio_tokens"`
@@ -787,6 +794,30 @@ type FunctionDefinition struct {
 	Parameters any `json:"parameters"`
 	// Strict is a flag to enable structured output mode.
 	Strict bool `json:"strict,omitempty"`
+
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+type PromptCacheOptions struct {
+	Mode string `json:"mode,omitempty"`
+}
+
+type CacheControl struct {
+	Type string `json:"type"`
+	TTL  string `json:"ttl,omitempty"`
+}
+
+type CachedText struct {
+	llms.TextContent
+	CacheControl *CacheControl
+}
+
+func (c CachedText) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string        `json:"type"`
+		Text         string        `json:"text"`
+		CacheControl *CacheControl `json:"cache_control,omitempty"`
+	}{"text", c.Text, c.CacheControl})
 }
 
 // FunctionCallBehavior is the behavior to use when calling functions.
@@ -1257,6 +1288,8 @@ func updateChatUsage(chatUsage *ChatUsage, streamUsage *Usage) {
 	chatUsage.PromptTokensDetails.AudioTokens = streamUsage.PromptTokensDetails.AudioTokens
 	chatUsage.PromptTokensDetails.CachedTokens = streamUsage.PromptTokensDetails.CachedTokens
 	chatUsage.PromptTokensDetails.CacheWriteTokens = streamUsage.PromptTokensDetails.CacheWriteTokens
+	chatUsage.PromptCacheHitTokens = streamUsage.PromptCacheHitTokens
+	chatUsage.CacheCreationInputTokens = streamUsage.CacheCreationInputTokens
 	chatUsage.CompletionTokensDetails.AudioTokens = streamUsage.CompletionTokensDetails.AudioTokens
 	chatUsage.CompletionTokensDetails.AcceptedPredictionTokens = streamUsage.CompletionTokensDetails.AcceptedPredictionTokens
 	chatUsage.CompletionTokensDetails.RejectedPredictionTokens = streamUsage.CompletionTokensDetails.RejectedPredictionTokens
@@ -1361,4 +1394,18 @@ func removeEmptyToolCalls(response *ChatCompletionResponse) {
 		}
 		choice.Message.ToolCalls = toolCalls
 	}
+}
+
+func (u *ChatUsage) CachedInputTokens() int {
+	if u.PromptTokensDetails.CachedTokens > 0 {
+		return u.PromptTokensDetails.CachedTokens
+	}
+	return u.PromptCacheHitTokens
+}
+
+func (u *ChatUsage) CacheWriteInputTokens() int {
+	if u.PromptTokensDetails.CacheWriteTokens > 0 {
+		return u.PromptTokensDetails.CacheWriteTokens
+	}
+	return u.CacheCreationInputTokens
 }

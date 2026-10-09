@@ -357,9 +357,9 @@ func TestCloudStructuredOutputFallback(t *testing.T) {
 		`"required":["city","population_millions","landmarks"],"additionalProperties":false}`)
 
 	for _, stream := range []bool{false, true} {
-		name := "non-streaming"
+		name, cached := "non-streaming", 48
 		if stream {
-			name = "streaming"
+			name, cached = "streaming", 224
 		}
 		t.Run(name, func(t *testing.T) {
 			llm := newCloudTestClient(t, WithCloudStructuredOutputFallback())
@@ -381,6 +381,7 @@ func TestCloudStructuredOutputFallback(t *testing.T) {
 			}, opts...)
 			require.NoError(t, err, "the answer must validate against the schema")
 			require.Len(t, resp.Choices, 1)
+			assert.Equal(t, cached, resp.Choices[0].GenerationInfo["CacheReadInputTokens"])
 
 			var answer struct {
 				City      string `json:"city"`

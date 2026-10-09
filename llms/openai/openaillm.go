@@ -343,6 +343,9 @@ func (o *LLM) createChatRequest(
 
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
+	if o.takesPromptCacheKey(model) {
+		req.PromptCacheKey = opts.PromptCacheKey
+	}
 
 	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
@@ -394,6 +397,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 	o.applySamplingPolicy(req, opts, thinks, warn)
+	o.placeCacheLayout(req, opts.CacheLayout, model, warn)
 
 	return req, nil
 }
@@ -713,6 +717,12 @@ func (o *LLM) servedByOpenAI() bool {
 	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
 }
 
+var promptCacheKeyVendors = []reasoning.Vendor{reasoning.VendorXAI, reasoning.VendorMistral, reasoning.VendorMoonshot}
+
+func (o *LLM) takesPromptCacheKey(model string) bool {
+	return o.servedByOpenAI() || slices.Contains(promptCacheKeyVendors, reasoning.ServedBy(model, o.host))
+}
+
 func (o *LLM) servedByTheModelsVendor(model string) bool {
 	if reasoning.GrokFamily(model) {
 		return reasoning.ServedBy(model, o.host) == reasoning.VendorXAI
@@ -977,7 +987,7 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 		if c.Message.Refusal == "" {
 			continue
 		}
-		cached := result.Usage.PromptTokensDetails.CachedTokens
+		cached := result.Usage.CachedInputTokens()
 		return &llms.ErrModelRefusal{
 			Provider:             "openai",
 			Message:              c.Message.Refusal,
@@ -1046,9 +1056,9 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 		"ReasoningTokens":   usage.CompletionTokensDetails.ReasoningTokens,
 		"PromptAudioTokens": usage.PromptTokensDetails.AudioTokens,
 		// Standardized fields for cross-provider compatibility
-		"PromptCachedTokens":                 usage.PromptTokensDetails.CachedTokens,
-		"CacheReadInputTokens":               usage.PromptTokensDetails.CachedTokens,
-		"CacheCreationInputTokens":           usage.PromptTokensDetails.CacheWriteTokens,
+		"PromptCachedTokens":                 usage.CachedInputTokens(),
+		"CacheReadInputTokens":               usage.CachedInputTokens(),
+		"CacheCreationInputTokens":           usage.CacheWriteInputTokens(),
 		"CompletionAudioTokens":              usage.CompletionTokensDetails.AudioTokens,
 		"CompletionReasoningTokens":          usage.CompletionTokensDetails.ReasoningTokens,
 		"CompletionAcceptedPredictionTokens": usage.CompletionTokensDetails.AcceptedPredictionTokens,

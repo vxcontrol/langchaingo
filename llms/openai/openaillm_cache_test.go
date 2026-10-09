@@ -100,6 +100,7 @@ func TestOpenAI_ImplicitCaching_IdenticalRequests_NonReasoning(t *testing.T) {
 
 	// Assert: Request 2 MUST have cached tokens for identical request
 	assert.Greater(t, c2, 0, "Request 2 (identical) must have cached tokens")
+	assert.Equal(t, c2, r2.Choices[0].GenerationInfo["CacheReadInputTokens"])
 	// Note: OpenAI does not return cache_write_tokens, so CacheCreationInputTokens is always 0
 
 	// Verify content is not empty

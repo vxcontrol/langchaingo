@@ -86,6 +86,7 @@ type ConverseInput struct {
 	StreamingFunc    streaming.Callback
 	ReasoningConfig  *llms.ReasoningConfig
 	EnableCaching    bool
+	CacheLayout      llms.CacheLayout
 	StructuredOutput *llms.StructuredOutputConfig
 	Warnings         *llms.Warnings
 }
@@ -175,8 +176,11 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 		inferenceConfig.StopSequences = stops
 	}
 
-	// Add cachePoint to messages if caching is enabled
-	if input.EnableCaching && len(converseMessages) > 0 {
+	switch {
+	case input.CacheLayout == llms.CacheLayoutGrowing:
+		input.Warnings.AddDroppedCacheMarkers(input.ModelID, dropCachePoints(&systemPrompts, converseMessages))
+		placeGrowingCachePoints(&systemPrompts, converseMessages, !reasoning.BedrockCachesFiveMinutesOnly(input.ModelID))
+	case input.EnableCaching && len(converseMessages) > 0:
 		c.addCachePointToMessages(converseMessages)
 	}
 

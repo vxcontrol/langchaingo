@@ -284,9 +284,15 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	}
 
-	// Merge client-level and call-level cache strategies
-	if mergedStrategy := mergeCacheStrategies(o.defaultCacheStrategy, opts); mergedStrategy != nil {
-		applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *mergedStrategy)
+	switch opts.CacheLayout {
+	case llms.CacheLayoutNone:
+	case llms.CacheLayoutGrowing:
+		warn.AddDroppedCacheMarkers(model, dropCacheMarkers(systemPrompt, chatMessages))
+		placeGrowingCacheMarkers(tools, &systemPrompt, chatMessages)
+	default:
+		if strategy := cacheStrategyFor(o.defaultCacheStrategy, opts); strategy != nil {
+			applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *strategy)
+		}
 	}
 
 	betaHeaders := extractBetaHeaders(opts, thinking)
@@ -539,54 +545,11 @@ func parseBase64URI(uri string) (string, string, error) {
 	return matches[2], matches[1], nil
 }
 
-// mergeCacheStrategies merges client-level and call-level cache strategies.
-// Call-level strategy takes precedence on a per-field basis.
-//
-// Merge logic:
-// - If call-level has a field set to true, use it (overrides client-level)
-// - If call-level field is false, check client-level field
-// - TTL: call-level takes precedence if set, otherwise use client-level
-//
-// Returns nil if no strategy is defined at either level.
-func mergeCacheStrategies(clientStrategy *CacheStrategy, opts *llms.CallOptions) *CacheStrategy {
-	// Extract call-level strategy from metadata
-	var callStrategy *CacheStrategy
-	if opts.Metadata != nil {
-		if cs, ok := opts.Metadata["anthropic:cache_strategy"].(CacheStrategy); ok {
-			callStrategy = &cs
-		}
+func cacheStrategyFor(clientStrategy *CacheStrategy, opts *llms.CallOptions) *CacheStrategy {
+	if strategy, ok := opts.Metadata["anthropic:cache_strategy"].(CacheStrategy); ok {
+		return &strategy
 	}
-
-	// No strategies defined at any level
-	if clientStrategy == nil && callStrategy == nil {
-		return nil
-	}
-
-	// Only call-level defined
-	if clientStrategy == nil {
-		return callStrategy
-	}
-
-	// Only client-level defined
-	if callStrategy == nil {
-		return clientStrategy
-	}
-
-	// Both defined - merge with call-level priority
-	merged := CacheStrategy{
-		CacheTools:    callStrategy.CacheTools || clientStrategy.CacheTools,
-		CacheSystem:   callStrategy.CacheSystem || clientStrategy.CacheSystem,
-		CacheMessages: callStrategy.CacheMessages || clientStrategy.CacheMessages,
-	}
-
-	// TTL: call-level takes precedence
-	if callStrategy.TTL != "" {
-		merged.TTL = callStrategy.TTL
-	} else {
-		merged.TTL = clientStrategy.TTL
-	}
-
-	return &merged
+	return clientStrategy
 }
 
 // convertCacheControl converts shared llms.CacheControl to Anthropic-specific format
