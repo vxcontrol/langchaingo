@@ -352,3 +352,22 @@ func TestTheInvokeModelRequestHonoursNoLayoutAndReportsAGrowingOne(t *testing.T)
 	require.Len(t, layout, 1)
 	require.Equal(t, llms.WarningSubstitute, layout[0].Kind)
 }
+
+func TestAGrowingConverseHistoryPointsAtTheStartOfTheLatestTurn(t *testing.T) {
+	t.Parallel()
+
+	const model = "anthropic.claude-sonnet-4-5-20250929-v1:0"
+	chain := append(converseLoop(6),
+		llms.TextParts(llms.ChatMessageTypeAI, "done"),
+		llms.TextParts(llms.ChatMessageTypeHuman, "now the web server"))
+	chain = append(chain,
+		llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "call_web", Type: "function", FunctionCall: &llms.FunctionCall{Name: "nmap", Arguments: `{}`}},
+		}},
+		llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "call_web", Name: "nmap", Content: "open"},
+		}})
+
+	_, marks, _ := converseMarksAfterBlocks(t, model, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Contains(t, marks, converseMark{14, "text", "1h"}, "the second human message")
+}

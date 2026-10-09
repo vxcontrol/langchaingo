@@ -212,3 +212,29 @@ func TestAGrowingHistoryPlacesTheMarkersInPlaceOfTheCallersOwn(t *testing.T) {
 	require.Len(t, marks.messages, 1)
 	require.Empty(t, marks.warnings)
 }
+
+func TestAGrowingHistoryMarksTheStartOfTheLatestTurn(t *testing.T) {
+	t.Parallel()
+
+	chain := append(agentLoop(5, loopShape{}),
+		llms.TextParts(llms.ChatMessageTypeAI, "done"),
+		llms.TextParts(llms.ChatMessageTypeHuman, "now the web server"))
+	chain = append(chain,
+		llms.MessageContent{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{
+			llms.ToolCall{ID: "call_web", Type: "function", FunctionCall: &llms.FunctionCall{Name: "nmap", Arguments: `{}`}},
+		}},
+		llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: "call_web", Name: "nmap", Content: "open"},
+		}})
+
+	marks := growingCacheMarks(t, chain, llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Contains(t, marks.messages, cacheMark{12, "1h"}, "the second human message")
+	require.NotContains(t, marks.messages, cacheMark{1, "1h"})
+}
+
+func TestAGrowingHistoryWithoutASystemPromptMarksTheLastTool(t *testing.T) {
+	t.Parallel()
+
+	marks := growingCacheMarks(t, agentLoop(3, loopShape{})[1:], llms.WithCacheLayout(llms.CacheLayoutGrowing))
+	require.Equal(t, []string{"tool:1h"}, marks.system)
+}

@@ -3,6 +3,7 @@ package openai
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -77,6 +78,7 @@ func TestAGrowingHistoryMarksClaudeBehindAGatewayWhereLiteLLMTakesTheMarker(t *t
 		{Type: "function", Function: &llms.FunctionDefinition{Name: "nmap", Parameters: map[string]any{"type": "object"}}},
 	})
 
+	unplaced := map[string]bool{"openrouter": true, "vertex": true, "Anthropic's own compatibility API": true}
 	for name, tc := range map[string]struct {
 		baseURL, model string
 		chain          []llms.MessageContent
@@ -110,6 +112,10 @@ func TestAGrowingHistoryMarksClaudeBehindAGatewayWhereLiteLLMTakesTheMarker(t *t
 			sent := sentFor(t, tc.baseURL, tc.model, tc.chain, tools, llms.WithCacheLayout(llms.CacheLayoutGrowing))
 			require.Empty(t, sent.err)
 			require.Equal(t, tc.want, cacheMarksSent(t, sent.body))
+			reported := slices.ContainsFunc(sent.warnings, func(w llms.Warning) bool {
+				return w.Option == "WithCacheLayout" && w.Kind == llms.WarningDrop
+			})
+			require.Equal(t, unplaced[name], reported)
 			require.IsType(t, llms.TextContent{}, system.Parts[1])
 			require.IsType(t, llms.TextContent{}, task.Parts[0])
 		})

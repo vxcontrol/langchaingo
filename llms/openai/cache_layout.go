@@ -11,12 +11,18 @@ import (
 
 var cacheControlRoutes = []string{"anthropic", "bedrock"}
 
-func (o *LLM) placeCacheLayout(req *openaiclient.ChatRequest, layout llms.CacheLayout, model string) {
+func (o *LLM) placeCacheLayout(req *openaiclient.ChatRequest, layout llms.CacheLayout, model string, warn *llms.Warnings) {
 	switch {
 	case layout == llms.CacheLayoutNone && o.servedByOpenAI() && reasoning.TakesPromptCacheOptions(model):
 		req.PromptCacheOptions = &openaiclient.PromptCacheOptions{Mode: "explicit"}
-	case layout == llms.CacheLayoutGrowing && o.passesCacheControl(model):
+	case layout != llms.CacheLayoutGrowing || !reasoning.IsClaude(model):
+	case o.passesCacheControl(model):
 		markClaudeHistory(req, model)
+	default:
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithCacheLayout", Model: model, Asked: "growing",
+			Reason: "this door places Claude's cache markers only through a LiteLLM route that documents them",
+		})
 	}
 }
 
