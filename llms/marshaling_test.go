@@ -614,6 +614,26 @@ role: assistant
 			},
 		},
 		{
+			name: "a single text with a phase",
+			in: MessageContent{
+				Role:  "assistant",
+				Parts: []ContentPart{TextContent{Text: "Working on it.", Phase: "commentary"}},
+			},
+			assertedJSON: `{"role":"assistant","parts":[{"phase":"commentary","text":"Working on it.","type":"text"}]}`,
+		},
+		{
+			name: "texts with their phases and reasoning",
+			in: MessageContent{
+				Role: "assistant",
+				Parts: []ContentPart{
+					TextContent{Text: "I'll inspect the logs.", Phase: "commentary", Reasoning: &reasoning.ContentReasoning{
+						Blocks: []reasoning.Block{{ID: "rs_1", Redacted: []byte("enc-1")}},
+					}},
+					TextContent{Text: "Root cause: race.", Phase: "final_answer"},
+				},
+			},
+		},
+		{
 			name: "tool call with reasoning",
 			in: MessageContent{
 				Role: "assistant",

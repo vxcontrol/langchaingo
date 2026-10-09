@@ -81,10 +81,6 @@ func (c *Collector) Encrypted(data []byte) {
 	c.blocks = append(c.blocks, Block{Redacted: data, AfterToolCalls: c.toolCalls})
 }
 
-func (c *Collector) Item(id, summary string, encrypted []byte) {
-	c.blocks = append(c.blocks, Block{ID: id, Text: summary, Redacted: encrypted, AfterToolCalls: c.toolCalls})
-}
-
 func (c *Collector) ToolCall() {
 	c.toolCalls++
 }

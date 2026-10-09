@@ -108,11 +108,12 @@ func TestAStreamedResponseReachesTheCallbackAndEndsWithTheFinalResponse(t *testi
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(*sent, &body))
 	require.Equal(t, true, body["stream"])
-	require.Len(t, chunks, 4)
+	require.Len(t, chunks, 5)
 	require.Equal(t, "Scan first.", chunks[0].Reasoning.Content)
 	require.Equal(t, "Starting ", chunks[1].Content)
 	require.Equal(t, "a scan.", chunks[2].Content)
 	require.Equal(t, streaming.NewToolCall("call_1", "nmap", `{"host":"A"}`), chunks[3].ToolCall)
+	require.Equal(t, streaming.ChunkTypeDone, chunks[4].Type)
 	require.Len(t, resp.Output, 3)
 	require.Equal(t, 1116, resp.Usage.TotalTokens)
 }
@@ -123,10 +124,15 @@ func TestAStreamWithoutAFinalEventIsIncomplete(t *testing.T) {
 	client, _, _ := responsesServer(t, http.StatusOK, responsesStream(
 		`{"type":"response.output_text.delta","sequence_number":1,"item_id":"msg_1","output_index":0,"content_index":0,"delta":"Star"}`,
 	))
+	var last streaming.Chunk
 	_, err := client.CreateResponse(t.Context(), &ResponsesRequest{
-		Model: "gpt-6-luna", StreamingFunc: func(context.Context, streaming.Chunk) error { return nil },
+		Model: "gpt-6-luna", StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+			last = chunk
+			return nil
+		},
 	})
 	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+	require.Equal(t, streaming.ChunkTypeDone, last.Type, "a cut stream still ends")
 }
 
 func TestAFailedResponseIsAnError(t *testing.T) {

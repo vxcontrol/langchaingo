@@ -1020,12 +1020,18 @@ func (o *LLM) processResponse(
 		if thoughts == nil {
 			thoughts = o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks)
 		}
+		for _, part := range c.Parts {
+			if text, ok := part.(llms.TextContent); ok {
+				text.Reasoning.WrittenBy(model)
+			}
+		}
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
 			Reasoning:      thoughts.WrittenBy(model),
 			StopReason:     stopReason,
 			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
+			Parts:          c.Parts,
 		}
 
 		// Surface a Structured Outputs refusal so callers can tell it apart from a

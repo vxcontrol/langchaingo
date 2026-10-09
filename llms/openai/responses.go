@@ -199,51 +199,71 @@ func responsesContent(parts []llms.ContentPart) (any, error) {
 }
 
 func assistantItems(msg llms.MessageContent) []any {
-	var text strings.Builder
-	var calls []llms.ToolCall
-	var items []reasoning.Block
+	calls, texts := 0, 0
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
-		case llms.TextContent:
-			text.WriteString(p.Text)
-			for _, block := range p.Reasoning.Sequence() {
-				if block.ID != "" {
-					items = append(items, block)
-				}
-			}
 		case llms.ToolCall:
-			calls = append(calls, p)
+			calls++
+		case llms.TextContent:
+			if p.Text != "" {
+				texts++
+			}
 		}
 	}
 
-	placed := reasoning.GroupByToolCalls(items, len(calls))
-	out := reasoningItems(placed[0])
-	if text.Len() > 0 {
-		phase := "final_answer"
-		if len(calls) > 0 {
-			phase = "commentary"
+	var out []any
+	var later []reasoning.Block
+	sent := 0
+	for _, part := range msg.Parts {
+		switch p := part.(type) {
+		case llms.TextContent:
+			for _, block := range p.Reasoning.Sequence() {
+				switch {
+				case block.ID == "":
+				case block.AfterToolCalls > sent:
+					later = append(later, block)
+				default:
+					out = append(out, reasoningItem(block))
+				}
+			}
+			if p.Text != "" {
+				texts--
+				out = append(out, openaiclient.ResponsesMessage{
+					Type: "message", Role: RoleAssistant, Content: p.Text, Phase: phaseOf(p.Phase, calls > 0 || texts > 0),
+				})
+			}
+		case llms.ToolCall:
+			out = append(out, openaiclient.ResponsesFunctionCall{
+				Type: "function_call", CallID: p.ID, Name: p.FunctionCall.Name, Arguments: p.FunctionCall.Arguments,
+			})
+			sent++
+			for len(later) > 0 && later[0].AfterToolCalls <= sent {
+				out, later = append(out, reasoningItem(later[0])), later[1:]
+			}
 		}
-		out = append(out, openaiclient.ResponsesMessage{Type: "message", Role: RoleAssistant, Content: text.String(), Phase: phase})
 	}
-	for i, call := range calls {
-		out = append(out, openaiclient.ResponsesFunctionCall{
-			Type: "function_call", CallID: call.ID, Name: call.FunctionCall.Name, Arguments: call.FunctionCall.Arguments,
-		})
-		out = append(out, reasoningItems(placed[i+1])...)
+	for _, block := range later {
+		out = append(out, reasoningItem(block))
 	}
 	return out
 }
 
-func reasoningItems(blocks []reasoning.Block) []any {
-	items := make([]any, 0, len(blocks))
-	for _, block := range blocks {
-		summary := []openaiclient.ResponsesSummary{}
-		if block.Text != "" {
-			summary = append(summary, openaiclient.ResponsesSummary{Type: "summary_text", Text: block.Text})
-		}
-		items = append(items, openaiclient.ResponsesReasoningItem{
-			Type: "reasoning", ID: block.ID, Summary: summary, EncryptedContent: string(block.Redacted),
-		})
+func phaseOf(phase string, moreFollows bool) string {
+	switch {
+	case phase != "":
+		return phase
+	case moreFollows:
+		return "commentary"
 	}
-	return items
+	return "final_answer"
+}
+
+func reasoningItem(block reasoning.Block) openaiclient.ResponsesReasoningItem {
+	summary := []openaiclient.ResponsesSummary{}
+	if block.Text != "" {
+		summary = append(summary, openaiclient.ResponsesSummary{Type: "summary_text", Text: block.Text})
+	}
+	return openaiclient.ResponsesReasoningItem{
+		Type: "reasoning", ID: block.ID, Summary: summary, EncryptedContent: string(block.Redacted),
+	}
 }

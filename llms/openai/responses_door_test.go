@@ -197,6 +197,86 @@ func TestAResponsesAnswerComesBackAsTheChoiceAndGoesBackAsItCame(t *testing.T) {
 		"the output items in the order they came, then the tool result")
 }
 
+func wireReasoning(id string) map[string]any {
+	return map[string]any{"type": "reasoning", "id": id, "summary": []any{}, "encrypted_content": "enc-" + id}
+}
+
+func wireMessage(phase, text string) map[string]any {
+	return map[string]any{"type": "message", "role": "assistant", "content": text, "phase": phase}
+}
+
+func wireCall(id string) map[string]any {
+	return map[string]any{"type": "function_call", "call_id": id, "name": "lookup", "arguments": `{}`}
+}
+
+func TestEachAssistantItemGoesBackInItsPlaceWithItsPhase(t *testing.T) {
+	t.Parallel()
+
+	for name, items := range map[string][]map[string]any{
+		"a preamble and the answer": {
+			wireReasoning("rs_1"), wireMessage("commentary", "I'll inspect the logs."),
+			wireReasoning("rs_2"), wireMessage("final_answer", "Root cause: race."),
+		},
+		"reasoning after the preamble": {
+			wireReasoning("rs_1"), wireMessage("commentary", "Checking."), wireReasoning("rs_2"), wireCall("call_1"),
+		},
+		"a preamble alone": {wireMessage("commentary", "Working on it.")},
+		"a preamble before each call": {
+			wireReasoning("rs_1"), wireMessage("commentary", "Scanning A."), wireCall("call_1"),
+			wireReasoning("rs_2"), wireMessage("commentary", "Scanning B."), wireCall("call_2"),
+		},
+	} {
+		require.Equal(t, items, replayedAssistantItems(t, items), name)
+	}
+}
+
+func replayedAssistantItems(t *testing.T, items []map[string]any) []map[string]any {
+	t.Helper()
+
+	output := make([]any, 0, len(items))
+	for _, item := range items {
+		if item["type"] == "message" {
+			item = map[string]any{"type": "message", "id": "msg", "status": "completed", "role": "assistant", "phase": item["phase"],
+				"content": []any{map[string]any{"type": "output_text", "text": item["content"], "annotations": []any{}}}}
+		}
+		output = append(output, item)
+	}
+	answer, err := json.Marshal(map[string]any{"id": "resp_1", "model": "gpt-6-luna", "status": "completed", "output": output})
+	require.NoError(t, err)
+
+	doer := &responsesDoer{answer: string(answer)}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	question := llms.TextParts(llms.ChatMessageTypeHuman, "Why did it fail?")
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{question}, llms.WithTools([]llms.Tool{astraTool()}))
+	require.NoError(t, err)
+
+	stored, err := json.Marshal(resp.Choices[0].Message())
+	require.NoError(t, err)
+	var replayed llms.MessageContent
+	require.NoError(t, json.Unmarshal(stored, &replayed))
+	calls := resp.Choices[0].ToolCalls
+	next := make([]llms.MessageContent, 0, 2+len(calls))
+	next = append(next, question, replayed)
+	for _, call := range calls {
+		next = append(next, llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{ToolCallID: call.ID, Name: "lookup", Content: "done"},
+		}})
+	}
+	_, err = llm.GenerateContent(context.Background(), next, llms.WithTools([]llms.Tool{astraTool()}))
+	require.NoError(t, err)
+
+	var body struct {
+		Input []map[string]any `json:"input"`
+	}
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.Equal(t, map[string]any{"type": "message", "role": "user", "content": "Why did it fail?"}, body.Input[0])
+	results := body.Input[len(body.Input)-len(calls):]
+	for i, call := range calls {
+		require.Equal(t, map[string]any{"type": "function_call_output", "call_id": call.ID, "output": "done"}, results[i])
+	}
+	return body.Input[1 : len(body.Input)-len(calls)]
+}
+
 func TestATruncatedResponsesAnswerIsReportedAsTruncated(t *testing.T) {
 	t.Parallel()
 

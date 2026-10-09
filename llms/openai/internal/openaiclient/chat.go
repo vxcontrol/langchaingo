@@ -612,6 +612,7 @@ type ChatCompletionChoice struct {
 	Error        *providerError `json:"error,omitempty"`
 
 	Reasoning *reasoning.ContentReasoning `json:"-"`
+	Parts     []llms.ContentPart          `json:"-"`
 }
 
 // ChatUsage is the usage of a chat completion request.

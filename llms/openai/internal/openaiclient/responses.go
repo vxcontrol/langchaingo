@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/streamend"
+	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -212,6 +213,8 @@ type responsesEvent struct {
 func parseResponsesStream(ctx context.Context, body io.Reader, callback streaming.Callback) (*ResponsesResponse, error) {
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, initialStreamBuffer), maxStreamLine)
+	defer streaming.CallWithDone(ctx, callback) //nolint:errcheck
+
 	var final *ResponsesResponse
 	for final == nil && scanner.Scan() {
 		data, isData := strings.CutPrefix(scanner.Text(), "data:")
@@ -272,7 +275,13 @@ func (r *ChatRequest) ResponsesFormat() *ResponsesFormat {
 func (r *ResponsesResponse) ChatResponse() *ChatCompletionResponse {
 	var text, refusal strings.Builder
 	var calls []ToolCall
-	var thoughts reasoning.Collector
+	var parts []llms.ContentPart
+	var thoughts, pending []reasoning.Block
+	beforeNext := func() *reasoning.ContentReasoning {
+		group := reasoning.FromBlocks(pending)
+		thoughts, pending = append(thoughts, pending...), nil
+		return group
+	}
 	for _, item := range r.Output {
 		switch item.Type {
 		case "reasoning":
@@ -280,16 +289,29 @@ func (r *ResponsesResponse) ChatResponse() *ChatCompletionResponse {
 			for _, part := range item.Summary {
 				summary.WriteString(part.Text)
 			}
-			thoughts.Item(item.ID, summary.String(), []byte(item.EncryptedContent))
+			pending = append(pending, reasoning.Block{
+				ID: item.ID, Text: summary.String(), Redacted: []byte(item.EncryptedContent), AfterToolCalls: len(calls),
+			})
 		case "message":
+			var said strings.Builder
 			for _, part := range item.Content {
-				text.WriteString(part.Text)
+				said.WriteString(part.Text)
 				refusal.WriteString(part.Refusal)
 			}
+			text.WriteString(said.String())
+			parts = append(parts, llms.TextContent{Text: said.String(), Phase: item.Phase, Reasoning: beforeNext()})
 		case "function_call":
+			if len(pending) > 0 {
+				parts = append(parts, llms.TextContent{Reasoning: beforeNext()})
+			}
 			calls = append(calls, ToolCall{ID: item.CallID, Type: ToolTypeFunction, Function: ToolFunction{Name: item.Name, Arguments: item.Arguments}})
-			thoughts.ToolCall()
+			parts = append(parts, llms.ToolCall{
+				ID: item.CallID, Type: string(ToolTypeFunction), FunctionCall: &llms.FunctionCall{Name: item.Name, Arguments: item.Arguments},
+			})
 		}
+	}
+	if len(pending) > 0 {
+		parts = append(parts, llms.TextContent{Reasoning: beforeNext()})
 	}
 
 	finish := FinishReasonStop
@@ -304,7 +326,8 @@ func (r *ResponsesResponse) ChatResponse() *ChatCompletionResponse {
 	chat := &ChatCompletionResponse{ID: r.ID, Model: r.Model, Choices: []*ChatCompletionChoice{{
 		Message:      ChatMessage{Role: "assistant", Content: text.String(), Refusal: refusal.String(), ToolCalls: calls},
 		FinishReason: finish,
-		Reasoning:    thoughts.Reasoning(),
+		Reasoning:    reasoning.FromBlocks(thoughts),
+		Parts:        parts,
 	}}}
 	if usage := r.Usage; usage != nil {
 		chat.Usage.PromptTokens = usage.InputTokens
