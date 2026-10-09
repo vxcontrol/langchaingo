@@ -561,6 +561,7 @@ func TestAResponsesAnswerReplayedOnChatCompletionsSendsPlainTextParts(t *testing
 		wireReasoning("rs_1"),
 		map[string]any{"type": "message", "id": "msg_1", "status": "completed", "role": "assistant", "phase": "commentary",
 			"content": []any{map[string]any{"type": "output_text", "text": "I'll inspect the logs.", "annotations": []any{}}}},
+		wireReasoning("rs_2"),
 		map[string]any{"type": "message", "id": "msg_2", "status": "completed", "role": "assistant", "phase": "final_answer",
 			"content": []any{map[string]any{"type": "output_text", "text": "Root cause: race.", "annotations": []any{}}}},
 	}})
@@ -569,7 +570,9 @@ func TestAResponsesAnswerReplayedOnChatCompletionsSendsPlainTextParts(t *testing
 	question := llms.TextParts(llms.ChatMessageTypeHuman, "Why did it fail?")
 	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{question}, llms.WithTools([]llms.Tool{astraTool()}))
 	require.NoError(t, err)
-	require.Equal(t, "gpt-6-luna", resp.Choices[0].Parts[0].(llms.TextContent).Reasoning.Model)
+	for _, part := range resp.Choices[0].Parts {
+		require.Equal(t, "gpt-6-luna", part.(llms.TextContent).Reasoning.Model)
+	}
 
 	doer := &bodyDoer{}
 	chat := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
