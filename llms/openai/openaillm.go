@@ -24,6 +24,7 @@ type LLM struct {
 	client           *openaiclient.Client
 	host             string
 
+	openAIPassthrough        bool
 	structuredOutputFallback bool
 }
 
@@ -47,6 +48,7 @@ func New(opts ...Option) (*LLM, error) {
 		client:                   c,
 		CallbacksHandler:         opt.callbackHandler,
 		host:                     hostnameFromURL(opt.baseURL),
+		openAIPassthrough:        openAIPassthrough(opt.baseURL),
 		structuredOutputFallback: opt.structuredOutputFallback,
 	}, err
 }
@@ -108,8 +110,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	warn := warningsFor(o.effectiveModel(opts))
-	if err := o.refuseBeforeTheNetwork(messages, &opts, warn); err != nil {
+	warn, responses, err := o.prepareCall(messages, &opts)
+	if err != nil {
 		return nil, err
 	}
 
@@ -123,13 +125,14 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	reportOpenAIUnread(warn, o.effectiveModel(opts), opts)
-	req, err := o.createChatRequest(chatMsgs, opts, warn)
+	req, err := o.createChatRequest(chatMsgs, opts, warn, responses)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := o.client.CreateChat(ctx, req)
+	result, err := o.send(ctx, messages, req, warn, responses)
 	if err != nil {
+		err = vendorRefusal(err)
 		if result == nil || len(result.Choices) == 0 {
 			return nil, err
 		}
@@ -228,6 +231,9 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 				msg.KeepsEmptyReasoning = reasoning.ReplaysEmptyReasoning(model)
 			}
 		}
+		if o.sendsThinkingBlocks(model) && msg.Role == RoleAssistant {
+			msg.ThinkingBlocks = signedThinkingBlocks(mc.Parts, model)
+		}
 
 		if len(msg.MultiContent) != 0 || len(msg.ToolCalls) != 0 {
 			if msg.Role == RoleTool {
@@ -311,7 +317,7 @@ func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
 
 // createChatRequest creates an OpenAI chat request with the given parameters.
 func (o *LLM) createChatRequest(
-	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings,
+	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings, responses bool,
 ) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
 		Model:                opts.GetModel(),
@@ -339,6 +345,9 @@ func (o *LLM) createChatRequest(
 
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
+	if o.takesPromptCacheKey(model) {
+		req.PromptCacheKey = opts.PromptCacheKey
+	}
 
 	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
@@ -368,7 +377,7 @@ func (o *LLM) createChatRequest(
 	setJSONMode(req, model, o.host, opts, warn)
 
 	// add tools from functions and tool definitions
-	if err := o.addToolsToRequest(req, opts, warn); err != nil {
+	if err := o.addToolsToRequest(req, opts, warn, responses); err != nil {
 		return nil, err
 	}
 	o.withholdToolsInsteadOfNone(req, opts, model, warn)
@@ -381,7 +390,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
-	wireEffort, err := o.setReasoning(req, opts, warn)
+	wireEffort, err := o.setReasoning(req, opts, warn, responses)
 	if err != nil {
 		return nil, err
 	}
@@ -390,6 +399,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 	o.applySamplingPolicy(req, opts, thinks, warn)
+	o.placeCacheLayout(req, opts.CacheLayout, model, warn)
 
 	return req, nil
 }
@@ -517,11 +527,11 @@ func wireEffortOf(sent bool, effort llms.ReasoningEffort) string {
 
 // setReasoning writes the reasoning fields and reports the effort that reached the wire.
 func (o *LLM) setReasoning(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool,
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
-	if toolsOnTheWire(req) {
+	if toolsOnTheWire(req) && !responses {
 		toolsRule = reasoning.EffortWithTools(model)
 	}
 
@@ -676,37 +686,47 @@ func warningsFor(model string) *llms.Warnings {
 	return warn
 }
 
-func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.CallOptions, warn *llms.Warnings) error {
+func (o *LLM) prepareCall(
+	messages []llms.MessageContent, opts *llms.CallOptions,
+) (warn *llms.Warnings, responses bool, err error) {
+	model := o.effectiveModel(*opts)
+	warn = warningsFor(model)
 	if err := opts.ValidateReasoning(); err != nil {
-		return err
+		return nil, false, err
 	}
 	if err := llms.CheckToolCalls(messages); err != nil {
-		return err
+		return nil, false, err
 	}
-	model := o.effectiveModel(*opts)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	opts.Tools = toolsSent
-	if o.servedByOpenAI() && reasoning.ChatCompletionsUnsupported(model) {
-		refusal := &reasoning.ErrChatCompletionsUnsupported{Model: model}
-		if warn.KeepRefusal(model, "WithModel", model, model, refusal) {
-			return refusal
+	responses = o.takesResponses(model, *opts)
+	if len(opts.StopWords) > 0 && responses {
+		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
+		if warn.KeepRefusal(model, "WithStopWords", strings.Join(opts.StopWords, ", "), "", refusal) {
+			return nil, false, refusal
 		}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
 		stop := strings.Join(opts.StopWords, ", ")
 		if reasoning.GrokFamily(model) || warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
-			return refusal
+			return nil, false, refusal
 		}
 	}
-	return nil
+	return warn, responses, nil
 }
 
 func (o *LLM) servedByOpenAI() bool {
-	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+	return o.openAIPassthrough || o.host == "" || reasoning.OpenAIHost(o.host)
+}
+
+var promptCacheKeyVendors = []reasoning.Vendor{reasoning.VendorXAI, reasoning.VendorMistral, reasoning.VendorMoonshot}
+
+func (o *LLM) takesPromptCacheKey(model string) bool {
+	return o.servedByOpenAI() || slices.Contains(promptCacheKeyVendors, reasoning.ServedBy(model, o.host))
 }
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {
@@ -929,8 +949,10 @@ func isThinkingOnTheWire(wireEffort string) bool {
 }
 
 // addToolsToRequest adds tools to the request from functions and tool definitions.
-func (o *LLM) addToolsToRequest(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
-	if offered := len(opts.Tools) + len(opts.Functions) + llms.ExtraBodyTools(llms.ExtraBody(opts)); offered > 0 {
+func (o *LLM) addToolsToRequest(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool,
+) error {
+	if offered := len(opts.Tools) + len(opts.Functions) + llms.ExtraBodyTools(llms.ExtraBody(opts)); offered > 0 && !responses {
 		if model := o.effectiveModel(opts); o.servedByOpenAI() && reasoning.ChatToolsUnsupported(model) {
 			refusal := &reasoning.ErrChatToolsUnsupported{Model: model}
 			if asked := strconv.Itoa(offered); warn.KeepRefusal(model, "WithTools", asked, asked, refusal) {
@@ -973,7 +995,7 @@ func refusalFrom(result *openaiclient.ChatCompletionResponse) (*llms.ErrModelRef
 		if c.Message.Refusal == "" {
 			continue
 		}
-		cached := result.Usage.PromptTokensDetails.CachedTokens
+		cached := result.Usage.CachedInputTokens()
 		return &llms.ErrModelRefusal{
 			Provider:             "openai",
 			Message:              c.Message.Refusal,
@@ -1009,12 +1031,22 @@ func (o *LLM) processResponse(
 
 	for i, c := range result.Choices {
 		stopReason := string(c.FinishReason)
+		thoughts := c.Reasoning
+		if thoughts == nil {
+			thoughts = o.processReasoning(c.Message.ReasoningContent, c.Message.ThinkingBlocks)
+		}
+		for _, part := range c.Parts {
+			if text, ok := part.(llms.TextContent); ok {
+				text.Reasoning.WrittenBy(model)
+			}
+		}
 		choices[i] = &llms.ContentChoice{
 			Content:        c.Message.Content,
-			Reasoning:      o.processReasoning(c.Message.ReasoningContent),
+			Reasoning:      thoughts.WrittenBy(model),
 			StopReason:     stopReason,
 			Truncated:      llms.IsTruncated(stopReason),
 			GenerationInfo: o.processUsage(&result.Usage),
+			Parts:          c.Parts,
 		}
 
 		// Surface a Structured Outputs refusal so callers can tell it apart from a
@@ -1042,9 +1074,9 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 		"ReasoningTokens":   usage.CompletionTokensDetails.ReasoningTokens,
 		"PromptAudioTokens": usage.PromptTokensDetails.AudioTokens,
 		// Standardized fields for cross-provider compatibility
-		"PromptCachedTokens":                 usage.PromptTokensDetails.CachedTokens,
-		"CacheReadInputTokens":               usage.PromptTokensDetails.CachedTokens,
-		"CacheCreationInputTokens":           usage.PromptTokensDetails.CacheWriteTokens,
+		"PromptCachedTokens":                 usage.CachedInputTokens(),
+		"CacheReadInputTokens":               usage.CachedInputTokens(),
+		"CacheCreationInputTokens":           usage.CacheWriteInputTokens(),
 		"CompletionAudioTokens":              usage.CompletionTokensDetails.AudioTokens,
 		"CompletionReasoningTokens":          usage.CompletionTokensDetails.ReasoningTokens,
 		"CompletionAcceptedPredictionTokens": usage.CompletionTokensDetails.AcceptedPredictionTokens,
@@ -1064,7 +1096,26 @@ func (o *LLM) processUsage(usage *openaiclient.ChatUsage) map[string]any {
 }
 
 // processReasoning processes reasoning content in the response.
-func (o *LLM) processReasoning(reasoningContent string) *reasoning.ContentReasoning {
+func (o *LLM) sendsThinkingBlocks(model string) bool {
+	return o.client != nil && o.client.ThinkingBlocks &&
+		reasoning.ClaudeSupportsThinking(model) && o.sendsClaudeThinkingObject(model)
+}
+
+func (o *LLM) processReasoning(reasoningContent string, blocks []openaiclient.ThinkingBlock) *reasoning.ContentReasoning {
+	if o.client == nil || !o.client.ThinkingBlocks {
+		blocks = nil
+	}
+	var thoughts reasoning.Collector
+	for _, block := range blocks {
+		if block.Type == "redacted_thinking" {
+			thoughts.Encrypted([]byte(block.Data))
+			continue
+		}
+		thoughts.Thought(block.Thinking, []byte(block.Signature))
+	}
+	if signed := thoughts.Reasoning(); !signed.IsEmpty() {
+		return signed
+	}
 	if reasoningContent == "" {
 		return nil
 	}
@@ -1157,6 +1208,27 @@ func binaryAsImageURLs(parts []llms.ContentPart) ([]llms.ContentPart, error) {
 		parts[i] = llms.ImageURLContent{URL: binary.String()}
 	}
 	return parts, nil
+}
+
+func signedThinkingBlocks(parts []llms.ContentPart, claude string) []openaiclient.ThinkingBlock {
+	var blocks []openaiclient.ThinkingBlock
+	for _, part := range parts {
+		text, ok := part.(llms.TextContent)
+		if !ok {
+			continue
+		}
+		for _, block := range reasoning.ForClaude(text.Reasoning, claude).Sequence() {
+			switch {
+			case block.Redacted != nil:
+				blocks = append(blocks, openaiclient.ThinkingBlock{Type: "redacted_thinking", Data: string(block.Redacted)})
+			case len(block.Signature) > 0:
+				blocks = append(blocks, openaiclient.ThinkingBlock{
+					Type: "thinking", Thinking: block.Text, Signature: string(block.Signature),
+				})
+			}
+		}
+	}
+	return blocks
 }
 
 // extractReasoningContent extracts reasoning content from message parts.

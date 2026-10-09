@@ -312,10 +312,12 @@ func (g *GoogleAI) generateFromSingleMessage(
 		if err != nil {
 			return nil, err
 		}
-		return convertResponse(resp)
+		answer, err := convertResponse(resp)
+		return writtenBy(answer, model), err
 	}
 
-	return g.generateStreamingContent(ctx, model, content, config, opts)
+	answer, err := g.generateStreamingContent(ctx, model, content, config, opts)
+	return writtenBy(answer, model), err
 }
 
 func (g *GoogleAI) generateFromMessages(
@@ -328,14 +330,14 @@ func (g *GoogleAI) generateFromMessages(
 	var systemInstruction *genai.Content
 	var contents []*genai.Content
 
-	for _, msg := range messages {
+	for _, msg := range withReasoningFor(messages, model) {
 		content, err := convertContent(msg)
 		if err != nil {
 			return nil, err
 		}
 
 		if msg.Role == llms.ChatMessageTypeSystem {
-			systemInstruction = content
+			systemInstruction = withSystemParts(systemInstruction, content)
 		} else {
 			contents = append(contents, content)
 		}
@@ -353,10 +355,44 @@ func (g *GoogleAI) generateFromMessages(
 		if err != nil {
 			return nil, err
 		}
-		return convertResponse(resp)
+		answer, err := convertResponse(resp)
+		return writtenBy(answer, model), err
 	}
 
-	return g.generateStreamingContent(ctx, model, contents, config, opts)
+	answer, err := g.generateStreamingContent(ctx, model, contents, config, opts)
+	return writtenBy(answer, model), err
+}
+
+func withReasoningFor(messages []llms.MessageContent, gemini string) []llms.MessageContent {
+	kept := slices.Clone(messages)
+	for i := range kept {
+		parts := slices.Clone(kept[i].Parts)
+		for j, part := range parts {
+			switch p := part.(type) {
+			case llms.TextContent:
+				p.Reasoning = reasoning.ForGemini(p.Reasoning, gemini)
+				parts[j] = p
+			case llms.ToolCall:
+				p.Reasoning = reasoning.ForGemini(p.Reasoning, gemini)
+				parts[j] = p
+			}
+		}
+		kept[i].Parts = parts
+	}
+	return kept
+}
+
+func writtenBy(answer *llms.ContentResponse, model string) *llms.ContentResponse {
+	if answer == nil {
+		return nil
+	}
+	for _, choice := range answer.Choices {
+		choice.Reasoning.WrittenBy(model)
+		for i := range choice.ToolCalls {
+			choice.ToolCalls[i].Reasoning.WrittenBy(model)
+		}
+	}
+	return answer
 }
 
 func endsOnTheModel(messages []llms.MessageContent) bool {
@@ -831,6 +867,14 @@ func convertContent(content llms.MessageContent) (*genai.Content, error) {
 		Parts: parts,
 		Role:  role,
 	}, nil
+}
+
+func withSystemParts(instruction, system *genai.Content) *genai.Content {
+	if instruction == nil {
+		return system
+	}
+	instruction.Parts = append(instruction.Parts, system.Parts...)
+	return instruction
 }
 
 func googleToolConfig(choice any) *genai.ToolConfig {

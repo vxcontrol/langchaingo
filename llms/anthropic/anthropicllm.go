@@ -15,6 +15,7 @@ import (
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/httputil"
+	"github.com/vxcontrol/langchaingo/internal/answer"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
@@ -31,6 +32,7 @@ var (
 	ErrInvalidContentType       = errors.New("invalid content type")
 	ErrUnsupportedMessageType   = errors.New("unsupported message type")
 	ErrUnsupportedContentType   = errors.New("unsupported content type")
+	ErrEmptySystemMessage       = errors.New("system message has no parts")
 )
 
 // ErrModelRefusal is the shared refusal error, aliased for callers of this door.
@@ -183,16 +185,16 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		return nil, err
 	}
 
-	chatMessages, systemPrompt, err := processMessages(messages)
-	if err != nil {
-		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
-	}
-
 	// Resolve through the same chain the request uses (per-call, then client, then
 	// package default), so the capability resolver classifies the exact model the
 	// API will run — otherwise an unset model reads as unknown while the wire runs
 	// the default (an adaptive-only model that rejects budget thinking and sampling).
 	model := o.client.EffectiveModel(opts.GetModel())
+
+	chatMessages, origins, systemPrompt, err := processMessages(messages, model)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
+	}
 	warn := &llms.Warnings{}
 	warn.AddInherited(model)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
@@ -282,9 +284,15 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		warn.AddToolChoiceWithoutTools(model, opts.ToolChoice)
 	}
 
-	// Merge client-level and call-level cache strategies
-	if mergedStrategy := mergeCacheStrategies(o.defaultCacheStrategy, opts); mergedStrategy != nil {
-		applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *mergedStrategy)
+	switch opts.CacheLayout {
+	case llms.CacheLayoutNone:
+	case llms.CacheLayoutGrowing:
+		warn.AddDroppedCacheMarkers(model, dropCacheMarkers(systemPrompt, chatMessages))
+		placeGrowingCacheMarkers(tools, &systemPrompt, chatMessages)
+	default:
+		if strategy := cacheStrategyFor(o.defaultCacheStrategy, opts); strategy != nil {
+			applyCacheStrategy(&tools, &systemPrompt, &chatMessages, *strategy)
+		}
 	}
 
 	betaHeaders := extractBetaHeaders(opts, thinking)
@@ -362,12 +370,12 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	})
 	if err != nil {
 		// The closing callback is emitted once by GenerateContent's deferred handler.
-		wrapped := fmt.Errorf("anthropic: failed to create message: %w", err)
+		wrapped := fmt.Errorf("anthropic: failed to create message: %w", vendorRefusal(err, origins))
 		if result == nil {
 			return nil, wrapped
 		}
 		result.DropUnfinishedToolUses()
-		partial, buildErr := processAnthropicResponse(result, warn)
+		partial, buildErr := processAnthropicResponse(result, model, warn)
 		if buildErr != nil {
 			return nil, wrapped
 		}
@@ -376,7 +384,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		}
 		return partial, wrapped
 	}
-	response, err := processAnthropicResponse(result, warn)
+	response, err := processAnthropicResponse(result, model, warn)
 	if err != nil {
 		return response, err
 	}
@@ -421,7 +429,7 @@ func anthropicRefusal(result *anthropicclient.MessageResponsePayload) *ErrModelR
 
 // processAnthropicResponse converts Anthropic API response to standard ContentResponse
 func processAnthropicResponse(
-	result *anthropicclient.MessageResponsePayload, warn *llms.Warnings,
+	result *anthropicclient.MessageResponsePayload, model string, warn *llms.Warnings,
 ) (*llms.ContentResponse, error) {
 	if result == nil {
 		return nil, ErrEmptyResponse
@@ -433,6 +441,7 @@ func processAnthropicResponse(
 	var thoughts reasoning.Collector
 	var toolCalls []llms.ToolCall
 	var textContent strings.Builder
+	var parts answer.Parts
 
 	for _, content := range result.Content {
 		switch cv := content.(type) {
@@ -442,6 +451,7 @@ func processAnthropicResponse(
 			thoughts.Encrypted([]byte(cv.Data))
 		case *anthropicclient.TextContent:
 			textContent.WriteString(cv.Text)
+			parts.Text(cv.Text)
 		case *anthropicclient.ToolUseContent:
 			argumentsJSON, err := json.Marshal(cv.Input)
 			if err != nil {
@@ -456,16 +466,18 @@ func processAnthropicResponse(
 				},
 			}
 			toolCalls = append(toolCalls, toolCall)
+			parts.ToolCall(toolCall)
 			thoughts.ToolCall()
 		}
 	}
-	contentReasoning := thoughts.Reasoning()
+	contentReasoning := thoughts.Reasoning().WrittenBy(model)
 
 	// Build response choice - reasoning ALWAYS goes to choice, not tool calls
 	choice := &llms.ContentChoice{
 		Content:    textContent.String(),
 		Reasoning:  contentReasoning, // Always in choice for Anthropic
 		ToolCalls:  toolCalls,
+		Parts:      parts.With(contentReasoning),
 		StopReason: result.StopReason,
 		Truncated:  llms.IsTruncated(result.StopReason),
 		GenerationInfo: map[string]any{
@@ -533,54 +545,11 @@ func parseBase64URI(uri string) (string, string, error) {
 	return matches[2], matches[1], nil
 }
 
-// mergeCacheStrategies merges client-level and call-level cache strategies.
-// Call-level strategy takes precedence on a per-field basis.
-//
-// Merge logic:
-// - If call-level has a field set to true, use it (overrides client-level)
-// - If call-level field is false, check client-level field
-// - TTL: call-level takes precedence if set, otherwise use client-level
-//
-// Returns nil if no strategy is defined at either level.
-func mergeCacheStrategies(clientStrategy *CacheStrategy, opts *llms.CallOptions) *CacheStrategy {
-	// Extract call-level strategy from metadata
-	var callStrategy *CacheStrategy
-	if opts.Metadata != nil {
-		if cs, ok := opts.Metadata["anthropic:cache_strategy"].(CacheStrategy); ok {
-			callStrategy = &cs
-		}
+func cacheStrategyFor(clientStrategy *CacheStrategy, opts *llms.CallOptions) *CacheStrategy {
+	if strategy, ok := opts.Metadata["anthropic:cache_strategy"].(CacheStrategy); ok {
+		return &strategy
 	}
-
-	// No strategies defined at any level
-	if clientStrategy == nil && callStrategy == nil {
-		return nil
-	}
-
-	// Only call-level defined
-	if clientStrategy == nil {
-		return callStrategy
-	}
-
-	// Only client-level defined
-	if callStrategy == nil {
-		return clientStrategy
-	}
-
-	// Both defined - merge with call-level priority
-	merged := CacheStrategy{
-		CacheTools:    callStrategy.CacheTools || clientStrategy.CacheTools,
-		CacheSystem:   callStrategy.CacheSystem || clientStrategy.CacheSystem,
-		CacheMessages: callStrategy.CacheMessages || clientStrategy.CacheMessages,
-	}
-
-	// TTL: call-level takes precedence
-	if callStrategy.TTL != "" {
-		merged.TTL = callStrategy.TTL
-	} else {
-		merged.TTL = clientStrategy.TTL
-	}
-
-	return &merged
+	return clientStrategy
 }
 
 // convertCacheControl converts shared llms.CacheControl to Anthropic-specific format
@@ -697,112 +666,80 @@ func markLastContentBlockForCaching(contents []anthropicclient.Content, cacheCon
 	}
 }
 
-func processMessages(messages []llms.MessageContent) ([]anthropicclient.ChatMessage, any, error) {
+// processMessages also returns, for each message it renders, the index in
+// messages of the message it came from.
+func processMessages(messages []llms.MessageContent, target string) ([]anthropicclient.ChatMessage, []int, any, error) {
 	chatMessages := make([]anthropicclient.ChatMessage, 0, len(messages))
-	var systemPrompt any = ""
+	origins := make([]int, 0, len(messages))
 	var systemBlocks []anthropicclient.Content
 
-	for _, msg := range messages {
+	for i, msg := range messages {
+		var chatMessage anthropicclient.ChatMessage
+		var err error
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
-			var err error
-			systemPrompt, systemBlocks, err = processSystemParts(msg, systemPrompt, systemBlocks)
-			if err != nil {
-				return nil, "", err
+			var blocks []anthropicclient.Content
+			if blocks, err = systemTextBlocks(msg); err != nil {
+				return nil, nil, "", err
 			}
+			systemBlocks = append(systemBlocks, blocks...)
+			continue
 		case llms.ChatMessageTypeHuman:
-			chatMessage, err := handleHumanMessage(msg)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle human message: %w", err)
+			if chatMessage, err = handleHumanMessage(msg); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle human message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeAI:
-			chatMessage, err := handleAIMessage(msg)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle AI message: %w", err)
+			if chatMessage, err = handleAIMessage(msg, target); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle AI message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeTool:
-			chatMessage, err := handleToolMessage(msg)
-			if err != nil {
-				return nil, "", fmt.Errorf("anthropic: failed to handle tool message: %w", err)
+			if chatMessage, err = handleToolMessage(msg); err != nil {
+				return nil, nil, "", fmt.Errorf("anthropic: failed to handle tool message: %w", err)
 			}
-			chatMessages = append(chatMessages, chatMessage)
 		case llms.ChatMessageTypeGeneric, llms.ChatMessageTypeFunction:
-			return nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
+			return nil, nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
 		default:
-			return nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
+			return nil, nil, "", fmt.Errorf("anthropic: %w: %v", ErrUnsupportedMessageType, msg.Role)
 		}
+		chatMessages = append(chatMessages, chatMessage)
+		origins = append(origins, i)
 	}
 
-	// If we collected system blocks, use them instead of string
-	if len(systemBlocks) > 0 {
-		systemPrompt = systemBlocks
-	}
-
-	return chatMessages, systemPrompt, nil
+	return chatMessages, origins, systemParam(systemBlocks), nil
 }
 
-func processSystemParts(msg llms.MessageContent, systemPrompt any, systemBlocks []anthropicclient.Content) (any, []anthropicclient.Content, error) {
-	hasCacheControl := false
+func systemParam(blocks []anthropicclient.Content) any {
+	switch len(blocks) {
+	case 0:
+		return ""
+	case 1:
+		if text, ok := blocks[0].(*anthropicclient.TextContent); ok && text.CacheControl == nil {
+			return text.Text
+		}
+	}
+	return blocks
+}
+
+func systemTextBlocks(msg llms.MessageContent) ([]anthropicclient.Content, error) {
+	if len(msg.Parts) == 0 {
+		return nil, fmt.Errorf("anthropic: %w", ErrEmptySystemMessage)
+	}
+	blocks := make([]anthropicclient.Content, 0, len(msg.Parts))
 	for _, part := range msg.Parts {
-		if _, ok := part.(CachedContent); ok {
-			hasCacheControl = true
-			break
+		var cacheControl *anthropicclient.CacheControl
+		if cached, ok := part.(CachedContent); ok {
+			part, cacheControl = cached.ContentPart, convertCacheControl(cached.CacheControl)
 		}
-	}
-
-	if hasCacheControl {
-		for _, part := range msg.Parts {
-			switch p := part.(type) {
-			case CachedContent:
-				cacheControl := convertCacheControl(p.CacheControl)
-				if textContent, ok := p.ContentPart.(llms.TextContent); ok {
-					systemBlocks = append(systemBlocks, &anthropicclient.TextContent{
-						Type:         "text",
-						Text:         textContent.Text,
-						CacheControl: cacheControl,
-					})
-				}
-			case llms.TextContent:
-				systemBlocks = append(systemBlocks, &anthropicclient.TextContent{
-					Type: "text",
-					Text: p.Text,
-				})
-			}
+		text, ok := part.(llms.TextContent)
+		if !ok {
+			return nil, fmt.Errorf("anthropic: %w for system message", ErrInvalidContentType)
 		}
-	} else {
-		content, err := handleSystemMessage(msg)
-		if err != nil {
-			return nil, nil, fmt.Errorf("anthropic: failed to handle system message: %w", err)
+		if text.Text == "" && cacheControl == nil {
+			continue
 		}
-		if sysStr, ok := systemPrompt.(string); ok {
-			systemPrompt = sysStr + content
-		}
+		blocks = append(blocks, &anthropicclient.TextContent{Type: "text", Text: text.Text, CacheControl: cacheControl})
 	}
-
-	return systemPrompt, systemBlocks, nil
-}
-
-func handleSystemMessage(msg llms.MessageContent) (string, error) {
-	// System message in Anthropic doesn't support cache_control directly
-	// Cache control for system messages is handled via system parameter
-	// For now, just extract text and ignore cache control
-	// TODO: Handle system message caching via array format if needed
-
-	part := msg.Parts[0]
-
-	// If it's cached content, unwrap it
-	if cached, ok := part.(CachedContent); ok {
-		part = cached.ContentPart
-	}
-
-	// Extract text from the part
-	if textContent, ok := part.(llms.TextContent); ok {
-		return textContent.Text, nil
-	}
-
-	return "", fmt.Errorf("anthropic: %w for system message", ErrInvalidContentType)
+	return blocks, nil
 }
 
 func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
@@ -870,13 +807,13 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 	}, nil
 }
 
-func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
+func handleAIMessage(msg llms.MessageContent, target string) (anthropicclient.ChatMessage, error) {
 	var thoughts []reasoning.Block
 	toolCalls := 0
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
 		case llms.TextContent:
-			thoughts = append(thoughts, p.Reasoning.Sequence()...)
+			thoughts = append(thoughts, replayedReasoning(p.Reasoning, target).Sequence()...)
 		case llms.ToolCall:
 			toolCalls++
 		}
@@ -929,6 +866,13 @@ func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, erro
 	}
 
 	return message, nil
+}
+
+func replayedReasoning(r *reasoning.ContentReasoning, target string) *reasoning.ContentReasoning {
+	if reasoning.IsClaude(target) {
+		return reasoning.ForClaude(r, target)
+	}
+	return r
 }
 
 func thinkingContents(blocks []reasoning.Block) []anthropicclient.Content {

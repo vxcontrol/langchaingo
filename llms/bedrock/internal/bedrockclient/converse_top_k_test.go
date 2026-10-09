@@ -13,7 +13,7 @@ import (
 func additionalFields(t *testing.T, in *ConverseInput) map[string]any {
 	t.Helper()
 
-	got, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(in)
+	got, _, err := NewConverseClient(&MockBedrockRuntimeClient{}).buildConverseInput(in)
 	require.NoError(t, err)
 	if got.AdditionalModelRequestFields == nil {
 		return nil

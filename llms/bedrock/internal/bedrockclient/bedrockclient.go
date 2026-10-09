@@ -24,6 +24,8 @@ type Client struct {
 // format before sending it to the LLM model API.
 type Message struct {
 	Role llms.ChatMessageType
+	// MessageIndex is the index of the llms.MessageContent this part comes from.
+	MessageIndex int
 	// Content contains the main message content
 	Content string
 	// Type may be "text", "image", "tool_use", "tool_result"

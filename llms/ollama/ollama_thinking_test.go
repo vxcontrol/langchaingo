@@ -88,3 +88,24 @@ func TestLegacyThinkTagsStillSplit(t *testing.T) {
 	require.Equal(t, "Paris", resp.Choices[0].Content)
 	require.Equal(t, "musing", resp.Choices[0].Reasoning.Content)
 }
+
+func TestAnOllamaAnswersThinkingNamesTheModelThatWroteIt(t *testing.T) {
+	t.Parallel()
+
+	llm := newThinkingServerClient(t,
+		`{"model":"glm-5","message":{"role":"assistant","content":"Paris","thinking":"It is Paris."},"done":true,"done_reason":"stop"}`)
+	resp, err := llm.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "capital of France?")})
+	require.NoError(t, err)
+	require.Equal(t, "glm-5", resp.Choices[0].Reasoning.Model)
+
+	llm = newThinkingServerClient(t,
+		`{"model":"glm-5","message":{"role":"assistant","content":"Paris"},"done":true,"done_reason":"stop"}`)
+	resp, err = llm.GenerateContent(t.Context(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "capital of France?")})
+	require.NoError(t, err)
+	require.True(t, resp.Choices[0].Reasoning.IsEmpty())
+	if resp.Choices[0].Reasoning != nil {
+		require.Empty(t, resp.Choices[0].Reasoning.Model, "an answer without thinking carries no writer")
+	}
+}

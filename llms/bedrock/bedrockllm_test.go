@@ -3083,26 +3083,13 @@ func TestAmazonAutomaticCachingConverseAPI(t *testing.T) { //nolint:funlen
 		return 0
 	}
 
-	// Log cache metrics for all turns
-	t.Logf("Turn 1 - CacheCreation: %d, CacheRead: %d",
-		getCacheMetric(resp1, "CacheCreationInputTokens"),
-		getCacheMetric(resp1, "CacheReadInputTokens"))
-	t.Logf("Turn 2 - CacheCreation: %d, CacheRead: %d",
-		getCacheMetric(resp2, "CacheCreationInputTokens"),
-		getCacheMetric(resp2, "CacheReadInputTokens"))
-	t.Logf("Turn 3 - CacheCreation: %d, CacheRead: %d",
-		getCacheMetric(resp3, "CacheCreationInputTokens"),
-		getCacheMetric(resp3, "CacheReadInputTokens"))
-
-	// Verify automatic caching is working
-	cacheCreation3 := getCacheMetric(resp3, "CacheCreationInputTokens")
-	cacheRead3 := getCacheMetric(resp3, "CacheReadInputTokens")
-
-	if cacheCreation3 > 0 {
-		t.Logf("✓ Automatic cache successfully created in Turn 3: %d tokens", cacheCreation3)
+	for turn, resp := range []*llms.ContentResponse{resp1, resp2, resp3} {
+		if read := getCacheMetric(resp, "CacheReadInputTokens"); (turn == 0) != (read == 0) {
+			t.Errorf("turn %d read %d tokens from the cache", turn+1, read)
+		}
 	}
-	if cacheRead3 > 0 {
-		t.Logf("✓ Automatic cache successfully read in Turn 3: %d tokens", cacheRead3)
+	if getCacheMetric(resp1, "CacheCreationInputTokens") == 0 {
+		t.Error("turn 1 wrote nothing to the cache")
 	}
 }
 

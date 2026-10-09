@@ -140,7 +140,7 @@ func TestProcessMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, systemPrompt, err := processMessages(tt.messages)
+			result, _, systemPrompt, err := processMessages(tt.messages, "claude-sonnet-4-5")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("processMessages() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -233,108 +233,6 @@ func TestOptions(t *testing.T) {
 	})
 }
 
-// TestMergeCacheStrategies tests the cache strategy merge logic
-func TestMergeCacheStrategies(t *testing.T) {
-	tests := []struct {
-		name           string
-		clientStrategy *CacheStrategy
-		callStrategy   *CacheStrategy
-		want           *CacheStrategy
-	}{
-		{
-			name:           "both nil",
-			clientStrategy: nil,
-			callStrategy:   nil,
-			want:           nil,
-		},
-		{
-			name:           "only client-level",
-			clientStrategy: &CacheStrategy{CacheTools: true, CacheSystem: true},
-			callStrategy:   nil,
-			want:           &CacheStrategy{CacheTools: true, CacheSystem: true},
-		},
-		{
-			name:           "only call-level",
-			clientStrategy: nil,
-			callStrategy:   &CacheStrategy{CacheMessages: true, TTL: "1h"},
-			want:           &CacheStrategy{CacheMessages: true, TTL: "1h"},
-		},
-		{
-			name: "call-level overrides client-level (OR merge)",
-			clientStrategy: &CacheStrategy{
-				CacheTools:  true,
-				CacheSystem: true,
-				TTL:         "5m",
-			},
-			callStrategy: &CacheStrategy{
-				CacheMessages: true,
-				TTL:           "1h",
-			},
-			want: &CacheStrategy{
-				CacheTools:    true, // from client (OR: true || false)
-				CacheSystem:   true, // from client (OR: false || true)
-				CacheMessages: true, // from call (OR: true || false)
-				TTL:           "1h", // call-level takes precedence
-			},
-		},
-		{
-			name: "call-level disables nothing (OR logic preserves client settings)",
-			clientStrategy: &CacheStrategy{
-				CacheTools:  true,
-				CacheSystem: true,
-			},
-			callStrategy: &CacheStrategy{
-				CacheMessages: true,
-			},
-			want: &CacheStrategy{
-				CacheTools:    true, // preserved from client
-				CacheSystem:   true, // preserved from client
-				CacheMessages: true, // added from call
-			},
-		},
-		{
-			name: "empty call-level doesn't override",
-			clientStrategy: &CacheStrategy{
-				CacheTools:  true,
-				CacheSystem: true,
-				TTL:         "1h",
-			},
-			callStrategy: &CacheStrategy{}, // all false, no TTL
-			want: &CacheStrategy{
-				CacheTools:  true, // from client (OR: false || true)
-				CacheSystem: true, // from client (OR: false || true)
-				TTL:         "1h", // from client (empty string doesn't override)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Prepare call options with strategy
-			var opts llms.CallOptions
-			if tt.callStrategy != nil {
-				opts.Metadata = map[string]any{
-					"anthropic:cache_strategy": *tt.callStrategy,
-				}
-			}
-
-			// Perform merge
-			got := mergeCacheStrategies(tt.clientStrategy, &opts)
-
-			// Verify result
-			if tt.want == nil {
-				assert.Nil(t, got, "Expected nil strategy")
-			} else {
-				require.NotNil(t, got, "Expected non-nil strategy")
-				assert.Equal(t, tt.want.CacheTools, got.CacheTools, "CacheTools mismatch")
-				assert.Equal(t, tt.want.CacheSystem, got.CacheSystem, "CacheSystem mismatch")
-				assert.Equal(t, tt.want.CacheMessages, got.CacheMessages, "CacheMessages mismatch")
-				assert.Equal(t, tt.want.TTL, got.TTL, "TTL mismatch")
-			}
-		})
-	}
-}
-
 // TestDefaultCacheStrategy_ClientLevel tests that client-level cache strategy is applied
 func TestDefaultCacheStrategy_ClientLevel(t *testing.T) {
 	// Create client with default strategy
@@ -354,50 +252,6 @@ func TestDefaultCacheStrategy_ClientLevel(t *testing.T) {
 	assert.True(t, llm.defaultCacheStrategy.CacheSystem)
 	assert.False(t, llm.defaultCacheStrategy.CacheMessages)
 	assert.Equal(t, "1h", llm.defaultCacheStrategy.TTL)
-}
-
-// TestDefaultCacheStrategy_MergeWithCallLevel tests merge behavior
-func TestDefaultCacheStrategy_MergeWithCallLevel(t *testing.T) {
-	// Setup: client with tools+system caching
-	clientStrategy := &CacheStrategy{
-		CacheTools:  true,
-		CacheSystem: true,
-		TTL:         "5m",
-	}
-
-	// Case 1: Call-level adds messages caching
-	opts1 := &llms.CallOptions{
-		Metadata: map[string]any{
-			"anthropic:cache_strategy": CacheStrategy{
-				CacheMessages: true,
-			},
-		},
-	}
-	merged1 := mergeCacheStrategies(clientStrategy, opts1)
-	require.NotNil(t, merged1)
-	assert.True(t, merged1.CacheTools, "Should preserve client CacheTools")
-	assert.True(t, merged1.CacheSystem, "Should preserve client CacheSystem")
-	assert.True(t, merged1.CacheMessages, "Should add call-level CacheMessages")
-	assert.Equal(t, "5m", merged1.TTL, "Should use client TTL when call-level empty")
-
-	// Case 2: Call-level overrides TTL
-	opts2 := &llms.CallOptions{
-		Metadata: map[string]any{
-			"anthropic:cache_strategy": CacheStrategy{
-				TTL: "1h",
-			},
-		},
-	}
-	merged2 := mergeCacheStrategies(clientStrategy, opts2)
-	require.NotNil(t, merged2)
-	assert.Equal(t, "1h", merged2.TTL, "Should use call-level TTL")
-	assert.True(t, merged2.CacheTools, "Should preserve client settings")
-
-	// Case 3: Call-level with no metadata uses client defaults
-	opts3 := &llms.CallOptions{}
-	merged3 := mergeCacheStrategies(clientStrategy, opts3)
-	require.NotNil(t, merged3)
-	assert.Equal(t, clientStrategy, merged3, "Should use client strategy when no call-level")
 }
 
 // TestTokenUsageMapping_Anthropic tests correct token usage mapping for Anthropic provider
@@ -555,7 +409,7 @@ func TestHandleAIMessage_ThinkingBlockLeadsToolUse(t *testing.T) {
 		},
 	}
 
-	out, err := handleAIMessage(msg)
+	out, err := handleAIMessage(msg, "claude-sonnet-4-5")
 	require.NoError(t, err)
 
 	thinkingIdx, toolIdx := -1, -1

@@ -146,7 +146,8 @@ type CacheStrategy struct {
 }
 
 // WithCacheStrategy enables automatic cache control placement based on strategy.
-// This option applies to a single GenerateContent/Call invocation.
+// This option applies to a single GenerateContent/Call invocation and replaces
+// the client's default strategy for it: an empty strategy places no markers.
 //
 // Example for AI agent with many tools:
 //

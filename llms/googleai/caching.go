@@ -94,7 +94,7 @@ func (ch *CachingHelper) CreateCachedContent(
 		switch msg.Role {
 		case llms.ChatMessageTypeSystem:
 			content.Role = RoleSystem
-			systemInstruction = content
+			systemInstruction = withSystemParts(systemInstruction, content)
 		case llms.ChatMessageTypeHuman:
 			content.Role = RoleUser
 			contents = append(contents, content)

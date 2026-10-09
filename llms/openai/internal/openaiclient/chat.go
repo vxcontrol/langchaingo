@@ -69,6 +69,9 @@ type ChatRequest struct {
 	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
 	Verbosity           *string          `json:"verbosity,omitempty"`
 	Seed                *int             `json:"seed,omitempty"`
+	PromptCacheKey      string           `json:"prompt_cache_key,omitempty"`
+
+	PromptCacheOptions *PromptCacheOptions `json:"prompt_cache_options,omitempty"`
 
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.
@@ -334,6 +337,29 @@ type ChatMessage struct { //nolint:musttag
 	// KeepsEmptyReasoning sends reasoning_content even when it is empty, for a
 	// vendor that refuses an assistant turn without the field. Requests only.
 	KeepsEmptyReasoning bool
+
+	ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
+}
+
+type ThinkingBlock struct {
+	Type      string `json:"type"`
+	Thinking  string `json:"thinking,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	Data      string `json:"data,omitempty"`
+}
+
+func (b ThinkingBlock) MarshalJSON() ([]byte, error) {
+	if b.Type == "redacted_thinking" {
+		return json.Marshal(struct {
+			Type string `json:"type"`
+			Data string `json:"data"`
+		}{b.Type, b.Data})
+	}
+	return json.Marshal(struct {
+		Type      string `json:"type"`
+		Thinking  string `json:"thinking"`
+		Signature string `json:"signature,omitempty"`
+	}{b.Type, b.Thinking, b.Signature})
 }
 
 type contentChunk struct {
@@ -399,6 +425,7 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		m.MultiContent = nil
 	}
 	if len(m.MultiContent) > 0 {
+		m.MultiContent = chatContent(m.MultiContent)
 		msg := struct {
 			Role         string             `json:"role"`
 			Content      string             `json:"-"`
@@ -423,6 +450,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 			Thinking string `json:"-"`
 
 			KeepsEmptyReasoning bool `json:"-"`
+
+			ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 		}(m)
 		if msg.ReasoningContent == "" && msg.Reasoning != "" {
 			msg.ReasoningContent = msg.Reasoning
@@ -452,6 +481,8 @@ func (m ChatMessage) MarshalJSON() ([]byte, error) {
 		Thinking string `json:"-"`
 
 		KeepsEmptyReasoning bool `json:"-"`
+
+		ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 	}(m)
 	if msg.ReasoningContent == "" && msg.Reasoning != "" {
 		msg.ReasoningContent = msg.Reasoning
@@ -468,6 +499,17 @@ func marshalRequestMessage(msg any, emptyReasoning bool) ([]byte, error) {
 		return out, err
 	}
 	return append(out[:len(out)-1], `,"reasoning_content":""}`...), nil
+}
+
+func chatContent(parts []llms.ContentPart) []llms.ContentPart {
+	content := make([]llms.ContentPart, len(parts))
+	for i, part := range parts {
+		if text, isText := part.(llms.TextContent); isText {
+			part = llms.TextContent{Text: text.Text}
+		}
+		content[i] = part
+	}
+	return content
 }
 
 func isSingleTextContent(parts []llms.ContentPart) (string, bool) {
@@ -502,6 +544,8 @@ func (m *ChatMessage) UnmarshalJSON(data []byte) error {
 		Thinking string `json:"-"`
 
 		KeepsEmptyReasoning bool `json:"-"`
+
+		ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 	}
 	var msg struct {
 		fields
@@ -581,14 +625,19 @@ type ChatCompletionChoice struct {
 	FinishReason FinishReason   `json:"finish_reason"`
 	LogProbs     *LogProbs      `json:"logprobs,omitempty"`
 	Error        *providerError `json:"error,omitempty"`
+
+	Reasoning *reasoning.ContentReasoning `json:"-"`
+	Parts     []llms.ContentPart          `json:"-"`
 }
 
 // ChatUsage is the usage of a chat completion request.
 type ChatUsage struct {
-	PromptTokens        int `json:"prompt_tokens"`
-	CompletionTokens    int `json:"completion_tokens"`
-	TotalTokens         int `json:"total_tokens"`
-	PromptTokensDetails struct {
+	PromptTokens             int `json:"prompt_tokens"`
+	CompletionTokens         int `json:"completion_tokens"`
+	TotalTokens              int `json:"total_tokens"`
+	PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	PromptTokensDetails      struct {
 		CachedTokens     int `json:"cached_tokens"`
 		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
 		AudioTokens      int `json:"audio_tokens,omitempty"`
@@ -635,10 +684,12 @@ func (r *ChatCompletionResponse) providerError() error {
 }
 
 type Usage struct {
-	PromptTokens        int `json:"prompt_tokens"`
-	CompletionTokens    int `json:"completion_tokens"`
-	TotalTokens         int `json:"total_tokens"`
-	PromptTokensDetails struct {
+	PromptTokens             int `json:"prompt_tokens"`
+	CompletionTokens         int `json:"completion_tokens"`
+	TotalTokens              int `json:"total_tokens"`
+	PromptCacheHitTokens     int `json:"prompt_cache_hit_tokens,omitempty"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	PromptTokensDetails      struct {
 		CachedTokens     int `json:"cached_tokens"`
 		CacheWriteTokens int `json:"cache_write_tokens,omitempty"`
 		AudioTokens      int `json:"audio_tokens"`
@@ -675,6 +726,8 @@ type StreamedChatResponseChunkDelta struct {
 	// Refusal streams in when the model declines under Structured Outputs; it must
 	// be accumulated and surfaced separately from Content, never validated as JSON.
 	Refusal string `json:"refusal,omitempty"`
+
+	ThinkingBlocks []ThinkingBlock `json:"thinking_blocks,omitempty"`
 }
 
 func (d *StreamedChatResponseChunkDelta) UnmarshalJSON(data []byte) error {
@@ -756,6 +809,30 @@ type FunctionDefinition struct {
 	Parameters any `json:"parameters"`
 	// Strict is a flag to enable structured output mode.
 	Strict bool `json:"strict,omitempty"`
+
+	CacheControl *CacheControl `json:"cache_control,omitempty"`
+}
+
+type PromptCacheOptions struct {
+	Mode string `json:"mode,omitempty"`
+}
+
+type CacheControl struct {
+	Type string `json:"type"`
+	TTL  string `json:"ttl,omitempty"`
+}
+
+type CachedText struct {
+	llms.TextContent
+	CacheControl *CacheControl
+}
+
+func (c CachedText) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string        `json:"type"`
+		Text         string        `json:"text"`
+		CacheControl *CacheControl `json:"cache_control,omitempty"`
+	}{"text", c.Text, c.CacheControl})
 }
 
 // FunctionCallBehavior is the behavior to use when calling functions.
@@ -1099,6 +1176,7 @@ DoStream:
 			accum.content.WriteString(content)
 			accum.reasoningContent.WriteString(reasoningContent)
 			accum.refusal.WriteString(choice.Delta.Refusal)
+			accum.addThinkingBlocks(choice.Delta.ThinkingBlocks)
 
 			reasoning := &reasoning.ContentReasoning{Content: reasoningContent}
 			if err := streaming.CallWithReasoning(ctx, payload.StreamingFunc, reasoning); err != nil {
@@ -1168,12 +1246,32 @@ type streamedText struct {
 	content          strings.Builder
 	reasoningContent strings.Builder
 	refusal          strings.Builder
+	thinkingBlocks   []ThinkingBlock
+}
+
+func (t *streamedText) addThinkingBlocks(blocks []ThinkingBlock) {
+	for _, block := range blocks {
+		if block.Type == "redacted_thinking" {
+			t.thinkingBlocks = append(t.thinkingBlocks, block)
+			continue
+		}
+		last := len(t.thinkingBlocks) - 1
+		if last < 0 || t.thinkingBlocks[last].Type != "thinking" || t.thinkingBlocks[last].Signature != "" {
+			t.thinkingBlocks = append(t.thinkingBlocks, ThinkingBlock{Type: "thinking"})
+			last++
+		}
+		t.thinkingBlocks[last].Thinking += block.Thinking
+		if block.Signature != "" {
+			t.thinkingBlocks[last].Signature = block.Signature
+		}
+	}
 }
 
 func (t *streamedText) flushInto(msg *ChatMessage) {
 	msg.Content = t.content.String()
 	msg.ReasoningContent = t.reasoningContent.String()
 	msg.Refusal = t.refusal.String()
+	msg.ThinkingBlocks = t.thinkingBlocks
 }
 
 func getChunkContent(choice StreamedChatResponseChunk, splitter reasoning.ChunkContentSplitter) (string, string) {
@@ -1205,6 +1303,8 @@ func updateChatUsage(chatUsage *ChatUsage, streamUsage *Usage) {
 	chatUsage.PromptTokensDetails.AudioTokens = streamUsage.PromptTokensDetails.AudioTokens
 	chatUsage.PromptTokensDetails.CachedTokens = streamUsage.PromptTokensDetails.CachedTokens
 	chatUsage.PromptTokensDetails.CacheWriteTokens = streamUsage.PromptTokensDetails.CacheWriteTokens
+	chatUsage.PromptCacheHitTokens = streamUsage.PromptCacheHitTokens
+	chatUsage.CacheCreationInputTokens = streamUsage.CacheCreationInputTokens
 	chatUsage.CompletionTokensDetails.AudioTokens = streamUsage.CompletionTokensDetails.AudioTokens
 	chatUsage.CompletionTokensDetails.AcceptedPredictionTokens = streamUsage.CompletionTokensDetails.AcceptedPredictionTokens
 	chatUsage.CompletionTokensDetails.RejectedPredictionTokens = streamUsage.CompletionTokensDetails.RejectedPredictionTokens
@@ -1309,4 +1409,18 @@ func removeEmptyToolCalls(response *ChatCompletionResponse) {
 		}
 		choice.Message.ToolCalls = toolCalls
 	}
+}
+
+func (u *ChatUsage) CachedInputTokens() int {
+	if u.PromptTokensDetails.CachedTokens > 0 {
+		return u.PromptTokensDetails.CachedTokens
+	}
+	return u.PromptCacheHitTokens
+}
+
+func (u *ChatUsage) CacheWriteInputTokens() int {
+	if u.PromptTokensDetails.CacheWriteTokens > 0 {
+		return u.PromptTokensDetails.CacheWriteTokens
+	}
+	return u.CacheCreationInputTokens
 }

@@ -51,7 +51,7 @@ func TestConverseThinkingSendsNoTopP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			client := NewConverseClient(&MockBedrockRuntimeClient{})
-			built, err := client.buildConverseInput(&ConverseInput{
+			built, _, err := client.buildConverseInput(&ConverseInput{
 				ModelID:         tc.model,
 				Messages:        []Message{{Role: llms.ChatMessageTypeHuman, Content: "hi", Type: "text"}},
 				MaxTokens:       ptr(4096),

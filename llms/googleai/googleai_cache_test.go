@@ -257,6 +257,7 @@ func TestGoogleAI_ImplicitCaching(t *testing.T) {
 
 	// Assert: Request 2 MUST have cached tokens for identical request
 	assert.Greater(t, c2, 0, "Request 2 (identical) must have cached tokens")
+	assert.Equal(t, c2, r2.Choices[0].GenerationInfo["CacheReadInputTokens"])
 
 	if rr.Recording() {
 		t.Log("Waiting 30 seconds...")

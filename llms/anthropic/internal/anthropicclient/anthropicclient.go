@@ -273,12 +273,24 @@ type errorMessage struct {
 	} `json:"error"`
 }
 
+type APIError struct {
+	StatusCode int
+	Message    string
+	text       string
+}
+
+func (e *APIError) Error() string { return e.text }
+
 func (c *Client) decodeError(resp *http.Response) error {
 	msg := fmt.Sprintf("API returned unexpected status code: %d", resp.StatusCode)
 
 	var errResp errorMessage
 	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-		return errors.New(msg)
+		return &APIError{StatusCode: resp.StatusCode, text: msg}
 	}
-	return fmt.Errorf("%s: %s", msg, errResp.Error.Message)
+	return &APIError{
+		StatusCode: resp.StatusCode,
+		Message:    errResp.Error.Message,
+		text:       fmt.Sprintf("%s: %s", msg, errResp.Error.Message),
+	}
 }

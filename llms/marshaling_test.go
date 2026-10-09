@@ -449,6 +449,15 @@ func TestRoundtripping(t *testing.T) { // nolint:funlen // We make an exception 
 			assertedYAML: "role: user\ntext: Hello, world!\n",
 		},
 		{
+			name: "single empty text part",
+			in: MessageContent{
+				Role:  "system",
+				Parts: []ContentPart{TextContent{Text: ""}},
+			},
+			assertedJSON: `{"role":"system","text":""}`,
+			assertedYAML: "role: system\ntext: \"\"\n",
+		},
+		{
 			name: "multiple parts",
 			in: MessageContent{
 				Role: "user",
@@ -601,6 +610,26 @@ role: assistant
 							Signature: []byte("sig123"),
 						},
 					},
+				},
+			},
+		},
+		{
+			name: "a single text with a phase",
+			in: MessageContent{
+				Role:  "assistant",
+				Parts: []ContentPart{TextContent{Text: "Working on it.", Phase: "commentary"}},
+			},
+			assertedJSON: `{"role":"assistant","parts":[{"phase":"commentary","text":"Working on it.","type":"text"}]}`,
+		},
+		{
+			name: "texts with their phases and reasoning",
+			in: MessageContent{
+				Role: "assistant",
+				Parts: []ContentPart{
+					TextContent{Text: "I'll inspect the logs.", Phase: "commentary", Reasoning: &reasoning.ContentReasoning{
+						Blocks: []reasoning.Block{{ID: "rs_1", Redacted: []byte("enc-1")}},
+					}},
+					TextContent{Text: "Root cause: race.", Phase: "final_answer"},
 				},
 			},
 		},
@@ -842,5 +871,22 @@ func TestToolCallWithReasoningSerialization(t *testing.T) {
 				t.Logf("JSON: %s", string(b))
 			}
 		})
+	}
+}
+
+func TestATextPartKeepsItsPhaseThroughJSON(t *testing.T) {
+	t.Parallel()
+
+	in := TextContent{Text: "Working on it.", Phase: "commentary"}
+	data, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out TextContent
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(in, out); diff != "" {
+		t.Errorf("round trip (-want +got):\n%s", diff)
 	}
 }

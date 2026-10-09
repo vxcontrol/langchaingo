@@ -2,17 +2,16 @@ package openai
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
-func TestAResponsesOnlyModelIsRefusedBeforeOpenAIsChatCompletions(t *testing.T) {
+func TestAResponsesOnlyModelGoesToOpenAIsResponses(t *testing.T) {
 	t.Parallel()
 
 	for _, baseURL := range []string{"", "https://api.openai.com/v1", "https://eu.api.openai.com/v1"} {
@@ -22,11 +21,14 @@ func TestAResponsesOnlyModelIsRefusedBeforeOpenAIsChatCompletions(t *testing.T) 
 			if baseURL != "" {
 				opts = append(opts, WithBaseURL(baseURL))
 			}
-			_, err := newUnitLLM(t, opts...).GenerateContent(context.Background(),
+			resp, err := newUnitLLM(t, opts...).GenerateContent(context.Background(),
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")})
-			var refused *reasoning.ErrChatCompletionsUnsupported
-			require.True(t, errors.As(err, &refused), "%q %s: %v", baseURL, model, err)
-			require.Nil(t, doer.body, "%q %s: refused before the network", baseURL, model)
+			require.NoError(t, err, "%q %s", baseURL, model)
+			require.Equal(t, "/v1/responses", doer.path, "%q %s", baseURL, model)
+			var body map[string]any
+			require.NoError(t, json.Unmarshal(doer.body, &body))
+			require.Equal(t, []any{map[string]any{"type": "message", "role": "user", "content": "hi"}}, body["input"])
+			require.Equal(t, "ok", resp.Choices[0].Content)
 		}
 	}
 

@@ -27,6 +27,17 @@ type ContentReasoning struct {
 	// Blocks, when set, is what travels back to the vendor; Content then only
 	// mirrors their text.
 	Blocks []Block `json:"blocks,omitempty"`
+
+	// Model is the model that wrote the reasoning, as the door that read the
+	// answer named it; empty when unknown.
+	Model string `json:"model,omitempty"`
+}
+
+func (r *ContentReasoning) WrittenBy(model string) *ContentReasoning {
+	if r != nil {
+		r.Model = model
+	}
+	return r
 }
 
 // IsEmpty reports whether there is nothing to carry back into the next turn.
@@ -115,7 +126,7 @@ func (r *ContentReasoning) readStoredRedacted(raw json.RawMessage) error {
 		blocks = append(blocks, Block{Redacted: data})
 	}
 	if stored := FromBlocks(blocks); stored != nil {
-		*r = *stored
+		*r = *stored.WrittenBy(r.Model)
 	}
 	return nil
 }
