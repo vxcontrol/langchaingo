@@ -154,8 +154,12 @@ func (l *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 
 // generateContentWithConverseAPI uses the unified Converse API
 func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llms.MessageContent, opts llms.CallOptions) (*llms.ContentResponse, error) {
+	layout := opts.CacheLayout
+	if layout == llms.CacheLayoutGrowing && !l.supportsCaching(opts.GetModel()) {
+		layout = llms.CacheLayoutNone
+	}
 	// Apply automatic caching to bedrock messages if enabled
-	shouldAutoCache := l.enableAutoCaching && l.supportsCaching(opts.GetModel())
+	shouldAutoCache := l.enableAutoCaching && l.supportsCaching(opts.GetModel()) && layout == llms.CacheLayoutDoor
 	m, err := processMessagesWithCaching(messages, shouldAutoCache)
 	if err != nil {
 		return nil, err
@@ -165,7 +169,7 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 	// Caching is enabled if either:
 	// 1. Automatic caching is enabled and model supports it
 	// 2. Manual cache control is present in messages
-	enableCaching := shouldAutoCache || checkIfCachingRequested(messages)
+	enableCaching := (shouldAutoCache || checkIfCachingRequested(messages)) && layout == llms.CacheLayoutDoor
 
 	// Build Converse input
 	input := &bedrockclient.ConverseInput{
@@ -176,6 +180,7 @@ func (l *LLM) generateContentWithConverseAPI(ctx context.Context, messages []llm
 		StreamingFunc:    opts.StreamingFunc,
 		ReasoningConfig:  opts.Reasoning,
 		EnableCaching:    enableCaching,
+		CacheLayout:      layout,
 		StructuredOutput: opts.StructuredOutput,
 	}
 
