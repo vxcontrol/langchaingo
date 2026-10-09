@@ -288,24 +288,25 @@ func keptOnRequest(t ReplayTarget) Replay {
 
 var (
 	dashScopeKeepsByDefault = []string{
-		"qwen3.8-max", "qwen3.8-flash", "qwen3.8-omni-flash", "kimi-k2.7-code", "glm-5.2", "glm-5.1", "glm-5", "glm-4.7",
+		"qwen3.8-flash", "qwen3.8-omni-flash", "kimi-k2.7-code", "kimi/kimi-k2.7-code", "kimi/kimi-k2.7-code-highspeed",
+		"glm-5.2", "glm-5.1", "glm-5", "glm-4.7",
 	}
 	dashScopeKeepsWhenAsked = []string{
-		"qwen3.7-max", "qwen3.7-plus", "qwen3.7-flash", "qwen3.6-max", "qwen3.6-plus", "kimi-k2.6",
-		"glm-5.3",
-	}
-	dashScopeKeepsUnnamed = []string{
-		"qwen3.7-max-preview", "qwen3.7-max-2026-05-17", "kimi/kimi-k2.6", "glm-5.2-fast-preview",
+		"qwen3.7-max", "qwen3.7-max-2026-05-20", "qwen3.7-max-2026-06-08", "qwen3.6-max-preview",
+		"qwen3.7-plus", "qwen3.7-plus-2026-05-26", "qwen3.6-plus", "qwen3.6-plus-2026-04-02",
+		"qwen3.7-flash", "qwen3.7-flash-2026-07-15", "kimi-k2.6", "glm-5.3",
 	}
 )
 
+const dashScopeKeepingSeries = "qwen3.8-max"
+
 func dashScopeReplay(t ReplayTarget) Replay {
-	keeps := namesAnyGeneration(t.Model, dashScopeKeepsByDefault)
-	switch {
-	case slices.Contains(dashScopeKeepsUnnamed, strings.TrimPrefix(strings.ToLower(t.Model), "dashscope/")):
-		keeps = false
-	case namesAnyGeneration(t.Model, dashScopeKeepsWhenAsked):
+	keeps := false
+	switch name := dashScopeName(t.Model); {
+	case slices.Contains(dashScopeKeepsWhenAsked, name):
 		keeps = t.KeepsPastReasoning
+	case slices.Contains(dashScopeKeepsByDefault, name), strings.HasPrefix(name, dashScopeKeepingSeries):
+		keeps = true
 	}
 	switch {
 	case keeps:
@@ -316,18 +317,16 @@ func dashScopeReplay(t ReplayTarget) Replay {
 	return dropsPast
 }
 
+func dashScopeName(model string) string {
+	if documented, inherited := InheritedModel(model); inherited {
+		return documented
+	}
+	return strings.TrimPrefix(strings.ToLower(model), "dashscope/")
+}
+
 func namesGeneration(model, generation string) bool {
 	for _, form := range modelSpellings(model) {
 		if hasGeneration(form, generation) {
-			return true
-		}
-	}
-	return false
-}
-
-func namesAnyGeneration(model string, generations []string) bool {
-	for _, generation := range generations {
-		if namesGeneration(model, generation) {
 			return true
 		}
 	}
