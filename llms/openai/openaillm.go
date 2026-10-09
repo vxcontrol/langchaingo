@@ -24,6 +24,7 @@ type LLM struct {
 	client           *openaiclient.Client
 	host             string
 
+	openAIPassthrough        bool
 	structuredOutputFallback bool
 }
 
@@ -47,6 +48,7 @@ func New(opts ...Option) (*LLM, error) {
 		client:                   c,
 		CallbacksHandler:         opt.callbackHandler,
 		host:                     hostnameFromURL(opt.baseURL),
+		openAIPassthrough:        openAIPassthrough(opt.baseURL),
 		structuredOutputFallback: opt.structuredOutputFallback,
 	}, err
 }
@@ -709,7 +711,7 @@ func (o *LLM) refuseBeforeTheNetwork(
 }
 
 func (o *LLM) servedByOpenAI() bool {
-	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+	return o.openAIPassthrough || o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
 }
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {

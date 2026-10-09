@@ -45,3 +45,17 @@ func hostnameFromURL(raw string) string {
 	}
 	return strings.ToLower(u.Hostname())
 }
+
+// openAIPassthrough reports a LiteLLM route that forwards to OpenAI's own API unchanged.
+func openAIPassthrough(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || reasoning.PublicProviderHost(strings.ToLower(u.Hostname())) {
+		return false
+	}
+	first, rest, _ := strings.Cut(strings.Trim(u.Path, "/"), "/")
+	return first == "openai_passthrough" || first == "openai" && rest == "v1"
+}

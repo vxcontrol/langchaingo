@@ -232,3 +232,24 @@ func TestTheResponsesRequestReportsWhatItHasNoFieldFor(t *testing.T) {
 	require.ErrorAs(t, err, &stop)
 	require.Nil(t, doer.body, "refused before the network")
 }
+
+func TestALiteLLMPassThroughToOpenAIIsOpenAIsOwnAPI(t *testing.T) {
+	t.Parallel()
+
+	tools := llms.WithTools([]llms.Tool{astraTool()})
+	for baseURL, path := range map[string]string{
+		"https://llm.pentagi.net/openai/v1":             "/openai/v1/responses",
+		"https://llm.pentagi.net/openai/v1/":            "/openai/v1/responses",
+		"https://llm.pentagi.net/openai_passthrough/v1": "/openai_passthrough/v1/responses",
+		"https://llm.pentagi.net/v1":                    "/v1/chat/completions",
+		"https://llm.pentagi.net/openai/deployments/x":  "/openai/deployments/x/chat/completions",
+		"https://openrouter.ai/api/v1":                  "/api/v1/chat/completions",
+		"https://pentagi.openai.azure.com/openai/v1":    "/openai/v1/chat/completions",
+	} {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel("gpt-5.6-terra"), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, tools)
+		require.NoError(t, err, baseURL)
+		require.Equal(t, path, doer.path, baseURL)
+	}
+}
