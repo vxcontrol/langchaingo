@@ -19,3 +19,12 @@ func WithCacheLayout(layout CacheLayout) CallOption {
 		o.CacheLayout = layout
 	}
 }
+
+// WithPromptCacheKey names the requests that share a prompt prefix, such as the
+// turns of one conversation, so that a host routing by such a key serves them
+// from one cache. A door sends it only to a host that documents the key.
+func WithPromptCacheKey(key string) CallOption {
+	return func(o *CallOptions) {
+		o.PromptCacheKey = key
+	}
+}

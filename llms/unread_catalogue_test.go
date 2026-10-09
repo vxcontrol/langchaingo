@@ -14,7 +14,7 @@ var optionsOutsideTheCatalogue = map[string]bool{
 	"TopP": true, "Reasoning": true, "FailOnTruncation": true, "StructuredOutput": true,
 	"Tools": true, "ToolChoice": true, "FunctionCallBehavior": true,
 	"ExtraBody": true, "Metadata": true, "Voice": true, "Speed": true, "ResponseFormat": true,
-	"WebSearchOptions": true, "CacheLayout": true,
+	"WebSearchOptions": true, "CacheLayout": true, "PromptCacheKey": true,
 }
 
 func setAsked(t *testing.T, field reflect.Value, name string) {

@@ -69,6 +69,7 @@ type ChatRequest struct {
 	RepetitionPenalty   *float64         `json:"repetition_penalty,omitempty"`
 	Verbosity           *string          `json:"verbosity,omitempty"`
 	Seed                *int             `json:"seed,omitempty"`
+	PromptCacheKey      string           `json:"prompt_cache_key,omitempty"`
 
 	// ReasoningEffort enables reasoning mode for models that support it.
 	// Set this field when you want to use the legacy reasoning configuration.

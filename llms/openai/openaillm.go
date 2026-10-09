@@ -343,6 +343,9 @@ func (o *LLM) createChatRequest(
 
 	model := o.effectiveModel(opts)
 	dropFieldsTheModelTakesNot(req, model, o.host, warn)
+	if o.takesPromptCacheKey(model) {
+		req.PromptCacheKey = opts.PromptCacheKey
+	}
 
 	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
@@ -711,6 +714,12 @@ func (o *LLM) refuseBeforeTheNetwork(messages []llms.MessageContent, opts *llms.
 
 func (o *LLM) servedByOpenAI() bool {
 	return o.host == "" || o.host == "api.openai.com" || strings.HasSuffix(o.host, ".api.openai.com")
+}
+
+var promptCacheKeyVendors = []reasoning.Vendor{reasoning.VendorXAI, reasoning.VendorMistral, reasoning.VendorMoonshot}
+
+func (o *LLM) takesPromptCacheKey(model string) bool {
+	return o.servedByOpenAI() || slices.Contains(promptCacheKeyVendors, reasoning.ServedBy(model, o.host))
 }
 
 func (o *LLM) servedByTheModelsVendor(model string) bool {
