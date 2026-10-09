@@ -19,7 +19,9 @@ const (
 type ThinkingMode int
 
 const (
-	ThinkingOff ThinkingMode = iota
+	// ThinkingDefault leaves thinking to the vendor's default for the model.
+	ThinkingDefault ThinkingMode = iota
+	ThinkingOff
 	ThinkingBudget
 	ThinkingAdaptive
 )
@@ -108,7 +110,14 @@ func NeedsBoundary(target ReplayTarget, writer string, openLoop bool) bool {
 	if replayFor(target).Needs == PastReasoningEveryTurn && vendorFamily(writer) != vendorFamily(target.Model) {
 		return true
 	}
-	return openLoop && claudeOnBudget(target.Model, target.Mode) && claudeRelease(writer) != claudeRelease(target.Model)
+	return openLoop && claudeOnBudget(target) && claudeRelease(writer) != claudeRelease(target.Model)
+}
+
+func (t ReplayTarget) thinks() bool {
+	if t.Mode != ThinkingDefault {
+		return t.Mode != ThinkingOff
+	}
+	return !IsClaude(t.Model) || ClaudeThinkingDefaultsOn(t.Model)
 }
 
 var asSent = Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
@@ -120,7 +129,7 @@ func replayFor(t ReplayTarget) Replay {
 			return vendorReplay(t)
 		}
 		if IsClaude(t.Model) {
-			return claudeOverMessages(t.Model, t.Tools, t.Mode)
+			return claudeOverMessages(t)
 		}
 	case ReplayConverse:
 		if IsClaude(t.Model) {
@@ -171,12 +180,12 @@ func claudeReplay(model string, tools bool) Replay {
 	return r
 }
 
-func claudeOverMessages(model string, tools bool, mode ThinkingMode) Replay {
-	r := claudeReplay(model, tools)
+func claudeOverMessages(t ReplayTarget) Replay {
+	r := claudeReplay(t.Model, t.Tools)
 	switch {
 	case r.ChecksPrefix:
 		r.Binding, r.OwnLoop, r.ForeignLoop = BindingPrefix, LoopWithoutThinking, LoopWithoutThinking
-	case claudeOnBudget(model, mode):
+	case claudeOnBudget(t):
 		r.OwnLoop, r.ForeignLoop = LoopAsSent, LoopInSummary
 	default:
 		r.OwnLoop, r.ForeignLoop = LoopAsSent, LoopWithoutThinking
@@ -190,8 +199,8 @@ func claudeOnConverse(model string, tools bool) Replay {
 	return r
 }
 
-func claudeOnBudget(model string, mode ThinkingMode) bool {
-	return IsClaude(model) && mode != ThinkingOff && !ResolveClaudeAdaptive(model, mode == ThinkingAdaptive)
+func claudeOnBudget(t ReplayTarget) bool {
+	return IsClaude(t.Model) && t.thinks() && !ResolveClaudeAdaptive(t.Model, t.Mode != ThinkingBudget)
 }
 
 func bedrockConverseRoute(model string) bool {
@@ -213,14 +222,8 @@ func geminiReplay(model string, tools bool) Replay {
 }
 
 func geminiFrom(model string, major, minor int) bool {
-	for i := range lineFamilies {
-		if lineFamilies[i].prefix != "gemini-" {
-			continue
-		}
-		p, ok := lineFamilies[i].parse(baseModelName(model))
-		return ok && (p.major > major || p.major == major && p.minor >= minor)
-	}
-	return false
+	asked, askedMinor, ok := generationAfter("gemini-", routedName(model))
+	return ok && (asked > major || asked == major && askedMinor >= minor)
 }
 
 var (
@@ -231,7 +234,7 @@ var (
 func vendorReplay(t ReplayTarget) Replay {
 	switch ServedBy(t.Model, t.Host) { //nolint:exhaustive // the other vendors replay as sent
 	case VendorDeepSeek:
-		if ServedByDeepSeek(t.Model, t.Host) && t.Mode != ThinkingOff {
+		if ServedByDeepSeek(t.Model, t.Host) && t.thinks() {
 			if t.Tools {
 				return everyTurn
 			}
@@ -253,7 +256,7 @@ func vendorReplay(t ReplayTarget) Replay {
 	case VendorZAI:
 		return keptOnRequest(t)
 	case VendorMistral:
-		if t.Mode != ThinkingOff && ReplaysThinkingInContent(t.Model) {
+		if t.thinks() && ReplaysThinkingInContent(t.Model) {
 			return everyTurn
 		}
 	case VendorXAI:
@@ -266,10 +269,10 @@ func vendorReplay(t ReplayTarget) Replay {
 
 func keptOnRequest(t ReplayTarget) Replay {
 	switch {
-	case t.Mode == ThinkingOff:
-		return asSent
 	case t.KeepsPastReasoning:
 		return everyTurn
+	case !t.thinks():
+		return asSent
 	}
 	r := dropsPast
 	if t.Tools {
@@ -283,19 +286,19 @@ var (
 		"qwen3.8-max", "qwen3.8-flash", "qwen3.8-omni-flash", "kimi-k2.7-code", "glm-5.2", "glm-5.1", "glm-5", "glm-4.7",
 	}
 	dashScopeKeepsWhenAsked = []string{
-		"qwen3.7-max", "qwen3.7-plus", "qwen3.7-flash", "qwen3.6-max", "qwen3.6-plus", "qwen3.6-flash", "kimi-k2.6",
+		"qwen3.7-max", "qwen3.7-plus", "qwen3.7-flash", "qwen3.6-max", "qwen3.6-plus", "kimi-k2.6",
 		"glm-5.3",
 	}
 )
 
 func dashScopeReplay(t ReplayTarget) Replay {
-	always := namesGeneration(t.Model, "kimi-k2.7-code")
 	switch {
-	case !always && t.Mode == ThinkingOff:
-		return asSent
 	case namesAnyGeneration(t.Model, dashScopeKeepsWhenAsked):
-		if t.KeepsPastReasoning {
+		switch {
+		case t.KeepsPastReasoning:
 			return everyTurn
+		case !t.thinks():
+			return asSent
 		}
 		return dropsPast
 	case namesAnyGeneration(t.Model, dashScopeKeepsByDefault):

@@ -20,6 +20,7 @@ func withoutTools(t ReplayTarget) ReplayTarget { t.Tools = false; return t }
 func onBudget(t ReplayTarget) ReplayTarget     { t.Mode = ThinkingBudget; return t }
 func thinkingOff(t ReplayTarget) ReplayTarget  { t.Mode = ThinkingOff; return t }
 func keeping(t ReplayTarget) ReplayTarget      { t.KeepsPastReasoning = true; return t }
+func byDefault(t ReplayTarget) ReplayTarget    { t.Mode = ThinkingDefault; return t }
 
 func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint:funlen
 	t.Parallel()
@@ -37,6 +38,8 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 	dropsPast := Replay{HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 	inLoop := Replay{Needs: PastReasoningOpenLoop, HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 	asSent := Replay{OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
+	geminiEveryTurn := Replay{Binding: BindingCurrentTurn, Needs: PastReasoningEveryTurn,
+		OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}
 
 	for _, tc := range []struct {
 		name   string
@@ -55,6 +58,7 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Opus 4.7", on("claude-opus-4-7", claudeAPI, ReplayMessages), claude},
 		{"Sonnet 4.6", on("claude-sonnet-4-6", claudeAPI, ReplayMessages), claude},
 		{"Mythos Preview", on("claude-mythos-preview", claudeAPI, ReplayMessages), claude},
+		{"Mythos Preview thinking adaptively by default", byDefault(on("claude-mythos-preview", claudeAPI, ReplayMessages)), claude},
 		{"Opus 4.5 keeps every turn on a budget", onBudget(on("claude-opus-4-5", claudeAPI, ReplayMessages)),
 			Replay{Needs: PastReasoningOpenLoop, OwnLoop: LoopAsSent, ForeignLoop: LoopInSummary}},
 		{"Opus 4.1 keeps the last turn", onBudget(on("claude-opus-4-1", claudeAPI, ReplayMessages)), claudeOnBudget},
@@ -64,6 +68,8 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Claude on a budget", onBudget(on("claude-sonnet-4-5", claudeAPI, ReplayMessages)), claudeOnBudget},
 		{"adaptive asked of a budget-only model", on("claude-haiku-4-5", claudeAPI, ReplayMessages), claudeOnBudget},
 		{"Claude on a budget with thinking off", thinkingOff(on("claude-sonnet-4-5", claudeAPI, ReplayMessages)),
+			Replay{Needs: PastReasoningOpenLoop, HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopWithoutThinking}},
+		{"Claude that does not think by default", byDefault(on("claude-sonnet-4-5", claudeAPI, ReplayMessages)),
 			Replay{Needs: PastReasoningOpenLoop, HostDropsPast: true, OwnLoop: LoopAsSent, ForeignLoop: LoopWithoutThinking}},
 		{"Claude on Converse", onBudget(on("us.anthropic.claude-sonnet-4-5-20250929-v1:0", "", ReplayConverse)), converse},
 		{"Claude on Converse that checks the prefix", on("global.anthropic.claude-opus-5-5-v1:0", "", ReplayConverse), converseAppendOnly},
@@ -83,14 +89,27 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 				OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}},
 		{"Gemini 3 without tools", withoutTools(on("gemini-3-pro-preview", "", ReplayGemini)),
 			Replay{Binding: BindingCurrentTurn, HostDropsPast: true, OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}},
-		{"Gemini 3.5", withoutTools(on("gemini-3.5-flash", "", ReplayGemini)),
-			Replay{Binding: BindingCurrentTurn, Needs: PastReasoningEveryTurn, OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}},
+		{"Gemini 3.5", withoutTools(on("gemini-3.5-flash", "", ReplayGemini)), geminiEveryTurn},
+		{"a Gemini Pro from 3.5 that the lines do not list", on("gemini-3.8-pro", "", ReplayGemini),
+			Replay{Binding: BindingCurrentTurn, Needs: PastReasoningEveryTurn,
+				OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking, Inherits: "gemini-3.1-pro-preview"}},
+		{"an unlisted Gemini of the next major", on("gemini-4-flash", "", ReplayGemini),
+			Replay{Binding: BindingCurrentTurn, Needs: PastReasoningEveryTurn,
+				OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking, Inherits: "gemini-3.8-flash"}},
+		{"an unlisted Gemini before 3.5", on("gemini-3.4-flash", "", ReplayGemini),
+			Replay{Binding: BindingCurrentTurn, Needs: PastReasoningOpenLoop, HostDropsPast: true,
+				OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking, Inherits: "gemini-3-flash-preview"}},
+		{"Gemini 3.1 Flash-Lite", on("gemini-3.1-flash-lite", "", ReplayGemini),
+			Replay{Binding: BindingCurrentTurn, Needs: PastReasoningOpenLoop, HostDropsPast: true,
+				OwnLoop: LoopWithoutThinking, ForeignLoop: LoopWithoutThinking}},
 		{"Gemini 2.5", on("gemini-2.5-flash", "", ReplayGemini), asSent},
 		{"DeepSeek with tools", on("deepseek-v4-pro", "api.deepseek.com", ReplayChat), everyTurn},
 		{"DeepSeek through a gateway's route", on("deepseek/deepseek-v4-flash", gateway, ReplayChat), everyTurn},
 		{"DeepSeek on its Anthropic endpoint", on("deepseek-v4-pro", "api.deepseek.com", ReplayMessages), everyTurn},
 		{"DeepSeek without tools", withoutTools(on("deepseek-v4-pro", "api.deepseek.com", ReplayChat)), dropsPast},
 		{"DeepSeek with its thinking off", thinkingOff(on("deepseek-flash", "api.deepseek.com", ReplayChat)), asSent},
+		{"DeepSeek thinking by default", byDefault(on("deepseek-v4-pro", "api.deepseek.com", ReplayChat)), everyTurn},
+		{"a DeepSeek that does not reason", byDefault(on("deepseek-chat", "api.deepseek.com", ReplayChat)), asSent},
 		{"DeepSeek on another vendor's host", on("deepseek-v4-pro", dashscope, ReplayChat), asSent},
 		{"Kimi K3", withoutTools(on("kimi-k3", "api.moonshot.ai", ReplayChat)), everyTurn},
 		{"Kimi K3 through a gateway's route", on("moonshot/kimi-k3", gateway, ReplayChat), everyTurn},
@@ -99,24 +118,33 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"Kimi K2.6 without tools", withoutTools(on("kimi-k2.6", "api.moonshot.ai", ReplayChat)), dropsPast},
 		{"Kimi K2.6 keeping its thinking", keeping(on("kimi-k2.6", "api.moonshot.ai", ReplayChat)), everyTurn},
 		{"Kimi K2.6 with its thinking off", thinkingOff(on("kimi-k2.6", "api.moonshot.ai", ReplayChat)), asSent},
+		{"Kimi K2.6 keeping its thinking with it off", thinkingOff(keeping(on("kimi-k2.6", "api.moonshot.ai", ReplayChat))), everyTurn},
 		{"Kimi on Bedrock", on("moonshotai.kimi-k3", "", ReplayConverse), asSent},
 		{"MiniMax with tools", on("MiniMax-M3", "api.minimax.io", ReplayChat), everyTurn},
 		{"MiniMax through a gateway's route", on("minimax/MiniMax-M3", gateway, ReplayChat), everyTurn},
 		{"MiniMax without tools", withoutTools(on("MiniMax-M3", "api.minimax.io", ReplayChat)), asSent},
 		{"Qwen 3.8", on("qwen3.8-max", dashscope, ReplayChat), everyTurn},
 		{"Qwen 3.8 through a gateway's route", on("dashscope/qwen3.8-max", gateway, ReplayChat), everyTurn},
-		{"Qwen 3.8 with its thinking off", thinkingOff(on("qwen3.8-max", dashscope, ReplayChat)), asSent},
+		{"Qwen 3.8 with its thinking off", thinkingOff(on("qwen3.8-max", dashscope, ReplayChat)), everyTurn},
 		{"a Qwen 3.8 that preserves nothing", on("qwen3.8-27b", dashscope, ReplayChat), asSent},
 		{"Qwen 3.7", on("qwen3.7-plus", dashscope, ReplayChat), dropsPast},
 		{"Qwen 3.7 keeping its thinking", keeping(on("qwen3.7-plus", dashscope, ReplayChat)), everyTurn},
+		{"Qwen 3.7 with its thinking off", thinkingOff(on("qwen3.7-plus", dashscope, ReplayChat)), asSent},
+		{"Qwen 3.7 keeping its thinking with it off", thinkingOff(keeping(on("qwen3.7-plus", dashscope, ReplayChat))), everyTurn},
 		{"Kimi K2.7 Code on DashScope", on("kimi-k2.7-code", dashscope, ReplayChat), everyTurn},
+		{"Kimi K2.7 Code on DashScope with its thinking off", thinkingOff(on("kimi-k2.7-code", dashscope, ReplayChat)), everyTurn},
+		{"Kimi K2.6 on DashScope", on("kimi-k2.6", dashscope, ReplayChat), dropsPast},
+		{"Qwen 3.8 Flash", on("qwen3.8-flash", dashscope, ReplayChat), everyTurn},
+		{"Qwen 3.6 Flash, which one copy of the docs leaves out", keeping(on("qwen3.6-flash", dashscope, ReplayChat)), asSent},
 		{"GLM 5.2 on DashScope", on("glm-5.2", dashscope, ReplayChat), everyTurn},
+		{"GLM 5.2 on DashScope with its thinking off", thinkingOff(on("glm-5.2", dashscope, ReplayChat)), everyTurn},
 		{"GLM 5.3 on DashScope", on("glm-5.3", dashscope, ReplayChat), dropsPast},
 		{"GLM 5.3 on DashScope keeping its thinking", keeping(on("glm-5.3", dashscope, ReplayChat)), everyTurn},
 		{"GLM in a tool loop", on("glm-5.3", "api.z.ai", ReplayChat), inLoop},
 		{"GLM keeping its thinking", keeping(on("glm-5.3", "api.z.ai", ReplayChat)), everyTurn},
 		{"GLM through a gateway's route", keeping(on("zai/glm-5.3", gateway, ReplayChat)), everyTurn},
-		{"GLM with its thinking off", thinkingOff(keeping(on("glm-5.3", "api.z.ai", ReplayChat))), asSent},
+		{"GLM with its thinking off", thinkingOff(on("glm-5.2", "api.z.ai", ReplayChat)), asSent},
+		{"GLM keeping its thinking with it off", thinkingOff(keeping(on("glm-5.2", "api.z.ai", ReplayChat))), everyTurn},
 		{"Mistral's reasoning model", on("magistral-medium-latest", "api.mistral.ai", ReplayChat), everyTurn},
 		{"Mistral through a gateway's route", on("mistral/magistral-medium-latest", gateway, ReplayChat), everyTurn},
 		{"Mistral without reasoning", on("mistral-large-latest", "api.mistral.ai", ReplayChat), asSent},
@@ -172,8 +200,12 @@ func TestAnExecutorChangeNeedsABoundaryOnlyWhereTheReaderCannotContinue(t *testi
 		require.False(t, NeedsBoundary(tc.reader, "", false), "%s after a writer that was never recorded", tc.reader.Model)
 	}
 
-	require.False(t, NeedsBoundary(on("grok-4.7", "api.x.ai", ReplayChat), "claude-opus-5-5", true),
-		"another model's answers cost Grok's cache nothing")
+	for _, writer := range []string{"claude-opus-5-5", "deepseek-v4-pro", "gemini-3.5-flash", "kimi-k3", "qwen3.8-max"} {
+		require.False(t, NeedsBoundary(on("grok-4.7", "api.x.ai", ReplayChat), writer, true),
+			"%s: another model's answers cost Grok's cache nothing", writer)
+	}
+	require.True(t, NeedsBoundary(byDefault(on("deepseek-v4-pro", "api.deepseek.com", ReplayChat)), "claude-opus-5-5", false),
+		"DeepSeek thinking by default")
 
 	onBudgetReader := onBudget(on("claude-sonnet-4-5", claudeAPI, ReplayMessages))
 	require.True(t, NeedsBoundary(onBudgetReader, "claude-opus-4-8", true), "an open loop whose thinking another model wrote")
