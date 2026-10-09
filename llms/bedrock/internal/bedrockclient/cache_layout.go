@@ -61,24 +61,36 @@ func placeGrowingCachePoints(system *[]types.SystemContentBlock, messages []type
 }
 
 func converseMovingPoint(messages []types.Message, blocks []converseBlock) int {
-	placed := -1
+	placed, previousEnd := -1, -1
 	for b, at := range blocks {
 		last := b == len(blocks)-1
 		if !last && (messages[at.message].Role != types.ConversationRoleUser || blocks[b+1].message == at.message) {
 			continue
 		}
-		target := b / converseGrowingCacheStep * converseGrowingCacheStep
+		target, limit := b/converseGrowingCacheStep*converseGrowingCacheStep, b
 		if placed >= 0 {
-			target = min(target, placed+converseGrowingCacheReach)
+			limit = min(b, placed+converseGrowingCacheReach)
+			target = min(target, limit)
 		}
-		for ; target > placed; target-- {
-			if isMarkable(messages, blocks[target]) {
-				placed = target
-				break
+		if floor := max(placed, previousEnd); target > floor {
+			if point, ok := markableIn(messages, blocks, target, floor, -1); ok {
+				placed = point
+			} else if point, ok := markableIn(messages, blocks, target+1, limit+1, 1); ok {
+				placed = point
 			}
 		}
+		previousEnd = b
 	}
 	return placed
+}
+
+func markableIn(messages []types.Message, blocks []converseBlock, from, to, step int) (int, bool) {
+	for b := from; b != to; b += step {
+		if isMarkable(messages, blocks[b]) {
+			return b, true
+		}
+	}
+	return 0, false
 }
 
 func converseTurnStart(messages []types.Message, blocks []converseBlock) int {

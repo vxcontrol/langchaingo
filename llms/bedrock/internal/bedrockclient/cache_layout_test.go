@@ -38,11 +38,10 @@ func growingHistory(steps []string) []types.Message {
 	return history
 }
 
-func movingPoints(t *testing.T, steps []string) []int {
+func movingPoints(t *testing.T, steps []string) (points, ends []int) {
 	t.Helper()
 
 	history := growingHistory(steps)
-	var points []int
 	for end := 1; end <= len(history); end += 2 {
 		messages := make([]types.Message, end)
 		for i, msg := range history[:end] {
@@ -68,9 +67,9 @@ func movingPoints(t *testing.T, steps []string) []int {
 				}
 			}
 		}
-		points = append(points, furthest)
+		points, ends = append(points, furthest), append(ends, block)
 	}
-	return points
+	return points, ends
 }
 
 func TestEachRequestsHourLongWriteIsInReachOfTheNext(t *testing.T) {
@@ -80,6 +79,7 @@ func TestEachRequestsHourLongWriteIsInReachOfTheNext(t *testing.T) {
 		"UUUUUUUUR", "RUUUUUUUUU", "RUUUUUUUUUU", "RTUUUUUUUUUUU"}
 	histories := [][]string{
 		{"UUUUUUUUR", "RUUUUUUUUUU", "RUUUUUUUUUU", "RUUUUUUUUU", "RUUUUUUUUUU", "RUUUUUUUUU", "RRRU"},
+		{"TUUUUU", "RTU", "RTUUUUU"},
 	}
 	rng := rand.New(rand.NewSource(1)) //nolint:gosec
 	for range 3000 {
@@ -91,10 +91,14 @@ func TestEachRequestsHourLongWriteIsInReachOfTheNext(t *testing.T) {
 	}
 
 	for _, steps := range histories {
-		points := movingPoints(t, steps)
+		points, ends := movingPoints(t, steps)
 		for i := 1; i < len(points); i++ {
 			require.GreaterOrEqual(t, points[i], points[i-1], "%v: request %d", steps, i)
 			require.LessOrEqual(t, points[i]-points[i-1], 18, "%v: request %d is out of reach of the write at %d", steps, i, points[i-1])
+			if points[i] != points[i-1] {
+				require.Greater(t, points[i], ends[i-1],
+					"%v: request %d marks block %d, which the previous request already cached up to %d, so it writes nothing", steps, i, points[i], ends[i-1])
+			}
 		}
 	}
 }
@@ -107,7 +111,7 @@ func TestTheHourLongWriteKeepsUpWithStepsOfEighteenBlocks(t *testing.T) {
 		for i := range steps {
 			steps[i] = shape
 		}
-		points := movingPoints(t, steps)
+		points, _ := movingPoints(t, steps)
 		blocks := 0
 		for _, msg := range growingHistory(steps) {
 			blocks += len(msg.Content)
