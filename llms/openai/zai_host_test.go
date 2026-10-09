@@ -20,18 +20,26 @@ import (
 
 type bodyDoer struct {
 	body    []byte
+	path    string
 	content string
 }
 
 func (d *bodyDoer) Do(req *http.Request) (*http.Response, error) {
 	d.body, _ = io.ReadAll(req.Body)
+	d.path = req.URL.Path
 	content, _ := json.Marshal(cmp.Or(d.content, "ok"))
+	answer := `{"id":"x","object":"chat.completion","created":1,"model":"m",` +
+		`"choices":[{"index":0,"message":{"role":"assistant","content":` + string(content) + `},` +
+		`"finish_reason":"stop"}]}`
+	if strings.HasSuffix(d.path, "/responses") {
+		answer = `{"id":"resp_x","object":"response","model":"m","status":"completed","output":[` +
+			`{"type":"message","id":"msg_x","status":"completed","role":"assistant",` +
+			`"content":[{"type":"output_text","text":` + string(content) + `,"annotations":[]}]}]}`
+	}
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body: io.NopCloser(strings.NewReader(`{"id":"x","object":"chat.completion","created":1,"model":"m",` +
-			`"choices":[{"index":0,"message":{"role":"assistant","content":` + string(content) + `},` +
-			`"finish_reason":"stop"}]}`)),
+		Body:       io.NopCloser(strings.NewReader(answer)),
 	}, nil
 }
 

@@ -610,6 +610,8 @@ type ChatCompletionChoice struct {
 	FinishReason FinishReason   `json:"finish_reason"`
 	LogProbs     *LogProbs      `json:"logprobs,omitempty"`
 	Error        *providerError `json:"error,omitempty"`
+
+	Reasoning *reasoning.ContentReasoning `json:"-"`
 }
 
 // ChatUsage is the usage of a chat completion request.

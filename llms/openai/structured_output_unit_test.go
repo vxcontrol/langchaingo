@@ -40,7 +40,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithJSONMode()(&opts)
-		req, err := llm.createChatRequest(nil, opts, nil)
+		req, err := llm.createChatRequest(nil, opts, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -54,7 +54,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Description: "d", Schema: objectSchema()})(&opts)
-		req, err := llm.createChatRequest(nil, opts, nil)
+		req, err := llm.createChatRequest(nil, opts, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,7 +90,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			WithResponseFormat(&ResponseFormat{Type: "json_object"}))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-		_, err := llm.createChatRequest(nil, opts, nil)
+		_, err := llm.createChatRequest(nil, opts, nil, false)
 		var conflict *llms.ErrStructuredOutputConflict
 		if !errors.As(err, &conflict) {
 			t.Fatalf("want ErrStructuredOutputConflict, got %v", err)
@@ -102,7 +102,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-4o-2024-08-06"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Schema: objectSchema()})(&opts)
-		_, err := llm.createChatRequest(nil, opts, nil)
+		_, err := llm.createChatRequest(nil, opts, nil, false)
 		if !errors.Is(err, llms.ErrStructuredOutputConfig) {
 			t.Fatalf("want ErrStructuredOutputConfig, got %v", err)
 		}
@@ -114,7 +114,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			llm := newUnitLLM(t, WithModel(model))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-			_, err := llm.createChatRequest(nil, opts, nil)
+			_, err := llm.createChatRequest(nil, opts, nil, false)
 			var unsup *llms.ErrStructuredOutputUnsupported
 			if !errors.As(err, &unsup) {
 				t.Fatalf("%s: want ErrStructuredOutputUnsupported, got %v", model, err)
@@ -132,7 +132,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-			_, err := llm.createChatRequest(nil, opts, nil)
+			_, err := llm.createChatRequest(nil, opts, nil, false)
 			var unsup *llms.ErrStructuredOutputUnsupported
 			if !errors.As(err, &unsup) {
 				t.Fatalf("%s: want ErrStructuredOutputUnsupported, got %v", model, err)
@@ -140,7 +140,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 
 			var jsonMode llms.CallOptions
 			llms.WithJSONMode()(&jsonMode)
-			req, err := llm.createChatRequest(nil, jsonMode, nil)
+			req, err := llm.createChatRequest(nil, jsonMode, nil, false)
 			if err != nil || req.ResponseFormat == nil || req.ResponseFormat.FormatType() != "json_object" {
 				t.Fatalf("%s: JSON mode is documented and must still reach the wire, got %+v, %v", model, req, err)
 			}
@@ -156,7 +156,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-			req, err := llm.createChatRequest(nil, opts, nil)
+			req, err := llm.createChatRequest(nil, opts, nil, false)
 			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
 				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
 			}
@@ -172,7 +172,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 			llm := newUnitLLM(t, WithModel(model), WithBaseURL(baseURL))
 			var opts llms.CallOptions
 			llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-			req, err := llm.createChatRequest(nil, opts, nil)
+			req, err := llm.createChatRequest(nil, opts, nil, false)
 			if err != nil || req.ResponseFormat.FormatType() != "json_schema" {
 				t.Fatalf("%s: want json_schema, got %+v, %v", model, req, err)
 			}
@@ -184,7 +184,7 @@ func TestCreateChatRequest_ResponseFormatModes(t *testing.T) { //nolint:funlen /
 		llm := newUnitLLM(t, WithModel("gpt-6-ultra-preview"))
 		var opts llms.CallOptions
 		llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
-		req, err := llm.createChatRequest(nil, opts, nil)
+		req, err := llm.createChatRequest(nil, opts, nil, false)
 		if err != nil {
 			t.Fatalf("unknown model must pass through, got %v", err)
 		}

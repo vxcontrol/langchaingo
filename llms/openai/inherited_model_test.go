@@ -28,7 +28,8 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 		requireInherited(t, warnings, option)
 	}
 
-	body, warnings := hostCall(t, "https://api.openai.com/v1", "gpt-6.2-sol", tools)
+	chatTools := llms.WithExtraBody(map[string]any{"tools": []any{map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}}})
+	body, warnings := hostCall(t, "https://api.openai.com/v1", "gpt-6.2-sol", chatTools)
 	require.Len(t, body["tools"], 1)
 	inherited(warnings, "WithTools")
 
@@ -44,10 +45,9 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 	body, _ = hostCall(t, "https://api.mistral.ai/v1", "zai-glm-6", llms.WithReasoningDisabled())
 	require.NotContains(t, body, "thinking", "Mistral's GLM releases turn thinking off by omission: %v", body)
 
-	body, warnings = hostCall(t, "https://api.openai.com/v1", "gpt-5.7", tools, llms.WithReasoning(llms.ReasoningHigh, 0))
-	require.Equal(t, "high", body["reasoning_effort"])
+	body, _ = hostCall(t, "https://api.openai.com/v1", "gpt-5.7", tools, llms.WithReasoning(llms.ReasoningHigh, 0))
+	require.Equal(t, map[string]any{"effort": "high"}, body["reasoning"], "gpt-5.6 reasons with tools through Responses")
 	require.Len(t, body["tools"], 1)
-	inherited(warnings, "WithReasoning")
 
 	body, warnings = hostCall(t, "https://api.moonshot.ai/v1", "kimi-k2.8", tools, llms.WithToolChoice("required"))
 	require.Equal(t, "required", body["tool_choice"])
@@ -63,7 +63,7 @@ func TestAnUnlistedVersionIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
 			model = append(model, w)
 		}
 	}
-	require.Len(t, model, 2, "the release it follows, and its Chat Completions refusal: %v", resp.Warnings)
+	require.Len(t, model, 1, "the release it follows, whose Responses takes it: %v", resp.Warnings)
 }
 
 func TestAnUnlistedClaudeOnTheOpenAIDoorIsSentWhatItsReleaseWouldRefuse(t *testing.T) {
@@ -92,7 +92,6 @@ func TestAnUnlistedClaudeOnTheOpenAIDoorIsSentWhatItsReleaseWouldRefuse(t *testi
 func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	t.Parallel()
 
-	tools := lookupTool
 	call := func(baseURL, model string, opts ...llms.CallOption) error {
 		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(&bodyDoer{}))
 		_, err := llm.GenerateContent(context.Background(),
@@ -101,15 +100,15 @@ func TestAListedReleaseKeepsItsRefusals(t *testing.T) {
 	}
 
 	var chatTools *reasoning.ErrChatToolsUnsupported
-	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-6.1-sol", tools), &chatTools)
+	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-6.1-sol", llms.WithExtraBody(map[string]any{
+		"tools": []any{map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}}},
+	})), &chatTools)
 	var stop *reasoning.ErrStopWordsUnsupported
 	require.ErrorAs(t, call("https://api.x.ai/v1", "grok-4.7", llms.WithStopWords([]string{"END"})), &stop)
 	var off *reasoning.ErrReasoningOffUnsupported
 	require.ErrorAs(t, call("https://api.x.ai/v1", "grok-4.7", llms.WithReasoningDisabled()), &off)
 	require.ErrorAs(t, call("https://api.z.ai/api/paas/v4", "glm-5.3", llms.WithReasoningDisabled()), &off)
 	require.ErrorAs(t, call("https://api.minimax.io/v1", "MiniMax-M2.7", llms.WithReasoningDisabled()), &off)
-	var cyber *reasoning.ErrChatCompletionsUnsupported
-	require.ErrorAs(t, call("https://api.openai.com/v1", "gpt-5.6-cyber"), &cyber)
 }
 
 func TestXAIRefusesStopForEveryVersionOfAReasoningGrok(t *testing.T) {

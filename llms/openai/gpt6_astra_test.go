@@ -17,19 +17,21 @@ func astraTool() llms.Tool {
 	}}
 }
 
-func TestToolsAreRefusedOnOpenAIsChatCompletionsWhereTheModelPageSaysSo(t *testing.T) {
+func TestToolsGoToOpenAIsResponsesWhereItsChatCompletionsTakesNone(t *testing.T) {
 	t.Parallel()
 
 	for _, model := range []string{"gpt-6-astra", "gpt-6.1-sol"} {
 		for _, baseURL := range []string{"", "https://api.openai.com/v1", "https://eu.api.openai.com/v1"} {
 			body, err := callWithATool(t, baseURL, model)
-			var unsupported *reasoning.ErrChatToolsUnsupported
-			require.True(t, errors.As(err, &unsupported), "%s on %q: %v", model, baseURL, err)
-			assert.Equal(t, model, unsupported.Model)
-			assert.Nil(t, body, "%s on %q", model, baseURL)
+			require.NoError(t, err, "%s on %q", model, baseURL)
+			assert.Equal(t, []any{map[string]any{"type": "function", "name": "lookup", "strict": false,
+				"parameters": map[string]any{"type": "object", "properties": map[string]any{}},
+			}}, body["tools"], "%s on %q", model, baseURL)
 
+			var unsupported *reasoning.ErrChatToolsUnsupported
 			sent, err := callWithToolsOnlyInTheExtraBody(t, baseURL, model)
-			require.ErrorAs(t, err, &unsupported, "tools in the extra body, %s on %q", model, baseURL)
+			require.ErrorAs(t, err, &unsupported, "tools in the extra body keep the chat shape, %s on %q", model, baseURL)
+			assert.Equal(t, model, unsupported.Model)
 			assert.False(t, sent, "%s on %q", model, baseURL)
 		}
 		for _, baseURL := range []string{"https://openrouter.ai/api/v1", "http://litellm.internal/v1"} {

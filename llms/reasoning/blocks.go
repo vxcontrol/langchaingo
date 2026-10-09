@@ -3,11 +3,14 @@ package reasoning
 import "strings"
 
 // Block is one reasoning block as the vendor produced it: readable text with the
-// signature that covers it, or encrypted data, never both.
+// signature that covers it, or encrypted data, never both, except an OpenAI
+// reasoning item, which goes back by its ID with its summary in Text and its
+// encrypted content in Redacted.
 type Block struct {
 	Text      string `json:"text,omitempty"`
 	Signature []byte `json:"signature,omitempty"`
 	Redacted  []byte `json:"redacted,omitempty"`
+	ID        string `json:"id,omitempty"`
 
 	// AfterToolCalls counts the tool calls the vendor put ahead of this block in
 	// the same response.
@@ -21,7 +24,7 @@ func FromBlocks(blocks []Block) *ContentReasoning {
 	switch {
 	case len(blocks) == 0:
 		return nil
-	case len(blocks) == 1 && blocks[0].Redacted == nil && blocks[0].AfterToolCalls == 0:
+	case len(blocks) == 1 && blocks[0].Redacted == nil && blocks[0].ID == "" && blocks[0].AfterToolCalls == 0:
 		return &ContentReasoning{Content: blocks[0].Text, Signature: blocks[0].Signature}
 	}
 
@@ -76,6 +79,10 @@ func (c *Collector) Encrypted(data []byte) {
 		return
 	}
 	c.blocks = append(c.blocks, Block{Redacted: data, AfterToolCalls: c.toolCalls})
+}
+
+func (c *Collector) Item(id, summary string, encrypted []byte) {
+	c.blocks = append(c.blocks, Block{ID: id, Text: summary, Redacted: encrypted, AfterToolCalls: c.toolCalls})
 }
 
 func (c *Collector) ToolCall() {
