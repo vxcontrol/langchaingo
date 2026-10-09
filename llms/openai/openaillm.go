@@ -110,8 +110,8 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		opt(&opts)
 	}
 
-	warn, responses := warningsFor(o.effectiveModel(opts)), o.takesResponses(o.effectiveModel(opts), opts)
-	if err := o.refuseBeforeTheNetwork(messages, &opts, warn, responses); err != nil {
+	warn, responses, err := o.prepareCall(messages, &opts)
+	if err != nil {
 		return nil, err
 	}
 
@@ -682,32 +682,34 @@ func warningsFor(model string) *llms.Warnings {
 	return warn
 }
 
-func (o *LLM) refuseBeforeTheNetwork(
-	messages []llms.MessageContent, opts *llms.CallOptions, warn *llms.Warnings, responses bool,
-) error {
+func (o *LLM) prepareCall(
+	messages []llms.MessageContent, opts *llms.CallOptions,
+) (warn *llms.Warnings, responses bool, err error) {
+	model := o.effectiveModel(*opts)
+	warn = warningsFor(model)
 	if err := opts.ValidateReasoning(); err != nil {
-		return err
+		return nil, false, err
 	}
 	if err := llms.CheckToolCalls(messages); err != nil {
-		return err
+		return nil, false, err
 	}
-	model := o.effectiveModel(*opts)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	opts.Tools = toolsSent
+	responses = o.takesResponses(model, *opts)
 	if len(opts.StopWords) > 0 && responses {
-		return &reasoning.ErrStopWordsUnsupported{Model: model}
+		return nil, false, &reasoning.ErrStopWordsUnsupported{Model: model}
 	}
 	if len(opts.StopWords) > 0 && reasoning.RejectsStop(model) && o.servedByTheModelsVendor(model) {
 		refusal := &reasoning.ErrStopWordsUnsupported{Model: model}
 		stop := strings.Join(opts.StopWords, ", ")
 		if reasoning.GrokFamily(model) || warn.KeepRefusal(model, "WithStopWords", stop, stop, refusal) {
-			return refusal
+			return nil, false, refusal
 		}
 	}
-	return nil
+	return warn, responses, nil
 }
 
 func (o *LLM) servedByOpenAI() bool {

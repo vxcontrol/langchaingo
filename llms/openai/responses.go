@@ -3,6 +3,8 @@ package openai
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -21,17 +23,29 @@ func (o *LLM) takesResponses(model string, opts llms.CallOptions) bool {
 	if len(opts.Tools)+len(opts.Functions) == 0 {
 		return false
 	}
-	rule := reasoning.EffortWithTools(model)
-	switch mode := opts.Reasoning.ResolveMode(); {
-	case reasoning.ChatToolsUnsupported(model):
+	if reasoning.ChatToolsUnsupported(model) {
 		return true
-	case mode == llms.ReasoningOff,
-		mode == llms.ReasoningOn && string(opts.Reasoning.GetEffort(opts.GetMaxTokens())) == reasoning.OpenAIDisableEffort:
+	}
+	rule := reasoning.EffortWithTools(model)
+	switch o.toolTurnMode(model, opts) { //nolint:exhaustive // the default mode is handled after the switch
+	case llms.ReasoningOff:
 		return false
-	case mode == llms.ReasoningOn:
+	case llms.ReasoningOn:
 		return rule != reasoning.EffortToolsFree
 	}
-	return rule == reasoning.EffortToolsDisable
+	return rule != reasoning.EffortToolsFree && !reasoning.OpenAIThinkingOptIn(model) && len(opts.StopWords) == 0
+}
+
+func (o *LLM) toolTurnMode(model string, opts llms.CallOptions) llms.ReasoningMode {
+	switch on, off := llms.ExtraBodyThinking(model, "api.openai.com", llms.ExtraBody(opts)); {
+	case off:
+		return llms.ReasoningOff
+	case on:
+		return llms.ReasoningOn
+	case opts.Reasoning.DelegatesDepth() && !o.claudeThinksOnlyAtAnAskedDepth(model):
+		return llms.ReasoningDefault
+	}
+	return opts.Reasoning.ResolveMode()
 }
 
 func (o *LLM) send(
@@ -57,8 +71,7 @@ func (o *LLM) send(
 func responsesRequest(req *openaiclient.ChatRequest, input []any, warn *llms.Warnings) *openaiclient.ResponsesRequest {
 	r := &openaiclient.ResponsesRequest{
 		Model: req.Model, Input: input, MaxOutputTokens: req.MaxCompletionTokens,
-		Temperature: req.Temperature, TopP: req.TopP, Metadata: req.Metadata,
-		ExtraBody: req.ExtraBody, StreamingFunc: req.StreamingFunc,
+		Temperature: req.Temperature, TopP: req.TopP, Metadata: req.Metadata, StreamingFunc: req.StreamingFunc,
 	}
 	if r.MaxOutputTokens == nil {
 		r.MaxOutputTokens = req.MaxTokens
@@ -83,7 +96,35 @@ func responsesRequest(req *openaiclient.ChatRequest, input []any, warn *llms.War
 		}
 	}
 	reportChatOnlyFields(req, warn)
+	r.ExtraBody = responsesExtraBody(req, r, warn)
 	return r
+}
+
+var responsesFields = []string{
+	"access_programs", "background", "context_management", "conversation", "include", "input", "instructions",
+	"max_output_tokens", "max_tool_calls", "metadata", "model", "moderation", "parallel_tool_calls",
+	"previous_response_id", "prompt", "prompt_cache_key", "prompt_cache_options", "prompt_cache_retention", "reasoning",
+	"safety_identifier", "service_tier", "store", "stream", "stream_options", "temperature", "text", "tool_choice",
+	"tools", "top_logprobs", "top_p", "truncation", "user",
+}
+
+func responsesExtraBody(req *openaiclient.ChatRequest, r *openaiclient.ResponsesRequest, warn *llms.Warnings) map[string]any {
+	kept := map[string]any{}
+	for _, key := range slices.Sorted(maps.Keys(req.ExtraBody)) {
+		effort, isEffort := req.ExtraBody[key].(string)
+		switch {
+		case key == "reasoning_effort" && isEffort:
+			r.Reasoning = &openaiclient.ResponsesReasoning{Effort: effort}
+		case slices.Contains(responsesFields, key):
+			kept[key] = req.ExtraBody[key]
+		default:
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithExtraBody", Model: req.Model, Asked: key,
+				Reason: "the Responses API has no such field",
+			})
+		}
+	}
+	return kept
 }
 
 func responsesToolChoice(choice any) any {

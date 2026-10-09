@@ -56,6 +56,6 @@ func openAIPassthrough(raw string) bool {
 	if err != nil || reasoning.PublicProviderHost(strings.ToLower(u.Hostname())) {
 		return false
 	}
-	first, rest, _ := strings.Cut(strings.Trim(u.Path, "/"), "/")
-	return first == "openai_passthrough" || first == "openai" && rest == "v1"
+	first, _, _ := strings.Cut(strings.Trim(u.Path, "/"), "/")
+	return first == "openai_passthrough"
 }

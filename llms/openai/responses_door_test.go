@@ -73,6 +73,22 @@ func TestOnlyWhatChatCompletionsCannotCarryGoesToOpenAIsResponses(t *testing.T) 
 		"a gateway":                        {"http://litellm.internal/v1", "gpt-5.6-terra", []llms.CallOption{tools}, "/chat/completions"},
 		"OpenRouter":                       {"https://openrouter.ai/api/v1", "openai/gpt-5.6-terra", []llms.CallOption{tools}, "/chat/completions"},
 		"Azure":                            {"https://pentagi.openai.azure.com/openai/v1", "gpt-5.6-terra", []llms.CallOption{tools}, "/chat/completions"},
+		"gpt-5.5 with tools":               {openAI, "gpt-5.5", []llms.CallOption{tools}, "/responses"},
+		"gpt-5.4-mini delegating its depth": {openAI, "gpt-5.4-mini", []llms.CallOption{
+			tools, llms.WithAdaptiveReasoning(""),
+		}, "/chat/completions"},
+		"gpt-5.6-terra at effort none with a budget": {openAI, "gpt-5.6-terra", []llms.CallOption{
+			tools, llms.WithReasoning(llms.ReasoningEffort(reasoning.OpenAIDisableEffort), 3000),
+		}, "/responses"},
+		"gpt-5.6-terra with a tool that has no function": {openAI, "gpt-5.6-terra", []llms.CallOption{
+			llms.WithTools([]llms.Tool{{Type: "function"}}),
+		}, "/chat/completions"},
+		"gpt-5.6-terra thinking off in the extra body": {openAI, "gpt-5.6-terra", []llms.CallOption{
+			tools, llms.WithExtraBody(map[string]any{"reasoning_effort": "none"}),
+		}, "/chat/completions"},
+		"gpt-5.6-terra with stop words": {openAI, "gpt-5.6-terra", []llms.CallOption{
+			tools, llms.WithStopWords([]string{"END"}),
+		}, "/chat/completions"},
 	} {
 		path, body := routedCall(t, tc.baseURL, tc.model, tc.opts...)
 		require.True(t, strings.HasSuffix(path, tc.path), "%s: %s", name, path)
@@ -323,11 +339,11 @@ func TestTheResponsesRequestReportsWhatItHasNoFieldFor(t *testing.T) {
 	require.NotContains(t, single, "n")
 
 	doer = &bodyDoer{}
-	llm = newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	llm = newUnitLLM(t, WithModel("gpt-6-astra"), WithHTTPClient(doer))
 	_, err = llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 		tools, llms.WithStopWords([]string{"END"}))
 	var stop *reasoning.ErrStopWordsUnsupported
-	require.ErrorAs(t, err, &stop)
+	require.ErrorAs(t, err, &stop, "gpt-6-astra takes tools on the Responses API only, which has no stop")
 	require.Nil(t, doer.body, "refused before the network")
 }
 
@@ -336,13 +352,14 @@ func TestALiteLLMPassThroughToOpenAIIsOpenAIsOwnAPI(t *testing.T) {
 
 	tools := llms.WithTools([]llms.Tool{astraTool()})
 	for baseURL, path := range map[string]string{ //nolint:gosec
-		"https://llm.pentagi.net/openai/v1":             "/openai/v1/responses",
-		"https://llm.pentagi.net/openai/v1/":            "/openai/v1/responses",
-		"https://llm.pentagi.net/openai_passthrough/v1": "/openai_passthrough/v1/responses",
-		"https://llm.pentagi.net/v1":                    "/v1/chat/completions",
-		"https://llm.pentagi.net/openai/deployments/x":  "/openai/deployments/x/chat/completions",
-		"https://openrouter.ai/api/v1":                  "/api/v1/chat/completions",
-		"https://pentagi.openai.azure.com/openai/v1":    "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/openai/v1":              "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/openai_passthrough/v1":  "/openai_passthrough/v1/responses",
+		"https://llm.pentagi.net/openai_passthrough/v1/": "/openai_passthrough/v1/responses",
+		"https://apim.azure-api.net/openai/v1":           "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/v1":                     "/v1/chat/completions",
+		"https://llm.pentagi.net/openai/deployments/x":   "/openai/deployments/x/chat/completions",
+		"https://openrouter.ai/api/v1":                   "/api/v1/chat/completions",
+		"https://pentagi.openai.azure.com/openai/v1":     "/openai/v1/chat/completions",
 	} {
 		doer := &bodyDoer{}
 		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel("gpt-5.6-terra"), WithHTTPClient(doer))
@@ -412,4 +429,113 @@ func TestAStreamedResponsesAnswerReachesTheCallerAsItComes(t *testing.T) {
 	require.Equal(t, "Starting a scan.", resp.Choices[0].Content)
 	require.Len(t, resp.Choices[0].Reasoning.Sequence(), 2)
 	require.Equal(t, 1116, resp.Choices[0].GenerationInfo["TotalTokens"])
+}
+
+func TestStopWordsKeepAToolTurnOnChatCompletionsWithoutThinking(t *testing.T) {
+	t.Parallel()
+
+	path, body := routedCall(t, "https://api.openai.com/v1", "gpt-5.6-terra",
+		llms.WithTools([]llms.Tool{astraTool()}), llms.WithStopWords([]string{"END"}))
+	require.Equal(t, "/chat/completions", path)
+	require.Equal(t, []any{"END"}, body["stop"])
+	require.Equal(t, "none", body["reasoning_effort"])
+}
+
+func TestTheResponsesRequestKeepsOnlyTheExtraBodyFieldsItHas(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{astraTool()}), llms.WithExtraBody(map[string]any{
+			"max_completion_tokens": 100, "service_tier": "flex", "reasoning_effort": "high",
+		}))
+	require.NoError(t, err)
+	require.Equal(t, "/v1/responses", doer.path)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.Equal(t, "flex", body["service_tier"])
+	require.Equal(t, map[string]any{"effort": "high"}, body["reasoning"])
+	require.NotContains(t, body, "max_completion_tokens")
+	require.NotContains(t, body, "reasoning_effort")
+	require.Equal(t, []llms.Warning{{
+		Kind: llms.WarningDrop, Option: "WithExtraBody", Model: "gpt-6-luna", Asked: "max_completion_tokens",
+		Reason: "the Responses API has no such field",
+	}}, resp.Warnings)
+}
+
+func TestTheResponsesRequestCarriesTheToolsAndTheChoiceAsAsked(t *testing.T) {
+	t.Parallel()
+
+	tool := llms.Tool{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Description: "Looks a host up.", Parameters: map[string]any{"type": "object"},
+	}}
+	for choice, sent := range map[string]string{"required": "required", "any": "required", "auto": "auto", "none": "none"} {
+		doer := &bodyDoer{}
+		llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+		_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+			llms.WithTools([]llms.Tool{tool}), llms.WithToolChoice(choice), llms.WithMetadata(map[string]any{"flow": "7"}))
+		require.NoError(t, err, choice)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(doer.body, &body))
+		require.Equal(t, "/v1/responses", doer.path, choice)
+		require.Equal(t, sent, body["tool_choice"], choice)
+		require.Equal(t, []any{map[string]any{
+			"type": "function", "name": "lookup", "description": "Looks a host up.",
+			"parameters": map[string]any{"type": "object"}, "strict": false,
+		}}, body["tools"], choice)
+		require.Equal(t, map[string]any{"flow": "7"}, body["metadata"], choice)
+	}
+}
+
+func TestAnImageGivenAsBytesGoesToResponsesAsADataURL(t *testing.T) {
+	t.Parallel()
+
+	doer := &bodyDoer{}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{{Role: llms.ChatMessageTypeHuman, Parts: []llms.ContentPart{
+		llms.TextPart("What is on it?"), llms.BinaryPart("image/png", []byte("png")),
+	}}}, llms.WithTools([]llms.Tool{astraTool()}))
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.Equal(t, []any{map[string]any{"type": "message", "role": "user", "content": []any{
+		map[string]any{"type": "input_text", "text": "What is on it?"},
+		map[string]any{"type": "input_image", "image_url": "data:image/png;base64,cG5n"},
+	}}}, body["input"])
+}
+
+func TestAResponsesRefusalAndAFilteredAnswerReachTheCaller(t *testing.T) {
+	t.Parallel()
+
+	doer := &responsesDoer{answer: `{"id":"resp_1","model":"gpt-6-luna","status":"completed","output":[` +
+		`{"type":"message","id":"msg_1","status":"completed","role":"assistant","content":[` +
+		`{"type":"refusal","refusal":"I can't help with that."}]}]}`}
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{astraTool()}))
+	var refusal *llms.ErrModelRefusal
+	require.ErrorAs(t, err, &refusal)
+	require.Equal(t, "I can't help with that.", refusal.Message)
+
+	doer = &responsesDoer{answer: `{"id":"resp_1","model":"gpt-6-luna","status":"incomplete",` +
+		`"incomplete_details":{"reason":"content_filter"},"output":[]}`}
+	llm = newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(doer))
+	resp, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithTools([]llms.Tool{astraTool()}))
+	require.NoError(t, err)
+	require.Equal(t, "content_filter", resp.Choices[0].StopReason)
+}
+
+func TestTheSamplingAModelTakesReachesResponses(t *testing.T) {
+	t.Parallel()
+
+	path, body := routedCall(t, "https://api.openai.com/v1", "gpt-daybreak-red-latest",
+		llms.WithTemperature(0.3), llms.WithTopP(0.9))
+	require.Equal(t, "/responses", path)
+	require.InDelta(t, 0.3, body["temperature"], 0)
+	require.InDelta(t, 0.9, body["top_p"], 0)
 }

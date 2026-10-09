@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -167,4 +168,44 @@ func TestAnErrorStatusFromResponsesKeepsTheVendorMessage(t *testing.T) {
 	require.ErrorAs(t, err, &status)
 	require.Equal(t, http.StatusBadRequest, status.StatusCode)
 	require.Equal(t, "Unsupported parameter: 'stop'.", status.Message)
+}
+
+func TestAStreamThatEndsIncompleteIsTheFinalResponse(t *testing.T) {
+	t.Parallel()
+
+	incomplete := `{"id":"resp_1","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[` +
+		`{"type":"message","id":"msg_1","status":"incomplete","role":"assistant","content":[{"type":"output_text","text":"Star"}]}]}`
+	client, _, _ := responsesServer(t, http.StatusOK, responsesStream(
+		`{"type":"response.output_text.delta","sequence_number":1,"item_id":"msg_1","output_index":0,"content_index":0,"delta":"Star"}`,
+		`{"type":"response.incomplete","sequence_number":2,"response":`+incomplete+`}`,
+	))
+	resp, err := client.CreateResponse(t.Context(), &ResponsesRequest{
+		Model: "gpt-6-luna", StreamingFunc: func(context.Context, streaming.Chunk) error { return nil },
+	})
+	require.NoError(t, err)
+	require.Equal(t, "incomplete", resp.Status)
+	require.Equal(t, FinishReasonLength, resp.ChatResponse().Choices[0].FinishReason)
+}
+
+func TestACallbackErrorStopsTheStream(t *testing.T) {
+	t.Parallel()
+
+	client, _, _ := responsesServer(t, http.StatusOK, responsesStream(
+		`{"type":"response.output_text.delta","sequence_number":1,"item_id":"msg_1","output_index":0,"content_index":0,"delta":"Star"}`,
+		`{"type":"response.output_text.delta","sequence_number":2,"item_id":"msg_1","output_index":0,"content_index":0,"delta":"ting"}`,
+		`{"type":"response.completed","sequence_number":3,"response":`+responsesAnswer+`}`,
+	))
+	stop := errors.New("the caller has had enough")
+	var texts []string
+	_, err := client.CreateResponse(t.Context(), &ResponsesRequest{
+		Model: "gpt-6-luna", StreamingFunc: func(_ context.Context, chunk streaming.Chunk) error {
+			if chunk.Type == streaming.ChunkTypeText {
+				texts = append(texts, chunk.Content)
+				return stop
+			}
+			return nil
+		},
+	})
+	require.ErrorIs(t, err, stop)
+	require.Equal(t, []string{"Star"}, texts)
 }
