@@ -289,6 +289,9 @@ func (s *streamedOutput) done(item ResponsesOutputItem) {
 }
 
 func (s *streamedOutput) partial() *ResponsesResponse {
+	if len(s.items) == 0 {
+		return nil
+	}
 	output := slices.Clone(s.items)
 	for idx, text := range s.texts {
 		output[idx].Content = []ResponsesOutputContent{{Type: "output_text", Text: text.String()}}

@@ -444,7 +444,11 @@ func TestAResponsesStreamThatEndsEarlyReturnsWhatArrivedWithTheError(t *testing.
 			`data: {"type":"response.output_item.done","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"lookup","arguments":"{\"host\":\"A\"}"}}` + "\n\n"
 		cutCall = "event: response.function_call_arguments.delta\n" +
 			`data: {"type":"response.function_call_arguments.delta","item_id":"fc_2","output_index":2,"delta":"{\"host\":\"B"}` + "\n\n"
-		failure = "event: error\n" + `data: {"type":"error","code":"server_error","message":"overloaded"}` + "\n\n"
+		failure  = "event: error\n" + `data: {"type":"error","code":"server_error","message":"overloaded"}` + "\n\n"
+		finished = "event: response.output_text.delta\n" +
+			`data: {"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"Checking both"}` + "\n\n" +
+			"event: response.output_item.done\n" +
+			`data: {"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_1","role":"assistant","content":[{"type":"output_text","text":"Checking both hosts."}]}}` + "\n\n"
 	)
 	for name, tc := range map[string]struct {
 		stream     string
@@ -454,6 +458,7 @@ func TestAResponsesStreamThatEndsEarlyReturnsWhatArrivedWithTheError(t *testing.
 		"a stream cut before its final event": {stream: text + call + cutCall, want: llms.ErrIncompleteStream},
 		"an error event inside the stream":    {stream: text + call + cutCall + failure, want: llms.ErrStreamFailed},
 		"a callback that fails":               {stream: text + call + cutCall + failure, failOnCall: true},
+		"a message finished before the cut":   {stream: finished + call + cutCall, want: llms.ErrIncompleteStream},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -483,6 +488,21 @@ func TestAResponsesStreamThatEndsEarlyReturnsWhatArrivedWithTheError(t *testing.
 			require.Empty(t, resp.Choices[0].StopReason, "an answer that did not finish claims no stop reason")
 		})
 	}
+}
+
+func TestAResponsesStreamCutBeforeAnythingArrivedReturnsNoAnswer(t *testing.T) {
+	t.Parallel()
+
+	created := "event: response.created\n" +
+		`data: {"type":"response.created","response":{"id":"resp_1","status":"in_progress","output":[]}}` + "\n\n"
+	llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(&responsesDoer{answer: created}))
+	resp, err := llm.GenerateContent(context.Background(),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "scan A and B")},
+		llms.WithTools([]llms.Tool{astraTool()}),
+		llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+
+	require.ErrorIs(t, err, llms.ErrIncompleteStream)
+	require.Nil(t, resp)
 }
 
 func TestStopWordsKeepAToolTurnOnChatCompletionsWithoutThinking(t *testing.T) {
