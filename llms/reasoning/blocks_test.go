@@ -172,6 +172,7 @@ func TestBlocksSurviveARoundTrip(t *testing.T) {
 		{Redacted: []byte("opaque")},
 		{Signature: []byte("s2"), AfterToolCalls: 1},
 		{ID: "rs_1", Text: "plan", Redacted: []byte("enc"), AfterToolCalls: 1},
+		{Signature: []byte("s3"), AfterToolCalls: 1, AfterTexts: 2},
 	})
 
 	data, err := json.Marshal(sent)

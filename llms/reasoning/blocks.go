@@ -15,16 +15,20 @@ type Block struct {
 	// AfterToolCalls counts the tool calls the vendor put ahead of this block in
 	// the same response.
 	AfterToolCalls int `json:"after_tool_calls,omitempty"`
+	// AfterTexts counts the non-empty texts the vendor put ahead of this block in
+	// the same response.
+	AfterTexts int `json:"after_texts,omitempty"`
 }
 
 // FromBlocks builds the reasoning of one response. A lone plain block that no
-// tool call precedes comes back as Content and Signature with no Blocks, so read
-// blocks through Sequence.
+// tool call or text precedes comes back as Content and Signature with no Blocks,
+// so read blocks through Sequence.
 func FromBlocks(blocks []Block) *ContentReasoning {
 	switch {
 	case len(blocks) == 0:
 		return nil
-	case len(blocks) == 1 && blocks[0].Redacted == nil && blocks[0].ID == "" && blocks[0].AfterToolCalls == 0:
+	case len(blocks) == 1 && blocks[0].Redacted == nil && blocks[0].ID == "" &&
+		blocks[0].AfterToolCalls == 0 && blocks[0].AfterTexts == 0:
 		return &ContentReasoning{Content: blocks[0].Text, Signature: blocks[0].Signature}
 	}
 
@@ -61,28 +65,72 @@ func GroupByToolCalls(blocks []Block, toolCalls int) [][]Block {
 	return groups
 }
 
+// Placement hands the blocks of one turn back in the vendor's order while the
+// turn's non-empty texts and tool calls are written out.
+type Placement struct {
+	blocks       []Block
+	texts, calls int
+}
+
+func Place(blocks []Block) *Placement {
+	return &Placement{blocks: blocks}
+}
+
+func (p *Placement) BeforeText() []Block {
+	placed := p.take(func(b Block) bool { return b.AfterToolCalls <= p.calls && b.AfterTexts <= p.texts })
+	p.texts++
+	return placed
+}
+
+func (p *Placement) BeforeToolCall() []Block {
+	placed := p.take(func(b Block) bool { return b.AfterToolCalls <= p.calls })
+	p.calls++
+	return placed
+}
+
+func (p *Placement) Rest() []Block {
+	return p.take(func(Block) bool { return true })
+}
+
+func (p *Placement) take(came func(Block) bool) []Block {
+	var taken, left []Block
+	for _, block := range p.blocks {
+		if came(block) {
+			taken = append(taken, block)
+		} else {
+			left = append(left, block)
+		}
+	}
+	p.blocks = left
+	return taken
+}
+
 // Collector gathers the reasoning blocks of one response in the vendor's order.
 type Collector struct {
-	blocks    []Block
-	toolCalls int
+	blocks           []Block
+	toolCalls, texts int
 }
 
 func (c *Collector) Thought(text string, signature []byte) {
 	if text == "" && len(signature) == 0 {
 		return
 	}
-	c.blocks = append(c.blocks, Block{Text: text, Signature: signature, AfterToolCalls: c.toolCalls})
+	c.blocks = append(c.blocks, Block{Text: text, Signature: signature, AfterToolCalls: c.toolCalls, AfterTexts: c.texts})
 }
 
 func (c *Collector) Encrypted(data []byte) {
 	if len(data) == 0 {
 		return
 	}
-	c.blocks = append(c.blocks, Block{Redacted: data, AfterToolCalls: c.toolCalls})
+	c.blocks = append(c.blocks, Block{Redacted: data, AfterToolCalls: c.toolCalls, AfterTexts: c.texts})
 }
 
 func (c *Collector) ToolCall() {
 	c.toolCalls++
+}
+
+func (c *Collector) Text() {
+	c.texts++
 }
 
 func (c *Collector) Reasoning() *ContentReasoning {

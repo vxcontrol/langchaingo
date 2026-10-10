@@ -11,6 +11,7 @@ import (
 
 type streamedBlock struct {
 	toolCall  bool
+	answer    bool
 	text      strings.Builder
 	signature bytes.Buffer
 	redacted  []byte
@@ -49,6 +50,12 @@ func (s *streamedReasoning) toolCall(index int32) {
 	s.at(index).toolCall = true
 }
 
+func (s *streamedReasoning) answer(index int32, text string) {
+	if text != "" {
+		s.at(index).answer = true
+	}
+}
+
 func (s *streamedReasoning) result() *reasoning.ContentReasoning {
 	var thoughts reasoning.Collector
 	for _, index := range slices.Sorted(maps.Keys(s.blocks)) {
@@ -60,6 +67,8 @@ func (s *streamedReasoning) result() *reasoning.ContentReasoning {
 			thoughts.Thought(block.text.String(), bytes.Clone(block.signature.Bytes()))
 		case block.toolCall:
 			thoughts.ToolCall()
+		case block.answer:
+			thoughts.Text()
 		}
 	}
 	return thoughts.Reasoning()

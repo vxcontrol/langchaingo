@@ -375,7 +375,6 @@ func (c *ConverseClient) buildConverseInput(input *ConverseInput) (*bedrockrunti
 // aiMessageAccumulator accumulates consecutive AI messages into a single assistant message
 type aiMessageAccumulator struct {
 	blocks       []types.ContentBlock
-	toolUses     int
 	thoughts     []reasoning.Block
 	cacheControl *CacheControl
 }
@@ -402,7 +401,6 @@ func (a *aiMessageAccumulator) addToolUse(toolCall *ToolCall) error {
 			Input:     document.NewLazyDocument(toolCall.Arguments),
 		},
 	})
-	a.toolUses++
 
 	return nil
 }
@@ -416,17 +414,18 @@ func (a *aiMessageAccumulator) setCacheControl(cacheControl *CacheControl) {
 
 // build creates a Converse Message from accumulated data
 func (a *aiMessageAccumulator) build() types.Message {
-	placed := reasoning.GroupByToolCalls(a.thoughts, a.toolUses)
-	content := converseReasoningBlocks(placed[0])
+	placed := reasoning.Place(a.thoughts)
+	content := make([]types.ContentBlock, 0, len(a.thoughts)+len(a.blocks))
 
-	emitted := 0
 	for _, block := range a.blocks {
-		content = append(content, block)
 		if _, ok := block.(*types.ContentBlockMemberToolUse); ok {
-			emitted++
-			content = append(content, converseReasoningBlocks(placed[emitted])...)
+			content = append(content, converseReasoningBlocks(placed.BeforeToolCall())...)
+		} else {
+			content = append(content, converseReasoningBlocks(placed.BeforeText())...)
 		}
+		content = append(content, block)
 	}
+	content = append(content, converseReasoningBlocks(placed.Rest())...)
 
 	// Add cache point if needed
 	if a.cacheControl != nil {
@@ -473,7 +472,6 @@ func converseReasoningBlocks(blocks []reasoning.Block) []types.ContentBlock {
 // reset clears the accumulator
 func (a *aiMessageAccumulator) reset() {
 	a.blocks = nil
-	a.toolUses = 0
 	a.thoughts = nil
 	a.cacheControl = nil
 }
@@ -1001,6 +999,7 @@ DoStream:
 				case *types.ContentBlockDeltaMemberText:
 					fullContent.WriteString(delta.Value)
 					blocks.text(aws.ToInt32(e.Value.ContentBlockIndex), delta.Value)
+					reasoningDeltas.answer(aws.ToInt32(e.Value.ContentBlockIndex), delta.Value)
 					if callback != nil {
 						chunk := streaming.Chunk{
 							Type:    streaming.ChunkTypeText,
@@ -1175,6 +1174,9 @@ func (c *ConverseClient) convertConverseResponse(
 			case *types.ContentBlockMemberText:
 				choice.Content += block.Value
 				parts.Text(block.Value)
+				if block.Value != "" {
+					thoughts.Text()
+				}
 			case *types.ContentBlockMemberToolUse:
 				// Convert tool use to ToolCall
 				// Extract input from document.LazyDocument

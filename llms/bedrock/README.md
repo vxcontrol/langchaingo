@@ -238,17 +238,11 @@ flowchart TB
 
 **Why order matters?**
 
-A response can carry several reasoning blocks, each signed on its own, with encrypted
-blocks among them, and the vendor wants the blocks of the last assistant turn back
-unchanged and in its order. Both paths put every block back where the vendor put it:
-the blocks that came before any tool call open the turn, and a block that followed a
-tool call follows that call again.
+A response can carry several reasoning blocks, each signed on its own, with encrypted blocks among them, and the vendor wants the blocks of the last assistant turn back unchanged and in its order. Converse puts every block back after the texts and tool calls that came before it in the response, so a progress update written after a text goes back after that text. The legacy path places blocks by tool calls only: the blocks that came before any tool call open the turn, and a block that followed a tool call follows that call again.
 
 ### Signature Preservation
 
-Every block keeps its own signature. `reasoning.ContentReasoning` carries the blocks in
-`Blocks`, in the vendor's order; a reasoning made of a single unencrypted block that came
-before any tool call keeps the classic `Content` and `Signature` fields instead.
+Every block keeps its own signature. `reasoning.ContentReasoning` carries the blocks in `Blocks`, in the vendor's order; a reasoning made of a single unencrypted block that came before any tool call (on Converse, also before any text) keeps the classic `Content` and `Signature` fields instead.
 `Sequence()` reads both shapes. `Content` joins
 the readable text of every block for display and is not what travels back when `Blocks`
 is set, so hand the reasoning back as it came:
