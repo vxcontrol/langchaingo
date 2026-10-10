@@ -82,6 +82,10 @@ func toolUseJSON(id string) string {
 	return fmt.Sprintf(`{"type":"tool_use","id":%q,"name":"lookup","input":{"q":%q}}`, id, id)
 }
 
+func textJSON(text string) string {
+	return fmt.Sprintf(`{"type":"text","text":%q}`, text)
+}
+
 func askWithTool(t *testing.T, llm *anthropic.LLM, opts ...llms.CallOption) *llms.ContentChoice {
 	t.Helper()
 
@@ -199,6 +203,12 @@ func TestAReplayedTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 		"an encrypted block between signed ones": {
 			thinkingJSON("a", "s1"), `{"type":"redacted_thinking","data":"opaque"}`, thinkingJSON("b", "s2"), toolUseJSON("A"),
 		},
+		"text ahead of a progress update": {
+			thinkingJSON("", "sig-reasoning"), textJSON("I'll scan the host first."), thinkingJSON("scanning", "sig-update"), toolUseJSON("A"),
+		},
+		"text opening the turn ahead of an update": {
+			textJSON("Checking the index."), thinkingJSON("", "sig-update"), toolUseJSON("A"),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -212,6 +222,48 @@ func TestAReplayedTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 			assert.Equal(t, want, canned.assistantContent(t, 1))
 		})
 	}
+}
+
+func TestAnEmptyTextLeavesTheNextBlockAheadOfTheTextAfterIt(t *testing.T) {
+	t.Parallel()
+
+	canned := &cannedMessages{responses: []string{
+		messageWith(strings.Join([]string{textJSON(""), thinkingJSON("checking", "s1"), textJSON("Done."), toolUseJSON("A")}, ",")),
+		messageWith(textJSON("ok")),
+	}}
+	llm := canned.serve(t)
+	replayTurn(t, llm, askWithTool(t, llm))
+
+	var want []map[string]any
+	require.NoError(t, json.Unmarshal([]byte("["+thinkingJSON("checking", "s1")+","+textJSON("Done.")+","+toolUseJSON("A")+"]"), &want))
+	assert.Equal(t, want, canned.assistantContent(t, 1))
+}
+
+func TestAChoiceMessageGoesBackWithEachTextBetweenItsBlocks(t *testing.T) {
+	t.Parallel()
+
+	original := []string{
+		thinkingJSON("plan", "s1"), textJSON("Scanning A first."), thinkingJSON("", "s2"), toolUseJSON("A"),
+		textJSON("Now B."), thinkingJSON("", "s3"), toolUseJSON("B"),
+	}
+	canned := &cannedMessages{responses: []string{messageWith(strings.Join(original, ",")), messageWith(textJSON("ok"))}}
+	llm := canned.serve(t)
+	choice := askWithTool(t, llm)
+
+	results := make([]llms.ContentPart, 0, len(choice.ToolCalls))
+	for _, call := range choice.ToolCalls {
+		results = append(results, llms.ToolCallResponse{ToolCallID: call.ID, Name: call.FunctionCall.Name, Content: "done"})
+	}
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		choice.Message(),
+		{Role: llms.ChatMessageTypeTool, Parts: results},
+	}, llms.WithMaxTokens(64), llms.WithTools([]llms.Tool{lookupTool()}))
+	require.NoError(t, err)
+
+	var want []map[string]any
+	require.NoError(t, json.Unmarshal([]byte("["+strings.Join(original, ",")+"]"), &want))
+	assert.Equal(t, want, canned.assistantContent(t, 1))
 }
 
 func TestTheTurnOpensWithItsReasoningWhateverThePartOrder(t *testing.T) {

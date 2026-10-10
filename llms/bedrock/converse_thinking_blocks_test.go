@@ -64,6 +64,10 @@ func converseToolUse(id string) string {
 	return fmt.Sprintf(`{"toolUse":{"toolUseId":%q,"name":"lookup","input":{"q":%q}}}`, id, id)
 }
 
+func converseText(text string) string {
+	return fmt.Sprintf(`{"text":%q}`, text)
+}
+
 func converseShape(t *testing.T, content []map[string]any) []string {
 	t.Helper()
 
@@ -201,6 +205,49 @@ func TestTheConverseStreamKeepsEachBlockWithItsOwnSignature(t *testing.T) {
 	}, choice.Reasoning.Sequence())
 }
 
+func TestTheConverseStreamKeepsEachTextBetweenTheBlocksItCameWith(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/vnd.amazon.eventstream")
+		enc := eventstream.NewEncoder()
+		delta := func(index int, payload string) {
+			writeConverseEvent(t, w, enc, "contentBlockDelta",
+				fmt.Sprintf(`{"contentBlockIndex":%d,"delta":%s}`, index, payload))
+		}
+		stop := func(index int) {
+			writeConverseEvent(t, w, enc, "contentBlockStop", fmt.Sprintf(`{"contentBlockIndex":%d}`, index))
+		}
+
+		writeConverseEvent(t, w, enc, "messageStart", `{"role":"assistant"}`)
+		delta(0, `{"text":""}`)
+		stop(0)
+		delta(1, `{"reasoningContent":{"text":"plan"}}`)
+		delta(1, `{"reasoningContent":{"signature":"s1"}}`)
+		stop(1)
+		delta(2, `{"text":"Scanning A first."}`)
+		stop(2)
+		delta(3, `{"reasoningContent":{"signature":"s2"}}`)
+		stop(3)
+		writeConverseEvent(t, w, enc, "contentBlockStart",
+			`{"contentBlockIndex":4,"start":{"toolUse":{"toolUseId":"A","name":"lookup"}}}`)
+		delta(4, `{"toolUse":{"input":"{\"q\":\"A\"}"}}`)
+		stop(4)
+		writeConverseEvent(t, w, enc, "messageStop", `{"stopReason":"tool_use"}`)
+		writeConverseEvent(t, w, enc, "metadata", `{"usage":{"inputTokens":1,"outputTokens":1,"totalTokens":2}}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	llm := bedrockLLMAgainst(t, srv, bedrock.WithModel(converseClaude), bedrock.WithConverseAPI())
+	choice := askConverse(t, llm, llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+
+	assert.Equal(t, []reasoning.Block{
+		{Text: "plan", Signature: []byte("s1")},
+		{Signature: []byte("s2"), AfterTexts: 1},
+	}, choice.Reasoning.Sequence())
+}
+
 func TestAReplayedConverseTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 	t.Parallel()
 
@@ -216,6 +263,13 @@ func TestAReplayedConverseTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 		},
 		"an encrypted block between signed ones": {
 			converseThought("a", "s1"), converseEncrypted("opaque"), converseThought("b", "s2"), converseToolUse("A"),
+		},
+		"text ahead of a progress update": {
+			converseThought("", "sig-reasoning"), converseText("I'll scan the host first."),
+			converseThought("scanning", "sig-update"), converseToolUse("A"),
+		},
+		"text opening the turn ahead of an update": {
+			converseText("Checking the index."), converseThought("", "sig-update"), converseToolUse("A"),
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -246,6 +300,26 @@ func TestAReplayedConverseTurnGoesBackAsTheVendorSentIt(t *testing.T) {
 			assert.Equal(t, converseShape(t, sent), rec.replayedAssistant(t, 1))
 		})
 	}
+}
+
+func TestAnEmptyConverseTextLeavesTheNextBlockAheadOfTheTextAfterIt(t *testing.T) {
+	t.Parallel()
+
+	rec := &converseRecorder{responses: []string{
+		converseReply(converseText(""), converseThought("checking", "s1"), converseText("Done."), converseToolUse("A")),
+		`{"output":{"message":{"role":"assistant","content":[{"text":"ok"}]}},"stopReason":"end_turn"}`,
+	}}
+	llm := rec.serve(t)
+	choice := askConverse(t, llm)
+
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, "look it up"),
+		{Role: llms.ChatMessageTypeAI, Parts: []llms.ContentPart{llms.TextPartWithReasoning(choice.Content, choice.Reasoning), choice.ToolCalls[0]}},
+		{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{llms.ToolCallResponse{ToolCallID: "A", Name: "lookup", Content: "done"}}},
+	}, llms.WithTools(lookupTools()))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"thought checking/s1", "text Done.", "tool A"}, rec.replayedAssistant(t, 1))
 }
 
 func TestAMergedConverseTurnKeepsTheReasoningOfEveryPart(t *testing.T) {

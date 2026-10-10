@@ -452,6 +452,9 @@ func processAnthropicResponse(
 		case *anthropicclient.TextContent:
 			textContent.WriteString(cv.Text)
 			parts.Text(cv.Text)
+			if cv.Text != "" {
+				thoughts.Text()
+			}
 		case *anthropicclient.ToolUseContent:
 			argumentsJSON, err := json.Marshal(cv.Input)
 			if err != nil {
@@ -809,34 +812,24 @@ func handleHumanMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, e
 
 func handleAIMessage(msg llms.MessageContent, target string) (anthropicclient.ChatMessage, error) {
 	var thoughts []reasoning.Block
-	toolCalls := 0
 	for _, part := range msg.Parts {
-		switch p := part.(type) {
-		case llms.TextContent:
+		if p, ok := part.(llms.TextContent); ok {
 			thoughts = append(thoughts, replayedReasoning(p.Reasoning, target).Sequence()...)
-		case llms.ToolCall:
-			toolCalls++
 		}
 	}
-	placed := reasoning.GroupByToolCalls(thoughts, toolCalls)
+	placed := reasoning.Place(thoughts)
 
 	message := anthropicclient.ChatMessage{
 		Role:    RoleAssistant,
-		Content: thinkingContents(placed[0]),
+		Content: []anthropicclient.Content{},
 	}
 
-	emitted := 0
 	for _, part := range msg.Parts {
 		switch p := part.(type) {
 		case llms.TextContent:
-			// Thinking is already emitted above; add text only if not empty (an
-			// interleaved-thinking turn may have thinking with no text).
 			if p.Text != "" {
-				textContent := &anthropicclient.TextContent{
-					Type: "text",
-					Text: p.Text,
-				}
-				message.Content = append(message.Content, textContent)
+				message.Content = append(message.Content, thinkingContents(placed.BeforeText())...)
+				message.Content = append(message.Content, &anthropicclient.TextContent{Type: "text", Text: p.Text})
 			}
 		case llms.ToolCall:
 			var inputStruct map[string]interface{}
@@ -857,13 +850,13 @@ func handleAIMessage(msg llms.MessageContent, target string) (anthropicclient.Ch
 				Name:  p.FunctionCall.Name,
 				Input: inputStruct,
 			}
+			message.Content = append(message.Content, thinkingContents(placed.BeforeToolCall())...)
 			message.Content = append(message.Content, toolUse)
-			emitted++
-			message.Content = append(message.Content, thinkingContents(placed[emitted])...)
 		default:
 			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
 		}
 	}
+	message.Content = append(message.Content, thinkingContents(placed.Rest())...)
 
 	return message, nil
 }
