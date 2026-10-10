@@ -202,7 +202,7 @@ func (g *GoogleAI) GenerateContent(
 	}
 
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
-	dropCandidatesTheModelCannotReturn(warn, opts.GetModel(), config,
+	dropWhatTheModelDoesNotTake(warn, opts.GetModel(), opts, config,
 		g.client.ClientConfig().Backend == genai.BackendVertexAI)
 
 	var response *llms.ContentResponse
@@ -1211,25 +1211,31 @@ func newGenerationConfig(opts llms.CallOptions) *genai.GenerateContentConfig {
 	}
 }
 
-func dropCandidatesTheModelCannotReturn(
-	warn *llms.Warnings, model string, config *genai.GenerateContentConfig, vertex bool,
+func dropWhatTheModelDoesNotTake(
+	warn *llms.Warnings, model string, opts llms.CallOptions, config *genai.GenerateContentConfig, vertex bool,
 ) {
-	if config.CandidateCount == 0 || !reasoning.GeminiTakesNoCandidateCount(model) {
+	if !reasoning.GeminiTakesNoCandidatesOrPenalties(model) {
 		return
 	}
-	asked := config.CandidateCount
-	config.CandidateCount = 0
-	if asked <= 1 {
-		return
-	}
-	reason := "the Gemini API does not support a candidate count on this model"
+	reason := "the Gemini API does not support it on this model"
 	if vertex {
-		reason = "Vertex AI rejects a candidate count on this model"
+		reason = "Vertex AI rejects it on this model"
 	}
-	warn.Add(llms.Warning{
-		Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
-		Asked: strconv.Itoa(int(asked)), Reason: reason,
-	})
+	if config.CandidateCount > 1 {
+		warn.Add(llms.Warning{
+			Kind: llms.WarningDrop, Option: "WithCandidateCount", Model: model,
+			Asked: strconv.Itoa(int(config.CandidateCount)), Reason: reason,
+		})
+	}
+	for _, penalty := range []struct {
+		option string
+		asked  *float64
+	}{{"WithFrequencyPenalty", opts.FrequencyPenalty}, {"WithPresencePenalty", opts.PresencePenalty}} {
+		if penalty.asked != nil && *penalty.asked != 0 {
+			warn.AddFloatChange(penalty.option, model, reason, penalty.asked, nil)
+		}
+	}
+	config.CandidateCount, config.FrequencyPenalty, config.PresencePenalty = 0, nil, nil
 }
 
 func convertToFloat32Pointer(f *float64) *float32 {

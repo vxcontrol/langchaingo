@@ -32,7 +32,7 @@ func GeminiRejectsAssistantPrefill(model string) bool {
 	}
 }
 
-func GeminiTakesNoCandidateCount(model string) bool {
+func GeminiTakesNoCandidatesOrPenalties(model string) bool {
 	m := routedName(model)
 	if major, _, ok := generationAfter("gemini-", m); ok {
 		return major >= 3
