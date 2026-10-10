@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -430,6 +431,59 @@ func TestAStreamedResponsesAnswerReachesTheCallerAsItComes(t *testing.T) {
 	require.Equal(t, "Starting a scan.", resp.Choices[0].Content)
 	require.Len(t, resp.Choices[0].Reasoning.Sequence(), 2)
 	require.Equal(t, 1116, resp.Choices[0].GenerationInfo["TotalTokens"])
+}
+
+func TestAResponsesStreamThatEndsEarlyReturnsWhatArrivedWithTheError(t *testing.T) {
+	t.Parallel()
+
+	const (
+		text = "event: response.output_text.delta\n" +
+			`data: {"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"Checking "}` + "\n\n" +
+			"event: response.output_text.delta\n" +
+			`data: {"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"both hosts."}` + "\n\n"
+		call = "event: response.output_item.done\n" +
+			`data: {"type":"response.output_item.done","output_index":1,"item":{"type":"function_call","id":"fc_1","call_id":"call_1","name":"lookup","arguments":"{\"host\":\"A\"}"}}` + "\n\n"
+		cutCall = "event: response.function_call_arguments.delta\n" +
+			`data: {"type":"response.function_call_arguments.delta","item_id":"fc_2","output_index":2,"delta":"{\"host\":\"B"}` + "\n\n"
+		failure = "event: error\n" + `data: {"type":"error","code":"server_error","message":"overloaded"}` + "\n\n"
+	)
+	for name, tc := range map[string]struct {
+		stream     string
+		failOnCall bool
+		want       error
+	}{
+		"a stream cut before its final event": {stream: text + call + cutCall, want: llms.ErrIncompleteStream},
+		"an error event inside the stream":    {stream: text + call + cutCall + failure, want: llms.ErrStreamFailed},
+		"a callback that fails":               {stream: text + call + cutCall + failure, failOnCall: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			llm := newUnitLLM(t, WithModel("gpt-6-luna"), WithHTTPClient(&responsesDoer{answer: tc.stream}))
+			stop := errors.New("the caller stopped reading")
+			resp, err := llm.GenerateContent(context.Background(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "scan A and B")},
+				llms.WithTools([]llms.Tool{astraTool()}),
+				llms.WithStreamingFunc(func(_ context.Context, chunk streaming.Chunk) error {
+					if tc.failOnCall && chunk.Type == streaming.ChunkTypeToolCall {
+						return stop
+					}
+					return nil
+				}))
+
+			if tc.failOnCall {
+				require.ErrorIs(t, err, stop)
+			} else {
+				require.ErrorIs(t, err, tc.want)
+			}
+			require.NotNil(t, resp)
+			require.Len(t, resp.Choices, 1)
+			require.Equal(t, "Checking both hosts.", resp.Choices[0].Content)
+			require.Len(t, resp.Choices[0].ToolCalls, 1, "a call whose arguments did not finish is left out")
+			require.Equal(t, "call_1", resp.Choices[0].ToolCalls[0].ID)
+			require.Empty(t, resp.Choices[0].StopReason, "an answer that did not finish claims no stop reason")
+		})
+	}
 }
 
 func TestStopWordsKeepAToolTurnOnChatCompletionsWithoutThinking(t *testing.T) {

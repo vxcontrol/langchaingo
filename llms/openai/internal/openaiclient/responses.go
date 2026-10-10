@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/internal/streamend"
@@ -206,6 +207,7 @@ func withoutInternalMetadata(metadata map[string]any) map[string]any {
 
 type responsesEvent struct {
 	Type     string              `json:"type"`
+	ItemID   string              `json:"item_id"`
 	Delta    string              `json:"delta"`
 	Item     ResponsesOutputItem `json:"item"`
 	Response *ResponsesResponse  `json:"response"`
@@ -219,6 +221,7 @@ func parseResponsesStream(ctx context.Context, body io.Reader, callback streamin
 	defer streaming.CallWithDone(ctx, callback) //nolint:errcheck
 
 	var final *ResponsesResponse
+	arrived := streamedOutput{texts: map[int]*strings.Builder{}, started: map[string]int{}}
 	for final == nil && scanner.Scan() {
 		data, isData := strings.CutPrefix(scanner.Text(), "data:")
 		data = strings.TrimSpace(data)
@@ -232,10 +235,12 @@ func parseResponsesStream(ctx context.Context, body io.Reader, callback streamin
 		var err error
 		switch event.Type {
 		case "response.output_text.delta":
+			arrived.text(event.ItemID, event.Delta)
 			err = streaming.CallWithText(ctx, callback, event.Delta)
 		case "response.reasoning_summary_text.delta":
 			err = streaming.CallWithReasoningContent(ctx, callback, event.Delta)
 		case "response.output_item.done":
+			arrived.done(event.Item)
 			if event.Item.Type == "function_call" {
 				err = streaming.CallWithToolCall(ctx, callback,
 					streaming.NewToolCall(event.Item.CallID, event.Item.Name, event.Item.Arguments))
@@ -243,16 +248,52 @@ func parseResponsesStream(ctx context.Context, body io.Reader, callback streamin
 		case "response.completed", "response.incomplete", "response.failed":
 			final = event.Response
 		case "error":
-			return nil, (&providerError{Message: event.Message, Code: event.Code}).asError()
+			return arrived.partial(), (&providerError{Message: event.Message, Code: event.Code}).asError()
 		}
 		if err != nil {
-			return nil, fmt.Errorf("streaming func returned an error: %w", err)
+			return arrived.partial(), fmt.Errorf("streaming func returned an error: %w", err)
 		}
 	}
 	if final == nil {
-		return nil, streamend.Incomplete(ctx, scanner.Err())
+		return arrived.partial(), streamend.Incomplete(ctx, scanner.Err())
 	}
 	return final, final.providerError()
+}
+
+type streamedOutput struct {
+	items   []ResponsesOutputItem
+	texts   map[int]*strings.Builder
+	started map[string]int
+}
+
+func (s *streamedOutput) text(itemID, delta string) {
+	idx, ok := s.started[itemID]
+	if !ok {
+		idx = len(s.items)
+		s.started[itemID] = idx
+		s.texts[idx] = &strings.Builder{}
+		s.items = append(s.items, ResponsesOutputItem{Type: "message", ID: itemID})
+	}
+	if text := s.texts[idx]; text != nil {
+		text.WriteString(delta)
+	}
+}
+
+func (s *streamedOutput) done(item ResponsesOutputItem) {
+	if idx, ok := s.started[item.ID]; ok {
+		s.items[idx] = item
+		delete(s.texts, idx)
+		return
+	}
+	s.items = append(s.items, item)
+}
+
+func (s *streamedOutput) partial() *ResponsesResponse {
+	output := slices.Clone(s.items)
+	for idx, text := range s.texts {
+		output[idx].Content = []ResponsesOutputContent{{Type: "output_text", Text: text.String()}}
+	}
+	return &ResponsesResponse{Status: "in_progress", Output: output}
 }
 
 func (r *ChatRequest) ResponsesFormat() *ResponsesFormat {
@@ -319,6 +360,8 @@ func (r *ResponsesResponse) ChatResponse() *ChatCompletionResponse {
 
 	finish := FinishReasonStop
 	switch {
+	case r.Status == "in_progress":
+		finish = ""
 	case r.IncompleteDetails != nil && r.IncompleteDetails.Reason == "max_output_tokens":
 		finish = FinishReasonLength
 	case r.IncompleteDetails != nil && r.IncompleteDetails.Reason == "content_filter":
