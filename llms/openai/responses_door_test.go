@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
-	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -588,10 +587,18 @@ func TestAResponsesRefusalAndAFilteredAnswerReachTheCaller(t *testing.T) {
 func TestTheResponsesRequestCarriesTheSamplingTheChatRequestKept(t *testing.T) {
 	t.Parallel()
 
-	temperature, topP := 0.3, 0.9
-	r := responsesRequest(&openaiclient.ChatRequest{Model: "gpt-6-luna", Temperature: &temperature, TopP: &topP}, nil, nil)
-	require.Equal(t, &temperature, r.Temperature)
-	require.Equal(t, &topP, r.TopP)
+	doer := &responsesDoer{answer: `{"id":"resp_1","model":"gpt-5.6-cyber","status":"completed","output":[` +
+		`{"type":"message","id":"msg_1","status":"completed","role":"assistant","content":[{"type":"output_text","text":"ok"}]}]}`}
+	llm := newUnitLLM(t, WithModel("gpt-5.6-cyber"), WithHTTPClient(doer))
+	_, err := llm.GenerateContent(context.Background(), []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
+		llms.WithReasoningDisabled(), llms.WithTemperature(0.3), llms.WithTopP(0.9))
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(doer.body, &body))
+	require.Equal(t, "/v1/responses", doer.path)
+	require.InDelta(t, 0.3, body["temperature"], 1e-9)
+	require.InDelta(t, 0.9, body["top_p"], 1e-9)
 }
 
 func TestTheResponsesRequestCarriesThePromptCacheKeyAndOptions(t *testing.T) {
