@@ -108,6 +108,11 @@ func cutDashScopeRoute(model string) (string, bool) {
 	return name, true
 }
 
+func DashScopeTakesEnableThinking(route string) bool {
+	rest, _ := cutDashScopeRoute(strings.ToLower(route))
+	return !strings.HasPrefix(rest[strings.LastIndex(rest, "/")+1:], "minimax")
+}
+
 func dashScopeRouteName(route string) (string, bool) {
 	name, ok := cutDashScopeRoute(strings.ToLower(route))
 	return name, ok && !strings.Contains(name, "/")

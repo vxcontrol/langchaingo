@@ -994,34 +994,32 @@ func ExtraBodyThinking(model, host string, extra map[string]any) (on, off bool) 
 }
 
 func modelStudioThinkingSwitch(route string, values map[string]any) (on, off bool) {
-	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) { //nolint:exhaustive // a model with no switch reads none
-	case reasoning.OffDisableDashScope, reasoning.OffOmit:
-		enabled, set := values["enable_thinking"].(bool)
-		return set && enabled, set && !enabled
-	case reasoning.OffEffortNone:
-		on, off = effortSwitch(values["reasoning_effort"])
-		if enabled, set := values["enable_thinking"].(bool); set {
-			on, off = on || enabled, off || !enabled
-		}
-		return on, off
-	case reasoning.OffDisableThinkingObject:
-		return thinkingObjectSwitch(values["thinking"])
+	add := func(switchesOn, switchesOff bool) { on, off = on || switchesOn, off || switchesOff }
+	if reasoning.DashScopeTakesEnableThinking(route) {
+		add(flagSwitch(values["enable_thinking"]))
 	}
-	return false, false
+	switch reasoning.ResolveOff(route, reasoning.ProviderOpenAI) { //nolint:exhaustive // the other wires have no key of their own
+	case reasoning.OffEffortNone:
+		add(effortSwitch(values["reasoning_effort"]))
+	case reasoning.OffDisableThinkingObject:
+		add(thinkingObjectSwitch(values["thinking"]))
+	}
+	return on, off
+}
+
+func flagSwitch(value any) (on, off bool) {
+	enabled, set := value.(bool)
+	return set && enabled, set && !enabled
 }
 
 func anyThinkingSwitch(values map[string]any) (on, off bool) {
 	add := func(switchesOn, switchesOff bool) { on, off = on || switchesOn, off || switchesOff }
-	if enabled, ok := values["enable_thinking"].(bool); ok {
-		add(enabled, !enabled)
-	}
+	add(flagSwitch(values["enable_thinking"]))
 	add(thinkingObjectSwitch(values["thinking"]))
 	add(effortSwitch(values["reasoning_effort"]))
 	if nested, ok := values["reasoning"].(map[string]any); ok {
 		add(effortSwitch(nested["effort"]))
-		if enabled, set := nested["enabled"].(bool); set {
-			add(enabled, !enabled)
-		}
+		add(flagSwitch(nested["enabled"]))
 		if budget, _ := nested["max_tokens"].(float64); budget > 0 {
 			add(true, false)
 		}
