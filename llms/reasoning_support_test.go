@@ -850,3 +850,23 @@ func TestTheAstraHintOffersTheLevelsItsCardListsAndNoDisable(t *testing.T) {
 		})
 	}
 }
+
+func TestTheOllamaHintReadsGemmaByOllamasLibraryName(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemma4", "gemma4:31b", "gemma4:e4b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOllama)
+		if !s.Supported || s.CannotDisable {
+			t.Errorf("%s = %+v: Ollama lists thinking for gemma4 with think values false and true", model, s)
+		}
+		if !reasoning.IsReasoningModel(model) {
+			t.Errorf("%s: a consumer without the server's capabilities reads the model as not thinking", model)
+		}
+	}
+
+	for _, model := range []string{"gemma3:27b", "gemma3n:e4b"} {
+		if reasoning.IsReasoningModel(model) {
+			t.Errorf("%s: Gemma 3 does not think, as gemma-3-27b-it does not", model)
+		}
+	}
+}

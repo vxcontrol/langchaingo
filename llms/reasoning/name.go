@@ -27,7 +27,7 @@ func splitModelName(model string) (vendor, bare string) {
 	m = stripBedrockRegion(m)
 
 	vendor, bare = splitPlatformPrefix(m)
-	bare = documentedAlias(bare)
+	bare = documentedAlias(ollamaLibrarySpelling(bare))
 	if vendor == "" {
 		if dashVendor, stripped, ok := stripDashWrittenVendor(bare); ok {
 			return dashVendor, stripped
@@ -61,6 +61,14 @@ var vendorAliases = map[string]string{
 // qwenSnapshotsFrom entries come from Model Studio's deep-thinking page: the first
 // dated snapshot it lists with the stable id's thinking.
 var qwenSnapshotsFrom = map[string]string{"qwen-plus": "2025-04-28", "qwen-flash": "2025-07-28"}
+
+func ollamaLibrarySpelling(name string) string {
+	rest, ok := strings.CutPrefix(name, "gemma")
+	if !ok || rest == "" || rest[0] < '0' || rest[0] > '9' {
+		return name
+	}
+	return "gemma-" + rest
+}
 
 func documentedAlias(bare string) string {
 	if alias, ok := vendorAliases[bare]; ok {
