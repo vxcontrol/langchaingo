@@ -213,10 +213,17 @@ func TestTheOffSwitchFollowsTheEffortsXAIReports(t *testing.T) {
 	body, _ = api.ask(t, api.llm(t, xaiHostURL, "grok-3"), llms.WithReasoningDisabled())
 	assert.NotContains(t, body, "reasoning_effort", "a model that does not reason has nothing to switch off")
 
-	api = &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4.8": empty}}
-	_, _, err = api.send(t, api.llm(t, xaiHostURL, "grok-4.8"),
+	api = &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4-fast-reasoning": empty}}
+	_, _, err = api.send(t, api.llm(t, xaiHostURL, "grok-4-fast-reasoning"),
 		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithReasoningDisabled())
-	require.ErrorAs(t, err, &refusal, "a model that reasons with no effort field cannot be switched off")
+	require.ErrorAs(t, err, &refusal, "a model the tables name as reasoning, with no effort field, cannot be switched off")
+	assert.Len(t, api.asked(), 1)
+
+	api = &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4.8": empty}}
+	body, warnings = api.ask(t, api.llm(t, xaiHostURL, "grok-4.8"), llms.WithReasoningDisabled())
+	assert.NotContains(t, body, "reasoning_effort")
+	assert.Equal(t, llms.WarningInherit, warnings["WithReasoningDisabled"].Kind,
+		"that the model reasons comes only from the release it follows")
 }
 
 const moonshotListing = `{"object":"list","data":[` +

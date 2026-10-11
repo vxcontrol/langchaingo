@@ -849,7 +849,8 @@ func (o *LLM) setReasoningOff(
 		switch {
 		case caps.CanDisable:
 			o.writeDisableEffort(req)
-		case len(caps.Efforts) > 0 || reasoning.IsReasoningModel(model):
+		case len(caps.Efforts) > 0,
+			reasoning.IsReasoningModel(model) && warn.KeepOffRefusal(model, reasoning.OffOmit):
 			return &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
 		return nil
