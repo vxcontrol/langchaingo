@@ -259,11 +259,12 @@ func DashScopeThinkingBudget(model, host string) (takes, sharesAnswerLimit bool)
 		listed := slices.Contains(qwenCloudDeepSeekBudget, guest)
 		return listed, listed
 	}
-	return DashScopeTakesThinkingBudget(route), dashScopeBudgetSharesAnswerLimit(route)
+	return DashScopeTakesThinkingBudget(route), DashScopeBudgetSharesAnswerLimit(route)
 }
 
-// dashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget
-// counts against max_tokens together with the answer.
-func dashScopeBudgetSharesAnswerLimit(model string) bool {
+// DashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget
+// counts against max_tokens together with the answer on Model Studio;
+// DashScopeThinkingBudget answers for a host.
+func DashScopeBudgetSharesAnswerLimit(model string) bool {
 	return slices.Contains(dashScopeDeepSeekBudget, dashScopeGuestSpelling(model))
 }
