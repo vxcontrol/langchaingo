@@ -141,3 +141,45 @@ func TestQwenCloudServesThinkingWithoutAStreamWhereItsDocsSay(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, false, body["enable_thinking"], "Model Studio serves Qwen3.5 open weights' thinking only on a stream")
 }
+
+func TestQwenCloudGuestsGetWhatQwenCloudDocumentsForThem(t *testing.T) {
+	t.Parallel()
+
+	budget := []llms.CallOption{llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192)}
+	for _, at := range []struct{ baseURL, prefix string }{
+		{qwenCloudBaseURL, ""},
+		{privateGatewayBaseURL, "qwen_cloud/"},
+	} {
+		for _, model := range []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813"} {
+			body, err := callWithoutModel(t, at.baseURL, at.prefix+model, llms.WithJSONMode())
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{"type": "json_object"}, body["response_format"],
+				"%s %s: QwenCloud lists json_object for it", at.baseURL, model)
+
+			body, err = callWithoutModel(t, at.baseURL, at.prefix+model, budget...)
+			require.NoError(t, err)
+			assert.InDelta(t, 1024, body["thinking_budget"], 0, "%s %s: QwenCloud takes a thinking budget", at.baseURL, model)
+		}
+
+		body, err := callWithoutModel(t, at.baseURL, at.prefix+"deepseek-v4-pro", llms.WithJSONMode())
+		require.NoError(t, err)
+		assert.NotContains(t, body, "response_format", "%s: QwenCloud's own copies disagree on deepseek-v4-pro", at.baseURL)
+
+		for _, model := range []string{"glm-5.3", "kimi-k3"} {
+			body, err = callWithoutModel(t, at.baseURL, at.prefix+model, llms.WithMaxTokens(1000))
+			require.NoError(t, err)
+			assert.InDelta(t, 1000, body["max_tokens"], 0, "%s %s: QwenCloud documents max_tokens for it", at.baseURL, model)
+			assert.NotContains(t, body, "max_completion_tokens", at.baseURL)
+		}
+	}
+
+	body, err := callWithoutModel(t, modelStudioBaseURL, "deepseek-v4.1-flash", llms.WithJSONMode())
+	require.NoError(t, err)
+	assert.NotContains(t, body, "response_format", "Model Studio lists json_object only for deepseek-v4-pro")
+	body, err = callWithoutModel(t, modelStudioBaseURL, "deepseek-v4-pro", llms.WithJSONMode())
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"type": "json_object"}, body["response_format"])
+	body, err = callWithoutModel(t, modelStudioBaseURL, "glm-5.3", llms.WithMaxTokens(1000))
+	require.NoError(t, err)
+	assert.InDelta(t, 1000, body["max_completion_tokens"], 0, "Model Studio lists max_completion_tokens for GLM")
+}

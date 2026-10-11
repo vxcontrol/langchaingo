@@ -37,7 +37,7 @@ func noJSONObjectReason(model, host string) string {
 	switch {
 	case reasoning.TakesNoResponseFormat(model, host):
 		return takesNoResponseFormat
-	case reasoning.TakesNoJSONObject(model), reasoning.DashScopeTakesNoJSONObject(reasoning.DashScopeRoute(model, host)):
+	case reasoning.TakesNoJSONObject(model), reasoning.DashScopeTakesNoJSONObject(model, host):
 		return "the vendor has no json_object response format for this model"
 	}
 	return ""

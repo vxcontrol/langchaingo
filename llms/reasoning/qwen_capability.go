@@ -71,15 +71,22 @@ var dashScopeGuestJSONObject = []string{
 	"kimi-k3", "kimi-k2-thinking", "glm-5.1", "glm-5", "glm-4.7", "glm-4.6", "deepseek-v4-pro", "deepseek-v4-flash",
 }
 
-func DashScopeTakesNoJSONObject(route string) bool {
+var qwenCloudGuestJSONObject = []string{"kimi-k3", "glm-5.1", "glm-5", "deepseek-v4.1-flash", "deepseek-v4-pro-0813"}
+
+func DashScopeTakesNoJSONObject(model, host string) bool {
+	route := DashScopeRoute(model, host)
 	if !strings.HasPrefix(strings.ToLower(route), "dashscope/") {
 		return false
 	}
 	if name, ok := dashScopeRouteName(route); ok && strings.HasPrefix(name, "qwen") {
 		return false
 	}
+	guests := dashScopeGuestJSONObject
+	if servedByQwenCloud(model, host) {
+		guests = qwenCloudGuestJSONObject
+	}
 	guest := dashScopeGuestSpelling(route)
-	return !slices.ContainsFunc(dashScopeGuestJSONObject, func(listed string) bool {
+	return !slices.ContainsFunc(guests, func(listed string) bool {
 		return guest == listed || strings.HasPrefix(guest, listed+"-")
 	})
 }
@@ -138,6 +145,8 @@ var dashScopeGuestBudget = []string{
 }
 
 var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-0731"}
+
+var qwenCloudDeepSeekBudget = []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813"}
 
 func DashScopeGuestEffort(route, effort string) string {
 	rest, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
@@ -227,6 +236,14 @@ func DashScopeTakesThinkingBudget(model string) bool {
 		qwenVLOpenWeightName.MatchString(m) ||
 		qwenFlagThinkers[m] ||
 		hasGeneration(m, "qwen3.8")
+}
+
+func DashScopeThinkingBudget(model, host string) (takes, sharesAnswerLimit bool) {
+	route := DashScopeRoute(model, host)
+	if servedByQwenCloud(model, host) && slices.Contains(qwenCloudDeepSeekBudget, dashScopeGuestSpelling(route)) {
+		return true, true
+	}
+	return DashScopeTakesThinkingBudget(route), DashScopeBudgetSharesAnswerLimit(route)
 }
 
 // DashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget

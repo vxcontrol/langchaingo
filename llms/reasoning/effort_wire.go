@@ -249,6 +249,10 @@ func UsesLegacyMaxTokens(model, host string) bool {
 		if namesFamily(model, "glm-") {
 			return true
 		}
+	case VendorDashScope:
+		if servedByQwenCloud(model, host) && (namesFamily(model, "glm-") || namesFamily(model, "kimi-")) {
+			return true
+		}
 	}
 	for _, form := range modelSpellings(model) {
 		if strings.HasPrefix(form, "grok") ||

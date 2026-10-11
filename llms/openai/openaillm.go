@@ -686,11 +686,11 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	if !opts.Reasoning.HasExplicitTokens() || tokens <= 0 {
 		return false
 	}
-	route := reasoning.DashScopeRoute(wc.model, o.host)
+	takesBudget, sharesAnswerLimit := reasoning.DashScopeThinkingBudget(wc.model, o.host)
 	switch {
-	case reasoning.ServedBy(wc.model, o.host) == reasoning.VendorDashScope && reasoning.DashScopeTakesThinkingBudget(route):
+	case reasoning.ServedBy(wc.model, o.host) == reasoning.VendorDashScope && takesBudget:
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
-		if reasoning.DashScopeBudgetSharesAnswerLimit(route) && opts.GetMaxTokens() > 0 {
+		if sharesAnswerLimit && opts.GetMaxTokens() > 0 {
 			budget = tokens
 		}
 		req.ThinkingBudget = &budget
