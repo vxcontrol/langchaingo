@@ -377,7 +377,7 @@ func (o *LLM) createChatRequest(
 	}
 	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
 	route := reasoning.DashScopeRoute(model, o.host)
-	if dashScope && reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
+	if reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
 		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
@@ -708,7 +708,7 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	}
 	takesBudget, sharesAnswerLimit := reasoning.DashScopeThinkingBudget(wc.model, o.host)
 	switch {
-	case reasoning.ServedBy(wc.model, o.host) == reasoning.VendorDashScope && takesBudget:
+	case takesBudget:
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
 		if sharesAnswerLimit && opts.GetMaxTokens() > 0 {
 			budget = tokens

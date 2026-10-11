@@ -142,20 +142,22 @@ func TestQwenCloudServesThinkingWithoutAStreamWhereItsDocsSay(t *testing.T) {
 func TestQwenCloudGuestsGetWhatQwenCloudDocumentsForThem(t *testing.T) {
 	t.Parallel()
 
-	budget := []llms.CallOption{llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192)}
+	budget := []llms.CallOption{llms.WithReasoning(llms.ReasoningNone, 6000), llms.WithMaxTokens(8192)}
 	for _, at := range []struct{ baseURL, prefix string }{
 		{qwenCloudBaseURL, ""},
 		{privateGatewayBaseURL, "qwen_cloud/"},
 	} {
-		for _, model := range []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813"} {
+		for _, model := range []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813", "kimi-k3", "glm-5.1", "glm-5"} {
 			body, err := callWithoutModel(t, at.baseURL, at.prefix+model, llms.WithJSONMode())
 			require.NoError(t, err)
 			assert.Equal(t, map[string]any{"type": "json_object"}, body["response_format"],
 				"%s %s: QwenCloud lists json_object for it", at.baseURL, model)
-
-			body, err = callWithoutModel(t, at.baseURL, at.prefix+model, budget...)
+		}
+		for _, model := range []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813", "deepseek-v4-pro", "deepseek-v4-flash-0731"} {
+			body, err := callWithoutModel(t, at.baseURL, at.prefix+model, budget...)
 			require.NoError(t, err)
-			assert.InDelta(t, 1024, body["thinking_budget"], 0, "%s %s: QwenCloud takes a thinking budget", at.baseURL, model)
+			assert.InDelta(t, 5461, body["thinking_budget"], 0,
+				"%s %s: QwenCloud takes a thinking budget that shares the answer limit", at.baseURL, model)
 		}
 
 		body, err := callWithoutModel(t, at.baseURL, at.prefix+"deepseek-v4-pro", llms.WithJSONMode())

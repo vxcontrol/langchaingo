@@ -116,3 +116,16 @@ func TestAQwenCloudRouteReadsAsItsModelStudioTwin(t *testing.T) {
 		}
 	}
 }
+
+func TestTheHostAwareDashScopeRulesHoldOnlyWhereDashScopeServesTheModel(t *testing.T) {
+	t.Parallel()
+
+	for _, host := range []string{"vllm.internal", "openrouter.ai", ""} {
+		if DashScopeThinkingRequiresStream("qwen3-32b", host) {
+			t.Errorf("DashScopeThinkingRequiresStream(qwen3-32b, %q) = true off DashScope", host)
+		}
+		if takes, shares := DashScopeThinkingBudget("qwen3.8-max", host); takes || shares {
+			t.Errorf("DashScopeThinkingBudget(qwen3.8-max, %q) = (%v, %v) off DashScope", host, takes, shares)
+		}
+	}
+}

@@ -30,6 +30,9 @@ func QwenThinkingRequiresStream(model string) bool {
 }
 
 func DashScopeThinkingRequiresStream(model, host string) bool {
+	if ServedBy(model, host) != VendorDashScope {
+		return false
+	}
 	route := DashScopeRoute(model, host)
 	if servedByQwenCloud(model, host) {
 		return qwenParameterCountName.MatchString(dashScopeSpelling(route))
@@ -42,7 +45,7 @@ func DashScopeStreamsOnly(model, host string) bool {
 	if servedByQwenCloud(model, host) && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
 		return true
 	}
-	return QVQStreamsOnly(route)
+	return qvqStreamsOnly(route)
 }
 
 func servedByQwenCloud(model, host string) bool {
@@ -95,7 +98,7 @@ func qwqOrQVQ(name string) bool {
 	return strings.HasPrefix(name, "qwq") || strings.HasPrefix(name, "qvq")
 }
 
-func QVQStreamsOnly(route string) bool {
+func qvqStreamsOnly(route string) bool {
 	name, ok := dashScopeRouteName(route)
 	return ok && strings.HasPrefix(name, "qvq")
 }
@@ -159,7 +162,7 @@ var dashScopeGuestBudget = []string{
 
 var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-0731"}
 
-var qwenCloudDeepSeekBudget = []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813"}
+var qwenCloudDeepSeekBudget = []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813", "deepseek-v4-pro", "deepseek-v4-flash-0731"}
 
 func DashScopeGuestEffort(route, effort string) string {
 	rest, ok := cutDashScopeRoute(strings.ToLower(route))
@@ -247,15 +250,19 @@ func DashScopeTakesThinkingBudget(model string) bool {
 }
 
 func DashScopeThinkingBudget(model, host string) (takes, sharesAnswerLimit bool) {
-	route := DashScopeRoute(model, host)
-	if servedByQwenCloud(model, host) && slices.Contains(qwenCloudDeepSeekBudget, dashScopeGuestSpelling(route)) {
-		return true, true
+	if ServedBy(model, host) != VendorDashScope {
+		return false, false
 	}
-	return DashScopeTakesThinkingBudget(route), DashScopeBudgetSharesAnswerLimit(route)
+	route := DashScopeRoute(model, host)
+	if guest := dashScopeGuestSpelling(route); servedByQwenCloud(model, host) && strings.HasPrefix(guest, "deepseek") {
+		listed := slices.Contains(qwenCloudDeepSeekBudget, guest)
+		return listed, listed
+	}
+	return DashScopeTakesThinkingBudget(route), dashScopeBudgetSharesAnswerLimit(route)
 }
 
-// DashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget
+// dashScopeBudgetSharesAnswerLimit reports whether the model's thinking budget
 // counts against max_tokens together with the answer.
-func DashScopeBudgetSharesAnswerLimit(model string) bool {
+func dashScopeBudgetSharesAnswerLimit(model string) bool {
 	return slices.Contains(dashScopeDeepSeekBudget, dashScopeGuestSpelling(model))
 }

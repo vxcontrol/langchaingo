@@ -92,7 +92,7 @@ func tableAnswers(model string) map[string]any {
 		"ClaudeRejectsForcedToolUse": ClaudeRejectsForcedToolUse, "ClaudeRejectsSampling": ClaudeRejectsSampling,
 		"ClaudeSupportsThinking": ClaudeSupportsThinking, "ClaudeThinkingAlwaysOn": ClaudeThinkingAlwaysOn,
 		"ClaudeThinkingDefaultsOn": ClaudeThinkingDefaultsOn, "ClaudeTurnsOffBetweenTools": ClaudeTurnsOffBetweenTools,
-		"DashScopeBudgetSharesAnswerLimit": DashScopeBudgetSharesAnswerLimit, "DashScopeTakesNoTopK": DashScopeTakesNoTopK,
+		"DashScopeBudgetSharesAnswerLimit": dashScopeBudgetSharesAnswerLimit, "DashScopeTakesNoTopK": DashScopeTakesNoTopK,
 		"DashScopeTakesThinkingBudget": DashScopeTakesThinkingBudget,
 		"GeminiCanDisable":             GeminiCanDisable, "GeminiSupportsThinking": GeminiSupportsThinking,
 		"GeminiUsesThinkingLevel": GeminiUsesThinkingLevel, "GrokFamily": GrokFamily, "IsReasoningModel": IsReasoningModel,
