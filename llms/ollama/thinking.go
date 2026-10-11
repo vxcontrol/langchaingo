@@ -37,17 +37,24 @@ func (o *LLM) thinkingOf(ctx context.Context, name string) modelThinking {
 	return info
 }
 
-func (o *LLM) thinkingFor(ctx context.Context, name string, opts llms.CallOptions) (modelThinking, error) {
+func (o *LLM) thinkingFor(
+	ctx context.Context, name string, opts llms.CallOptions, warn *llms.Warnings,
+) (modelThinking, error) {
 	mode := opts.Reasoning.ResolveMode()
 	if mode != llms.ReasoningOn && mode != llms.ReasoningOff || opts.Reasoning.DelegatesDepth() {
 		return modelThinking{}, nil
 	}
-	if mode == llms.ReasoningOff && reasoning.ResolveOff(name, reasoning.ProviderOllama) == reasoning.OffUnsupported {
+	tableRefusesOff := mode == llms.ReasoningOff &&
+		reasoning.ResolveOff(name, reasoning.ProviderOllama) == reasoning.OffUnsupported
+	var info modelThinking
+	if _, inherited := reasoning.InheritedModel(name); !tableRefusesOff || inherited {
+		info = o.thinkingOf(ctx, name)
+	}
+	if mode == llms.ReasoningOff && info.descriptor.Valid() && !info.descriptor.Supports(false) {
 		return modelThinking{}, &reasoning.ErrReasoningOffUnsupported{Model: name}
 	}
-
-	info := o.thinkingOf(ctx, name)
-	if mode == llms.ReasoningOff && info.descriptor.Valid() && !info.descriptor.Supports(false) {
+	if tableRefusesOff && !info.descriptor.Valid() &&
+		warn.KeepOffRefusal(name, reasoning.InheritedOffWire(name, reasoning.ProviderOllama)) {
 		return modelThinking{}, &reasoning.ErrReasoningOffUnsupported{Model: name}
 	}
 	return info, nil

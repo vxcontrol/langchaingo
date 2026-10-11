@@ -405,3 +405,26 @@ func TestTurningOffAModelWhoseThinkingIsForcedIsRefusedEvenWhenTheServerCannotSa
 	require.True(t, sent)
 	assert.Equal(t, false, think, "Ollama lists false among kimi-k3's think values")
 }
+
+func TestAnUnlistedVersionOfAForcedThinkerTurnsOffAsTheServerAllows(t *testing.T) {
+	t.Parallel()
+
+	s, llm := newShowServer(t,
+		`{"capabilities":["completion","thinking"],"thinking":{"values":[false,"low","high"],"default":"high"}}`)
+	_, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	require.NoError(t, err, "the server lists false for the model, the release it follows does not decide")
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think)
+
+	s, llm = newShowServer(t, `not json`)
+	resp, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	require.NoError(t, err, "the refusal comes only through the release it follows")
+	think, sent = s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think)
+	warned := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+		return w.Kind == llms.WarningInherit && w.Option == "WithReasoningDisabled" && w.Sent == "off"
+	})
+	assert.True(t, warned, "the caller learns the off follows an inherited refusal, got %+v", resp.Warnings)
+}
