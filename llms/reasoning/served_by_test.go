@@ -89,10 +89,30 @@ func TestDashScopeRoute(t *testing.T) {
 		{"qwen3.8-max", "maas.qwencloudapi.com", "dashscope/qwen3.8-max"},
 		{"qwen_cloud/qwen3.8-max", "litellm.internal", "dashscope/qwen3.8-max"},
 		{"Qwen_Cloud/qwen3.8-max", "litellm.internal", "dashscope/qwen3.8-max"},
-		{"qwen_cloud/qwen3.8-max", "openrouter.ai", "qwen_cloud/qwen3.8-max"},
+		{"qwen_cloud/qwen3.8-max", "openrouter.ai", "qwen3.8-max"},
 	} {
 		if got := DashScopeRoute(tc.model, tc.host); got != tc.want {
 			t.Errorf("DashScopeRoute(%q, %q) = %q, want %q", tc.model, tc.host, got, tc.want)
+		}
+	}
+}
+
+func TestAQwenCloudRouteReadsAsItsModelStudioTwin(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"qwen-plus", "qwen3.8-max", "qwen3.6-flash", "kimi-k2.5", "deepseek-v4.1-flash", "glm-5.2"} {
+		cloud, studio := "qwen_cloud/"+name, "dashscope/"+name
+		if got, want := ResolveOff(cloud, ProviderOpenAI), ResolveOff(studio, ProviderOpenAI); got != want {
+			t.Errorf("ResolveOff(%q) = %v, want %v as %s", cloud, got, want, studio)
+		}
+		if got, want := TakesNoThinkingDepth(cloud), TakesNoThinkingDepth(studio); got != want {
+			t.Errorf("TakesNoThinkingDepth(%q) = %v, want %v as %s", cloud, got, want, studio)
+		}
+		if got, want := ThinkingOptIn(cloud), ThinkingOptIn(studio); got != want {
+			t.Errorf("ThinkingOptIn(%q) = %v, want %v as %s", cloud, got, want, studio)
+		}
+		if got, want := DashScopeTakesNoTopK(cloud), DashScopeTakesNoTopK(studio); got != want {
+			t.Errorf("DashScopeTakesNoTopK(%q) = %v, want %v as %s", cloud, got, want, studio)
 		}
 	}
 }

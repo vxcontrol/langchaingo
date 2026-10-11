@@ -75,7 +75,7 @@ var qwenCloudGuestJSONObject = []string{"kimi-k3", "glm-5.1", "glm-5", "deepseek
 
 func DashScopeTakesNoJSONObject(model, host string) bool {
 	route := DashScopeRoute(model, host)
-	if !strings.HasPrefix(strings.ToLower(route), "dashscope/") {
+	if _, routed := cutDashScopeRoute(route); !routed {
 		return false
 	}
 	if name, ok := dashScopeRouteName(route); ok && strings.HasPrefix(name, "qwen") {
@@ -100,13 +100,21 @@ func QVQStreamsOnly(route string) bool {
 	return ok && strings.HasPrefix(name, "qvq")
 }
 
+func cutDashScopeRoute(model string) (string, bool) {
+	route, name, routed := strings.Cut(model, "/")
+	if !routed || litellmRoutes[strings.ToLower(route)] != VendorDashScope {
+		return model, false
+	}
+	return name, true
+}
+
 func dashScopeRouteName(route string) (string, bool) {
-	name, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
+	name, ok := cutDashScopeRoute(strings.ToLower(route))
 	return name, ok && !strings.Contains(name, "/")
 }
 
 func dashScopeSpelling(model string) string {
-	m := strings.TrimPrefix(strings.ToLower(model), "dashscope/")
+	m, _ := cutDashScopeRoute(strings.ToLower(model))
 	if strings.Contains(m, "/") {
 		return ""
 	}
@@ -149,7 +157,7 @@ var dashScopeDeepSeekBudget = []string{"deepseek-v4-pro", "deepseek-v4-flash", "
 var qwenCloudDeepSeekBudget = []string{"deepseek-v4.1-flash", "deepseek-v4-pro-0813"}
 
 func DashScopeGuestEffort(route, effort string) string {
-	rest, ok := strings.CutPrefix(strings.ToLower(route), "dashscope/")
+	rest, ok := cutDashScopeRoute(strings.ToLower(route))
 	switch {
 	case !ok:
 		return effort
@@ -162,7 +170,7 @@ func DashScopeGuestEffort(route, effort string) string {
 }
 
 func dashScopeGuestRoute(model string) string {
-	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	rest, ok := cutDashScopeRoute(strings.ToLower(model))
 	if !ok {
 		return ""
 	}
@@ -176,7 +184,7 @@ func dashScopeDeepSeekV3(model string) bool {
 }
 
 func dashScopeGuestSpelling(model string) string {
-	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	rest, ok := cutDashScopeRoute(strings.ToLower(model))
 	rest = strings.TrimPrefix(rest, "kimi/")
 	if !ok || strings.Contains(rest, "/") {
 		return ""
@@ -187,27 +195,20 @@ func dashScopeGuestSpelling(model string) string {
 // DashScopeRoute returns the name the rules read for a model sent to host: a
 // name sent to Model Studio's own host reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
-	lower := strings.ToLower(model)
-	routed := strings.HasPrefix(lower, "dashscope/")
-	if ServedBy(model, host) != VendorDashScope {
-		if routed {
-			return model[len("dashscope/"):]
-		}
-		return model
-	}
+	name, routed := cutDashScopeRoute(model)
 	switch {
+	case ServedBy(model, host) == VendorDashScope:
+		return "dashscope/" + name
 	case routed:
-		return model
-	case strings.HasPrefix(lower, "qwen_cloud/"):
-		return "dashscope/" + model[len("qwen_cloud/"):]
+		return name
 	}
-	return "dashscope/" + model
+	return model
 }
 
 // DashScopeTakesNoTopK reports whether DashScope serves the model from a family
 // that takes no top_k.
 func DashScopeTakesNoTopK(model string) bool {
-	rest, ok := strings.CutPrefix(strings.ToLower(model), "dashscope/")
+	rest, ok := cutDashScopeRoute(strings.ToLower(model))
 	name := rest[strings.LastIndex(rest, "/")+1:]
 	return ok && (strings.HasPrefix(name, "deepseek") || strings.HasPrefix(name, "kimi-") ||
 		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-"))

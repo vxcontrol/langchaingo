@@ -328,7 +328,8 @@ func dashScopeName(model string) string {
 	if documented, inherited := InheritedModel(model); inherited {
 		return documented
 	}
-	return strings.TrimPrefix(strings.ToLower(model), "dashscope/")
+	name, _ := cutDashScopeRoute(strings.ToLower(model))
+	return name
 }
 
 func namesGeneration(model, generation string) bool {

@@ -22,15 +22,7 @@ const (
 func callWithoutModel(t *testing.T, baseURL, model string, opts ...llms.CallOption) (map[string]any, error) {
 	t.Helper()
 
-	doer := &bodyDoer{content: `{"a":"x"}`}
-	llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel(model), WithHTTPClient(doer))
-	_, err := llm.GenerateContent(context.Background(),
-		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, opts...)
-	if doer.body == nil {
-		return nil, err
-	}
-	var body map[string]any
-	require.NoError(t, json.Unmarshal(doer.body, &body))
+	body, _, err := callRecording(t, baseURL, model, opts...)
 	delete(body, "model")
 	return body, err
 }
@@ -38,6 +30,7 @@ func callWithoutModel(t *testing.T, baseURL, model string, opts ...llms.CallOpti
 func TestQwenCloudIsSentWhatModelStudioIsSent(t *testing.T) {
 	t.Parallel()
 
+	human := []llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}
 	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
 		Name: "lookup", Parameters: map[string]any{"type": "object"},
 	}}})
@@ -46,62 +39,65 @@ func TestQwenCloudIsSentWhatModelStudioIsSent(t *testing.T) {
 	for name, tc := range map[string]struct {
 		model string
 		opts  []llms.CallOption
-		check func(t *testing.T, body map[string]any, err error)
+		check func(t *testing.T, sent sentCall)
 	}{
 		"a DeepSeek guest switched off": {"deepseek-v4.1-flash", []llms.CallOption{llms.WithReasoningDisabled()},
-			func(t *testing.T, body map[string]any, err error) {
-				require.NoError(t, err)
-				assert.Equal(t, false, body["enable_thinking"])
-				assert.NotContains(t, body, "thinking")
+			func(t *testing.T, sent sentCall) {
+				assert.Equal(t, false, sent.body["enable_thinking"])
+				assert.NotContains(t, sent.body, "thinking")
 			}},
 		"a DeepSeek guest with top_k": {"deepseek-v4.1-flash", []llms.CallOption{llms.WithTopK(40)},
-			func(t *testing.T, body map[string]any, err error) {
-				require.NoError(t, err)
-				assert.NotContains(t, body, "top_k")
+			func(t *testing.T, sent sentCall) {
+				assert.NotContains(t, sent.body, "top_k")
 			}},
 		"Qwen switched on": {"qwen-plus", []llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0)},
-			func(t *testing.T, body map[string]any, err error) {
-				require.NoError(t, err)
-				assert.Equal(t, true, body["enable_thinking"])
+			func(t *testing.T, sent sentCall) {
+				assert.Equal(t, true, sent.body["enable_thinking"])
+			}},
+		"a forced tool on a Qwen that thinks only when asked": {"qwen-plus",
+			[]llms.CallOption{tools, llms.WithToolChoice("required")},
+			func(t *testing.T, sent sentCall) {
+				assert.Empty(t, sent.err)
+				assert.Equal(t, "required", sent.body["tool_choice"])
+			}},
+		"a delegated depth on a Qwen that thinks only when asked": {"qwen-plus",
+			[]llms.CallOption{llms.WithAdaptiveReasoning(llms.ReasoningNone)},
+			func(t *testing.T, sent sentCall) {
+				assert.Empty(t, sent.err)
 			}},
 		"a thinking budget on Qwen 3.8": {"qwen3.8-max",
 			[]llms.CallOption{llms.WithReasoning(llms.ReasoningNone, 1024), llms.WithMaxTokens(8192)},
-			func(t *testing.T, body map[string]any, err error) {
-				require.NoError(t, err)
-				assert.InDelta(t, 1024, body["thinking_budget"], 0)
-				assert.NotContains(t, body, "reasoning_effort")
+			func(t *testing.T, sent sentCall) {
+				assert.InDelta(t, 1024, sent.body["thinking_budget"], 0)
+				assert.NotContains(t, sent.body, "reasoning_effort")
 			}},
 		"a schema on Qwen 3.6": {"qwen3.6-flash", []llms.CallOption{schema},
-			func(t *testing.T, body map[string]any, _ error) {
-				format, _ := body["response_format"].(map[string]any)
+			func(t *testing.T, sent sentCall) {
+				format, _ := sent.body["response_format"].(map[string]any)
 				assert.NotEqual(t, "json_schema", format["type"])
 			}},
 		"a forced tool while Qwen 3.8 thinks": {"qwen3.8-max",
 			[]llms.CallOption{tools, llms.WithToolChoice("required"), llms.WithReasoning(llms.ReasoningHigh, 0)},
-			func(t *testing.T, body map[string]any, err error) {
-				assert.Nil(t, body)
-				require.Error(t, err)
+			func(t *testing.T, sent sentCall) {
+				assert.Nil(t, sent.body)
+				assert.NotEmpty(t, sent.err)
 			}},
 		"JSON mode on a GLM guest": {"glm-5.3", []llms.CallOption{llms.WithJSONMode()},
-			func(t *testing.T, body map[string]any, err error) {
-				require.NoError(t, err)
-				assert.NotContains(t, body, "response_format")
+			func(t *testing.T, sent sentCall) {
+				assert.NotContains(t, sent.body, "response_format")
 			}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			want, wantErr := callWithoutModel(t, modelStudioBaseURL, tc.model, tc.opts...)
-			got, gotErr := callWithoutModel(t, qwenCloudBaseURL, tc.model, tc.opts...)
-			assert.Equal(t, want, got, "the QwenCloud host")
-			assert.IsType(t, wantErr, gotErr, "the QwenCloud host")
-			tc.check(t, got, gotErr)
+			got := sentFor(t, qwenCloudBaseURL, tc.model, human, tc.opts...)
+			assert.Equal(t, sentFor(t, modelStudioBaseURL, tc.model, human, tc.opts...), got, "the QwenCloud host")
+			tc.check(t, got)
 
-			want, wantErr = callWithoutModel(t, privateGatewayBaseURL, "dashscope/"+tc.model, tc.opts...)
-			got, gotErr = callWithoutModel(t, privateGatewayBaseURL, "qwen_cloud/"+tc.model, tc.opts...)
-			assert.Equal(t, want, got, "the qwen_cloud route")
-			assert.IsType(t, wantErr, gotErr, "the qwen_cloud route")
-			tc.check(t, got, gotErr)
+			got = sentFor(t, privateGatewayBaseURL, "qwen_cloud/"+tc.model, human, tc.opts...)
+			assert.Equal(t, sentFor(t, privateGatewayBaseURL, "dashscope/"+tc.model, human, tc.opts...), got,
+				"the qwen_cloud route")
+			tc.check(t, got)
 		})
 	}
 }
