@@ -208,4 +208,50 @@ func TestAnExtraBodyThatSwitchesThinkingOffWinsOverTheDoorsDepth(t *testing.T) {
 			assert.True(t, dropped, "%s: the caller learns the depth went unsent, got %+v", at.baseURL, resp.Warnings)
 		}
 	}
+
+	for _, at := range []struct{ baseURL, model string }{
+		{modelStudioBaseURL, "qwen3-32b"},
+		{modelStudioBaseURL, "qwen3.5-27b"},
+		{qwenCloudBaseURL, "qwen3-32b"},
+		{privateGatewayBaseURL, "qwen_cloud/qwen3-32b"},
+	} {
+		for _, depth := range []llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithReasoning(llms.ReasoningNone, 2048)} {
+			body, resp, err := callRecording(t, at.baseURL, at.model, depth, off)
+			require.NoError(t, err, "%s %s: with thinking off the call needs no stream", at.baseURL, at.model)
+			assert.Equal(t, false, body["enable_thinking"], at.baseURL)
+			assert.NotContains(t, body, "reasoning_effort", at.baseURL)
+			assert.NotContains(t, body, "thinking_budget", at.baseURL)
+			dropped := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+				return w.Kind == llms.WarningDrop && w.Option == "WithReasoning" && w.Reason == "the extra body switches thinking off"
+			})
+			assert.True(t, dropped, "%s %s: got %+v", at.baseURL, at.model, resp.Warnings)
+		}
+	}
+}
+
+func TestAnExtraBodyOffLeavesTheDepthOfAModelThatAlwaysThinks(t *testing.T) {
+	t.Parallel()
+
+	off := llms.WithExtraBody(map[string]any{"enable_thinking": false})
+	for _, at := range []struct{ baseURL, model string }{
+		{modelStudioBaseURL, "glm-5.3"},
+		{modelStudioBaseURL, "ZHIPU/GLM-5.3"},
+		{qwenCloudBaseURL, "glm-5.3"},
+		{privateGatewayBaseURL, "qwen_cloud/glm-5.3"},
+		{modelStudioBaseURL, "kimi-k2.7-code"},
+	} {
+		for _, depth := range []llms.CallOption{llms.WithReasoning(llms.ReasoningLow, 0), llms.WithReasoning(llms.ReasoningNone, 2048)} {
+			asked, _, err := callRecording(t, at.baseURL, at.model, depth)
+			require.NoError(t, err)
+			body, resp, err := callRecording(t, at.baseURL, at.model, depth, off)
+			require.NoError(t, err)
+			assert.Equal(t, false, body["enable_thinking"], "%s %s: the extra body still goes out", at.baseURL, at.model)
+			delete(asked, "enable_thinking")
+			delete(body, "enable_thinking")
+			assert.Equal(t, asked, body, "%s %s: an off the model cannot honour leaves the depth on the wire", at.baseURL, at.model)
+			for _, w := range resp.Warnings {
+				assert.NotEqual(t, "the extra body switches thinking off", w.Reason, "%s %s", at.baseURL, at.model)
+			}
+		}
+	}
 }

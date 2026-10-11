@@ -372,6 +372,7 @@ func (o *LLM) createChatRequest(
 		req.PromptCacheKey = opts.PromptCacheKey
 	}
 
+	opts = o.yieldTheDepthToAnExtraBodyOff(model, opts, warn)
 	if opts.StreamingFunc == nil && reasoning.DashScopeStreamsOnly(model, o.host) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
@@ -413,7 +414,6 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
-	opts = o.yieldTheDepthToAnExtraBodyOff(model, opts, warn)
 	wireEffort, err := o.setReasoning(req, opts, warn, responses, rules)
 	if err != nil {
 		return nil, err
@@ -429,7 +429,8 @@ func (o *LLM) createChatRequest(
 }
 
 func (o *LLM) yieldTheDepthToAnExtraBodyOff(model string, opts llms.CallOptions, warn *llms.Warnings) llms.CallOptions {
-	if opts.Reasoning.ResolveMode() != llms.ReasoningOn || reasoning.ServedBy(model, o.host) != reasoning.VendorDashScope {
+	if opts.Reasoning.ResolveMode() != llms.ReasoningOn || reasoning.ServedBy(model, o.host) != reasoning.VendorDashScope ||
+		!theModelHonoursAnOff(model, reasoning.DashScopeRoute(model, o.host)) {
 		return opts
 	}
 	if _, off := llms.ExtraBodyThinking(model, o.host, llms.ExtraBody(opts)); !off {
@@ -514,8 +515,7 @@ func (o *LLM) thinks(
 	case on:
 		return true
 	case off:
-		_, inherited := reasoning.InheritedModel(model)
-		return !inherited && reasoning.ResolveOff(route, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
+		return !theModelHonoursAnOff(model, route)
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
@@ -530,6 +530,11 @@ func (o *LLM) thinks(
 	}
 	return reasoning.IsReasoningModel(model) && !rules.thinksNever() &&
 		thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+}
+
+func theModelHonoursAnOff(model, route string) bool {
+	_, inherited := reasoning.InheritedModel(model)
+	return inherited || reasoning.ResolveOff(route, reasoning.ProviderOpenAI) != reasoning.OffUnsupported
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
