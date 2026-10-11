@@ -227,6 +227,16 @@ func TestAnExtraBodyThatSwitchesThinkingOffWinsOverTheDoorsDepth(t *testing.T) {
 			assert.True(t, dropped, "%s %s: got %+v", at.baseURL, at.model, resp.Warnings)
 		}
 	}
+
+	for _, baseURL := range []string{modelStudioBaseURL, qwenCloudBaseURL} {
+		body, resp, err := callRecording(t, baseURL, "glm-6", llms.WithReasoning(llms.ReasoningLow, 0), off)
+		require.NoError(t, err)
+		assert.NotContains(t, body, "reasoning_effort", "%s: a name that only inherits a thinking-only release honours the off", baseURL)
+		dropped := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+			return w.Kind == llms.WarningDrop && w.Reason == "the extra body switches thinking off"
+		})
+		assert.True(t, dropped, "%s: got %+v", baseURL, resp.Warnings)
+	}
 }
 
 func TestAnExtraBodyOffLeavesTheDepthOfAModelThatAlwaysThinks(t *testing.T) {
