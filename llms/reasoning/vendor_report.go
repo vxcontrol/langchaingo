@@ -39,3 +39,30 @@ func GeminiDocumented(model string) bool {
 	}
 	return GeminiSupportsThinking(model) || geminiKnownNonThinking(model) || geminiNonChatSurface(baseModelName(model))
 }
+
+// HostVendor reports the vendor that owns host, leaving out the LiteLLM route
+// prefixes ServedBy reads off other hosts.
+func HostVendor(host string) Vendor {
+	return vendorOfHost(host)
+}
+
+// DocumentedOn reports whether the tables answer for model on vendor's own API,
+// so that what the API reports about the model does not decide.
+func DocumentedOn(model string, vendor Vendor) bool {
+	if _, inherited := InheritedModel(model); inherited {
+		return false
+	}
+	switch vendor { //nolint:exhaustive // only these vendors report a model by API
+	case VendorXAI:
+		return listedRelease(model) || OpenAIReasoningCapsFor(model).Known || !AcceptsEffortWire(model)
+	case VendorMoonshot:
+		return listedRelease(model)
+	case VendorMistral:
+		for _, form := range modelSpellings(model) {
+			if mistralWithoutReasoning(form) {
+				return false
+			}
+		}
+	}
+	return true
+}

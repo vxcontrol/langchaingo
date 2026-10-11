@@ -108,7 +108,7 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 	case nonOpenAILowHighMax(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "high", "max"}}
 	case mistralReasons(m):
-		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"high"}}
+		return MistralReasoningCaps()
 	default:
 		return OpenAIReasoningCaps{Known: false}
 	}
@@ -219,4 +219,17 @@ func (e *ErrChatToolsUnsupported) Error() string {
 		"model %q carries function tools on chat completions, where the vendor does not serve them; "+
 			"the responses API is the only door for tools on this model",
 		e.Model)
+}
+
+// ReportedCaps is the effort set a vendor's model API reports for a model, ordered
+// for ClampEffort; "none" is the disable token, not an effort.
+func ReportedCaps(efforts []string, canDisable bool) OpenAIReasoningCaps {
+	levels := slices.DeleteFunc(slices.Clone(efforts), func(level string) bool { return level == OpenAIDisableEffort })
+	slices.SortStableFunc(levels, func(a, b string) int { return openAIEffortRank[a] - openAIEffortRank[b] })
+	return OpenAIReasoningCaps{Known: true, CanDisable: canDisable, Efforts: levels}
+}
+
+// MistralReasoningCaps is what Mistral's own API takes from a model that reasons.
+func MistralReasoningCaps() OpenAIReasoningCaps {
+	return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"high"}}
 }
