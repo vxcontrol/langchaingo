@@ -182,7 +182,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	}
 
 	reportOllamaOptions(warn, model, opts)
-	thinking, err := o.thinkingFor(ctx, model, opts)
+	thinking, err := o.thinkingFor(ctx, model, opts, warn)
 	if err != nil {
 		return nil, err
 	}

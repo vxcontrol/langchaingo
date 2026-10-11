@@ -529,6 +529,12 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host strin
 		addNonZeroIntChange(warn, "WithTopK", model, "the vendor's API has no top_k field", req.TopK, nil)
 		req.TopK = nil
 	}
+	if reasoning.ServedByDeepSeek(model, host) && req.N != nil {
+		if *req.N > 1 {
+			warn.AddIntChange("WithN", model, "the vendor's API has no n field", req.N, nil)
+		}
+		req.N = nil
+	}
 	if reasoning.RejectsRepetitionPenalty(model) && req.RepetitionPenalty != nil {
 		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
 		req.RepetitionPenalty = nil

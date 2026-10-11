@@ -372,3 +372,74 @@ func TestAShowCutByTheContextStopsTheCallBeforeTheChat(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Zero(t, chats.Load())
 }
+
+func TestAnOllamaGemmaTagIsAListedReleaseNotAnInheritedOne(t *testing.T) {
+	t.Parallel()
+
+	_, llm := newShowServer(t, `{"capabilities":["completion","thinking"],"thinking":{"values":[false,true],"default":false}}`)
+	for _, model := range []string{"gemma4:31b", "gemma4", "gemma3:27b"} {
+		resp, err := ask(t, llm, llms.WithModel(model))
+		require.NoError(t, err)
+		for _, w := range resp.Warnings {
+			assert.NotEqual(t, llms.WarningInherit, w.Kind, "%s: %+v", model, w)
+		}
+	}
+}
+
+func TestTurningOffAModelWhoseThinkingIsForcedIsRefusedEvenWhenTheServerCannotSay(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5.3", "glm-5.3-flash", "minimax-m2.7"} {
+		s, llm := newShowServer(t, `not json`)
+		_, err := ask(t, llm, llms.WithModel(model), llms.WithReasoningDisabled())
+
+		var refused *reasoning.ErrReasoningOffUnsupported
+		require.ErrorAs(t, err, &refused, model)
+		assert.Zero(t, s.chats.Load(), "%s: false would leave the thinking in the answer text", model)
+	}
+
+	s, llm := newShowServer(t, `not json`)
+	_, err := ask(t, llm, llms.WithModel("kimi-k3"), llms.WithReasoningDisabled())
+	require.NoError(t, err)
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think, "Ollama lists false among kimi-k3's think values")
+}
+
+func TestAnUnlistedVersionOfAForcedThinkerTurnsOffAsTheServerAllows(t *testing.T) {
+	t.Parallel()
+
+	refusesOffByInheritance := func(w llms.Warning) bool {
+		return w.Kind == llms.WarningInherit && w.Option == "WithReasoningDisabled"
+	}
+
+	s, llm := newShowServer(t,
+		`{"capabilities":["completion","thinking"],"thinking":{"values":[false,"low","high"],"default":"high"}}`)
+	resp, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	require.NoError(t, err, "the server lists false for the model, the release it follows does not decide")
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think)
+	assert.Equal(t, int32(1), s.shows.Load(), "the server is asked about an inherited name")
+	assert.False(t, slices.ContainsFunc(resp.Warnings, refusesOffByInheritance),
+		"the server's think values decided, got %+v", resp.Warnings)
+
+	s, llm = newShowServer(t,
+		`{"capabilities":["completion","thinking"],"thinking":{"values":["low","high","max"],"default":"max"}}`)
+	_, err = ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	var refused *reasoning.ErrReasoningOffUnsupported
+	require.ErrorAs(t, err, &refused, "the server lists no false for the model")
+	assert.Equal(t, int32(1), s.shows.Load())
+	assert.Zero(t, s.chats.Load())
+
+	s, llm = newShowServer(t, `not json`)
+	resp, err = ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	require.NoError(t, err, "the refusal comes only through the release it follows")
+	think, sent = s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think)
+	warned := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+		return refusesOffByInheritance(w) && w.Sent == "off"
+	})
+	assert.True(t, warned, "the caller learns the off follows an inherited refusal, got %+v", resp.Warnings)
+}

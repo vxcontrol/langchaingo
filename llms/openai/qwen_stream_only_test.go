@@ -152,3 +152,42 @@ func TestQwenCommercialHybridStaysQuietOtherwise(t *testing.T) {
 		}
 	}
 }
+
+func TestQwen35OpenWeightsThinkOnlyOnAStream(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"qwen3.5-122b-a10b", "qwen3.5-27b", "qwen3.5-35b-a3b", "qwen3.5-397b-a17b"} {
+		body, err := captureQwenRequest(t, "dashscope/"+model)
+		if err != nil {
+			t.Fatalf("%s: generate: %v", model, err)
+		}
+		if got, ok := body["enable_thinking"]; !ok || got != false {
+			t.Errorf("%s: a non-streaming call must carry enable_thinking=false, got %v (present=%v)", model, got, ok)
+		}
+
+		_, err = captureQwenRequest(t, "dashscope/"+model, llms.WithReasoning(llms.ReasoningHigh, 0))
+		var streamOnly *reasoning.ErrThinkingRequiresStream
+		if !errors.As(err, &streamOnly) {
+			t.Errorf("%s: thinking without a stream must be refused before the call, got %v", model, err)
+		}
+
+		body, err = captureQwenRequest(t, "dashscope/"+model,
+			llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
+		if err != nil {
+			t.Fatalf("%s: generate: %v", model, err)
+		}
+		if got, ok := body["enable_thinking"]; ok {
+			t.Errorf("%s: a streaming call must not pin thinking, got enable_thinking=%v", model, got)
+		}
+	}
+
+	for _, model := range []string{"qwen3.6-27b", "qwen3.8-27b"} {
+		body, err := captureQwenRequest(t, "dashscope/"+model)
+		if err != nil {
+			t.Fatalf("%s: generate: %v", model, err)
+		}
+		if got, ok := body["enable_thinking"]; ok {
+			t.Errorf("%s: Model Studio names no stream rule for it, got enable_thinking=%v", model, got)
+		}
+	}
+}

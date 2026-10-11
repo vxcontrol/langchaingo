@@ -850,3 +850,52 @@ func TestTheAstraHintOffersTheLevelsItsCardListsAndNoDisable(t *testing.T) {
 		})
 	}
 }
+
+func TestTheOllamaHintReadsGemmaByOllamasLibraryName(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"gemma4", "gemma4:31b", "gemma4:e4b"} {
+		s := ReasoningSupportFor(model, reasoning.ProviderOllama)
+		if !s.Supported || s.CannotDisable {
+			t.Errorf("%s = %+v: Ollama lists thinking for gemma4 with think values false and true", model, s)
+		}
+		if !reasoning.IsReasoningModel(model) {
+			t.Errorf("%s: a consumer without the server's capabilities reads the model as not thinking", model)
+		}
+		if s.Inherited != "" {
+			t.Errorf("%s: Gemma 4 is a listed release, yet the hint says it follows %s", model, s.Inherited)
+		}
+	}
+
+	for _, model := range []string{"gemma3:27b", "gemma3n:e4b"} {
+		if reasoning.IsReasoningModel(model) {
+			t.Errorf("%s: Gemma 3 does not think, as gemma-3-27b-it does not", model)
+		}
+		if inherited := ReasoningSupportFor(model, reasoning.ProviderOllama).Inherited; inherited != "" {
+			t.Errorf("%s: a listed release, yet the hint says it follows %s", model, inherited)
+		}
+	}
+
+	if got := ReasoningSupportFor("gemma5:31b", reasoning.ProviderOllama).Inherited; got != "gemma-4-26b-a4b-it" {
+		t.Errorf("gemma5:31b follows %q, want the newest listed Gemma", got)
+	}
+}
+
+func TestTheOllamaHintHidesOffWhereTheVendorAndOllamaForceThinking(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5.3", "glm-5.3-flash", "glm-5.3:cloud", "minimax-m2.7"} {
+		if got := reasoning.ResolveOff(model, reasoning.ProviderOllama); got != reasoning.OffUnsupported {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v: a consumer offers an off the ollama door refuses", model, got)
+		}
+		if !ReasoningSupportFor(model, reasoning.ProviderOllama).CannotDisable {
+			t.Errorf("%s: the hint offers an off the ollama door refuses", model)
+		}
+	}
+
+	for _, model := range []string{"kimi-k3", "kimi-k2.7-code"} {
+		if got := reasoning.ResolveOff(model, reasoning.ProviderOllama); got != reasoning.OffDisableThinkBool {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v: Ollama lists false among its think values", model, got)
+		}
+	}
+}

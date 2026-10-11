@@ -88,7 +88,7 @@ func ResolveOff(model string, p Provider) OffWire {
 
 	switch p {
 	case ProviderOllama:
-		if IsGptOssModel(model) {
+		if IsGptOssModel(model) || ollamaThinksAlways(model) {
 			return OffUnsupported
 		}
 		return OffDisableThinkBool
@@ -205,6 +205,15 @@ func openAIOffWire(model string) OffWire {
 		return OffUnsupported
 	}
 	return OffEffortNone
+}
+
+func ollamaThinksAlways(model string) bool {
+	for _, form := range modelSpellings(model) {
+		if strings.HasPrefix(form, "glm-5.3") || strings.HasPrefix(form, "minimax-m2.7") {
+			return true
+		}
+	}
+	return false
 }
 
 // OllamaEffortsFor returns the think levels a model takes on the ollama door; nil
