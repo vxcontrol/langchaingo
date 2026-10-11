@@ -309,7 +309,7 @@ const dashScopeKeepingSeries = "qwen3.8-max"
 
 func dashScopeReplay(t ReplayTarget) Replay {
 	keeps := false
-	switch name := dashScopeName(t.Model); {
+	switch name := dashScopeName(DashScopeRoute(t.Model, t.Host)); {
 	case slices.Contains(dashScopeKeepsWhenAsked, name):
 		keeps = t.KeepsPastReasoning
 	case slices.Contains(dashScopeKeepsByDefault, name), strings.HasPrefix(name, dashScopeKeepingSeries):
@@ -328,7 +328,8 @@ func dashScopeName(model string) string {
 	if documented, inherited := InheritedModel(model); inherited {
 		return documented
 	}
-	return strings.TrimPrefix(strings.ToLower(model), "dashscope/")
+	name, _ := cutDashScopeRoute(strings.ToLower(model))
+	return name
 }
 
 func namesGeneration(model, generation string) bool {

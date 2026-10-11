@@ -372,11 +372,13 @@ func (o *LLM) createChatRequest(
 		req.PromptCacheKey = opts.PromptCacheKey
 	}
 
-	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
+	opts = o.yieldTheDepthToAnExtraBodyOff(model, opts, warn)
+	if opts.StreamingFunc == nil && reasoning.DashScopeStreamsOnly(model, o.host) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
 	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
-	if dashScope && reasoning.QwenThinkingRequiresStream(model) && opts.StreamingFunc == nil {
+	route := reasoning.DashScopeRoute(model, o.host)
+	if reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
 		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
@@ -384,8 +386,7 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOff
 	}
 
-	if (dashScope && reasoning.QwenThinkingEnabledByFlag(model) ||
-		reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host))) &&
+	if (dashScope && reasoning.QwenThinkingEnabledByFlag(route) || reasoning.DashScopeGuestThinkingEnabledByFlag(route)) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
 		req.EnableThinking = &thinkingOn
@@ -425,6 +426,26 @@ func (o *LLM) createChatRequest(
 	o.placeCacheLayout(req, opts.CacheLayout, model, warn)
 
 	return req, nil
+}
+
+func (o *LLM) yieldTheDepthToAnExtraBodyOff(model string, opts llms.CallOptions, warn *llms.Warnings) llms.CallOptions {
+	if opts.Reasoning.ResolveMode() != llms.ReasoningOn || reasoning.ServedBy(model, o.host) != reasoning.VendorDashScope ||
+		!theModelHonoursAnOff(model, reasoning.DashScopeRoute(model, o.host)) {
+		return opts
+	}
+	if _, off := llms.ExtraBodyThinking(model, o.host, llms.ExtraBody(opts)); !off {
+		return opts
+	}
+	asked := string(opts.Reasoning.Effort)
+	if asked == "" || asked == string(llms.ReasoningNone) {
+		asked = strconv.Itoa(opts.Reasoning.Tokens) + " tokens"
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+		Asked: asked, Reason: "the extra body switches thinking off",
+	})
+	opts.Reasoning = nil
+	return opts
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
@@ -494,8 +515,7 @@ func (o *LLM) thinks(
 	case on:
 		return true
 	case off:
-		_, inherited := reasoning.InheritedModel(model)
-		return !inherited && reasoning.ResolveOff(route, reasoning.ProviderOpenAI) == reasoning.OffUnsupported
+		return !theModelHonoursAnOff(model, route)
 	}
 	if req.EnableThinking != nil {
 		return *req.EnableThinking
@@ -510,6 +530,11 @@ func (o *LLM) thinks(
 	}
 	return reasoning.IsReasoningModel(model) && !rules.thinksNever() &&
 		thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+}
+
+func theModelHonoursAnOff(model, route string) bool {
+	_, inherited := reasoning.InheritedModel(model)
+	return inherited || reasoning.ResolveOff(route, reasoning.ProviderOpenAI) != reasoning.OffUnsupported
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -686,11 +711,11 @@ func (o *LLM) writeVendorBudget(req *openaiclient.ChatRequest, opts llms.CallOpt
 	if !opts.Reasoning.HasExplicitTokens() || tokens <= 0 {
 		return false
 	}
-	route := reasoning.DashScopeRoute(wc.model, o.host)
+	takesBudget, sharesAnswerLimit := reasoning.DashScopeThinkingBudget(wc.model, o.host)
 	switch {
-	case reasoning.ServedBy(wc.model, o.host) == reasoning.VendorDashScope && reasoning.DashScopeTakesThinkingBudget(route):
+	case takesBudget:
 		budget := min(opts.Reasoning.Tokens, llms.MaxReasoningTokens)
-		if reasoning.DashScopeBudgetSharesAnswerLimit(route) && opts.GetMaxTokens() > 0 {
+		if sharesAnswerLimit && opts.GetMaxTokens() > 0 {
 			budget = tokens
 		}
 		req.ThinkingBudget = &budget

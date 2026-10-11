@@ -24,13 +24,17 @@ func TestDashScopeGuestsAreSentTheEffortsModelStudioTakes(t *testing.T) {
 		{"deepseek-v4.1-flash", llms.ReasoningMinimal, "low"},
 		{"deepseek-v4-pro", llms.ReasoningHigh, "high"},
 		{"kimi-k3", llms.ReasoningLow, "low"},
+		{"glm-5.1", llms.ReasoningMax, "xhigh"},
+		{"glm-5.1", llms.ReasoningXHigh, "xhigh"},
 	} {
-		body, warnings := hostCall(t, dashScope, tc.model, llms.WithReasoning(tc.asked, 0))
-		assert.Equal(t, tc.sent, body["reasoning_effort"], "%s %s", tc.model, tc.asked)
-		if string(tc.asked) != tc.sent {
-			assert.Contains(t, warnings, "WithReasoning", "%s %s", tc.model, tc.asked)
-		} else {
-			assert.NotContains(t, warnings, "WithReasoning", "%s %s", tc.model, tc.asked)
+		for _, baseURL := range []string{dashScope, "https://maas.qwencloudapi.com/compatible-mode/v1"} {
+			body, warnings := hostCall(t, baseURL, tc.model, llms.WithReasoning(tc.asked, 0))
+			assert.Equal(t, tc.sent, body["reasoning_effort"], "%s %s %s", baseURL, tc.model, tc.asked)
+			if string(tc.asked) != tc.sent {
+				assert.Contains(t, warnings, "WithReasoning", "%s %s %s", baseURL, tc.model, tc.asked)
+			} else {
+				assert.NotContains(t, warnings, "WithReasoning", "%s %s %s", baseURL, tc.model, tc.asked)
+			}
 		}
 	}
 

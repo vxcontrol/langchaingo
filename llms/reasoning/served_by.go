@@ -35,19 +35,21 @@ var vendorHosts = map[string]Vendor{
 	"dashscope-intl.aliyuncs.com":        VendorDashScope,
 	"dashscope-us.aliyuncs.com":          VendorDashScope,
 	"cn-hongkong.dashscope.aliyuncs.com": VendorDashScope,
+	"maas.qwencloudapi.com":              VendorDashScope,
 	"api.minimax.io":                     VendorMiniMax,
 	"api.minimax.cn":                     VendorMiniMax,
 	"api.minimaxi.com":                   VendorMiniMax,
 }
 
 var litellmRoutes = map[string]Vendor{
-	"deepseek":  VendorDeepSeek,
-	"zai":       VendorZAI,
-	"moonshot":  VendorMoonshot,
-	"xai":       VendorXAI,
-	"mistral":   VendorMistral,
-	"dashscope": VendorDashScope,
-	"minimax":   VendorMiniMax,
+	"deepseek":   VendorDeepSeek,
+	"zai":        VendorZAI,
+	"moonshot":   VendorMoonshot,
+	"xai":        VendorXAI,
+	"mistral":    VendorMistral,
+	"dashscope":  VendorDashScope,
+	"qwen_cloud": VendorDashScope,
+	"minimax":    VendorMiniMax,
 }
 
 // ServedBy reports the vendor whose own API serves model on host: the owner of
@@ -115,6 +117,7 @@ var publicProviderBaseURLs = []string{
 	"https://dashscope-us.aliyuncs.com/compatible-mode/v1",
 	"https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 	"https://dashscope.aliyuncs.com/compatible-mode/v1",
+	"https://maas.qwencloudapi.com/compatible-mode/v1",
 	"https://api.minimax.io/v1",
 	"https://api.minimax.cn/v1",
 	"https://integrate.api.nvidia.com/v1",
