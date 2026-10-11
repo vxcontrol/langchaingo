@@ -999,7 +999,11 @@ func modelStudioThinkingSwitch(route string, values map[string]any) (on, off boo
 		enabled, set := values["enable_thinking"].(bool)
 		return set && enabled, set && !enabled
 	case reasoning.OffEffortNone:
-		return effortSwitch(values["reasoning_effort"])
+		on, off = effortSwitch(values["reasoning_effort"])
+		if enabled, set := values["enable_thinking"].(bool); set {
+			on, off = on || enabled, off || !enabled
+		}
+		return on, off
 	case reasoning.OffDisableThinkingObject:
 		return thinkingObjectSwitch(values["thinking"])
 	}
