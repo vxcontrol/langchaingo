@@ -974,9 +974,9 @@ func ExtraBodyTools(extra map[string]any) int {
 }
 
 // ExtraBodyThinking reports whether an extra body switches thinking on or off
-// for model on host. On OpenAI, DeepSeek and Model Studio it reads only the keys
-// their chat APIs take; on any other host, an empty one included, it reads every
-// key it knows.
+// for model on host. On OpenAI, DeepSeek and DashScope (Model Studio and
+// QwenCloud) it reads only the keys their chat APIs take; on any other host, an
+// empty one included, it reads every key it knows.
 func ExtraBodyThinking(model, host string, extra map[string]any) (on, off bool) {
 	values := jsonValues(extra)
 	if reasoning.OpenAIHost(host) {

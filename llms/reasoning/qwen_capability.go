@@ -23,7 +23,7 @@ func QwenThinkingOffByFlag(model string) bool {
 	return qwenDefaultThinkingName.MatchString(dashScopeSpelling(model))
 }
 
-// QwenThinkingRequiresStream reports whether DashScope serves the model's
+// QwenThinkingRequiresStream reports whether Model Studio serves the model's
 // thinking only on a streaming call.
 func QwenThinkingRequiresStream(model string) bool {
 	return qwenStreamOnlyThinkingName.MatchString(dashScopeSpelling(model))
@@ -203,7 +203,8 @@ func dashScopeGuestSpelling(model string) string {
 }
 
 // DashScopeRoute returns the name the rules read for a model sent to host: a
-// name sent to Model Studio's own host reads as its dashscope/ route.
+// name sent to a DashScope host or through a LiteLLM route to one (Model Studio
+// or QwenCloud) reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
 	name, routed := cutDashScopeRoute(model)
 	switch {
@@ -224,7 +225,7 @@ func DashScopeTakesNoTopK(model string) bool {
 		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-"))
 }
 
-// DashScopeTakesThinkingBudget reports whether DashScope caps the model's
+// DashScopeTakesThinkingBudget reports whether Model Studio caps the model's
 // thinking by a token budget.
 func DashScopeTakesThinkingBudget(model string) bool {
 	if guest := dashScopeGuestSpelling(model); guest != "" {
