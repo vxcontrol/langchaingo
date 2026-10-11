@@ -961,7 +961,7 @@ func TestOpenAI_ImplicitCaching_Conversation_Streaming_Reasoning(t *testing.T) {
 // already covered by the shared test matrix in multicontent_test.go:
 //
 //  1. REASONING IS ALWAYS ON:
-//     - grok-4.5 / grok-4.3 always reason; reasoning_effort defaults to "high"
+//     - grok-4.5 always reasons; reasoning_effort defaults to "high"
 //       when omitted and cannot be disabled.
 //     - reasoning_effort accepts "low" / "medium" / "high" and is sent as a
 //       top-level field (this library's legacy, non-modern reasoning format),

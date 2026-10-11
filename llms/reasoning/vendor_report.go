@@ -52,7 +52,7 @@ func DocumentedOn(model string, vendor Vendor) bool {
 	_, inherited := InheritedModel(model)
 	switch vendor {
 	case VendorXAI:
-		return !inherited && (listedRelease(model) || OpenAIReasoningCapsFor(model).Known || !AcceptsEffortWire(model))
+		return !inherited && (OpenAIReasoningCapsFor(model).Known || !AcceptsEffortWire(model))
 	case VendorMoonshot:
 		return !inherited && (listedRelease(model) || IsReasoningModel(model))
 	case VendorMistral:

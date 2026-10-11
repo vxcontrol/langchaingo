@@ -106,7 +106,7 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 	case hasGeneration(m, "grok-4.5"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high"}}
 	case hasGeneration(m, "grok-4.3"):
-		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
+		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
 	case nonOpenAILowHighMax(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "high", "max"}}
 	case mistralReasons(m):

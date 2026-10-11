@@ -173,7 +173,6 @@ func TestXAIIsNotAskedWhereTheTablesDecide(t *testing.T) {
 		call           []llms.CallOption
 	}{
 		"a documented release":         {xaiHostURL, "grok-4.7", nil, []llms.CallOption{high}},
-		"a release without effort row": {xaiHostURL, "grok-4.3", nil, []llms.CallOption{high}},
 		"a model without effort":       {xaiHostURL, "grok-4.20-0309-reasoning", nil, []llms.CallOption{high}},
 		"a gateway route":              {gatewayBaseURL, "xai/grok-4.8", nil, []llms.CallOption{high}},
 		"the lookup switched off":      {xaiHostURL, "grok-4.8", []Option{WithoutModelLookup()}, []llms.CallOption{high}},

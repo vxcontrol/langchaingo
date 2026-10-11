@@ -41,7 +41,7 @@ func TestGrokIsSentOnlyTheEffortsXAIDocuments(t *testing.T) {
 		{"https://api.x.ai/v1", "grok-4.3"}, {"http://litellm.internal/v1", "xai/grok-4.3"},
 	} {
 		for asked, sent := range map[llms.ReasoningEffort]string{
-			llms.ReasoningMax: "xhigh", llms.ReasoningXHigh: "xhigh", llms.ReasoningMinimal: "low", llms.ReasoningLow: "low",
+			llms.ReasoningMax: "high", llms.ReasoningXHigh: "high", llms.ReasoningMinimal: "low", llms.ReasoningLow: "low",
 		} {
 			body, warnings := hostCall(t, tc.baseURL, tc.model, llms.WithReasoning(asked, 0))
 			assert.Equal(t, sent, body["reasoning_effort"], "%s %s", tc.model, asked)
