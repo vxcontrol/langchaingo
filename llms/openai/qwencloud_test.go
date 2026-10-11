@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -178,4 +179,31 @@ func TestQwenCloudGuestsGetWhatQwenCloudDocumentsForThem(t *testing.T) {
 	body, err = callWithoutModel(t, modelStudioBaseURL, "glm-5.3", llms.WithMaxTokens(1000))
 	require.NoError(t, err)
 	assert.InDelta(t, 1000, body["max_completion_tokens"], 0, "Model Studio lists max_completion_tokens for GLM")
+}
+
+func TestAnExtraBodyThatSwitchesThinkingOffWinsOverTheDoorsDepth(t *testing.T) {
+	t.Parallel()
+
+	off := llms.WithExtraBody(map[string]any{"enable_thinking": false})
+	tools := llms.WithTools([]llms.Tool{{Type: "function", Function: &llms.FunctionDefinition{
+		Name: "lookup", Parameters: map[string]any{"type": "object"},
+	}}})
+	for _, at := range []struct{ baseURL, model string }{
+		{modelStudioBaseURL, "qwen3.8-max"},
+		{qwenCloudBaseURL, "qwen3.8-max"},
+		{privateGatewayBaseURL, "qwen_cloud/qwen3.8-max"},
+	} {
+		for _, depth := range []llms.CallOption{llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithReasoning(llms.ReasoningNone, 2048)} {
+			body, resp, err := callRecording(t, at.baseURL, at.model, depth, off, tools, llms.WithToolChoice("required"))
+			require.NoError(t, err, "%s: the vendor rejects a depth with enable_thinking false, the door must not send both", at.baseURL)
+			assert.Equal(t, false, body["enable_thinking"], at.baseURL)
+			assert.NotContains(t, body, "reasoning_effort", at.baseURL)
+			assert.NotContains(t, body, "thinking_budget", at.baseURL)
+			assert.Equal(t, "required", body["tool_choice"], at.baseURL)
+			dropped := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
+				return w.Kind == llms.WarningDrop && w.Option == "WithReasoning" && w.Reason == "the extra body switches thinking off"
+			})
+			assert.True(t, dropped, "%s: the caller learns the depth went unsent, got %+v", at.baseURL, resp.Warnings)
+		}
+	}
 }

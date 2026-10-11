@@ -413,6 +413,7 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
+	opts = o.yieldTheDepthToAnExtraBodyOff(model, opts, warn)
 	wireEffort, err := o.setReasoning(req, opts, warn, responses, rules)
 	if err != nil {
 		return nil, err
@@ -425,6 +426,25 @@ func (o *LLM) createChatRequest(
 	o.placeCacheLayout(req, opts.CacheLayout, model, warn)
 
 	return req, nil
+}
+
+func (o *LLM) yieldTheDepthToAnExtraBodyOff(model string, opts llms.CallOptions, warn *llms.Warnings) llms.CallOptions {
+	if opts.Reasoning.ResolveMode() != llms.ReasoningOn || reasoning.ServedBy(model, o.host) != reasoning.VendorDashScope {
+		return opts
+	}
+	if _, off := llms.ExtraBodyThinking(model, o.host, llms.ExtraBody(opts)); !off {
+		return opts
+	}
+	asked := string(opts.Reasoning.Effort)
+	if asked == "" || asked == string(llms.ReasoningNone) {
+		asked = strconv.Itoa(opts.Reasoning.Tokens) + " tokens"
+	}
+	warn.Add(llms.Warning{
+		Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+		Asked: asked, Reason: "the extra body switches thinking off",
+	})
+	opts.Reasoning = nil
+	return opts
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
