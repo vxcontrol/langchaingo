@@ -125,7 +125,7 @@ func (g *GoogleAI) GenerateContent(
 		return nil, err
 	}
 	warn := &llms.Warnings{}
-	warn.AddInherited(opts.GetModel())
+	rules := &geminiRules{model: opts.GetModel(), lookup: func() geminiReport { return g.geminiReport(ctx, opts.GetModel()) }}
 	toolsSent, err := warn.ToolsWithAFunction(opts.GetModel(), opts.Tools)
 	if err != nil {
 		return nil, err
@@ -153,6 +153,16 @@ func (g *GoogleAI) GenerateContent(
 
 	// Handle thinking configuration for reasoning models
 	tc, err := resolveThinkingConfig(opts.GetModel(), opts.Reasoning, opts.GetMaxTokens())
+	if (tc != nil || err != nil) && rules.thinksNever() {
+		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithReasoning", Model: opts.GetModel(),
+				Asked:  string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
+				Reason: "the API reports that the model does not think",
+			})
+		}
+		tc, err = nil, nil
+	}
 	var refusal *reasoning.ErrReasoningOffUnsupported
 	if errors.As(err, &refusal) {
 		off := reasoning.InheritedOffWire(opts.GetModel(), reasoning.ProviderGoogleAI)
@@ -202,8 +212,10 @@ func (g *GoogleAI) GenerateContent(
 	}
 
 	reportGoogleAIOptions(warn, opts.GetModel(), opts, tc)
+	rules.fitSampling(warn, opts, config)
 	dropWhatTheModelDoesNotTake(warn, opts.GetModel(), opts, config,
 		g.client.ClientConfig().Backend == genai.BackendVertexAI)
+	rules.addInherited(warn)
 
 	var response *llms.ContentResponse
 

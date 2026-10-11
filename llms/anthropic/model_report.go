@@ -60,18 +60,11 @@ func (c *claudeRules) report() reasoning.ClaudeReport {
 }
 
 func (c *claudeRules) addInherited(warn *llms.Warnings) {
-	documented, inherited := reasoning.InheritedModel(c.model)
-	switch {
-	case !inherited:
-	case c.asked == nil || !c.asked.Reported:
-		warn.AddInherited(c.model)
-	default:
-		warn.Add(llms.Warning{
-			Kind: llms.WarningInherit, Option: "WithModel", Model: c.model, Asked: c.model, Sent: c.model,
-			Reason: "the tables do not list this version, so the door applies what the API reports about the model " +
-				"and the rules of " + documented + " for the rest",
-		})
+	if c.asked != nil && c.asked.Reported {
+		warn.AddInheritedReported(c.model)
+		return
 	}
+	warn.AddInherited(c.model)
 }
 
 func (c *claudeRules) thinks() bool {

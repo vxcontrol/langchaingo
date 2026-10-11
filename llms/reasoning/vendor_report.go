@@ -32,3 +32,10 @@ func ClaudeDocumented(model string) bool {
 	}
 	return ClaudeReasoningKindFor(model) != ClaudeReasoningUnknown || ClaudePredatesAdaptive(model)
 }
+
+func GeminiDocumented(model string) bool {
+	if _, inherited := InheritedModel(model); inherited {
+		return false
+	}
+	return GeminiSupportsThinking(model) || geminiKnownNonThinking(model) || geminiNonChatSurface(baseModelName(model))
+}

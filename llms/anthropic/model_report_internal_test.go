@@ -15,15 +15,15 @@ import (
 )
 
 func TestTheReportIsReadFromTheVendorsModelAnswer(t *testing.T) {
-	t.Parallel()
-
 	httprr.SkipIfNoCredentialsAndRecordingMissing(t, tokenEnvVarName)
 	var transport http.RoundTripper = httputil.DefaultTransport
 	if base := os.Getenv("ANTHROPIC_BASE_URL"); base != "" {
 		transport = &httputil.ApiKeyTransport{Transport: transport, BaseURL: base}
 	}
 	rr := httprr.OpenForTest(t, transport)
-	t.Cleanup(func() { rr.Close() })
+	if rr.Replaying() {
+		t.Parallel()
+	}
 
 	token := "test-api-key"
 	if !rr.Replaying() {

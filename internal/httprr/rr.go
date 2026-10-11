@@ -345,6 +345,9 @@ func JsonCompactScrubBody(req *http.Request) error {
 	}
 
 	if body, ok := req.Body.(*Body); ok && body != nil {
+		if len(body.Data) == 0 {
+			return nil
+		}
 		err := json.Compact(&buf, body.Data)
 		if err != nil {
 			return err
@@ -354,6 +357,10 @@ func JsonCompactScrubBody(req *http.Request) error {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			return err
+		}
+		if len(body) == 0 {
+			req.Body = &Body{}
+			return nil
 		}
 		err = json.Compact(&buf, body)
 		if err != nil {

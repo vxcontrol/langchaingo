@@ -45,6 +45,8 @@ type Options struct {
 	temperatureFromCaller bool
 	topKFromCaller        bool
 	topPFromCaller        bool
+
+	noModelLookup bool
 }
 
 func DefaultOptions() Options {
@@ -283,4 +285,12 @@ func hasAuthOptions(opts []option.ClientOption) bool {
 		}
 	}
 	return false
+}
+
+// WithoutModelLookup keeps the client from asking the Gemini API what a model the
+// tables do not list supports; such a model then follows the tables alone.
+func WithoutModelLookup() Option {
+	return func(o *Options) {
+		o.noModelLookup = true
+	}
 }
