@@ -9,6 +9,8 @@ import (
 
 var qwenParameterCountName = regexp.MustCompile(`^qwen3-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
+var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.5)?-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
+
 var qwenDefaultThinkingName = regexp.MustCompile(`^qwen3\.[567]-`)
 
 var qwenNextName = regexp.MustCompile(`^qwen3-next-.*-thinking$`)
@@ -24,7 +26,7 @@ func QwenThinkingOffByFlag(model string) bool {
 // QwenThinkingRequiresStream reports whether DashScope serves the model's
 // thinking only on a streaming call.
 func QwenThinkingRequiresStream(model string) bool {
-	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
+	return qwenStreamOnlyThinkingName.MatchString(dashScopeSpelling(model))
 }
 
 func dashScopeTakesNoJSONSchema(route string) bool {
