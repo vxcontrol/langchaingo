@@ -170,6 +170,8 @@ func DashScopeGuestEffort(route, effort string) string {
 		return "max"
 	case strings.HasPrefix(rest, "deepseek-v4") && effort == "minimal":
 		return "low"
+	case dashScopeGuestSpelling(route) == "glm-5.1" && effort == "max":
+		return "xhigh"
 	}
 	return effort
 }
