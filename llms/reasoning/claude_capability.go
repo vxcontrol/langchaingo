@@ -184,11 +184,14 @@ var claudeEffortRank = map[string]int{"minimal": 1, "low": 2, "medium": 3, "high
 // to the lowest accepted level when every one of them is higher. An
 // unclassified model and an unknown level pass through unchanged.
 func ClaudeClampEffort(model, effort string, p Provider) string {
+	return ClampEffortTo(effort, claudeEffortsOn(model, p))
+}
+
+func ClampEffortTo(effort string, accepted []string) string {
 	want, ok := claudeEffortRank[effort]
 	if !ok {
 		return effort
 	}
-	accepted := claudeEffortsOn(model, p)
 	if len(accepted) == 0 || slices.Contains(accepted, effort) {
 		return effort
 	}

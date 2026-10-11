@@ -1,0 +1,30 @@
+httprr trace v1
+214 1649
+GET https://api.anthropic.com/v1/models/claude-sonnet-5-5 HTTP/1.1
+Host: api.anthropic.com
+User-Agent: langchaingo-httprr
+Anthropic-Version: 2023-06-01
+Content-Type: application/json
+X-Api-Key: test-api-key
+
+HTTP/2.0 200 OK
+Content-Length: 1011
+Cf-Cache-Status: DYNAMIC
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
+Content-Type: application/json
+Date: Sun, 11 Oct 2026 00:32:08 GMT
+Request-Id: req_011CfuWRQ4wNQaD5C2hLHmtr
+Server: nginx
+Server-Timing: x-originResponse;dur=215
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Accept-Encoding
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Robots-Tag: none
+X-Xss-Protection: 1; mode=block
+
+{"type":"model","id":"claude-sonnet-5-5","display_name":"Claude Sonnet 5.5","created_at":"2026-09-28T00:00:00Z","line":"sonnet","max_input_tokens":1000000,"max_tokens":128000,"capabilities":{"batch":{"supported":true},"citations":{"supported":true},"code_execution":{"supported":true},"context_management":{"supported":true,"clear_tool_uses_20250919":{"supported":true},"clear_thinking_20251015":{"supported":true},"compact_20260112":{"supported":true}},"effort":{"supported":true,"low":{"supported":true},"medium":{"supported":true},"high":{"supported":true},"xhigh":{"supported":true},"max":{"supported":true}},"image_input":{"supported":true},"pdf_input":{"supported":true},"server_tools":{"supported":true,"code_execution":{"supported":true},"web_search":{"supported":true}},"structured_outputs":{"supported":true},"thinking":{"supported":true,"types":{"enabled":{"supported":false},"adaptive":{"supported":true},"disabled":{"supported":false}}}},"lifecycle":"active","deprecated_at":null,"retires_at":null}

@@ -16,6 +16,7 @@ import (
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/internal/answer"
+	"github.com/vxcontrol/langchaingo/internal/modelinfo"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/anthropic/internal/anthropicclient"
@@ -48,6 +49,7 @@ type LLM struct {
 	CallbacksHandler     callbacks.Handler
 	client               *anthropicclient.Client
 	defaultCacheStrategy *CacheStrategy
+	models               *modelinfo.Cache[reasoning.ClaudeReport]
 }
 
 var _ llms.Model = (*LLM)(nil)
@@ -69,10 +71,14 @@ func New(opts ...Option) (*LLM, error) {
 		return nil, fmt.Errorf("anthropic: failed to create client: %w", err)
 	}
 
-	return &LLM{
+	llm := &LLM{
 		client:               c,
 		defaultCacheStrategy: options.defaultCacheStrategy,
-	}, nil
+	}
+	if !options.noModelLookup {
+		llm.models = modelinfo.New[reasoning.ClaudeReport](modelinfo.DefaultTTL)
+	}
+	return llm, nil
 }
 
 func newClientFromOptions(options *options) (*anthropicclient.Client, error) {
@@ -190,13 +196,13 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	// API will run — otherwise an unset model reads as unknown while the wire runs
 	// the default (an adaptive-only model that rejects budget thinking and sampling).
 	model := o.client.EffectiveModel(opts.GetModel())
+	rules := &claudeRules{model: model, lookup: func() reasoning.ClaudeReport { return o.claudeReport(ctx, model) }}
 
 	chatMessages, origins, systemPrompt, err := processMessages(messages, model)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: failed to process messages: %w", err)
 	}
 	warn := &llms.Warnings{}
-	warn.AddInherited(model)
 	toolsSent, err := warn.ToolsWithAFunction(model, opts.Tools)
 	if err != nil {
 		return nil, err
@@ -211,12 +217,18 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		// flag: adaptive-only generations reject budget thinking and vice versa,
 		// so honor the caller's preference only where the model accepts it.
 		effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-		adaptive := reasoning.ResolveClaudeAdaptive(model, opts.Reasoning.Adaptive)
-		budget := reasoning.ClaudeClampBudget(model, opts.Reasoning.GetTokens(opts.GetMaxTokens()))
+		if !rules.thinks() {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: effort,
+				Reason: "the API reports that the model does not think",
+			})
+			break
+		}
+		adaptive := rules.adaptive(opts.Reasoning.Adaptive)
+		budget := rules.clampBudget(opts.Reasoning.GetTokens(opts.GetMaxTokens()))
 		if !adaptive && budget <= 0 {
 			refusal := &reasoning.ErrEffortHasNoBudget{Model: model, Effort: effort}
-			sent := reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic)
-			if warn.KeepRefusal(model, "WithReasoning", effort, sent, refusal) {
+			if rules.keepRefusal(warn, "WithReasoning", effort, rules.clampEffort(effort), refusal) {
 				return nil, refusal
 			}
 			adaptive = true
@@ -227,8 +239,8 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 				Display: "summarized",
 			}
 			if !opts.Reasoning.DelegatesDepth() {
-				outputConfig = &anthropicclient.OutputConfig{
-					Effort: reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic),
+				if sent := rules.effort(effort, warn); sent != "" {
+					outputConfig = &anthropicclient.OutputConfig{Effort: sent}
 				}
 			}
 		} else {
@@ -238,19 +250,14 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 			}
 			// Some budget-thinking models (Opus 4.5) also honor effort; without this
 			// the caller's effort is silently dropped on the budget path.
-			if reasoning.ClaudeSupportsEffortWithBudget(model, reasoning.ProviderAnthropic) {
-				outputConfig = &anthropicclient.OutputConfig{
-					Effort: reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderAnthropic),
-				}
+			if rules.effortWithBudget() {
+				outputConfig = &anthropicclient.OutputConfig{Effort: rules.clampEffort(effort)}
 			}
 		}
 	case llms.ReasoningOff:
-		off := reasoning.ResolveOff(model, reasoning.ProviderAnthropic)
-		if off == reasoning.OffUnsupported {
-			off = reasoning.InheritedOffWire(model, reasoning.ProviderAnthropic)
-			if warn.KeepOffRefusal(model, off) {
-				return nil, &reasoning.ErrReasoningOffUnsupported{Model: model}
-			}
+		off, err := rules.off(warn)
+		if err != nil {
+			return nil, err
 		}
 		switch off { //nolint:exhaustive // only Claude-relevant wires are handled; others are a no-op
 		case reasoning.OffDisableClaude:
@@ -275,7 +282,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 
 	// Structured output rides in output_config.format, merged with any effort set
 	// above (the two are independent). The schema constrains the final text only.
-	if outputConfig, err = applyAnthropicStructuredOutput(opts, model, messages, outputConfig); err != nil {
+	if outputConfig, err = applyAnthropicStructuredOutput(opts, rules, messages, outputConfig); err != nil {
 		return nil, err
 	}
 
@@ -351,6 +358,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	reportAnthropicSampling(warn, model, *opts, thinking, outputConfig, temperature, topP, topK, maxTokens)
 	temperature = warn.ClampClaudeTemperature(model, temperature)
 
+	rules.addInherited(warn)
 	result, err := o.client.CreateMessage(ctx, &anthropicclient.MessageRequest{
 		Model:         opts.GetModel(),
 		Messages:      chatMessages,
@@ -958,7 +966,7 @@ func extractBetaHeaders(opts *llms.CallOptions, thinking *anthropicclient.Thinki
 // with typed errors before the request is sent.
 func applyAnthropicStructuredOutput(
 	opts *llms.CallOptions,
-	model string,
+	rules *claudeRules,
 	messages []llms.MessageContent,
 	cfg *anthropicclient.OutputConfig,
 ) (*anthropicclient.OutputConfig, error) {
@@ -969,7 +977,8 @@ func applyAnthropicStructuredOutput(
 	if err := opts.ValidateStructuredOutput(); err != nil {
 		return nil, err
 	}
-	if !reasoning.ClaudeSupportsStructuredOutput(model) {
+	model := rules.model
+	if !rules.structuredOutput() {
 		return nil, &llms.ErrStructuredOutputUnsupported{
 			Provider: providerAnthropic,
 			Model:    model,
