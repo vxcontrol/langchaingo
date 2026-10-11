@@ -409,22 +409,37 @@ func TestTurningOffAModelWhoseThinkingIsForcedIsRefusedEvenWhenTheServerCannotSa
 func TestAnUnlistedVersionOfAForcedThinkerTurnsOffAsTheServerAllows(t *testing.T) {
 	t.Parallel()
 
+	refusesOffByInheritance := func(w llms.Warning) bool {
+		return w.Kind == llms.WarningInherit && w.Option == "WithReasoningDisabled"
+	}
+
 	s, llm := newShowServer(t,
 		`{"capabilities":["completion","thinking"],"thinking":{"values":[false,"low","high"],"default":"high"}}`)
-	_, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	resp, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
 	require.NoError(t, err, "the server lists false for the model, the release it follows does not decide")
 	think, sent := s.sentThink(t)
 	require.True(t, sent)
 	assert.Equal(t, false, think)
+	assert.Equal(t, int32(1), s.shows.Load(), "the server is asked about an inherited name")
+	assert.False(t, slices.ContainsFunc(resp.Warnings, refusesOffByInheritance),
+		"the server's think values decided, got %+v", resp.Warnings)
+
+	s, llm = newShowServer(t,
+		`{"capabilities":["completion","thinking"],"thinking":{"values":["low","high","max"],"default":"max"}}`)
+	_, err = ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	var refused *reasoning.ErrReasoningOffUnsupported
+	require.ErrorAs(t, err, &refused, "the server lists no false for the model")
+	assert.Equal(t, int32(1), s.shows.Load())
+	assert.Zero(t, s.chats.Load())
 
 	s, llm = newShowServer(t, `not json`)
-	resp, err := ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
+	resp, err = ask(t, llm, llms.WithModel("glm-6"), llms.WithReasoningDisabled())
 	require.NoError(t, err, "the refusal comes only through the release it follows")
 	think, sent = s.sentThink(t)
 	require.True(t, sent)
 	assert.Equal(t, false, think)
 	warned := slices.ContainsFunc(resp.Warnings, func(w llms.Warning) bool {
-		return w.Kind == llms.WarningInherit && w.Option == "WithReasoningDisabled" && w.Sent == "off"
+		return refusesOffByInheritance(w) && w.Sent == "off"
 	})
 	assert.True(t, warned, "the caller learns the off follows an inherited refusal, got %+v", resp.Warnings)
 }
