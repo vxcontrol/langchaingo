@@ -372,11 +372,12 @@ func (o *LLM) createChatRequest(
 		req.PromptCacheKey = opts.PromptCacheKey
 	}
 
-	if opts.StreamingFunc == nil && reasoning.QVQStreamsOnly(reasoning.DashScopeRoute(model, o.host)) {
+	if opts.StreamingFunc == nil && reasoning.DashScopeStreamsOnly(model, o.host) {
 		return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 	}
 	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
-	if dashScope && reasoning.QwenThinkingRequiresStream(model) && opts.StreamingFunc == nil {
+	route := reasoning.DashScopeRoute(model, o.host)
+	if dashScope && reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
 		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
@@ -384,8 +385,7 @@ func (o *LLM) createChatRequest(
 		req.EnableThinking = &thinkingOff
 	}
 
-	if (dashScope && reasoning.QwenThinkingEnabledByFlag(model) ||
-		reasoning.DashScopeGuestThinkingEnabledByFlag(reasoning.DashScopeRoute(model, o.host))) &&
+	if (dashScope && reasoning.QwenThinkingEnabledByFlag(route) || reasoning.DashScopeGuestThinkingEnabledByFlag(route)) &&
 		opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 		thinkingOn := true
 		req.EnableThinking = &thinkingOn

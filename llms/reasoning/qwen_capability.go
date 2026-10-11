@@ -29,6 +29,30 @@ func QwenThinkingRequiresStream(model string) bool {
 	return qwenStreamOnlyThinkingName.MatchString(dashScopeSpelling(model))
 }
 
+func DashScopeThinkingRequiresStream(model, host string) bool {
+	route := DashScopeRoute(model, host)
+	if servedByQwenCloud(model, host) {
+		return qwenParameterCountName.MatchString(dashScopeSpelling(route))
+	}
+	return QwenThinkingRequiresStream(route)
+}
+
+func DashScopeStreamsOnly(model, host string) bool {
+	route := DashScopeRoute(model, host)
+	if servedByQwenCloud(model, host) && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
+		return true
+	}
+	return QVQStreamsOnly(route)
+}
+
+func servedByQwenCloud(model, host string) bool {
+	if host == "maas.qwencloudapi.com" {
+		return true
+	}
+	return vendorOfHost(host) == VendorUnknown && ServedBy(model, host) == VendorDashScope &&
+		strings.HasPrefix(strings.ToLower(model), "qwen_cloud/")
+}
+
 func dashScopeTakesNoJSONSchema(route string) bool {
 	name, ok := dashScopeRouteName(route)
 	if !ok || !strings.HasPrefix(name, "qwen") {
@@ -154,15 +178,19 @@ func dashScopeGuestSpelling(model string) string {
 // DashScopeRoute returns the name the rules read for a model sent to host: a
 // name sent to Model Studio's own host reads as its dashscope/ route.
 func DashScopeRoute(model, host string) string {
-	routed := strings.HasPrefix(strings.ToLower(model), "dashscope/")
+	lower := strings.ToLower(model)
+	routed := strings.HasPrefix(lower, "dashscope/")
 	if ServedBy(model, host) != VendorDashScope {
 		if routed {
 			return model[len("dashscope/"):]
 		}
 		return model
 	}
-	if routed {
+	switch {
+	case routed:
 		return model
+	case strings.HasPrefix(lower, "qwen_cloud/"):
+		return "dashscope/" + model[len("qwen_cloud/"):]
 	}
 	return "dashscope/" + model
 }

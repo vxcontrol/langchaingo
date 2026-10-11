@@ -20,6 +20,7 @@ func TestServedBy(t *testing.T) {
 		{"codestral-latest", "codestral.mistral.ai", VendorMistral},
 		{"qwen3.6-plus", "dashscope-intl.aliyuncs.com", VendorDashScope},
 		{"qwen3.6-plus", "ws-1.cn-beijing.maas.aliyuncs.com", VendorDashScope},
+		{"qwen3.8-max", "maas.qwencloudapi.com", VendorDashScope},
 		{"zai/glm-5.3", "api.deepseek.com", VendorDeepSeek},
 
 		{"deepseek/deepseek-v4-pro", gateway, VendorDeepSeek},
@@ -28,6 +29,7 @@ func TestServedBy(t *testing.T) {
 		{"xai/grok-4.7", gateway, VendorXAI},
 		{"mistral/mistral-large-latest", gateway, VendorMistral},
 		{"dashscope/qwen3.6-plus", gateway, VendorDashScope},
+		{"qwen_cloud/qwen3.8-max", gateway, VendorDashScope},
 		{"deepseek/deepseek-v4-pro", "", VendorDeepSeek},
 
 		{"deepseek-v4-pro", gateway, VendorUnknown},
@@ -39,6 +41,7 @@ func TestServedBy(t *testing.T) {
 		{"deepseek/deepseek-v4-pro", "zenmux.ai", VendorUnknown},
 		{"deepseek/deepseek-v4-pro", "api.novita.ai", VendorUnknown},
 		{"xai/grok-4.7", "api.orcarouter.ai", VendorUnknown},
+		{"qwen_cloud/qwen3.8-max", "openrouter.ai", VendorUnknown},
 		{"gpt-5.5", "api.openai.com", VendorUnknown},
 	} {
 		if got := ServedBy(tc.model, tc.host); got != tc.want {
@@ -57,6 +60,7 @@ func TestPublicProviderHost(t *testing.T) {
 		"codestral.mistral.ai":               true,
 		"cn-hongkong.dashscope.aliyuncs.com": true,
 		"ws-1.cn-beijing.maas.aliyuncs.com":  true,
+		"maas.qwencloudapi.com":              true,
 		"eu.api.openai.com":                  true,
 		"tenant.openai.azure.com":            true,
 		"llm.pentagi.net":                    false,
@@ -82,6 +86,10 @@ func TestDashScopeRoute(t *testing.T) {
 		{"qwen3.6-plus", "vllm.internal", "qwen3.6-plus"},
 		{"dashscope/qwq-plus", "ai-gateway.vercel.sh", "qwq-plus"},
 		{"DashScope/QwQ-Plus", "openrouter.ai", "QwQ-Plus"},
+		{"qwen3.8-max", "maas.qwencloudapi.com", "dashscope/qwen3.8-max"},
+		{"qwen_cloud/qwen3.8-max", "litellm.internal", "dashscope/qwen3.8-max"},
+		{"Qwen_Cloud/qwen3.8-max", "litellm.internal", "dashscope/qwen3.8-max"},
+		{"qwen_cloud/qwen3.8-max", "openrouter.ai", "qwen_cloud/qwen3.8-max"},
 	} {
 		if got := DashScopeRoute(tc.model, tc.host); got != tc.want {
 			t.Errorf("DashScopeRoute(%q, %q) = %q, want %q", tc.model, tc.host, got, tc.want)

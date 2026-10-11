@@ -126,6 +126,8 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"MiniMax without tools", withoutTools(on("MiniMax-M3", "api.minimax.io", ReplayChat)), asSent},
 		{"Qwen 3.8", on("qwen3.8-max", dashscope, ReplayChat), everyTurn},
 		{"Qwen 3.8 through a gateway's route", on("dashscope/qwen3.8-max", gateway, ReplayChat), everyTurn},
+		{"Qwen 3.8 on QwenCloud", on("qwen3.8-max", "maas.qwencloudapi.com", ReplayChat), everyTurn},
+		{"Qwen 3.8 through a gateway's QwenCloud route", on("qwen_cloud/qwen3.8-max", gateway, ReplayChat), everyTurn},
 		{"Qwen 3.8 with its thinking off", thinkingOff(on("qwen3.8-max", dashscope, ReplayChat)), everyTurn},
 		{"a Qwen 3.8 that preserves nothing", on("qwen3.8-27b", dashscope, ReplayChat), dropsPast},
 		{"a Qwen 3.8 that preserves nothing with its thinking off", thinkingOff(on("qwen3.8-27b", dashscope, ReplayChat)), asSent},
