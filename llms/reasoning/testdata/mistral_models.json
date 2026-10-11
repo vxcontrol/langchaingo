@@ -136,6 +136,18 @@
    "mistral-large-latest"
   ]
  },
+ "mistral-large-4": {
+  "reasoning": true,
+  "aliases": [
+   "mistral-large-4-0"
+  ]
+ },
+ "mistral-large-4-0": {
+  "reasoning": true,
+  "aliases": [
+   "mistral-large-4"
+  ]
+ },
  "mistral-large-latest": {
   "reasoning": false,
   "aliases": [
@@ -377,10 +389,31 @@
    "voxtral-small-2507"
   ]
  },
+ "zai-glm-5": {
+  "reasoning": true,
+  "aliases": [
+   "zai-glm-5-3",
+   "zai-glm-latest"
+  ]
+ },
  "zai-glm-5-2": {
   "reasoning": true,
   "aliases": [
    "glm-5-2"
+  ]
+ },
+ "zai-glm-5-3": {
+  "reasoning": true,
+  "aliases": [
+   "zai-glm-5",
+   "zai-glm-latest"
+  ]
+ },
+ "zai-glm-latest": {
+  "reasoning": true,
+  "aliases": [
+   "zai-glm-5",
+   "zai-glm-5-3"
   ]
  }
 }
