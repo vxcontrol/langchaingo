@@ -71,3 +71,35 @@ func TestARecordedBodyReplaysUnchanged(t *testing.T) {
 		})
 	}
 }
+
+func TestAJSONCompactedRecordingTakesARequestWithoutABody(t *testing.T) {
+	t.Parallel()
+
+	file := t.TempDir() + "/rr"
+	get := func(rr *RecordReplay) []byte {
+		t.Helper()
+		rr.ScrubReq(JsonCompactScrubBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.invalid/models/m", http.NoBody)
+		require.NoError(t, err)
+		resp, err := rr.RoundTrip(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		got, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return got
+	}
+
+	rr, err := create(file, cannedTransport{header: http.Header{"Content-Type": {"application/json"}}, body: []byte(`{"name":"m"}`), length: 12})
+	require.NoError(t, err)
+	get(rr)
+	require.NoError(t, rr.Close())
+
+	rr, err = open(file, nil)
+	require.NoError(t, err)
+	defer rr.Close()
+	require.JSONEq(t, `{"name":"m"}`, string(get(rr)))
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.invalid/", bytes.NewReader(nil))
+	require.NoError(t, err)
+	require.NoError(t, JsonCompactScrubBody(req))
+}

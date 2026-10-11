@@ -84,7 +84,7 @@ func reportOpenAIUnread(warn *llms.Warnings, model string, opts llms.CallOptions
 		"WithLogProbs", "WithJSONMode", "WithFunctions")
 }
 
-func samplingReason(model, host string, thinks bool) string {
+func samplingReason(model, host string, thinks func() bool) string {
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):
 		return "the model rejects sampling parameters"
@@ -92,7 +92,7 @@ func samplingReason(model, host string, thinks bool) string {
 		return "the model runs on fixed sampling and refuses any value for it"
 	case refusesSamplingWhileThinking(model, thinks):
 		return "the model refuses sampling while thinking"
-	case reasoning.ServedByDeepSeek(model, host) && thinks:
+	case reasoning.ServedByDeepSeek(model, host) && thinks():
 		return "the model ignores temperature while thinking"
 	case reasoning.ServedByDeepSeek(model, host):
 		return "the model ignores top_p when not thinking"
@@ -101,7 +101,9 @@ func samplingReason(model, host string, thinks bool) string {
 	}
 }
 
-func reportOpenAIReasoning(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, req *openaiclient.ChatRequest) {
+func reportOpenAIReasoning(
+	warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, req *openaiclient.ChatRequest, reported bool,
+) {
 	if cfg == nil {
 		return
 	}
@@ -123,25 +125,30 @@ func reportOpenAIReasoning(warn *llms.Warnings, model string, cfg *llms.Reasonin
 			budget = req.Reasoning.MaxTokens
 		}
 	}
-	reportOpenAIEffort(warn, model, cfg, effort)
+	reportOpenAIEffort(warn, model, cfg, effort, reported)
 	reportOpenAIBudget(warn, model, cfg, budget)
 }
 
-func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent string) {
+func reportOpenAIEffort(warn *llms.Warnings, model string, cfg *llms.ReasoningConfig, sent string, reported bool) {
 	asked := string(cfg.Effort)
+	dropped, clamped := "the door sends no effort field on this model",
+		"the door sends only the efforts it records this model as accepting"
+	if reported {
+		dropped, clamped = "the API reports no effort values for the model",
+			"the door sends only the efforts the API reports the model as accepting"
+	}
 	switch {
 	case asked == "" || asked == string(llms.ReasoningNone):
 		return
 	case sent == "" || sent == reasoning.OpenAIDisableEffort:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
-			Asked: asked, Reason: "the door sends no effort field on this model",
+			Asked: asked, Reason: dropped,
 		})
 	case asked != sent:
 		warn.Add(llms.Warning{
 			Kind: llms.WarningClamp, Option: "WithReasoning", Model: model,
-			Asked: asked, Sent: sent,
-			Reason: "the door sends only the efforts it records this model as accepting",
+			Asked: asked, Sent: sent, Reason: clamped,
 		})
 	}
 }

@@ -43,7 +43,7 @@ func TestASchemaForClaudeIsNotReportedAsALostJSONMode(t *testing.T) {
 	var opts llms.CallOptions
 	llms.WithStructuredOutput(llms.StructuredOutputConfig{Name: "s", Schema: objectSchema()})(&opts)
 	warn := &llms.Warnings{}
-	if _, err := llm.createChatRequest(nil, opts, warn, false); err != nil {
+	if _, err := llm.createChatRequest(nil, opts, warn, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	for _, w := range warn.List() {

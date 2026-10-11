@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/modelinfo"
 	"github.com/vxcontrol/langchaingo/llms"
 
 	"google.golang.org/genai"
@@ -20,6 +21,7 @@ type GoogleAI struct {
 	CallbacksHandler callbacks.Handler
 	client           *genai.Client
 	opts             Options
+	models           *modelinfo.Cache[geminiReport]
 }
 
 var _ llms.Model = &GoogleAI{}
@@ -34,6 +36,9 @@ func New(ctx context.Context, opts ...Option) (*GoogleAI, error) {
 
 	gi := &GoogleAI{
 		opts: clientOptions,
+	}
+	if !clientOptions.noModelLookup {
+		gi.models = modelinfo.New[geminiReport](modelinfo.DefaultTTL)
 	}
 
 	config := &genai.ClientConfig{}

@@ -477,6 +477,16 @@ func (f *lineFamily) newestRelease(stem string, selectors []string) (string, boo
 	return "", false
 }
 
+func listedRelease(model string) bool {
+	_, bare := splitModelName(model)
+	for i := range lineFamilies {
+		if _, _, _, listed, ok := lineFamilies[i].follow(bare); ok && listed {
+			return true
+		}
+	}
+	return false
+}
+
 func inheritLine(bare string) (string, bool) {
 	for i := range lineFamilies {
 		if documented, ok := lineFamilies[i].inherit(bare); ok {

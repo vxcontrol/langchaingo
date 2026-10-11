@@ -1,0 +1,62 @@
+httprr trace v1
+187 1516
+GET https://api.mistral.ai/v1/models/codestral-latest HTTP/1.1
+Host: api.mistral.ai
+User-Agent: langchaingo-httprr
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+HTTP/2.0 200 OK
+Content-Length: 755
+Access-Control-Allow-Origin: *
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Sun, 11 Oct 2026 01:22:56 GMT
+Mistral-Correlation-Id: 01a1288e-4bc0-7cb0-b939-7a6ed48bd3d0
+Server: nginx
+Strict-Transport-Security: max-age=15552000; includeSubDomains; preload
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Envoy-Upstream-Service-Time: 9
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Kong-Proxy-Latency: 13
+X-Kong-Request-Id: 01a1288e-4bc0-7cb0-b939-7a6ed48bd3d0
+X-Kong-Upstream-Latency: 11
+X-Xss-Protection: 1; mode=block
+
+{"id":"codestral-latest","object":"model","created":1791681776,"owned_by":"mistralai","capabilities":{"completion_chat":true,"function_calling":true,"reasoning":false,"completion_fim":true,"fine_tuning":false,"vision":false,"ocr":false,"classification":false,"moderation":false,"audio":false,"audio_transcription":false,"audio_transcription_realtime":false,"audio_speech":false,"unified_resources":false},"name":"codestral-2508","description":"Our cutting-edge language model for coding released August 2025.","max_context_length":256000,"aliases":["codestral-2508","mistral-code-latest","mistral-code-fim-latest"],"deprecation":null,"deprecation_replacement_model":null,"default_model_temperature":0.3,"billing_model_name":"codestral-2508","type":"base"}191 1485
+GET https://api.mistral.ai/v1/models/mistral-small-latest HTTP/1.1
+Host: api.mistral.ai
+User-Agent: langchaingo-httprr
+Authorization: Bearer test-api-key
+Content-Type: application/json
+
+HTTP/2.0 200 OK
+Content-Length: 723
+Access-Control-Allow-Origin: *
+Alt-Svc: h3=":443"; ma=86400
+Cf-Cache-Status: DYNAMIC
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json
+Date: Sun, 11 Oct 2026 01:22:57 GMT
+Mistral-Correlation-Id: 01a1288e-50d4-7300-9262-ea9981242906
+Server: nginx
+Strict-Transport-Security: max-age=15552000; includeSubDomains; preload
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Envoy-Upstream-Service-Time: 17
+X-Frame-Options: DENY
+X-Frame-Options: SAMEORIGIN
+X-Kong-Proxy-Latency: 15
+X-Kong-Request-Id: 01a1288e-50d4-7300-9262-ea9981242906
+X-Kong-Upstream-Latency: 18
+X-Xss-Protection: 1; mode=block
+
+{"id":"mistral-small-latest","object":"model","created":1791681777,"owned_by":"mistralai","capabilities":{"completion_chat":true,"function_calling":true,"reasoning":true,"completion_fim":false,"fine_tuning":false,"vision":true,"ocr":false,"classification":false,"moderation":false,"audio":false,"audio_transcription":false,"audio_transcription_realtime":false,"audio_speech":false,"unified_resources":false},"name":"mistral-small-2603","description":"Mistral Small 4.","max_context_length":262144,"aliases":["mistral-small-2603","mistral-vibe-cli-fast","magistral-small-latest"],"deprecation":null,"deprecation_replacement_model":null,"default_model_temperature":0.3,"billing_model_name":"mistral-small-2603","type":"base"}

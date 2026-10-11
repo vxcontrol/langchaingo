@@ -44,6 +44,8 @@ type options struct {
 
 	// Default cache strategy to apply to all requests unless overridden at call-time.
 	defaultCacheStrategy *CacheStrategy
+
+	noModelLookup bool
 }
 
 type Option func(*options)
@@ -124,5 +126,13 @@ func WithAnthropicBetaHeader(value string) Option {
 func WithDefaultCacheStrategy(strategy CacheStrategy) Option {
 	return func(opts *options) {
 		opts.defaultCacheStrategy = &strategy
+	}
+}
+
+// WithoutModelLookup keeps the door from asking the API what a model the tables
+// do not list supports; such a model then follows the tables alone.
+func WithoutModelLookup() Option {
+	return func(opts *options) {
+		opts.noModelLookup = true
 	}
 }

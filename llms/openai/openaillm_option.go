@@ -47,6 +47,8 @@ type options struct {
 	// carry a structured-output schema in the prompt for vendors without json_schema
 	structuredOutputFallback bool
 
+	noModelLookup bool
+
 	// required when APIType is APITypeAzure or APITypeAzureAD
 	apiVersion          string
 	embeddingModel      string
@@ -230,5 +232,14 @@ func WithThinkingBlocks() Option {
 func WithStructuredOutputFallback() Option {
 	return func(opts *options) {
 		opts.structuredOutputFallback = true
+	}
+}
+
+// WithoutModelLookup keeps the client from asking the vendor's own API (xAI,
+// Moonshot, Mistral) what a model the tables do not list supports; such a model
+// then follows the tables alone.
+func WithoutModelLookup() Option {
+	return func(opts *options) {
+		opts.noModelLookup = true
 	}
 }

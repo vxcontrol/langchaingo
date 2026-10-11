@@ -9,8 +9,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
+	"github.com/vxcontrol/langchaingo/internal/modelinfo"
 	"github.com/vxcontrol/langchaingo/internal/toolcall"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
@@ -26,6 +28,7 @@ type LLM struct {
 
 	openAIServed             bool
 	structuredOutputFallback bool
+	models                   *modelinfo.Cache[vendorReport]
 }
 
 const (
@@ -44,13 +47,17 @@ func New(opts ...Option) (*LLM, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &LLM{
+	llm := &LLM{
 		client:                   c,
 		CallbacksHandler:         opt.callbackHandler,
 		host:                     hostnameFromURL(opt.baseURL),
 		openAIServed:             ServedByOpenAI(opt.baseURL),
 		structuredOutputFallback: opt.structuredOutputFallback,
-	}, err
+	}
+	if !opt.noModelLookup {
+		llm.models = modelinfo.New[vendorReport](modelinfo.DefaultTTL)
+	}
+	return llm, err
 }
 
 // Call requests a completion for the given prompt.
@@ -115,17 +122,7 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 		return nil, err
 	}
 
-	if err := o.checkClaudeToolChoice(opts, warn); err != nil {
-		return nil, err
-	}
-
-	chatMsgs, err := o.messagesOnTheWire(messages, o.effectiveModel(opts))
-	if err != nil {
-		return nil, err
-	}
-
-	reportOpenAIUnread(warn, o.effectiveModel(opts), opts)
-	req, err := o.createChatRequest(chatMsgs, opts, warn, responses)
+	req, err := o.buildRequest(ctx, messages, opts, warn, responses)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +170,30 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	return response, nil
 }
 
+func (o *LLM) buildRequest(
+	ctx context.Context, messages []llms.MessageContent, opts llms.CallOptions, warn *llms.Warnings, responses bool,
+) (*openaiclient.ChatRequest, error) {
+	if err := o.checkClaudeToolChoice(opts, warn); err != nil {
+		return nil, err
+	}
+	model := o.effectiveModel(opts)
+	rules := &vendorRules{
+		model: model, vendor: reasoning.HostVendor(o.host),
+		lookup: func() vendorReport { return o.vendorReport(ctx, model) },
+	}
+	chatMsgs, err := o.messagesOnTheWire(messages, model, rules)
+	if err != nil {
+		return nil, err
+	}
+	reportOpenAIUnread(warn, model, opts)
+	req, err := o.createChatRequest(chatMsgs, opts, warn, responses, rules)
+	if err != nil {
+		return nil, err
+	}
+	rules.addInherited(warn)
+	return req, nil
+}
+
 func (o *LLM) checkClaudeToolChoice(opts llms.CallOptions, warn *llms.Warnings) error {
 	model := o.effectiveModel(opts)
 	extra := llms.ExtraBody(opts)
@@ -188,8 +209,8 @@ func (o *LLM) checkClaudeToolChoice(opts llms.CallOptions, warn *llms.Warnings) 
 	return llms.CheckClaudeToolChoice(model, opts, sendsBudget, warn)
 }
 
-func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
-	chatMsgs, err := o.convertMessages(messages, model)
+func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string, rules *vendorRules) ([]*ChatMessage, error) {
+	chatMsgs, err := o.convertMessages(messages, model, rules)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +222,7 @@ func (o *LLM) messagesOnTheWire(messages []llms.MessageContent, model string) ([
 }
 
 // convertMessages converts LangChain messages to OpenAI chat messages.
-func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*ChatMessage, error) {
+func (o *LLM) convertMessages(messages []llms.MessageContent, model string, rules *vendorRules) ([]*ChatMessage, error) {
 	chatMsgs := make([]*ChatMessage, 0, len(messages))
 	for _, mc := range messages {
 		msg := &ChatMessage{MultiContent: mc.Parts}
@@ -221,8 +242,10 @@ func (o *LLM) convertMessages(messages []llms.MessageContent, model string) ([]*
 		if o.client != nil && o.client.PreserveReasoningContent && msg.Role == RoleAssistant {
 			switch {
 			case reasoning.ServedByMistral(model):
-				if reasoning.ReplaysThinkingInContent(model) && o.reachesMistral(model) {
-					msg.Thinking = extractReasoningContent(mc.Parts)
+				thinking := extractReasoningContent(mc.Parts)
+				if thinking != "" && o.reachesMistral(model) &&
+					(reasoning.ReplaysThinkingInContent(model) || rules.mistralReasons()) {
+					msg.Thinking = thinking
 				}
 			case reasoning.ReplaysReasoningInThinkTags(model):
 				msg.MultiContent = withThinkTags(msg.MultiContent, extractReasoningContent(mc.Parts))
@@ -317,7 +340,7 @@ func (o *LLM) handleToolMessage(mc llms.MessageContent) error {
 
 // createChatRequest creates an OpenAI chat request with the given parameters.
 func (o *LLM) createChatRequest(
-	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings, responses bool,
+	chatMsgs []*ChatMessage, opts llms.CallOptions, warn *llms.Warnings, responses bool, rules *vendorRules,
 ) (*openaiclient.ChatRequest, error) {
 	req := &openaiclient.ChatRequest{
 		Model:                opts.GetModel(),
@@ -390,11 +413,11 @@ func (o *LLM) createChatRequest(
 		return nil, err
 	}
 
-	wireEffort, err := o.setReasoning(req, opts, warn, responses)
+	wireEffort, err := o.setReasoning(req, opts, warn, responses, rules)
 	if err != nil {
 		return nil, err
 	}
-	thinks := o.thinks(req, o.effectiveModel(opts), opts, wireEffort)
+	thinks := sync.OnceValue(func() bool { return o.thinks(req, o.effectiveModel(opts), opts, wireEffort, rules) })
 	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, thinks, warn); err != nil {
 		return nil, err
 	}
@@ -405,7 +428,7 @@ func (o *LLM) createChatRequest(
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) error {
 	if !llms.OffersTools(opts) {
 		return nil
@@ -423,7 +446,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
-		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinks:
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinks():
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
 		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
@@ -459,7 +482,9 @@ func (o *LLM) withholdToolsInsteadOfNone(
 	})
 }
 
-func (o *LLM) thinks(req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string) bool {
+func (o *LLM) thinks(
+	req *openaiclient.ChatRequest, model string, opts llms.CallOptions, wireEffort string, rules *vendorRules,
+) bool {
 	route := reasoning.DashScopeRoute(model, o.host)
 	host := o.host
 	if o.servedByOpenAI() {
@@ -478,7 +503,13 @@ func (o *LLM) thinks(req *openaiclient.ChatRequest, model string, opts llms.Call
 	if reasoning.DashScopeGuestThinkingEnabledByFlag(route) {
 		return false
 	}
-	return reasoning.IsReasoningModel(model) && thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+	if isThinkingOnTheWire(wireEffort) {
+		if thinks, reported := rules.thinks(); reported {
+			return thinks
+		}
+	}
+	return reasoning.IsReasoningModel(model) && !rules.thinksNever() &&
+		thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -527,7 +558,7 @@ func wireEffortOf(sent bool, effort llms.ReasoningEffort) string {
 
 // setReasoning writes the reasoning fields and reports the effort that reached the wire.
 func (o *LLM) setReasoning(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, responses bool, rules *vendorRules,
 ) (string, error) {
 	model := o.effectiveModel(opts)
 	toolsRule := reasoning.EffortToolsFree
@@ -544,15 +575,15 @@ func (o *LLM) setReasoning(
 	case llms.ReasoningDefault:
 		return o.setDeferredReasoning(req, opts, toolsRule, warn), nil
 	case llms.ReasoningOff:
-		return "", o.setReasoningOff(req, opts, warn)
+		return "", o.setReasoningOff(req, opts, warn, rules)
 	}
 
-	acceptsEffort := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
-	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-	caps := reasoning.OpenAIReasoningCapsFor(model)
-	if reasoning.ServedByMistral(model) && !o.reachesMistral(model) {
-		caps = reasoning.OpenAIReasoningCaps{}
+	if rules.thinksNever() {
+		reportOpenAIReasoning(warn, model, opts.Reasoning, req, false)
+		return "", nil
 	}
+	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+	acceptsEffort, caps, effortsReported := o.effortsFor(model, rules)
 	effort := caps.ClampEffort(askedEffort)
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
@@ -567,7 +598,7 @@ func (o *LLM) setReasoning(
 		}
 	}
 	if o.writeVendorBudget(req, opts, reasoningTokens, warnCtx{model, warn}) {
-		reportOpenAIReasoning(warn, model, opts.Reasoning, req)
+		reportOpenAIReasoning(warn, model, opts.Reasoning, req, effortsReported)
 		return wireEffortOf(true, reasoningEffort), nil
 	}
 	if o.budgetHasNoField(model, opts) {
@@ -575,9 +606,28 @@ func (o *LLM) setReasoning(
 	}
 	budget, effortBudget := budgetsFor(model, opts, reasoningEffort, reasoningTokens)
 	wire := o.writeEffort(req, sendsEffort, reasoningEffort, budget, effortBudget, warnCtx{model, warn})
-	reportOpenAIReasoning(warn, model, opts.Reasoning, req)
+	reportOpenAIReasoning(warn, model, opts.Reasoning, req, effortsReported)
 	reportDelegatedDepth(warn, model, pickedForTheCaller, wire)
 	return wire, nil
+}
+
+// effortsFor reports whether the model takes reasoning_effort here, the efforts it
+// takes, and whether the vendor's API reported them.
+func (o *LLM) effortsFor(model string, rules *vendorRules) (bool, reasoning.OpenAIReasoningCaps, bool) {
+	accepts := reasoning.AcceptsEffortWire(reasoning.DashScopeRoute(model, o.host))
+	caps := reasoning.OpenAIReasoningCapsFor(model)
+	if reasoning.ServedByMistral(model) && !o.reachesMistral(model) {
+		caps = reasoning.OpenAIReasoningCaps{}
+	}
+	if rules.mistralReasons() && !accepts {
+		accepts, caps = true, reasoning.MistralReasoningCaps()
+	}
+	efforts, reported := rules.efforts()
+	if reported {
+		caps = reasoning.ReportedCaps(efforts)
+		accepts = accepts && len(caps.Efforts) > 0
+	}
+	return accepts, caps, reported
 }
 
 func (o *LLM) setDeferredReasoning(
@@ -680,17 +730,11 @@ func (o *LLM) claudeThinksOnlyAtAnAskedDepth(model string) bool {
 
 const anthropicAPIHost = "api.anthropic.com"
 
-func warningsFor(model string) *llms.Warnings {
-	warn := &llms.Warnings{}
-	warn.AddInherited(model)
-	return warn
-}
-
 func (o *LLM) prepareCall(
 	messages []llms.MessageContent, opts *llms.CallOptions,
 ) (warn *llms.Warnings, responses bool, err error) {
 	model := o.effectiveModel(*opts)
-	warn = warningsFor(model)
+	warn = &llms.Warnings{}
 	if err := opts.ValidateReasoning(); err != nil {
 		return nil, false, err
 	}
@@ -793,10 +837,29 @@ func (o *LLM) raiseAnswerLimitForBudget(req *openaiclient.ChatRequest, budget in
 // setReasoningOff sends the model's explicit disable token so a reasoning model
 // runs as a plain completion, or the lowest thinking level of a model that has no
 // off switch; a model whose thinking this host cannot turn off returns a typed error.
-func (o *LLM) setReasoningOff(req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings) error {
+func (o *LLM) setReasoningOff(
+	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, rules *vendorRules,
+) error {
 	model := o.effectiveModel(opts)
+	if rules.thinksNever() {
+		return nil
+	}
+	if efforts, reported := rules.efforts(); reported {
+		caps := reasoning.ReportedCaps(efforts)
+		switch {
+		case caps.CanDisable:
+			o.writeDisableEffort(req)
+		case len(caps.Efforts) > 0,
+			reasoning.IsReasoningModel(model) && warn.KeepOffRefusal(model, reasoning.OffOmit):
+			return &reasoning.ErrReasoningOffUnsupported{Model: model}
+		}
+		return nil
+	}
 	route := reasoning.DashScopeRoute(model, o.host)
 	off := reasoning.ResolveOff(route, reasoning.ProviderOpenAI)
+	if rules.mistralReasons() && off == reasoning.OffOmit && !reasoning.OffByOmission(model) {
+		off = reasoning.OffEffortNone
+	}
 	if !o.carriesOff(model, off) {
 		off = reasoning.InheritedOffWire(route, reasoning.ProviderOpenAI)
 		if !o.carriesOff(model, off) {
@@ -853,7 +916,7 @@ func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
 }
 
 func (o *LLM) applySamplingPolicy(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
 	if t := req.Temperature; t != nil {
@@ -879,7 +942,7 @@ func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model 
 	req.Temperature = &sent
 }
 
-func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool) {
+func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool) {
 	model := o.effectiveModel(opts)
 	if reasoning.RejectsMinP(model) {
 		req.MinP = nil
@@ -914,7 +977,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.LogProbs = false
 		req.TopLogProbs = 0
 	case reasoning.ServedByDeepSeek(model, o.host):
-		if thinks {
+		if thinks() {
 			req.Temperature = nil
 		} else {
 			req.TopP = nil
@@ -924,8 +987,8 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 	}
 }
 
-func refusesSamplingWhileThinking(model string, thinks bool) bool {
-	return thinks && (reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model))
+func refusesSamplingWhileThinking(model string, thinks func() bool) bool {
+	return (reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)) && thinks()
 }
 
 func thinkingRunsWithoutTheExtraBody(model string, opts llms.CallOptions, wireEffort string) bool {

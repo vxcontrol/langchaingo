@@ -212,6 +212,20 @@ func (w *Warnings) AddInherited(model string) {
 	})
 }
 
+// AddInheritedReported is AddInherited for a model the door also asked the
+// vendor's model API about and applied the answer before the inherited rules.
+func (w *Warnings) AddInheritedReported(model string) {
+	documented, inherited := reasoning.InheritedModel(model)
+	if !inherited {
+		return
+	}
+	w.Add(Warning{
+		Kind: WarningInherit, Option: "WithModel", Model: model, Asked: model, Sent: model,
+		Reason: "the tables do not list this version, so the door applies what the API reports about the model " +
+			"and the rules of " + documented + " for the rest",
+	})
+}
+
 // KeepRefusal reports whether a door refuses before the network. It does for a
 // model the tables list; a model that only inherits the refusal goes out, and the
 // refusal is recorded against option with sent, what the door puts on the wire

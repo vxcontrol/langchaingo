@@ -24,8 +24,9 @@ type ModelEffortCapability struct {
 }
 
 type ModelThinkingTypes struct {
-	Enabled  ModelCapability `json:"enabled"`
-	Adaptive ModelCapability `json:"adaptive"`
+	Enabled  ModelCapability  `json:"enabled"`
+	Adaptive ModelCapability  `json:"adaptive"`
+	Disabled *ModelCapability `json:"disabled"`
 }
 
 type ModelThinkingCapability struct {
@@ -97,4 +98,22 @@ func (c *Client) ListModels(ctx context.Context, r *ModelsRequest) (*ModelsRespo
 		return nil, fmt.Errorf("decode models response: %w", err)
 	}
 	return &payload, nil
+}
+
+func (c *Client) GetModel(ctx context.Context, id string) (*ModelInfo, error) {
+	resp, err := c.request(ctx, http.MethodGet, "/models/"+url.PathEscape(id), http.NoBody, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.decodeError(resp)
+	}
+
+	var info ModelInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("decode model response: %w", err)
+	}
+	return &info, nil
 }

@@ -796,7 +796,7 @@ func TestConvertMessages(t *testing.T) { //nolint:funlen
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := llm.convertMessages(tt.messages, "")
+			result, err := llm.convertMessages(tt.messages, "", nil)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -962,7 +962,7 @@ func TestCreateChatRequest_ReasoningModelTemperature(t *testing.T) {
 				Temperature: &tt.temperature,
 			}
 
-			req, err := llm.createChatRequest([]*ChatMessage{}, opts, nil, false)
+			req, err := llm.createChatRequest([]*ChatMessage{}, opts, nil, false, nil)
 			require.NoError(t, err)
 			if tt.dropped {
 				assert.Nil(t, req.Temperature, "model %s takes no temperature", tt.model)

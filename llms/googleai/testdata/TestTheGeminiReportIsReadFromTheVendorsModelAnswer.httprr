@@ -1,0 +1,46 @@
+httprr trace v1
+282 977
+GET https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash HTTP/1.1
+Host: generativelanguage.googleapis.com
+User-Agent: langchaingo-httprr
+Content-Type: application/json
+X-Goog-Api-Client: google-genai-sdk/X.XX.X gl-go/goX.XX.X
+X-Goog-Api-Key: test-api-key
+
+HTTP/2.0 200 OK
+Content-Length: 421
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: application/json; charset=UTF-8
+Date: Sun, 11 Oct 2026 00:48:13 GMT
+Server: nginx
+Server-Timing: gfet4t7; dur=60
+Strict-Transport-Security: max-age=31536000
+Vary: Accept-Encoding
+Vary: Origin, X-Origin, Referer
+X-Content-Type-Options: nosniff
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-Frame-Options: SAMEORIGIN
+X-Xss-Protection: 0
+X-Xss-Protection: 1; mode=block
+
+{
+  "name": "models/gemini-3.8-flash",
+  "version": "3.0",
+  "displayName": "Gemini 3.8 Flash",
+  "description": "Gemini 3.8 Flash",
+  "inputTokenLimit": 1048576,
+  "outputTokenLimit": 65536,
+  "supportedGenerationMethods": [
+    "generateContent",
+    "countTokens",
+    "createCachedContent",
+    "batchGenerateContent"
+  ],
+  "temperature": 1,
+  "topP": 0.95,
+  "topK": 64,
+  "maxTemperature": 2,
+  "thinking": true
+}
