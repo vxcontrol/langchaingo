@@ -35,6 +35,20 @@
   ],
   "structured_outputs": true
  },
+ "claude-haiku-5-5": {
+  "effort_supported": true,
+  "efforts": [
+   "low",
+   "medium",
+   "high",
+   "xhigh",
+   "max"
+  ],
+  "thinking_types": [
+   "adaptive"
+  ],
+  "structured_outputs": true
+ },
  "claude-opus-4-5-20251101": {
   "effort_supported": true,
   "efforts": [
@@ -103,6 +117,20 @@
   ],
   "structured_outputs": true
  },
+ "claude-opus-5-5": {
+  "effort_supported": true,
+  "efforts": [
+   "low",
+   "medium",
+   "high",
+   "xhigh",
+   "max"
+  ],
+  "thinking_types": [
+   "adaptive"
+  ],
+  "structured_outputs": true
+ },
  "claude-sonnet-4-5-20250929": {
   "effort_supported": false,
   "efforts": [],
@@ -126,6 +154,20 @@
   "structured_outputs": true
  },
  "claude-sonnet-5": {
+  "effort_supported": true,
+  "efforts": [
+   "low",
+   "medium",
+   "high",
+   "xhigh",
+   "max"
+  ],
+  "thinking_types": [
+   "adaptive"
+  ],
+  "structured_outputs": true
+ },
+ "claude-sonnet-5-5": {
   "effort_supported": true,
   "efforts": [
    "low",
