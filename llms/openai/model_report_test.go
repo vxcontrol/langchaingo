@@ -17,6 +17,7 @@ import (
 	"github.com/vxcontrol/langchaingo/httputil"
 	"github.com/vxcontrol/langchaingo/internal/httprr"
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 const (
@@ -26,10 +27,11 @@ const (
 )
 
 type vendorModelAPI struct {
-	mu      sync.Mutex
-	answers map[string]string
-	lookups []string
-	body    map[string]any
+	mu       sync.Mutex
+	answers  map[string]string
+	lookups  []string
+	body     map[string]any
+	warnings []llms.Warning
 }
 
 func (a *vendorModelAPI) llm(t *testing.T, baseURL, model string, opts ...Option) *LLM {
@@ -49,7 +51,6 @@ func (a *vendorModelAPI) llm(t *testing.T, baseURL, model string, opts ...Option
 			_, _ = io.WriteString(w, answer)
 			return
 		}
-		a.body = nil
 		_ = json.NewDecoder(r.Body).Decode(&a.body)
 		_, _ = io.WriteString(w, `{"id":"1","object":"chat.completion","created":1,"model":"m",`+
 			`"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
@@ -68,16 +69,33 @@ func (a *vendorModelAPI) send(
 ) (map[string]any, map[string]llms.Warning, error) {
 	t.Helper()
 
+	a.mu.Lock()
+	a.body = nil
+	a.mu.Unlock()
 	resp, err := llm.GenerateContent(context.Background(), messages, opts...)
 	warnings := map[string]llms.Warning{}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.warnings = nil
 	if resp != nil {
+		a.warnings = resp.Warnings
 		for _, w := range resp.Warnings {
 			warnings[w.Option] = w
 		}
 	}
+	return a.body, warnings, err
+}
+
+func (a *vendorModelAPI) reported(option string) []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.body, warnings, err
+	var reported []string
+	for _, w := range a.warnings {
+		if w.Option == option {
+			reported = append(reported, string(w.Kind)+" "+w.Asked)
+		}
+	}
+	return reported
 }
 
 func (a *vendorModelAPI) ask(t *testing.T, llm *LLM, opts ...llms.CallOption) (map[string]any, map[string]llms.Warning) {
@@ -160,13 +178,35 @@ func TestXAIIsNotAskedWhereTheTablesDecide(t *testing.T) {
 		"a gateway route":              {gatewayBaseURL, "xai/grok-4.8", nil, []llms.CallOption{high}},
 		"the lookup switched off":      {xaiHostURL, "grok-4.8", []Option{WithoutModelLookup()}, []llms.CallOption{high}},
 		"a call without reasoning":     {xaiHostURL, "grok-4.8", nil, nil},
-		"thinking switched off":        {xaiHostURL, "grok-4.8", nil, []llms.CallOption{llms.WithReasoningDisabled()}},
 		"xAI's report has no thinking": {xaiHostURL, "grok-4.8", nil, []llms.CallOption{llms.WithTemperature(0.5)}},
 	} {
 		api := &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4.8": grokReport}}
 		api.ask(t, api.llm(t, call.baseURL, call.model, call.opts...), call.call...)
 		assert.Empty(t, api.asked(), name)
 	}
+}
+
+func TestTheOffSwitchFollowsTheEffortsXAIReports(t *testing.T) {
+	t.Parallel()
+
+	api := &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4.8": grokReport}}
+	body, _, err := api.send(t, api.llm(t, xaiHostURL, "grok-4.8"),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithReasoningDisabled())
+	var refusal *reasoning.ErrReasoningOffUnsupported
+	require.ErrorAs(t, err, &refusal, "xAI reports no none for the model")
+	assert.Nil(t, body, "the refusal comes before the request")
+
+	api = &vendorModelAPI{answers: map[string]string{
+		"/v1/models/grok-4.8": `{"id":"grok-4.8","aliases":[],"capabilities":{"reasoning_effort":["low","high","none"]}}`,
+	}}
+	body, warnings := api.ask(t, api.llm(t, xaiHostURL, "grok-4.8"), llms.WithReasoningDisabled())
+	assert.Equal(t, "none", body["reasoning_effort"])
+	assert.NotContains(t, warnings, "WithReasoningDisabled", "the vendor, not inheritance, says none is taken")
+
+	api = &vendorModelAPI{}
+	body, warnings = api.ask(t, api.llm(t, xaiHostURL, "grok-4.8"), llms.WithReasoningDisabled())
+	assert.Equal(t, "none", body["reasoning_effort"], "without the endpoint the inherited rules decide")
+	assert.Equal(t, llms.WarningInherit, warnings["WithReasoningDisabled"].Kind)
 }
 
 const moonshotListing = `{"object":"list","data":[` +
@@ -182,9 +222,11 @@ func TestAKimiModelMoonshotReportsAsNotThinkingIsSentNoThinking(t *testing.T) {
 	body, warnings := api.ask(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
 	assert.NotContains(t, body, "reasoning_effort", "kimi-k3, whose rules kimi-k3.5 inherits, takes high")
 	assert.NotContains(t, body, "thinking")
-	assert.Equal(t, llms.WarningDrop, warnings["WithReasoning"].Kind)
-	assert.Equal(t, "the API reports that the model does not think", warnings["WithReasoning"].Reason)
+	assert.Equal(t, []string{"drop high"}, api.reported("WithReasoning"), "one option is reported once")
 	assert.Contains(t, warnings["WithModel"].Reason, "what the API reports")
+
+	api.ask(t, llm, llms.WithReasoning(llms.ReasoningNone, 4096))
+	assert.Equal(t, []string{"drop 4096 tokens"}, api.reported("WithReasoning"), "a budget is reported as the budget asked")
 
 	body, warnings = api.ask(t, llm, llms.WithReasoningDisabled())
 	assert.NotContains(t, body, "reasoning_effort")
@@ -222,15 +264,21 @@ func TestMoonshotIsNotAskedWhereTheTablesDecide(t *testing.T) {
 	t.Parallel()
 
 	for name, call := range map[string]struct{ baseURL, model string }{
-		"a documented release": {moonshotHostURL, "kimi-k3"},
-		"a gateway route":      {gatewayBaseURL, "moonshot/kimi-k3.5"},
+		"a documented release":        {moonshotHostURL, "kimi-k3"},
+		"a model the tables name":     {moonshotHostURL, "kimi-latest"},
+		"a product the tables refuse": {moonshotHostURL, "kimi-k2-thinking-turbo"},
+		"a gateway route":             {gatewayBaseURL, "moonshot/kimi-k3.5"},
 	} {
 		api := &vendorModelAPI{answers: map[string]string{"/v1/models": moonshotListing}}
 		api.ask(t, api.llm(t, call.baseURL, call.model), llms.WithReasoning(llms.ReasoningHigh, 0))
 		assert.Empty(t, api.asked(), name)
 	}
 
-	api := &vendorModelAPI{answers: map[string]string{"/v1/models": `{"object":"list","data":[{"id":"kimi-k3"}]}`}}
+	api := &vendorModelAPI{answers: map[string]string{"/v1/models": moonshotListing}}
+	api.ask(t, api.llm(t, moonshotHostURL, "kimi-k3.5"))
+	assert.Empty(t, api.asked(), "a call that forces no tool and asks nothing of reasoning decides nothing the report changes")
+
+	api = &vendorModelAPI{answers: map[string]string{"/v1/models": `{"object":"list","data":[{"id":"kimi-k3"}]}`}}
 	body, _ := api.ask(t, api.llm(t, moonshotHostURL, "kimi-k3.5"), llms.WithReasoning(llms.ReasoningHigh, 0))
 	assert.Equal(t, "high", body["reasoning_effort"], "a model missing from the listing follows the tables")
 	assert.Len(t, api.asked(), 1)
@@ -259,8 +307,9 @@ func TestAMistralModelTheAPIReportsAsReasoningIsSentReasoningEffort(t *testing.T
 	assert.Equal(t, "high", body["reasoning_effort"])
 	assert.Equal(t, llms.WarningClamp, warnings["WithReasoning"].Kind)
 
-	body, _ = api.ask(t, llm, llms.WithReasoningDisabled())
-	assert.Equal(t, "none", body["reasoning_effort"])
+	body, warnings = api.ask(t, llm, llms.WithReasoningDisabled())
+	assert.NotContains(t, body, "reasoning_effort", "the family turns thinking off by leaving the field out")
+	assert.NotContains(t, warnings, "WithReasoningDisabled")
 
 	body, _, err := api.send(t, llm, replayHistory())
 	require.NoError(t, err)
@@ -286,6 +335,16 @@ func TestAMistralModelTheAPIReportsAsReasoningIsSentReasoningEffort(t *testing.T
 	api = &vendorModelAPI{}
 	body, _ = api.ask(t, api.llm(t, mistralHostURL, "mistral-small-2610"), llms.WithReasoning(llms.ReasoningMedium, 0))
 	assert.NotContains(t, body, "reasoning_effort", "the tables take an unlisted Mistral model for one that does not reason")
+}
+
+func TestAReasoningMistralModelOutsideTheOmissionFamilyIsSwitchedOffWithNone(t *testing.T) {
+	t.Parallel()
+
+	api := &vendorModelAPI{answers: map[string]string{
+		"/v1/models/mistral-large-2610": mistralCard("mistral-large-2610", true),
+	}}
+	body, _ := api.ask(t, api.llm(t, mistralHostURL, "mistral-large-2610"), llms.WithReasoningDisabled())
+	assert.Equal(t, "none", body["reasoning_effort"])
 }
 
 func TestMistralIsNotAskedWhereTheTablesDecide(t *testing.T) {

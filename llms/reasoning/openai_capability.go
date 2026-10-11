@@ -223,10 +223,10 @@ func (e *ErrChatToolsUnsupported) Error() string {
 
 // ReportedCaps is the effort set a vendor's model API reports for a model, ordered
 // for ClampEffort; "none" is the disable token, not an effort.
-func ReportedCaps(efforts []string, canDisable bool) OpenAIReasoningCaps {
+func ReportedCaps(efforts []string) OpenAIReasoningCaps {
 	levels := slices.DeleteFunc(slices.Clone(efforts), func(level string) bool { return level == OpenAIDisableEffort })
 	slices.SortStableFunc(levels, func(a, b string) int { return openAIEffortRank[a] - openAIEffortRank[b] })
-	return OpenAIReasoningCaps{Known: true, CanDisable: canDisable, Efforts: levels}
+	return OpenAIReasoningCaps{Known: true, CanDisable: slices.Contains(efforts, OpenAIDisableEffort), Efforts: levels}
 }
 
 // MistralReasoningCaps is what Mistral's own API takes from a model that reasons.

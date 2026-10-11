@@ -19,12 +19,9 @@ func (r vendorReport) reported() bool {
 }
 
 func (o *LLM) vendorReport(ctx context.Context, model string) vendorReport {
-	vendor := reasoning.HostVendor(o.host)
-	if o.models == nil || reasoning.DocumentedOn(model, vendor) {
-		return vendorReport{}
-	}
 	var lookup func(context.Context, string) (vendorReport, error)
-	switch vendor { //nolint:exhaustive // DocumentedOn answers true for every other vendor
+	vendor := reasoning.HostVendor(o.host)
+	switch vendor {
 	case reasoning.VendorXAI:
 		lookup = o.xaiReport
 	case reasoning.VendorMoonshot:
@@ -32,6 +29,9 @@ func (o *LLM) vendorReport(ctx context.Context, model string) vendorReport {
 	case reasoning.VendorMistral:
 		lookup = o.mistralReport
 	default:
+		return vendorReport{}
+	}
+	if reasoning.DocumentedOn(model, vendor) {
 		return vendorReport{}
 	}
 	return o.models.Get(ctx, model, func(ctx context.Context) (vendorReport, error) {
@@ -93,10 +93,7 @@ func (r *vendorRules) report() vendorReport {
 		return vendorReport{}
 	}
 	if r.asked == nil {
-		var report vendorReport
-		if r.lookup != nil {
-			report = r.lookup()
-		}
+		report := r.lookup()
 		r.asked = &report
 	}
 	return *r.asked

@@ -134,7 +134,9 @@ func openAIMandatoryReasoning(model string) bool {
 	return false
 }
 
-func offByOmission(model string) bool {
+// OffByOmission reports whether leaving the reasoning fields off the request is
+// how the model's own API turns its thinking off.
+func OffByOmission(model string) bool {
 	if QwenThinkingEnabledByFlag(model) {
 		return true
 	}
@@ -185,7 +187,7 @@ func openAIOffWire(model string) OffWire {
 	if mandatoryThinking(model) {
 		return OffUnsupported
 	}
-	if offByOmission(model) {
+	if OffByOmission(model) {
 		return OffOmit
 	}
 	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) || dashScopeDeepSeekV3(model) {

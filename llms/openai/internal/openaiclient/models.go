@@ -3,7 +3,6 @@ package openaiclient
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -21,7 +20,7 @@ func (c *Client) GetJSON(ctx context.Context, suffix string, out any) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s: %s", suffix, resp.Status)
+		return statusError(resp.StatusCode, resp.Body)
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
 }

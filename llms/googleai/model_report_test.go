@@ -110,6 +110,9 @@ func TestAGeminiModelTheAPIReportsAsNotThinkingIsSentNoThinking(t *testing.T) {
 	assert.Equal(t, llms.WarningDrop, dropped.Kind)
 	assert.Contains(t, googleWarningsByOption(resp.Warnings)["WithModel"].Reason, "what the API reports")
 
+	resp = askGemini(t, llm, llms.WithReasoning(llms.ReasoningNone, 4096))
+	assert.Equal(t, []string{"drop 4096 tokens"}, geminiAskedOf(resp, "WithReasoning"), "a budget is reported as the budget asked")
+
 	resp = askGemini(t, llm, llms.WithReasoningDisabled())
 	assert.NotContains(t, api.generationConfig(t), "thinkingConfig", "a model that does not think needs no off switch")
 	assert.NotContains(t, googleWarningsByOption(resp.Warnings), "WithReasoningDisabled")
@@ -217,4 +220,41 @@ func TestTheGeminiReportIsReadFromTheVendorsModelAnswer(t *testing.T) {
 	m, err := llm.client.Models.Get(t.Context(), "gemini-3.8-flash", nil)
 	require.NoError(t, err)
 	assert.Equal(t, geminiReport{reported: true, thinking: true, topK: 64, maxTemperature: 2}, geminiReportFrom(m))
+}
+
+func geminiAskedOf(resp *llms.ContentResponse, option string) []string {
+	var asked []string
+	for _, w := range resp.Warnings {
+		if w.Option == option {
+			asked = append(asked, string(w.Kind)+" "+w.Asked)
+		}
+	}
+	return asked
+}
+
+func TestAGemmaTheAPIReportsAsNotThinkingIsReportedOnceAsDropped(t *testing.T) {
+	t.Parallel()
+
+	api := &geminiModelAPI{model: geminiRecord(t, map[string]any{"name": "models/gemma-5-27b-it", "thinking": false})}
+	resp := askGemini(t, api.serve(t, "gemma-5-27b-it"), llms.WithReasoning(llms.ReasoningLow, 0))
+	assert.NotContains(t, api.generationConfig(t), "thinkingConfig")
+	assert.Equal(t, []string{"drop low"}, geminiAskedOf(resp, "WithReasoning"),
+		"the door sends no thinking level, so it reports none sent")
+}
+
+func TestAGeminiModelOutsideEveryLineThatTheAPIReportsAsThinkingIsAskedForItsThoughts(t *testing.T) {
+	t.Parallel()
+
+	api := &geminiModelAPI{model: geminiRecord(t, map[string]any{"name": "models/gemini-4-ultra", "thinking": true})}
+	llm := api.serve(t, "gemini-4-ultra")
+	resp := askGemini(t, llm, llms.WithReasoning(llms.ReasoningHigh, 0))
+	assert.Equal(t, map[string]any{"includeThoughts": true}, api.generationConfig(t)["thinkingConfig"])
+	dropped, ok := googleWarningsByOption(resp.Warnings)["WithReasoning"]
+	require.True(t, ok, "%v", resp.Warnings)
+	assert.Equal(t, llms.WarningDrop, dropped.Kind, "the depth asked has no field the door knows for this model")
+
+	api = &geminiModelAPI{}
+	resp = askGemini(t, api.serve(t, "gemini-4-ultra"), llms.WithReasoning(llms.ReasoningHigh, 0))
+	assert.NotContains(t, api.generationConfig(t), "thinkingConfig", "without the endpoint the door knows nothing of its thinking")
+	assert.Equal(t, []string{"drop high"}, geminiAskedOf(resp, "WithReasoning"))
 }

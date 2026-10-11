@@ -10,7 +10,7 @@ import (
 )
 
 func (o *LLM) claudeReport(ctx context.Context, model string) reasoning.ClaudeReport {
-	if o.models == nil || !reasoning.IsClaude(model) || reasoning.ClaudeDocumented(model) {
+	if !reasoning.IsClaude(model) || reasoning.ClaudeDocumented(model) {
 		return reasoning.ClaudeReport{}
 	}
 	return o.models.Get(ctx, model, func(ctx context.Context) (reasoning.ClaudeReport, error) {
@@ -50,10 +50,7 @@ type claudeRules struct {
 
 func (c *claudeRules) report() reasoning.ClaudeReport {
 	if c.asked == nil {
-		var report reasoning.ClaudeReport
-		if c.lookup != nil {
-			report = c.lookup()
-		}
+		report := c.lookup()
 		c.asked = &report
 	}
 	return *c.asked

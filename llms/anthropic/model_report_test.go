@@ -152,9 +152,21 @@ func TestAModelTheAPIReportsAsNotThinkingIsSentNoThinking(t *testing.T) {
 	body := api.lastMessage(t)
 	assert.NotContains(t, body, "thinking")
 	assert.NotContains(t, body, "output_config")
-	dropped, ok := warningFor(resp, "WithReasoning", llms.WarningDrop)
-	require.True(t, ok, "%v", resp.Warnings)
-	assert.Equal(t, "high", dropped.Asked)
+	assert.Equal(t, []string{"high"}, askedOf(resp, "WithReasoning"), "one option is reported once")
+
+	resp, err = ask(t, llm, "claude-haiku-6", llms.WithReasoning(llms.ReasoningNone, 4096))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"4096 tokens"}, askedOf(resp, "WithReasoning"), "a budget is reported as the budget asked")
+}
+
+func askedOf(resp *llms.ContentResponse, option string) []string {
+	var asked []string
+	for _, w := range resp.Warnings {
+		if w.Option == option {
+			asked = append(asked, w.Asked)
+		}
+	}
+	return asked
 }
 
 func TestAnEffortTheAPIReportsNoLevelsForIsDroppedWithAWarning(t *testing.T) {

@@ -49,20 +49,20 @@ func HostVendor(host string) Vendor {
 // DocumentedOn reports whether the tables answer for model on vendor's own API,
 // so that what the API reports about the model does not decide.
 func DocumentedOn(model string, vendor Vendor) bool {
-	if _, inherited := InheritedModel(model); inherited {
-		return false
-	}
-	switch vendor { //nolint:exhaustive // only these vendors report a model by API
+	_, inherited := InheritedModel(model)
+	switch vendor {
 	case VendorXAI:
-		return listedRelease(model) || OpenAIReasoningCapsFor(model).Known || !AcceptsEffortWire(model)
+		return !inherited && (listedRelease(model) || OpenAIReasoningCapsFor(model).Known || !AcceptsEffortWire(model))
 	case VendorMoonshot:
-		return listedRelease(model)
+		return !inherited && (listedRelease(model) || IsReasoningModel(model))
 	case VendorMistral:
 		for _, form := range modelSpellings(model) {
 			if mistralWithoutReasoning(form) {
 				return false
 			}
 		}
+		return true
+	default:
+		return true
 	}
-	return true
 }

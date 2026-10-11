@@ -49,16 +49,24 @@ func (c *Cache[T]) Get(ctx context.Context, key string, lookup func(context.Cont
 		lookupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), lookupTimeout)
 		defer cancel()
 		value, err := lookup(lookupCtx)
-		if err != nil {
-			value = zero
-		}
 		c.mu.Lock()
+		defer c.mu.Unlock()
+		if err != nil {
+			value = c.entries[key].value
+		}
 		c.entries[key] = entry[T]{value: value, until: c.now().Add(c.ttl)}
-		c.mu.Unlock()
 		return value, nil
 	})
+	wait := lookupTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		wait = min(wait, time.Until(deadline)/2)
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
 	select {
 	case <-ctx.Done():
+		return zero
+	case <-timer.C:
 		return zero
 	case result := <-done:
 		value, _ := result.Val.(T)

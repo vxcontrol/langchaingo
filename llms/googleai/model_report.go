@@ -18,7 +18,7 @@ type geminiReport struct {
 }
 
 func (g *GoogleAI) geminiReport(ctx context.Context, model string) geminiReport {
-	if g.models == nil || g.client.ClientConfig().Backend != genai.BackendGeminiAPI || reasoning.GeminiDocumented(model) {
+	if g.client.ClientConfig().Backend != genai.BackendGeminiAPI || reasoning.GeminiDocumented(model) {
 		return geminiReport{}
 	}
 	return g.models.Get(ctx, model, func(ctx context.Context) (geminiReport, error) {
@@ -45,10 +45,7 @@ type geminiRules struct {
 
 func (r *geminiRules) report() geminiReport {
 	if r.asked == nil {
-		var report geminiReport
-		if r.lookup != nil {
-			report = r.lookup()
-		}
+		report := r.lookup()
 		r.asked = &report
 	}
 	return *r.asked
@@ -66,15 +63,19 @@ func (r *geminiRules) thinksNever() bool {
 	return r.report().reported && !r.report().thinking
 }
 
+func (r *geminiRules) thinks() bool {
+	return r.report().reported && r.report().thinking
+}
+
 func (r *geminiRules) fitSampling(warn *llms.Warnings, opts llms.CallOptions, config *genai.GenerateContentConfig) {
-	if opts.TopK != nil && config.TopK != nil && r.report().reported && r.report().topK == 0 {
+	if opts.TopK != nil && r.report().reported && r.report().topK == 0 {
 		config.TopK = nil
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithTopK", Model: r.model, Asked: strconv.Itoa(*opts.TopK),
 			Reason: "the API reports that the model takes no top-k sampling",
 		})
 	}
-	if opts.Temperature == nil || config.Temperature == nil || !r.report().reported {
+	if opts.Temperature == nil || !r.report().reported {
 		return
 	}
 	if limit := r.report().maxTemperature; limit > 0 && *config.Temperature > limit {

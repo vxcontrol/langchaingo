@@ -45,12 +45,22 @@ func reportGoogleAIThinking(warn *llms.Warnings, model string, opts llms.CallOpt
 	if cfg.ResolveMode() != llms.ReasoningOn {
 		return
 	}
-	if !reasoning.GeminiSupportsThinking(model) {
+	if tc == nil {
 		asked := askedDepth(cfg, opts.GetMaxTokens(), cfg.HasExplicitTokens())
 		warn.Add(llms.Warning{
 			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
 			Asked: asked, Reason: "this model does not think, so the door sends no thinking config",
 		})
+		return
+	}
+	if !reasoning.GeminiSupportsThinking(model) {
+		if cfg.Effort != "" || cfg.HasExplicitTokens() {
+			warn.Add(llms.Warning{
+				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model,
+				Asked:  askedDepth(cfg, opts.GetMaxTokens(), cfg.HasExplicitTokens()),
+				Reason: "the API reports that the model thinks, but the door knows no thinking level or budget for it",
+			})
+		}
 		return
 	}
 

@@ -116,3 +116,47 @@ func TestANilCacheReportsNothing(t *testing.T) {
 		return "reported", nil
 	}))
 }
+
+func TestAFailedRefreshKeepsTheAnswerItHad(t *testing.T) {
+	t.Parallel()
+
+	clock := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	cache := New[string](time.Hour)
+	cache.now = func() time.Time { return clock }
+	failing := false
+	lookup := func(context.Context) (string, error) {
+		if failing {
+			return "", errors.New("503 service unavailable")
+		}
+		return "reported", nil
+	}
+
+	assert.Equal(t, "reported", cache.Get(t.Context(), "claude-opus-6", lookup))
+	clock, failing = clock.Add(time.Hour), true
+	assert.Equal(t, "reported", cache.Get(t.Context(), "claude-opus-6", lookup))
+	clock = clock.Add(30 * time.Minute)
+	assert.Equal(t, "reported", cache.Get(t.Context(), "claude-opus-6", lookup))
+}
+
+func TestASlowLookupLeavesTheCallerHalfItsDeadline(t *testing.T) {
+	t.Parallel()
+
+	cache := New[string](time.Hour)
+	release := make(chan struct{})
+	lookup := func(context.Context) (string, error) {
+		<-release
+		return "reported", nil
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 400*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	assert.Empty(t, cache.Get(ctx, "claude-opus-6", lookup))
+	assert.Less(t, time.Since(start), 300*time.Millisecond)
+	require.NoError(t, ctx.Err(), "the caller keeps time for its own request")
+
+	close(release)
+	require.Eventually(t, func() bool {
+		return cache.Get(t.Context(), "claude-opus-6", lookup) == "reported"
+	}, time.Second, 10*time.Millisecond, "the lookup still answers the next call")
+}

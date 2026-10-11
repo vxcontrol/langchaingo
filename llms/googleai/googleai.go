@@ -153,15 +153,11 @@ func (g *GoogleAI) GenerateContent(
 
 	// Handle thinking configuration for reasoning models
 	tc, err := resolveThinkingConfig(opts.GetModel(), opts.Reasoning, opts.GetMaxTokens())
-	if (tc != nil || err != nil) && rules.thinksNever() {
-		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
-			warn.Add(llms.Warning{
-				Kind: llms.WarningDrop, Option: "WithReasoning", Model: opts.GetModel(),
-				Asked:  string(opts.Reasoning.GetEffort(opts.GetMaxTokens())),
-				Reason: "the API reports that the model does not think",
-			})
-		}
+	switch {
+	case (tc != nil || err != nil) && rules.thinksNever():
 		tc, err = nil, nil
+	case tc == nil && err == nil && opts.Reasoning.ResolveMode() == llms.ReasoningOn && rules.thinks():
+		tc = &genai.ThinkingConfig{IncludeThoughts: true}
 	}
 	var refusal *reasoning.ErrReasoningOffUnsupported
 	if errors.As(err, &refusal) {

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/vxcontrol/langchaingo/callbacks"
 	"github.com/vxcontrol/langchaingo/internal/modelinfo"
@@ -416,7 +417,7 @@ func (o *LLM) createChatRequest(
 	if err != nil {
 		return nil, err
 	}
-	thinks := o.thinks(req, o.effectiveModel(opts), opts, wireEffort, rules)
+	thinks := sync.OnceValue(func() bool { return o.thinks(req, o.effectiveModel(opts), opts, wireEffort, rules) })
 	if err := o.refuseAForcedChoiceTheVendorRejects(req, opts, thinks, warn); err != nil {
 		return nil, err
 	}
@@ -427,7 +428,7 @@ func (o *LLM) createChatRequest(
 }
 
 func (o *LLM) refuseAForcedChoiceTheVendorRejects(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) error {
 	if !llms.OffersTools(opts) {
 		return nil
@@ -445,7 +446,7 @@ func (o *LLM) refuseAForcedChoiceTheVendorRejects(
 	refusal := &reasoning.ErrForcedToolChoiceUnsupported{Model: model, Choice: cmp.Or(name, "required")}
 	switch {
 	case reasoning.ServedByZAI(model, o.host),
-		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinks:
+		reasoning.RejectsForcedToolChoiceWhileThinking(model, o.host, named) && thinks():
 		return refusal
 	case !named && reasoning.RejectsRequiredToolChoice(model, o.host):
 		if warn.KeepRefusal(model, "WithToolChoice", refusal.Choice, refusal.Choice, refusal) {
@@ -502,13 +503,8 @@ func (o *LLM) thinks(
 	if reasoning.DashScopeGuestThinkingEnabledByFlag(route) {
 		return false
 	}
-	reasons := reasoning.IsReasoningModel(model)
-	if reasons || isThinkingOnTheWire(wireEffort) {
-		if thinks, reported := rules.thinks(); reported && (!thinks || !reasons) {
-			return thinks && isThinkingOnTheWire(wireEffort)
-		}
-	}
-	return reasons && thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
+	return reasoning.IsReasoningModel(model) && !rules.thinksNever() &&
+		thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
 }
 
 func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host string, warn *llms.Warnings) {
@@ -574,20 +570,14 @@ func (o *LLM) setReasoning(
 	case llms.ReasoningDefault:
 		return o.setDeferredReasoning(req, opts, toolsRule, warn), nil
 	case llms.ReasoningOff:
-		if rules.thinksNever() {
-			return "", nil
-		}
 		return "", o.setReasoningOff(req, opts, warn, rules)
 	}
 
-	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	if rules.thinksNever() {
-		warn.Add(llms.Warning{
-			Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: askedEffort,
-			Reason: "the API reports that the model does not think",
-		})
+		reportOpenAIReasoning(warn, model, opts.Reasoning, req, false)
 		return "", nil
 	}
+	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	acceptsEffort, caps, effortsReported := o.effortsFor(model, rules)
 	effort := caps.ClampEffort(askedEffort)
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
@@ -629,7 +619,7 @@ func (o *LLM) effortsFor(model string, rules *vendorRules) (bool, reasoning.Open
 	}
 	efforts, reported := rules.efforts()
 	if reported {
-		caps = reasoning.ReportedCaps(efforts, caps.CanDisable)
+		caps = reasoning.ReportedCaps(efforts)
 		accepts = accepts && len(caps.Efforts) > 0
 	}
 	return accepts, caps, reported
@@ -846,9 +836,19 @@ func (o *LLM) setReasoningOff(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, warn *llms.Warnings, rules *vendorRules,
 ) error {
 	model := o.effectiveModel(opts)
+	if rules.thinksNever() {
+		return nil
+	}
+	if efforts, reported := rules.efforts(); reported {
+		if !reasoning.ReportedCaps(efforts).CanDisable {
+			return &reasoning.ErrReasoningOffUnsupported{Model: model}
+		}
+		o.writeDisableEffort(req)
+		return nil
+	}
 	route := reasoning.DashScopeRoute(model, o.host)
 	off := reasoning.ResolveOff(route, reasoning.ProviderOpenAI)
-	if rules.mistralReasons() && off == reasoning.OffOmit {
+	if rules.mistralReasons() && off == reasoning.OffOmit && !reasoning.OffByOmission(model) {
 		off = reasoning.OffEffortNone
 	}
 	if !o.carriesOff(model, off) {
@@ -907,7 +907,7 @@ func (o *LLM) writeDisableEffort(req *openaiclient.ChatRequest) {
 }
 
 func (o *LLM) applySamplingPolicy(
-	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool, warn *llms.Warnings,
+	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
 	if t := req.Temperature; t != nil {
@@ -933,7 +933,7 @@ func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model 
 	req.Temperature = &sent
 }
 
-func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks bool) {
+func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool) {
 	model := o.effectiveModel(opts)
 	if reasoning.RejectsMinP(model) {
 		req.MinP = nil
@@ -968,7 +968,7 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 		req.LogProbs = false
 		req.TopLogProbs = 0
 	case reasoning.ServedByDeepSeek(model, o.host):
-		if thinks {
+		if thinks() {
 			req.Temperature = nil
 		} else {
 			req.TopP = nil
@@ -978,8 +978,8 @@ func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.Cal
 	}
 }
 
-func refusesSamplingWhileThinking(model string, thinks bool) bool {
-	return thinks && (reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model))
+func refusesSamplingWhileThinking(model string, thinks func() bool) bool {
+	return (reasoning.RejectsSamplingWhileThinking(model) || reasoning.ClaudeSupportsThinking(model)) && thinks()
 }
 
 func thinkingRunsWithoutTheExtraBody(model string, opts llms.CallOptions, wireEffort string) bool {

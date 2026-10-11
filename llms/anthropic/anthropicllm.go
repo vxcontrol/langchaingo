@@ -218,10 +218,6 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 		// so honor the caller's preference only where the model accepts it.
 		effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 		if !rules.thinks() {
-			warn.Add(llms.Warning{
-				Kind: llms.WarningDrop, Option: "WithReasoning", Model: model, Asked: effort,
-				Reason: "the API reports that the model does not think",
-			})
 			break
 		}
 		adaptive := rules.adaptive(opts.Reasoning.Adaptive)

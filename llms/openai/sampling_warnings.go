@@ -84,7 +84,7 @@ func reportOpenAIUnread(warn *llms.Warnings, model string, opts llms.CallOptions
 		"WithLogProbs", "WithJSONMode", "WithFunctions")
 }
 
-func samplingReason(model, host string, thinks bool) string {
+func samplingReason(model, host string, thinks func() bool) string {
 	switch {
 	case reasoning.ClaudeRejectsSampling(model):
 		return "the model rejects sampling parameters"
@@ -92,7 +92,7 @@ func samplingReason(model, host string, thinks bool) string {
 		return "the model runs on fixed sampling and refuses any value for it"
 	case refusesSamplingWhileThinking(model, thinks):
 		return "the model refuses sampling while thinking"
-	case reasoning.ServedByDeepSeek(model, host) && thinks:
+	case reasoning.ServedByDeepSeek(model, host) && thinks():
 		return "the model ignores temperature while thinking"
 	case reasoning.ServedByDeepSeek(model, host):
 		return "the model ignores top_p when not thinking"
