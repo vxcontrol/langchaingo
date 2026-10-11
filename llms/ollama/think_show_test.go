@@ -385,3 +385,23 @@ func TestAnOllamaGemmaTagIsAListedReleaseNotAnInheritedOne(t *testing.T) {
 		}
 	}
 }
+
+func TestTurningOffAModelWhoseThinkingIsForcedIsRefusedEvenWhenTheServerCannotSay(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5.3", "glm-5.3-flash", "minimax-m2.7"} {
+		s, llm := newShowServer(t, `not json`)
+		_, err := ask(t, llm, llms.WithModel(model), llms.WithReasoningDisabled())
+
+		var refused *reasoning.ErrReasoningOffUnsupported
+		require.ErrorAs(t, err, &refused, model)
+		assert.Zero(t, s.chats.Load(), "%s: false would leave the thinking in the answer text", model)
+	}
+
+	s, llm := newShowServer(t, `not json`)
+	_, err := ask(t, llm, llms.WithModel("kimi-k3"), llms.WithReasoningDisabled())
+	require.NoError(t, err)
+	think, sent := s.sentThink(t)
+	require.True(t, sent)
+	assert.Equal(t, false, think, "Ollama lists false among kimi-k3's think values")
+}

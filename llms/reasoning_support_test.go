@@ -880,3 +880,22 @@ func TestTheOllamaHintReadsGemmaByOllamasLibraryName(t *testing.T) {
 		t.Errorf("gemma5:31b follows %q, want the newest listed Gemma", got)
 	}
 }
+
+func TestTheOllamaHintHidesOffWhereTheVendorAndOllamaForceThinking(t *testing.T) {
+	t.Parallel()
+
+	for _, model := range []string{"glm-5.3", "glm-5.3-flash", "glm-5.3:cloud", "minimax-m2.7"} {
+		if got := reasoning.ResolveOff(model, reasoning.ProviderOllama); got != reasoning.OffUnsupported {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v: a consumer offers an off the ollama door refuses", model, got)
+		}
+		if !ReasoningSupportFor(model, reasoning.ProviderOllama).CannotDisable {
+			t.Errorf("%s: the hint offers an off the ollama door refuses", model)
+		}
+	}
+
+	for _, model := range []string{"kimi-k3", "kimi-k2.7-code"} {
+		if got := reasoning.ResolveOff(model, reasoning.ProviderOllama); got != reasoning.OffDisableThinkBool {
+			t.Errorf("ResolveOff(%q, ProviderOllama) = %v: Ollama lists false among its think values", model, got)
+		}
+	}
+}
