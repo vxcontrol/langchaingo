@@ -449,3 +449,36 @@ func TestDeepSeekIDsOnAPublicProviderKeepTheTopK(t *testing.T) {
 		t.Errorf("the gateway's deepseek route is DeepSeek's API, which has no top_k, got body: %v", body)
 	}
 }
+
+func TestDeepSeekAPIGetsNoN(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ baseURL, model string }{
+		{deepSeekBaseURL, "deepseek-v4-pro"},
+		{deepSeekBaseURL, "deepseek-flash"},
+		{gatewayBaseURL, "deepseek/deepseek-v4-pro"},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithN(1))
+		if _, ok := body["n"]; ok {
+			t.Errorf("%s on %s: DeepSeek's API has no n field, got body: %v", tc.model, tc.baseURL, body)
+		}
+		for _, w := range resp.Warnings {
+			if w.Option == "WithN" {
+				t.Errorf("%s on %s: one choice is all the API returns, yet n=1 is reported: %+v", tc.model, tc.baseURL, w)
+			}
+		}
+
+		body, resp = sendToHost(t, tc.baseURL, tc.model, llms.WithN(3))
+		if _, ok := body["n"]; ok {
+			t.Errorf("%s on %s: DeepSeek's API has no n field, got body: %v", tc.model, tc.baseURL, body)
+		}
+		if w := warningFor(t, resp, "WithN"); w.Kind != llms.WarningDrop || w.Asked != "3" {
+			t.Errorf("%s on %s: the caller asked for three choices and gets one, got %+v", tc.model, tc.baseURL, w)
+		}
+	}
+
+	body, _ := sendToHost(t, openRouterBaseURL, "deepseek/deepseek-v4-pro", llms.WithN(3))
+	if body["n"] != float64(3) {
+		t.Errorf("OpenRouter's catalogue id is not DeepSeek's API, got body: %v", body)
+	}
+}
