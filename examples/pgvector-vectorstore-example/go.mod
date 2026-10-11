@@ -13,6 +13,7 @@ require (
 	github.com/pgvector/pgvector-go v0.1.1 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.8 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 )
 

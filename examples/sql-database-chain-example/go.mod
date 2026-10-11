@@ -32,6 +32,7 @@ require (
 	go.starlark.net v0.0.0-20230302034142-4b1e35fe2254 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

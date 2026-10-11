@@ -18,6 +18,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect

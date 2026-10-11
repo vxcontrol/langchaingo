@@ -15,6 +15,7 @@ require (
 	github.com/viterin/partial v1.1.0 // indirect
 	github.com/viterin/vek v0.4.2 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 )
