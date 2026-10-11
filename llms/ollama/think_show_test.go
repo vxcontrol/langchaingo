@@ -372,3 +372,16 @@ func TestAShowCutByTheContextStopsTheCallBeforeTheChat(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Zero(t, chats.Load())
 }
+
+func TestAnOllamaGemmaTagIsAListedReleaseNotAnInheritedOne(t *testing.T) {
+	t.Parallel()
+
+	_, llm := newShowServer(t, `{"capabilities":["completion","thinking"],"thinking":{"values":[false,true],"default":false}}`)
+	for _, model := range []string{"gemma4:31b", "gemma4", "gemma3:27b"} {
+		resp, err := ask(t, llm, llms.WithModel(model))
+		require.NoError(t, err)
+		for _, w := range resp.Warnings {
+			assert.NotEqual(t, llms.WarningInherit, w.Kind, "%s: %+v", model, w)
+		}
+	}
+}

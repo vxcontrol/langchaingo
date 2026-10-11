@@ -67,7 +67,8 @@ func ollamaLibrarySpelling(name string) string {
 	if !ok || rest == "" || rest[0] < '0' || rest[0] > '9' {
 		return name
 	}
-	return "gemma-" + rest
+	version, _, _ := strings.Cut(rest, ":")
+	return "gemma-" + version + "-it"
 }
 
 func documentedAlias(bare string) string {

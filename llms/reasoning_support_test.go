@@ -862,11 +862,21 @@ func TestTheOllamaHintReadsGemmaByOllamasLibraryName(t *testing.T) {
 		if !reasoning.IsReasoningModel(model) {
 			t.Errorf("%s: a consumer without the server's capabilities reads the model as not thinking", model)
 		}
+		if s.Inherited != "" {
+			t.Errorf("%s: Gemma 4 is a listed release, yet the hint says it follows %s", model, s.Inherited)
+		}
 	}
 
 	for _, model := range []string{"gemma3:27b", "gemma3n:e4b"} {
 		if reasoning.IsReasoningModel(model) {
 			t.Errorf("%s: Gemma 3 does not think, as gemma-3-27b-it does not", model)
 		}
+		if inherited := ReasoningSupportFor(model, reasoning.ProviderOllama).Inherited; inherited != "" {
+			t.Errorf("%s: a listed release, yet the hint says it follows %s", model, inherited)
+		}
+	}
+
+	if got := ReasoningSupportFor("gemma5:31b", reasoning.ProviderOllama).Inherited; got != "gemma-4-26b-a4b-it" {
+		t.Errorf("gemma5:31b follows %q, want the newest listed Gemma", got)
 	}
 }
