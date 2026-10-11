@@ -35,15 +35,16 @@ func New[T any](ttl time.Duration) *Cache[T] {
 }
 
 func (c *Cache[T]) Get(ctx context.Context, key string, lookup func(context.Context) (T, error)) T {
-	var zero T
 	if c == nil {
+		var zero T
 		return zero
 	}
-	if value, ok := c.fresh(key); ok {
-		return value
+	last, fresh := c.stored(key)
+	if fresh {
+		return last
 	}
 	done := c.group.DoChan(key, func() (any, error) {
-		if value, ok := c.fresh(key); ok {
+		if value, fresh := c.stored(key); fresh {
 			return value, nil
 		}
 		lookupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), lookupTimeout)
@@ -65,22 +66,18 @@ func (c *Cache[T]) Get(ctx context.Context, key string, lookup func(context.Cont
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
-		return zero
+		return last
 	case <-timer.C:
-		return zero
+		return last
 	case result := <-done:
 		value, _ := result.Val.(T)
 		return value
 	}
 }
 
-func (c *Cache[T]) fresh(key string) (T, bool) {
+func (c *Cache[T]) stored(key string) (T, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	e, ok := c.entries[key]
-	if !ok || !c.now().Before(e.until) {
-		var zero T
-		return zero, false
-	}
-	return e.value, true
+	e := c.entries[key]
+	return e.value, c.now().Before(e.until)
 }

@@ -503,6 +503,11 @@ func (o *LLM) thinks(
 	if reasoning.DashScopeGuestThinkingEnabledByFlag(route) {
 		return false
 	}
+	if isThinkingOnTheWire(wireEffort) {
+		if thinks, reported := rules.thinks(); reported {
+			return thinks
+		}
+	}
 	return reasoning.IsReasoningModel(model) && !rules.thinksNever() &&
 		thinkingRunsWithoutTheExtraBody(model, opts, wireEffort)
 }
@@ -840,10 +845,13 @@ func (o *LLM) setReasoningOff(
 		return nil
 	}
 	if efforts, reported := rules.efforts(); reported {
-		if !reasoning.ReportedCaps(efforts).CanDisable {
+		caps := reasoning.ReportedCaps(efforts)
+		switch {
+		case caps.CanDisable:
+			o.writeDisableEffort(req)
+		case len(caps.Efforts) > 0 || reasoning.IsReasoningModel(model):
 			return &reasoning.ErrReasoningOffUnsupported{Model: model}
 		}
-		o.writeDisableEffort(req)
 		return nil
 	}
 	route := reasoning.DashScopeRoute(model, o.host)

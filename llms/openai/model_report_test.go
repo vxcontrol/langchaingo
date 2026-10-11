@@ -207,6 +207,16 @@ func TestTheOffSwitchFollowsTheEffortsXAIReports(t *testing.T) {
 	body, warnings = api.ask(t, api.llm(t, xaiHostURL, "grok-4.8"), llms.WithReasoningDisabled())
 	assert.Equal(t, "none", body["reasoning_effort"], "without the endpoint the inherited rules decide")
 	assert.Equal(t, llms.WarningInherit, warnings["WithReasoningDisabled"].Kind)
+
+	empty := `{"id":"m","aliases":[],"capabilities":{"reasoning_effort":[]}}`
+	api = &vendorModelAPI{answers: map[string]string{"/v1/models/grok-3": empty}}
+	body, _ = api.ask(t, api.llm(t, xaiHostURL, "grok-3"), llms.WithReasoningDisabled())
+	assert.NotContains(t, body, "reasoning_effort", "a model that does not reason has nothing to switch off")
+
+	api = &vendorModelAPI{answers: map[string]string{"/v1/models/grok-4.8": empty}}
+	_, _, err = api.send(t, api.llm(t, xaiHostURL, "grok-4.8"),
+		[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")}, llms.WithReasoningDisabled())
+	require.ErrorAs(t, err, &refusal, "a model that reasons with no effort field cannot be switched off")
 }
 
 const moonshotListing = `{"object":"list","data":[` +
@@ -258,6 +268,15 @@ func TestAKimiModelThatDoesNotThinkCanBeForcedToCallATool(t *testing.T) {
 	api = &vendorModelAPI{}
 	_, _, err = api.send(t, api.llm(t, moonshotHostURL, "kimi-k3.5"), messages, forced...)
 	require.Error(t, err, "Moonshot refuses a forced tool while a Kimi model thinks")
+
+	api = &vendorModelAPI{answers: map[string]string{
+		"/v1/models": `{"object":"list","data":[{"id":"kimi-thinking-preview","supports_reasoning":true}]}`,
+	}}
+	body, _, err = api.send(t, api.llm(t, moonshotHostURL, "kimi-thinking-preview"), messages,
+		append(forced, llms.WithReasoning(llms.ReasoningHigh, 0))...)
+	var refusal *reasoning.ErrForcedToolChoiceUnsupported
+	require.ErrorAs(t, err, &refusal, "a model Moonshot reports as thinking is refused a forced tool while it thinks")
+	assert.Nil(t, body)
 }
 
 func TestMoonshotIsNotAskedWhereTheTablesDecide(t *testing.T) {

@@ -160,3 +160,27 @@ func TestASlowLookupLeavesTheCallerHalfItsDeadline(t *testing.T) {
 		return cache.Get(t.Context(), "claude-opus-6", lookup) == "reported"
 	}, time.Second, 10*time.Millisecond, "the lookup still answers the next call")
 }
+
+func TestACallerThatCannotWaitForARefreshGetsTheLastAnswer(t *testing.T) {
+	t.Parallel()
+
+	clock := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	cache := New[string](time.Hour)
+	cache.now = func() time.Time { return clock }
+	release := make(chan struct{})
+	refreshing := false
+	lookup := func(context.Context) (string, error) {
+		if refreshing {
+			<-release
+			return "refreshed", nil
+		}
+		return "reported", nil
+	}
+
+	assert.Equal(t, "reported", cache.Get(t.Context(), "claude-opus-6", lookup))
+	clock, refreshing = clock.Add(time.Hour), true
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	assert.Equal(t, "reported", cache.Get(ctx, "claude-opus-6", lookup))
+	close(release)
+}
