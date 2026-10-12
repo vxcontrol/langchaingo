@@ -232,10 +232,13 @@ func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T
 			t.Errorf("%s: a streaming call must go out, got %v", name, body)
 		}
 
-		name = at.prefix + "qwen3.9-27b"
-		body, err := callWithoutModel(t, at.baseURL, name)
-		if err != nil || body == nil || [2]any{body["enable_thinking"], body["reasoning_effort"]} != [2]any{} {
-			t.Errorf("%s: a name outside the known lines must go out as asked, got %v, %v", name, body, err)
+		for _, model := range []string{"qwen3.9-27b", "qwen3.7-27b", "qwen3.5-1t"} {
+			name = at.prefix + model
+			body, err := callWithoutModel(t, at.baseURL, name)
+			if err != nil || body == nil || [2]any{body["enable_thinking"], body["reasoning_effort"]} != [2]any{} {
+				t.Errorf("%s: Model Studio documents no such open weights, so the call must go out as asked, got %v, %v",
+					name, body, err)
+			}
 		}
 	}
 }
