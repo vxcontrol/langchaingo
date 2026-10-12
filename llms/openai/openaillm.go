@@ -385,7 +385,9 @@ func (o *LLM) createChatRequest(
 		if extraOn || (budgeted && !extraOff) || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
-		if !extraOff {
+		if extraOff {
+			opts.Reasoning = nil
+		} else {
 			opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
 		}
 	}
