@@ -1,12 +1,14 @@
 package openai
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/reasoning"
 )
 
 func assertMaxSentAsXHigh(t *testing.T, body map[string]any, warnings map[string]llms.Warning, why string) {
@@ -43,12 +45,15 @@ func TestOpenAIsMaxGoesToTheResponsesAPIWhereverItCan(t *testing.T) {
 				assert.Equal(t, "xhigh", body["reasoning_effort"], "an effort Chat Completions takes stays there on %q", baseURL)
 			}
 
-			body, warnings := hostCall(t, "", model,
+			doer := &bodyDoer{}
+			_, err := newUnitLLM(t, WithModel(model), WithHTTPClient(doer)).GenerateContent(context.Background(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "hi")},
 				llms.WithReasoning(llms.ReasoningMax, 0), llms.WithStopWords([]string{"END"}))
-			assert.Equal(t, []any{"END"}, body["stop"], "the Responses API has no stop, so the call stays on Chat Completions")
-			assertMaxSentAsXHigh(t, body, warnings, "Chat Completions answers 400 to max and names the efforts up to xhigh")
+			var stop *reasoning.ErrStopWordsUnsupported
+			require.ErrorAs(t, err, &stop, "Chat Completions answers 400 to stop on this model and the Responses API has no stop")
+			assert.Nil(t, doer.body, "the refusal comes before the network")
 
-			body, warnings = hostCall(t, "http://litellm.internal/v1", "openai/"+model, llms.WithReasoning(llms.ReasoningMax, 0))
+			body, warnings := hostCall(t, "http://litellm.internal/v1", "openai/"+model, llms.WithReasoning(llms.ReasoningMax, 0))
 			assertMaxSentAsXHigh(t, body, warnings, "a gateway route serves OpenAI's Chat Completions only")
 		})
 	}

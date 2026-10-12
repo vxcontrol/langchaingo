@@ -28,10 +28,7 @@ func (o *LLM) takesResponses(model string, opts llms.CallOptions) bool {
 			mode = reasoning.ThinkingOff
 		}
 	}
-	effort := ""
-	if len(opts.StopWords) == 0 {
-		effort = string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
-	}
+	effort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	return reasoning.OpenAITakesResponses(model, len(opts.Tools)+len(opts.Functions) > 0, mode, effort)
 }
 
