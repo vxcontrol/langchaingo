@@ -21,21 +21,14 @@ func QwenThinkingOffByFlag(model string) bool {
 	return qwenDefaultThinkingName.MatchString(dashScopeSpelling(model))
 }
 
-// QwenThinkingRequiresStream reports whether Model Studio serves the model's
+// QwenThinkingRequiresStream reports whether DashScope serves the model's
 // thinking only on a streaming call.
 func QwenThinkingRequiresStream(model string) bool {
 	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
 func DashScopeThinkingRequiresStream(model, host string) bool {
-	if ServedBy(model, host) != VendorDashScope {
-		return false
-	}
-	route := DashScopeRoute(model, host)
-	if servedByQwenCloud(model, host) {
-		return qwenParameterCountName.MatchString(dashScopeSpelling(route))
-	}
-	return QwenThinkingRequiresStream(route)
+	return ServedBy(model, host) == VendorDashScope && QwenThinkingRequiresStream(DashScopeRoute(model, host))
 }
 
 func DashScopeStreamsOnly(model, host string) bool {
