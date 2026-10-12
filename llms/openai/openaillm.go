@@ -567,6 +567,10 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host strin
 		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
 		req.RepetitionPenalty = nil
 	}
+	if reasoning.DashScopeTakesNoRepetitionPenalty(reasoning.DashScopeRoute(model, host)) && req.RepetitionPenalty != nil {
+		addNonZeroChange(warn, "WithRepetitionPenalty", model, "the vendor does not take this field on the model", req.RepetitionPenalty, nil)
+		req.RepetitionPenalty = nil
+	}
 }
 
 // effectiveModel resolves the model the request runs on: a per-call model wins,

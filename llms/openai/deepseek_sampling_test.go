@@ -314,6 +314,10 @@ func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 		"Moonshot-Kimi-K2-Instruct on DashScope":          {dashScopeBaseURL, "Moonshot-Kimi-K2-Instruct", true},
 		"dashscope/qwen3.7-plus keeps it":                 {gatewayBaseURL, "dashscope/qwen3.7-plus", false},
 		"glm-5.2 on DashScope keeps it":                   {dashScopeBaseURL, "glm-5.2", false},
+		"glm-5.3 on DashScope":                            {dashScopeBaseURL, "glm-5.3", true},
+		"glm-5.3-prime on DashScope":                      {dashScopeBaseURL, "glm-5.3-prime", true},
+		"dashscope/glm-5.3 on a gateway":                  {gatewayBaseURL, "dashscope/glm-5.3", true},
+		"glm-5.3 on Z.ai keeps it":                        {"http://api.z.ai/api/paas/v4", "glm-5.3", false},
 		"kimi-k2.6 on a gateway's other route":            {gatewayBaseURL, "moonshot/kimi-k2.6", false},
 		"deepseek-v4-pro on another route keeps it":       {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", false},
 		"deepseek/deepseek-v4-pro on OpenRouter keeps it": {openRouterBaseURL, "deepseek/deepseek-v4-pro", false},
@@ -329,6 +333,34 @@ func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 			}
 		} else if body["top_k"] != float64(40) {
 			t.Errorf("%s: top_k must reach the wire, got body: %v", name, body)
+		}
+	}
+}
+
+func TestRepetitionPenaltyStaysOffTheGLMModelStudioServesWithoutIt(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		baseURL, model string
+		dropped        bool
+	}{
+		"glm-5.3 on DashScope":              {dashScopeBaseURL, "glm-5.3", true},
+		"dashscope/glm-5.3 on a gateway":    {gatewayBaseURL, "dashscope/glm-5.3", true},
+		"glm-5.2 on DashScope keeps it":     {dashScopeBaseURL, "glm-5.2", false},
+		"qwen3.8-max on DashScope keeps it": {dashScopeBaseURL, "qwen3.8-max", false},
+		"glm-5.3 on Z.ai keeps it":          {"http://api.z.ai/api/paas/v4", "glm-5.3", false},
+	} {
+		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithRepetitionPenalty(1.05))
+		_, present := body["repetition_penalty"]
+		if tc.dropped {
+			if present {
+				t.Errorf("%s: Model Studio serves the model without repetition_penalty, got body: %v", name, body)
+			}
+			if w := warningFor(t, resp, "WithRepetitionPenalty"); w.Kind != llms.WarningDrop || w.Asked != "1.05" {
+				t.Errorf("%s: repetition_penalty warning = %+v", name, w)
+			}
+		} else if body["repetition_penalty"] != 1.05 {
+			t.Errorf("%s: repetition_penalty must reach the wire, got body: %v", name, body)
 		}
 	}
 }
