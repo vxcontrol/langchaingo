@@ -28,7 +28,11 @@ func (o *LLM) takesResponses(model string, opts llms.CallOptions) bool {
 			mode = reasoning.ThinkingOff
 		}
 	}
-	return reasoning.OpenAITakesResponses(model, len(opts.Tools)+len(opts.Functions) > 0, mode)
+	effort := ""
+	if len(opts.StopWords) == 0 {
+		effort = string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
+	}
+	return reasoning.OpenAITakesResponses(model, len(opts.Tools)+len(opts.Functions) > 0, mode, effort)
 }
 
 func (o *LLM) toolTurnMode(model string, opts llms.CallOptions) llms.ReasoningMode {

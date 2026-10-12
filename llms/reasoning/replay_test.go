@@ -21,6 +21,10 @@ func onBudget(t ReplayTarget) ReplayTarget     { t.Mode = ThinkingBudget; return
 func thinkingOff(t ReplayTarget) ReplayTarget  { t.Mode = ThinkingOff; return t }
 func keeping(t ReplayTarget) ReplayTarget      { t.KeepsPastReasoning = true; return t }
 func byDefault(t ReplayTarget) ReplayTarget    { t.Mode = ThinkingDefault; return t }
+func asking(effort string, t ReplayTarget) ReplayTarget {
+	t.Effort = effort
+	return t
+}
 
 func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint:funlen
 	t.Parallel()
@@ -169,6 +173,8 @@ func TestTheReplayPolicyFollowsTheTargetModelAndItsHost(t *testing.T) { //nolint
 		{"GPT with its thinking off", thinkingOff(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
 		{"GPT on Responses with its thinking off", thinkingOff(on("gpt-6-astra", "api.openai.com", ReplayChat)), asSent},
 		{"GPT without tools", withoutTools(on("gpt-5.6", "api.openai.com", ReplayChat)), asSent},
+		{"GPT without tools asked for an effort only Responses takes", asking("max", withoutTools(onBudget(on("gpt-6-luna", "api.openai.com", ReplayChat)))), ownTurns},
+		{"GPT without tools asked for an effort Chat Completions takes", asking("xhigh", withoutTools(onBudget(on("gpt-6-luna", "api.openai.com", ReplayChat)))), asSent},
 		{"GPT that thinks only when asked", byDefault(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), asSent},
 		{"GPT asked to think", onBudget(on("gpt-5.4-mini", "api.openai.com", ReplayChat)), ownTurns},
 		{"GPT behind a gateway", on("gpt-5.6", gateway, ReplayChat), asSent},
