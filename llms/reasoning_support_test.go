@@ -843,9 +843,9 @@ func TestTheAstraHintOffersTheLevelsItsCardListsAndNoDisable(t *testing.T) {
 			if !s.CannotDisable {
 				t.Errorf("%s CannotDisable = false, want true: the vendor answers HTTP 400 to reasoning_effort none", model)
 			}
-			want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh}
+			want := []ReasoningEffort{ReasoningLow, ReasoningMedium, ReasoningHigh, ReasoningXHigh, ReasoningMax}
 			if !slices.Equal(s.Efforts, want) {
-				t.Errorf("%s efforts = %v, want %v: the vendor refuses max with this model", model, s.Efforts, want)
+				t.Errorf("%s efforts = %v, want %v", model, s.Efforts, want)
 			}
 		})
 	}

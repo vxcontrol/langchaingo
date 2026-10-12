@@ -74,15 +74,6 @@ func TestAstraCarriesTheTopEffortTheVendorAccepts(t *testing.T) {
 	assert.Equal(t, "xhigh", body["reasoning_effort"])
 }
 
-func TestAstraClampsMaxTheVendorRefuses(t *testing.T) {
-	t.Parallel()
-
-	body, err := wireBodyOf(t, "gpt-6-astra", nil, llms.WithReasoning(llms.ReasoningMax, 0))
-	require.NoError(t, err)
-	assert.Equal(t, "xhigh", body["reasoning_effort"],
-		"the vendor answers 400 to max with this model and names low, medium, high and xhigh")
-}
-
 func TestAstraClampsAnEffortItsCardDoesNotList(t *testing.T) {
 	t.Parallel()
 

@@ -55,9 +55,10 @@ func (c OpenAIReasoningCaps) ClampEffort(effort string) string {
 }
 
 // OpenAIReasoningCapsFor classifies a reasoning model by the effort set its
-// generation accepts on /chat/completions. An unlisted version of a listed line
-// answers as the release it follows; a model outside every line returns
-// Known=false and the API arbitrates.
+// generation accepts on the Responses API; OpenAIChatEffort lowers what Chat
+// Completions refuses. An unlisted version of a listed line answers as the
+// release it follows; a model outside every line returns Known=false and the API
+// arbitrates.
 func OpenAIReasoningCapsFor(model string) OpenAIReasoningCaps {
 	for _, form := range modelSpellings(model) {
 		if caps := openAICapsForForm(form); caps.Known {
@@ -74,7 +75,7 @@ func OpenAIChatEffort(model, effort string) string {
 		return effort
 	}
 	for _, form := range modelSpellings(model) {
-		if hasGeneration(form, "gpt-6.1-sol") {
+		if strings.HasPrefix(form, "gpt-") && slices.Contains(openAICapsForForm(form).Efforts, "max") {
 			return "xhigh"
 		}
 	}
@@ -105,14 +106,14 @@ func openAICapsForForm(m string) OpenAIReasoningCaps {
 		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"minimal", "low", "medium", "high"}}
 	case hasGeneration(m, "gpt-5.1"):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high"}}
-	case hasGeneration(m, "gpt-6-astra"):
-		return OpenAIReasoningCaps{Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh"}}
-	case hasGeneration(m, "gpt-6.1-sol"):
+	case hasGeneration(m, "gpt-6-astra") || hasGeneration(m, "gpt-6.1-sol"):
 		return OpenAIReasoningCaps{
 			Known: true, CanDisable: false, Efforts: []string{"low", "medium", "high", "xhigh", "max"},
 		}
-	case hasGeneration(m, "gpt-6-sol") || hasGeneration(m, "gpt-6-luna"):
-		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
+	case hasGeneration(m, "gpt-6-sol") || hasGeneration(m, "gpt-6-luna") || openAIGPT56(m):
+		return OpenAIReasoningCaps{
+			Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh", "max"},
+		}
 	case openAIXHighCeiling(m):
 		return OpenAIReasoningCaps{Known: true, CanDisable: true, Efforts: []string{"low", "medium", "high", "xhigh"}}
 	case hasGeneration(m, "grok-4.6") || hasGeneration(m, "grok-4.7"):
@@ -141,6 +142,10 @@ func openAIGPT5Base(m string) bool {
 
 func nonOpenAILowHighMax(m string) bool {
 	return hasGeneration(m, "kimi-k3") || hasGeneration(m, "glm-5.3") || hasGeneration(m, "glm-5-3")
+}
+
+func openAIGPT56(m string) bool {
+	return hasGeneration(m, "gpt-5.6") && !hasGeneration(m, "gpt-5.6-cyber")
 }
 
 func openAIXHighCeiling(m string) bool {

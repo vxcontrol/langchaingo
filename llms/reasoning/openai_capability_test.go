@@ -33,8 +33,9 @@ func TestOpenAIReasoningCapsFor(t *testing.T) {
 		{"gpt-5.4-mini", true, true, []string{"low", "medium", "high", "xhigh"}},
 		{"openai/gpt-5.4-mini", true, true, []string{"low", "medium", "high", "xhigh"}}, // proxy prefix stripped
 		{"gpt-5.5", true, true, []string{"low", "medium", "high", "xhigh"}},
-		{"gpt-5.6-terra", true, true, []string{"low", "medium", "high", "xhigh"}},
-		{"gpt-5.7", true, true, []string{"low", "medium", "high", "xhigh"}},
+		{"gpt-5.6-terra", true, true, []string{"low", "medium", "high", "xhigh", "max"}},
+		{"gpt-5.7", true, true, []string{"low", "medium", "high", "xhigh", "max"}},
+		{"gpt-5.6-cyber", true, true, []string{"low", "medium", "high", "xhigh"}},
 		{"gpt-5.3-codex", false, false, nil},
 		{"gpt-4.1", false, false, nil},
 	}
@@ -162,21 +163,6 @@ func TestAGenerationDoesNotAnswerForALaterOne(t *testing.T) {
 				t.Errorf("%s follows %s, a release its name merely extends — %s", tc.model, documented, tc.why)
 			}
 		})
-	}
-}
-
-func TestTheDocumentedMaxEffortIsNotOnTheWireForGPT56(t *testing.T) {
-	t.Parallel()
-
-	for _, model := range []string{"gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra"} {
-		caps := OpenAIReasoningCapsFor(model)
-		if got := caps.ClampEffort("max"); got != "xhigh" {
-			t.Errorf("ClampEffort(%q, max) = %q, want xhigh: the vendor enumerates its own set as "+
-				"none, low, medium, high, xhigh and refuses max with 400", model, got)
-		}
-		if slices.Contains(caps.Efforts, "max") {
-			t.Errorf("%s advertises max, which the vendor refuses", model)
-		}
 	}
 }
 
