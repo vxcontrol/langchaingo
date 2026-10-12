@@ -180,14 +180,65 @@ func TestQwen35OpenWeightsThinkOnlyOnAStream(t *testing.T) {
 			t.Errorf("%s: a streaming call must not pin thinking, got enable_thinking=%v", model, got)
 		}
 	}
+}
 
-	for _, model := range []string{"qwen3.6-27b", "qwen3.8-27b"} {
-		body, err := captureQwenRequest(t, "dashscope/"+model)
-		if err != nil {
-			t.Fatalf("%s: generate: %v", model, err)
+func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T) {
+	t.Parallel()
+
+	stream := llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })
+	var streamOnly *reasoning.ErrThinkingRequiresStream
+	for _, at := range []struct{ baseURL, prefix string }{
+		{modelStudioBaseURL, ""},
+		{privateGatewayBaseURL, "dashscope/"},
+	} {
+		for model, off := range map[string][2]any{
+			"qwen3.6-27b":     {false, nil},
+			"qwen3.6-35b-a3b": {false, nil},
+			"qwen3.8-27b":     {nil, "none"},
+		} {
+			name := at.prefix + model
+			body, err := callWithoutModel(t, at.baseURL, name)
+			if err != nil {
+				t.Fatalf("%s: generate: %v", name, err)
+			}
+			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; got != off {
+				t.Errorf("%s: a call without a stream must switch thinking off with %v, got enable_thinking and reasoning_effort %v",
+					name, off, got)
+			}
+
+			for _, think := range []llms.CallOption{
+				llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithExtraBody(map[string]any{"enable_thinking": true}),
+			} {
+				body, err = callWithoutModel(t, at.baseURL, name, think)
+				if !errors.As(err, &streamOnly) || body != nil {
+					t.Errorf("%s: thinking without a stream must be refused before the call, got %v", name, err)
+				}
+			}
+
+			body, _ = callWithoutModel(t, at.baseURL, name, stream)
+			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; body["stream"] != true || got != [2]any{} {
+				t.Errorf("%s: a streaming call must go out and leave the model's thinking alone, got %v", name, body)
+			}
 		}
-		if got, ok := body["enable_thinking"]; ok {
-			t.Errorf("%s: Model Studio names no stream rule for it, got enable_thinking=%v", model, got)
+
+		name := at.prefix + "qwen3.8-2.4t-a95b"
+		for _, opts := range [][]llms.CallOption{nil, {llms.WithReasoningDisabled()}, {llms.WithReasoning(llms.ReasoningHigh, 0)}} {
+			body, err := callWithoutModel(t, at.baseURL, name, opts...)
+			if !errors.As(err, &streamOnly) || body != nil {
+				t.Errorf("%s: the model only thinks, and only on a stream, got %v", name, err)
+			}
+		}
+		if body, _ := callWithoutModel(t, at.baseURL, name, stream); body["stream"] != true {
+			t.Errorf("%s: a streaming call must go out, got %v", name, body)
+		}
+
+		for _, model := range []string{"qwen3.9-27b", "qwen3.7-27b", "qwen3.5-1t"} {
+			name = at.prefix + model
+			body, err := callWithoutModel(t, at.baseURL, name)
+			if err != nil || body == nil || [2]any{body["enable_thinking"], body["reasoning_effort"]} != [2]any{} {
+				t.Errorf("%s: Model Studio documents no such open weights, so the call must go out as asked, got %v, %v",
+					name, body, err)
+			}
 		}
 	}
 }
