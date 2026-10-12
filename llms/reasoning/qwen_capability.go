@@ -220,12 +220,15 @@ func DashScopeTakesNoTopK(model string) bool {
 	rest, ok := cutDashScopeRoute(strings.ToLower(model))
 	name := rest[strings.LastIndex(rest, "/")+1:]
 	return ok && (strings.HasPrefix(name, "deepseek") || strings.HasPrefix(name, "kimi-") ||
-		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-") || hasGeneration(name, "glm-5.3"))
+		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-")) || dashScopeGLM53(model)
 }
 
 func DashScopeTakesNoRepetitionPenalty(model string) bool {
-	rest, ok := cutDashScopeRoute(strings.ToLower(model))
-	return ok && hasGeneration(rest[strings.LastIndex(rest, "/")+1:], "glm-5.3")
+	return dashScopeGLM53(model)
+}
+
+func dashScopeGLM53(model string) bool {
+	return hasGeneration(dashScopeGuestSpelling(model), "glm-5.3")
 }
 
 // DashScopeTakesThinkingBudget reports whether Model Studio caps the model's

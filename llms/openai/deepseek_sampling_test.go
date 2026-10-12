@@ -317,6 +317,8 @@ func TestTopKStaysOffTheAPIsThatDoNotTakeIt(t *testing.T) {
 		"glm-5.3 on DashScope":                            {dashScopeBaseURL, "glm-5.3", true},
 		"glm-5.3-prime on DashScope":                      {dashScopeBaseURL, "glm-5.3-prime", true},
 		"dashscope/glm-5.3 on a gateway":                  {gatewayBaseURL, "dashscope/glm-5.3", true},
+		"glm-5.4 on DashScope follows glm-5.3":            {dashScopeBaseURL, "glm-5.4", true},
+		"ZHIPU/GLM-5.3 on DashScope keeps it":             {dashScopeBaseURL, "ZHIPU/GLM-5.3", false},
 		"glm-5.3 on Z.ai keeps it":                        {"http://api.z.ai/api/paas/v4", "glm-5.3", false},
 		"kimi-k2.6 on a gateway's other route":            {gatewayBaseURL, "moonshot/kimi-k2.6", false},
 		"deepseek-v4-pro on another route keeps it":       {gatewayBaseURL, "openrouter/deepseek/deepseek-v4-pro", false},
@@ -344,11 +346,14 @@ func TestRepetitionPenaltyStaysOffTheGLMModelStudioServesWithoutIt(t *testing.T)
 		baseURL, model string
 		dropped        bool
 	}{
-		"glm-5.3 on DashScope":              {dashScopeBaseURL, "glm-5.3", true},
-		"dashscope/glm-5.3 on a gateway":    {gatewayBaseURL, "dashscope/glm-5.3", true},
-		"glm-5.2 on DashScope keeps it":     {dashScopeBaseURL, "glm-5.2", false},
-		"qwen3.8-max on DashScope keeps it": {dashScopeBaseURL, "qwen3.8-max", false},
-		"glm-5.3 on Z.ai keeps it":          {"http://api.z.ai/api/paas/v4", "glm-5.3", false},
+		"glm-5.3 on DashScope":                 {dashScopeBaseURL, "glm-5.3", true},
+		"glm-5.3-prime on DashScope":           {dashScopeBaseURL, "glm-5.3-prime", true},
+		"dashscope/glm-5.3 on a gateway":       {gatewayBaseURL, "dashscope/glm-5.3", true},
+		"glm-5.4 on DashScope follows glm-5.3": {dashScopeBaseURL, "glm-5.4", true},
+		"ZHIPU/GLM-5.3 on DashScope keeps it":  {dashScopeBaseURL, "ZHIPU/GLM-5.3", false},
+		"glm-5.2 on DashScope keeps it":        {dashScopeBaseURL, "glm-5.2", false},
+		"qwen3.8-max on DashScope keeps it":    {dashScopeBaseURL, "qwen3.8-max", false},
+		"glm-5.3 on Z.ai keeps it":             {"http://api.z.ai/api/paas/v4", "glm-5.3", false},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, llms.WithRepetitionPenalty(1.05))
 		_, present := body["repetition_penalty"]
