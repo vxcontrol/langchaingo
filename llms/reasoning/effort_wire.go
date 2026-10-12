@@ -165,7 +165,7 @@ func FixesSampling(model, host string) bool {
 			}
 		}
 	case VendorDashScope:
-		return !servedByQwenCloud(model, host) && hasGeneration(dashScopeGuestSpelling(DashScopeRoute(model, host)), "kimi-k3")
+		return hasGeneration(dashScopeGuestSpelling(DashScopeRoute(model, host)), "kimi-k3")
 	}
 	return false
 }

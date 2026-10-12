@@ -619,6 +619,8 @@ func TestKimiModelsWithFixedSamplingGetNoneOfIt(t *testing.T) {
 		{moonshot, "kimi-k2.6", slices.Concat(sampling, []llms.CallOption{llms.WithReasoningDisabled()})},
 		{dashScopeBaseURL, "kimi-k3", sampling},
 		{gatewayBaseURL, "dashscope/kimi-k3", sampling},
+		{"http://maas.qwencloudapi.com/compatible-mode/v1", "kimi-k3", sampling},
+		{gatewayBaseURL, "qwen_cloud/kimi-k3", sampling},
 	} {
 		body, resp := sendToHost(t, tc.baseURL, tc.model, tc.opts...)
 		for _, field := range []string{"temperature", "top_p", "presence_penalty", "frequency_penalty"} {
@@ -639,7 +641,7 @@ func TestKimiOutsideItsFixedHostsKeepsItsSampling(t *testing.T) {
 
 	sampling := []llms.CallOption{llms.WithTemperature(0.3), llms.WithTopP(0.5), llms.WithPresencePenalty(0.2)}
 	for _, route := range []struct{ baseURL, model string }{
-		{dashScopeBaseURL, "kimi-k2.7-code"}, {dashScopeBaseURL, "kimi-k2.6"}, {"http://maas.qwencloudapi.com/compatible-mode/v1", "kimi-k3"},
+		{dashScopeBaseURL, "kimi-k2.7-code"}, {dashScopeBaseURL, "kimi-k2.6"},
 		{openRouterBaseURL, "moonshotai/kimi-k2.6"},
 		{"http://api.atlascloud.ai/v1", "moonshotai/kimi-k2.6"},
 	} {
