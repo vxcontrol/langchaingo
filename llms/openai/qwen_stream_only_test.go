@@ -177,6 +177,26 @@ func TestModelStudioServesOpenWeightQwensThinkingWithoutAStream(t *testing.T) {
 	}
 }
 
+func TestQwen38IsSwitchedOffByEffortNone(t *testing.T) {
+	t.Parallel()
+
+	for _, at := range []struct{ baseURL, prefix string }{
+		{modelStudioBaseURL, ""},
+		{privateGatewayBaseURL, "dashscope/"},
+	} {
+		for _, model := range []string{"qwen3.8-27b", "qwen3.8-max", "qwen3.8-flash", "qwen3.8-omni-flash"} {
+			name := at.prefix + model
+			body, err := callWithoutModel(t, at.baseURL, name, llms.WithReasoningDisabled())
+			if err != nil || body["reasoning_effort"] != "none" {
+				t.Errorf("%s: Off must go out as reasoning_effort none, got %v, %v", name, body, err)
+			}
+			if _, sent := body["enable_thinking"]; sent {
+				t.Errorf("%s: Off goes out as reasoning_effort alone, got %v", name, body)
+			}
+		}
+	}
+}
+
 func TestAStreamOnlyQwenRefusesARequestToThinkWithoutAStream(t *testing.T) {
 	t.Parallel()
 
