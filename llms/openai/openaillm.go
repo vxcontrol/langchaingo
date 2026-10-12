@@ -381,8 +381,9 @@ func (o *LLM) createChatRequest(
 	if reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
 		extra := llms.ExtraBody(opts)
 		extraOn, extraOff := llms.ExtraBodyThinking(model, o.host, extra)
+		switchedOff := extraOff || opts.Reasoning.IsDisabled()
 		budgeted := openaiclient.MergedValue(nil, extra["thinking_budget"]) != nil
-		if extraOn || (budgeted && !extraOff) || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+		if extraOn || (budgeted && !switchedOff) || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
 		if extraOff {

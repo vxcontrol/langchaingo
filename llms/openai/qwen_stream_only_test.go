@@ -224,6 +224,12 @@ func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T
 				}
 			}
 
+			body, err = callWithoutModel(t, at.baseURL, name, llms.WithReasoningDisabled(),
+				llms.WithExtraBody(map[string]any{"thinking_budget": 4096}))
+			if err != nil || body["thinking_budget"] != 4096.0 {
+				t.Errorf("%s: a caller that switches thinking off is not asking to think by a budget, got %v, %v", name, body, err)
+			}
+
 			if _, err = callWithoutModel(t, at.baseURL, name, llms.WithExtraBody(map[string]any{"thinking_budget": nil})); err != nil {
 				t.Errorf("%s: a null budget asks for nothing, got %v", name, err)
 			}
