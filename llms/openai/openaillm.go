@@ -619,6 +619,9 @@ func (o *LLM) setReasoning(
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	acceptsEffort, caps, effortsReported := o.effortsFor(model, rules)
 	effort := caps.ClampEffort(askedEffort)
+	if !responses {
+		effort = reasoning.OpenAIChatEffort(model, effort)
+	}
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())

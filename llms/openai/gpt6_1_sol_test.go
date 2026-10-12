@@ -26,10 +26,14 @@ func TestGPT61SolFollowsItsModelPage(t *testing.T) {
 	assert.Equal(t, "high", body["reasoning_effort"])
 
 	for asked, sent := range map[llms.ReasoningEffort]string{
-		llms.ReasoningMinimal: "low", llms.ReasoningXHigh: "xhigh", llms.ReasoningMax: "max",
+		llms.ReasoningMinimal: "low", llms.ReasoningXHigh: "xhigh", llms.ReasoningMax: "xhigh",
 	} {
 		body, err := wireBodyOf(t, "gpt-6.1-sol", nil, llms.WithReasoning(asked, 0))
 		require.NoError(t, err, asked)
 		assert.Equal(t, sent, body["reasoning_effort"], asked)
 	}
+
+	body, err = callWithATool(t, "", "gpt-6.1-sol", llms.WithReasoning(llms.ReasoningMax, 0))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"effort": "max"}, body["reasoning"], "the Responses API takes max on this model")
 }
