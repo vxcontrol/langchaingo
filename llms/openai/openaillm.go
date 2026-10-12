@@ -956,13 +956,19 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
+	mistral := reasoning.ServedBy(model, o.host) == reasoning.VendorMistral
 	if t := req.Temperature; t != nil {
 		switch {
 		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
-			clampTemperature(req, warn, model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
+			clampSampling(&req.Temperature, warn, "WithTemperature", model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
+		case (*t < 0 || *t > 1.5) && mistral:
+			clampSampling(&req.Temperature, warn, "WithTemperature", model, min(max(*t, 0), 1.5), "Mistral takes a temperature from 0 to 1.5")
 		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, thinks):
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
+	}
+	if p := req.TopP; p != nil && *p <= 0 && mistral {
+		clampSampling(&req.TopP, warn, "WithTopP", model, 0.01, "Mistral takes a top_p above 0")
 	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, thinks)
@@ -970,13 +976,13 @@ func (o *LLM) applySamplingPolicy(
 	before.report(req, model, reason, warn)
 }
 
-func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model string, sent float64, reason string) {
+func clampSampling(field **float64, warn *llms.Warnings, option, model string, sent float64, reason string) {
 	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-		Asked: strconv.FormatFloat(*req.Temperature, 'g', -1, 64), Sent: strconv.FormatFloat(sent, 'g', -1, 64),
+		Kind: llms.WarningClamp, Option: option, Model: model,
+		Asked: strconv.FormatFloat(**field, 'g', -1, 64), Sent: strconv.FormatFloat(sent, 'g', -1, 64),
 		Reason: reason,
 	})
-	req.Temperature = &sent
+	*field = &sent
 }
 
 func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool) {
