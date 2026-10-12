@@ -9,8 +9,6 @@ import (
 
 var qwenParameterCountName = regexp.MustCompile(`^qwen3-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
-var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.[568])?-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
-
 var qwenDefaultThinkingName = regexp.MustCompile(`^qwen3\.[567]-`)
 
 var qwenNextName = regexp.MustCompile(`^qwen3-next-.*-thinking$`)
@@ -26,7 +24,7 @@ func QwenThinkingOffByFlag(model string) bool {
 // QwenThinkingRequiresStream reports whether Model Studio serves the model's
 // thinking only on a streaming call.
 func QwenThinkingRequiresStream(model string) bool {
-	return qwenStreamOnlyThinkingName.MatchString(dashScopeSpelling(model))
+	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
 func DashScopeThinkingRequiresStream(model, host string) bool {
@@ -42,7 +40,7 @@ func DashScopeThinkingRequiresStream(model, host string) bool {
 
 func DashScopeStreamsOnly(model, host string) bool {
 	route := DashScopeRoute(model, host)
-	if ServedBy(model, host) == VendorDashScope && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
+	if servedByQwenCloud(model, host) && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
 		return true
 	}
 	return qvqStreamsOnly(route)

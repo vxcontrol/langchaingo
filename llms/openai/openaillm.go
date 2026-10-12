@@ -386,11 +386,7 @@ func (o *LLM) createChatRequest(
 		if extraOn || (budgeted && !switchedOff) || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
-		if extraOff {
-			opts.Reasoning = nil
-		} else {
-			opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
-		}
+		opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
 	}
 
 	if (dashScope && reasoning.QwenThinkingEnabledByFlag(route) || reasoning.DashScopeGuestThinkingEnabledByFlag(route)) &&

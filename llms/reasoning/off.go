@@ -190,7 +190,7 @@ func openAIOffWire(model string) OffWire {
 	if OffByOmission(model) {
 		return OffOmit
 	}
-	if qwenParameterCountName.MatchString(dashScopeSpelling(model)) || QwenThinkingOffByFlag(model) || dashScopeDeepSeekV3(model) {
+	if QwenThinkingRequiresStream(model) || QwenThinkingOffByFlag(model) || dashScopeDeepSeekV3(model) {
 		return OffDisableDashScope
 	}
 	if disablesByThinkingObject(model) {
