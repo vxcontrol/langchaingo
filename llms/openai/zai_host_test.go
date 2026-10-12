@@ -112,6 +112,8 @@ func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://api.mistral.ai/v1", "mistral-small-latest"},
 		{"http://litellm.internal/v1", "mistral/mistral-small-latest"},
+		{"http://litellm.internal/mistral/v1", "mistral-small-latest"},
+		{"http://vllm.internal/v1", "mistral-small-latest"},
 	} {
 		for _, tc := range []struct {
 			option      llms.CallOption
@@ -119,8 +121,10 @@ func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
 			asked, sent float64
 		}{
 			{llms.WithTemperature(2), "temperature", "WithTemperature", 2, 1.5},
+			{llms.WithTemperature(1.6), "temperature", "WithTemperature", 1.6, 1.5},
 			{llms.WithTemperature(-0.5), "temperature", "WithTemperature", -0.5, 0},
 			{llms.WithTopP(0), "top_p", "WithTopP", 0, 0.01},
+			{llms.WithTopP(1.2), "top_p", "WithTopP", 1.2, 1},
 		} {
 			body, warnings := hostCall(t, route.baseURL, route.model, tc.option)
 			assert.InDelta(t, tc.sent, body[tc.field], 1e-9, route)
@@ -140,7 +144,7 @@ func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
 
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://openrouter.ai/api/v1", "mistralai/mistral-small"},
-		{"http://vllm.internal/v1", "mistral-small-latest"},
+		{"http://vllm.internal/v1", "llama-3.3-70b-instruct"},
 	} {
 		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(2), llms.WithTopP(0))
 		assert.InDelta(t, 2, body["temperature"], 1e-9, "another host decides its own range: %v", route)

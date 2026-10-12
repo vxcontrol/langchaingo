@@ -960,7 +960,8 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
-	mistral := reasoning.ServedBy(model, o.host) == reasoning.VendorMistral
+	mistral := o.reachesMistral(model) &&
+		(reasoning.ServedBy(model, o.host) == reasoning.VendorMistral || reasoning.ServedByMistral(model))
 	if t := req.Temperature; t != nil {
 		switch {
 		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
@@ -971,8 +972,8 @@ func (o *LLM) applySamplingPolicy(
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
 	}
-	if p := req.TopP; p != nil && *p <= 0 && mistral {
-		clampSampling(&req.TopP, warn, "WithTopP", model, 0.01, "Mistral takes a top_p above 0")
+	if p := req.TopP; p != nil && (*p <= 0 || *p > 1) && mistral {
+		clampSampling(&req.TopP, warn, "WithTopP", model, min(max(*p, 0.01), 1), "Mistral takes a top_p above 0 and up to 1")
 	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, thinks)
