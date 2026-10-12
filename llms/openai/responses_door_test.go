@@ -353,14 +353,16 @@ func TestALiteLLMPassThroughToOpenAIIsOpenAIsOwnAPI(t *testing.T) {
 
 	tools := llms.WithTools([]llms.Tool{astraTool()})
 	for baseURL, path := range map[string]string{ //nolint:gosec
-		"https://llm.pentagi.net/openai/v1":              "/openai/v1/chat/completions",
-		"https://llm.pentagi.net/openai_passthrough/v1":  "/openai_passthrough/v1/responses",
-		"https://llm.pentagi.net/openai_passthrough/v1/": "/openai_passthrough/v1/responses",
-		"https://apim.azure-api.net/openai/v1":           "/openai/v1/chat/completions",
-		"https://llm.pentagi.net/v1":                     "/v1/chat/completions",
-		"https://llm.pentagi.net/openai/deployments/x":   "/openai/deployments/x/chat/completions",
-		"https://openrouter.ai/api/v1":                   "/api/v1/chat/completions",
-		"https://pentagi.openai.azure.com/openai/v1":     "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/openai/v1":                 "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/openai_passthrough/v1":     "/openai_passthrough/v1/responses",
+		"https://llm.pentagi.net/openai_passthrough/v1/":    "/openai_passthrough/v1/responses",
+		"https://gw.internal/litellm/openai_passthrough/v1": "/litellm/openai_passthrough/v1/responses",
+		"https://gw.internal/litellm/openai/v1":             "/litellm/openai/v1/chat/completions",
+		"https://apim.azure-api.net/openai/v1":              "/openai/v1/chat/completions",
+		"https://llm.pentagi.net/v1":                        "/v1/chat/completions",
+		"https://llm.pentagi.net/openai/deployments/x":      "/openai/deployments/x/chat/completions",
+		"https://openrouter.ai/api/v1":                      "/api/v1/chat/completions",
+		"https://pentagi.openai.azure.com/openai/v1":        "/openai/v1/chat/completions",
 	} {
 		doer := &bodyDoer{}
 		llm := newUnitLLM(t, WithBaseURL(baseURL), WithModel("gpt-5.6-terra"), WithHTTPClient(doer))
@@ -704,6 +706,8 @@ func TestServedByOpenAIIsWhereAToolTurnWithReasoningGoesToResponses(t *testing.T
 		"https://api.openai.com/v1": true,
 		"https://llm.pentagi.net/openai_passthrough/v1":           true,
 		"http://host.docker.internal:18089/openai_passthrough/v1": true,
+		"https://gw.internal/litellm/openai_passthrough/v1":       true,
+		"http://litellm-proxy:4000/openai_passthrough":            true,
 		"https://llm.pentagi.net/openai/v1":                       false,
 		"https://llm.pentagi.net":                                 false,
 		"https://openrouter.ai/api/v1":                            false,

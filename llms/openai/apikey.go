@@ -2,6 +2,7 @@ package openai
 
 import (
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/vxcontrol/langchaingo/llms/openai/internal/openaiclient"
@@ -63,6 +64,5 @@ func openAIPassthrough(raw string) bool {
 	if err != nil || reasoning.PublicProviderHost(strings.ToLower(u.Hostname())) {
 		return false
 	}
-	first, _, _ := strings.Cut(strings.Trim(u.Path, "/"), "/")
-	return first == "openai_passthrough"
+	return slices.Contains(strings.Split(strings.Trim(u.Path, "/"), "/"), "openai_passthrough")
 }
