@@ -67,6 +67,20 @@ func OpenAIReasoningCapsFor(model string) OpenAIReasoningCaps {
 	return OpenAIReasoningCaps{Known: false}
 }
 
+// OpenAIChatEffort lowers an effort the model takes only on the Responses API to
+// the highest one its Chat Completions endpoint accepts.
+func OpenAIChatEffort(model, effort string) string {
+	if effort != "max" {
+		return effort
+	}
+	for _, form := range modelSpellings(model) {
+		if hasGeneration(form, "gpt-6.1-sol") {
+			return "xhigh"
+		}
+	}
+	return effort
+}
+
 func openAIChatVariant(m string) bool {
 	return strings.HasPrefix(m, "gpt-") && strings.Contains(m, "-chat")
 }

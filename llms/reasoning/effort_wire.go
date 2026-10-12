@@ -153,18 +153,19 @@ func RejectsSamplingWhileThinking(model string) bool {
 	return openAIProperName(model) && OpenAIReasoningCapsFor(model).Known
 }
 
-// FixesSampling reports whether Moonshot's API runs the model on fixed
-// temperature, top_p and penalties, so any value the caller sets for them stays
-// off the wire.
+// FixesSampling reports whether the host runs the model on fixed temperature,
+// top_p and penalties, so any value the caller sets for them stays off the wire.
 func FixesSampling(model, host string) bool {
-	if ServedBy(model, host) != VendorMoonshot {
-		return false
-	}
-	for _, form := range modelSpellings(model) {
-		if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
-			hasGeneration(form, "kimi-k2.7-code") {
-			return true
+	switch ServedBy(model, host) { //nolint:exhaustive // the other hosts take the caller's sampling
+	case VendorMoonshot:
+		for _, form := range modelSpellings(model) {
+			if hasGeneration(form, "kimi-k3") || hasGeneration(form, "kimi-k2.6") ||
+				hasGeneration(form, "kimi-k2.7-code") {
+				return true
+			}
 		}
+	case VendorDashScope:
+		return hasGeneration(dashScopeGuestSpelling(DashScopeRoute(model, host)), "kimi-k3")
 	}
 	return false
 }

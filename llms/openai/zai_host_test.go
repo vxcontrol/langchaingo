@@ -106,6 +106,56 @@ func TestGLMOnZAIIsSentTheTemperatureRangeZAIDocuments(t *testing.T) {
 	}
 }
 
+func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
+	t.Parallel()
+
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://api.mistral.ai/v1", "mistral-small-latest"},
+		{"http://litellm.internal/v1", "mistral/mistral-small-latest"},
+		{"http://litellm.internal/mistral/v1", "mistral-small-latest"},
+		{"http://vllm.internal/v1", "mistral-small-latest"},
+		{"https://api.mistral.ai/v1", "ft:open-mistral-7b:org:20261012"},
+	} {
+		for _, tc := range []struct {
+			option      llms.CallOption
+			field, name string
+			asked, sent float64
+		}{
+			{llms.WithTemperature(2), "temperature", "WithTemperature", 2, 1.5},
+			{llms.WithTemperature(1.6), "temperature", "WithTemperature", 1.6, 1.5},
+			{llms.WithTemperature(-0.5), "temperature", "WithTemperature", -0.5, 0},
+			{llms.WithTopP(0), "top_p", "WithTopP", 0, 0.01},
+			{llms.WithTopP(1.2), "top_p", "WithTopP", 1.2, 1},
+		} {
+			body, warnings := hostCall(t, route.baseURL, route.model, tc.option)
+			assert.InDelta(t, tc.sent, body[tc.field], 1e-9, route)
+			if assert.Contains(t, warnings, tc.name, route) {
+				assert.Equal(t, llms.WarningClamp, warnings[tc.name].Kind)
+				assert.Equal(t, strconv.FormatFloat(tc.asked, 'g', -1, 64), warnings[tc.name].Asked)
+				assert.Equal(t, strconv.FormatFloat(tc.sent, 'g', -1, 64), warnings[tc.name].Sent)
+			}
+		}
+
+		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(1.5), llms.WithTopP(0.5))
+		assert.InDelta(t, 1.5, body["temperature"], 1e-9, route)
+		assert.InDelta(t, 0.5, body["top_p"], 1e-9, route)
+		assert.NotContains(t, warnings, "WithTemperature", route)
+		assert.NotContains(t, warnings, "WithTopP", route)
+	}
+
+	for _, route := range []struct{ baseURL, model string }{
+		{"https://openrouter.ai/api/v1", "mistralai/mistral-small"},
+		{"https://openrouter.ai/api/v1", "mistral-small-latest"},
+		{"http://vllm.internal/v1", "llama-3.3-70b-instruct"},
+	} {
+		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(2), llms.WithTopP(0))
+		assert.InDelta(t, 2, body["temperature"], 1e-9, "another host decides its own range: %v", route)
+		assert.InDelta(t, 0, body["top_p"], 1e-9, "another host decides its own range: %v", route)
+		assert.NotContains(t, warnings, "WithTemperature", route)
+		assert.NotContains(t, warnings, "WithTopP", route)
+	}
+}
+
 func TestZAIAndMistralAreSentTheAnswerLimitTheirSchemasName(t *testing.T) {
 	t.Parallel()
 

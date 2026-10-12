@@ -136,7 +136,7 @@ func TestQwenCloudServesThinkingWithoutAStreamWhereItsDocsSay(t *testing.T) {
 
 	body, err := callWithoutModel(t, modelStudioBaseURL, "qwen3.5-27b")
 	require.NoError(t, err)
-	assert.Equal(t, false, body["enable_thinking"], "Model Studio serves Qwen3.5 open weights' thinking only on a stream")
+	assert.NotContains(t, body, "enable_thinking", "Model Studio serves Qwen3.5 open weights' thinking without a stream")
 }
 
 func TestQwenCloudGuestsGetWhatQwenCloudDocumentsForThem(t *testing.T) {

@@ -153,111 +153,84 @@ func TestQwenCommercialHybridStaysQuietOtherwise(t *testing.T) {
 	}
 }
 
-func TestQwen35OpenWeightsThinkOnlyOnAStream(t *testing.T) {
+func TestModelStudioServesOpenWeightQwensThinkingWithoutAStream(t *testing.T) {
 	t.Parallel()
 
-	for _, model := range []string{"qwen3.5-122b-a10b", "qwen3.5-27b", "qwen3.5-35b-a3b", "qwen3.5-397b-a17b"} {
-		body, err := captureQwenRequest(t, "dashscope/"+model)
-		if err != nil {
-			t.Fatalf("%s: generate: %v", model, err)
-		}
-		if got, ok := body["enable_thinking"]; !ok || got != false {
-			t.Errorf("%s: a non-streaming call must carry enable_thinking=false, got %v (present=%v)", model, got, ok)
-		}
-
-		_, err = captureQwenRequest(t, "dashscope/"+model, llms.WithReasoning(llms.ReasoningHigh, 0))
-		var streamOnly *reasoning.ErrThinkingRequiresStream
-		if !errors.As(err, &streamOnly) {
-			t.Errorf("%s: thinking without a stream must be refused before the call, got %v", model, err)
-		}
-
-		body, err = captureQwenRequest(t, "dashscope/"+model,
-			llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil }))
-		if err != nil {
-			t.Fatalf("%s: generate: %v", model, err)
-		}
-		if got, ok := body["enable_thinking"]; ok {
-			t.Errorf("%s: a streaming call must not pin thinking, got enable_thinking=%v", model, got)
-		}
-	}
-}
-
-func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T) {
-	t.Parallel()
-
-	stream := llms.WithStreamingFunc(func(context.Context, streaming.Chunk) error { return nil })
 	var streamOnly *reasoning.ErrThinkingRequiresStream
 	for _, at := range []struct{ baseURL, prefix string }{
 		{modelStudioBaseURL, ""},
 		{privateGatewayBaseURL, "dashscope/"},
 	} {
-		for model, off := range map[string][2]any{
-			"qwen3.6-27b":     {false, nil},
-			"qwen3.6-35b-a3b": {false, nil},
-			"qwen3.8-27b":     {nil, "none"},
+		for _, model := range []string{
+			"qwen3.5-27b", "qwen3.5-122b-a10b", "qwen3.6-27b", "qwen3.6-35b-a3b", "qwen3.8-27b", "qwen3.8-2.4t-a95b",
 		} {
 			name := at.prefix + model
-			body, err := callWithoutModel(t, at.baseURL, name)
-			if err != nil {
-				t.Fatalf("%s: generate: %v", name, err)
-			}
-			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; got != off {
-				t.Errorf("%s: a call without a stream must switch thinking off with %v, got enable_thinking and reasoning_effort %v",
-					name, off, got)
-			}
-
-			for _, think := range []llms.CallOption{
-				llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithExtraBody(map[string]any{"enable_thinking": true}),
-				llms.WithExtraBody(map[string]any{"thinking_budget": 8000}), llms.WithExtraBody(map[string]any{"thinking_budget": 0}),
+			for _, think := range [][]llms.CallOption{
+				nil, {llms.WithReasoning(llms.ReasoningHigh, 0)}, {llms.WithExtraBody(map[string]any{"thinking_budget": 4096})},
 			} {
-				body, err = callWithoutModel(t, at.baseURL, name, think)
-				if !errors.As(err, &streamOnly) || body != nil {
-					t.Errorf("%s: thinking without a stream must be refused before the call, got %v", name, err)
+				body, err := callWithoutModel(t, at.baseURL, name, think...)
+				if errors.As(err, &streamOnly) || body == nil || body["enable_thinking"] == false || body["reasoning_effort"] == "none" {
+					t.Errorf("%s: Model Studio serves the model's thinking without a stream, got %v, %v", name, body, err)
 				}
-			}
-
-			for _, off := range []llms.CallOption{llms.WithMaxTokens(512), llms.WithReasoningDisabled()} {
-				body, err = callWithoutModel(t, at.baseURL, name, off,
-					llms.WithExtraBody(map[string]any{"enable_thinking": false, "thinking_budget": 2048}))
-				if err != nil || body["enable_thinking"] != false || body["reasoning_effort"] != nil || body["thinking_budget"] != 2048.0 {
-					t.Errorf("%s: an extra body that switches thinking off itself must go out as written, got %v, %v", name, body, err)
-				}
-			}
-
-			body, err = callWithoutModel(t, at.baseURL, name, llms.WithReasoningDisabled(),
-				llms.WithExtraBody(map[string]any{"thinking_budget": 4096}))
-			if err != nil || body["thinking_budget"] != 4096.0 {
-				t.Errorf("%s: a caller that switches thinking off is not asking to think by a budget, got %v, %v", name, body, err)
-			}
-
-			if _, err = callWithoutModel(t, at.baseURL, name, llms.WithExtraBody(map[string]any{"thinking_budget": nil})); err != nil {
-				t.Errorf("%s: a null budget asks for nothing, got %v", name, err)
-			}
-
-			body, _ = callWithoutModel(t, at.baseURL, name, stream)
-			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; body["stream"] != true || got != [2]any{} {
-				t.Errorf("%s: a streaming call must go out and leave the model's thinking alone, got %v", name, body)
 			}
 		}
+	}
+}
 
-		name := at.prefix + "qwen3.8-2.4t-a95b"
-		for _, opts := range [][]llms.CallOption{nil, {llms.WithReasoningDisabled()}, {llms.WithReasoning(llms.ReasoningHigh, 0)}} {
-			body, err := callWithoutModel(t, at.baseURL, name, opts...)
+func TestQwen38IsSwitchedOffByEffortNone(t *testing.T) {
+	t.Parallel()
+
+	for _, at := range []struct{ baseURL, prefix string }{
+		{modelStudioBaseURL, ""},
+		{privateGatewayBaseURL, "dashscope/"},
+	} {
+		for _, model := range []string{"qwen3.8-27b", "qwen3.8-max", "qwen3.8-flash", "qwen3.8-omni-flash"} {
+			name := at.prefix + model
+			body, err := callWithoutModel(t, at.baseURL, name, llms.WithReasoningDisabled())
+			if err != nil || body["reasoning_effort"] != "none" {
+				t.Errorf("%s: Off must go out as reasoning_effort none, got %v, %v", name, body, err)
+			}
+			if _, sent := body["enable_thinking"]; sent {
+				t.Errorf("%s: Off goes out as reasoning_effort alone, got %v", name, body)
+			}
+		}
+	}
+}
+
+func TestAStreamOnlyQwenRefusesARequestToThinkWithoutAStream(t *testing.T) {
+	t.Parallel()
+
+	var streamOnly *reasoning.ErrThinkingRequiresStream
+	for _, at := range []struct{ baseURL, model string }{
+		{modelStudioBaseURL, "qwen3-32b"},
+		{privateGatewayBaseURL, "dashscope/qwen3-32b"},
+	} {
+		for _, think := range []llms.CallOption{
+			llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithExtraBody(map[string]any{"enable_thinking": true}),
+			llms.WithExtraBody(map[string]any{"thinking_budget": 8000}), llms.WithExtraBody(map[string]any{"thinking_budget": 0}),
+		} {
+			body, err := callWithoutModel(t, at.baseURL, at.model, think)
 			if !errors.As(err, &streamOnly) || body != nil {
-				t.Errorf("%s: the model only thinks, and only on a stream, got %v", name, err)
+				t.Errorf("%s: thinking without a stream must be refused before the call, got %v", at.model, err)
 			}
-		}
-		if body, _ := callWithoutModel(t, at.baseURL, name, stream); body["stream"] != true {
-			t.Errorf("%s: a streaming call must go out, got %v", name, body)
 		}
 
-		for _, model := range []string{"qwen3.9-27b", "qwen3.7-27b", "qwen3.5-1t"} {
-			name = at.prefix + model
-			body, err := callWithoutModel(t, at.baseURL, name)
-			if err != nil || body == nil || [2]any{body["enable_thinking"], body["reasoning_effort"]} != [2]any{} {
-				t.Errorf("%s: Model Studio documents no such open weights, so the call must go out as asked, got %v, %v",
-					name, body, err)
+		for _, off := range []llms.CallOption{llms.WithMaxTokens(512), llms.WithReasoningDisabled()} {
+			body, err := callWithoutModel(t, at.baseURL, at.model, off,
+				llms.WithExtraBody(map[string]any{"enable_thinking": false, "thinking_budget": 2048}))
+			if err != nil || body["enable_thinking"] != false || body["thinking_budget"] != 2048.0 {
+				t.Errorf("%s: an extra body that switches thinking off itself must go out, got %v, %v", at.model, body, err)
 			}
+		}
+
+		body, err := callWithoutModel(t, at.baseURL, at.model, llms.WithReasoningDisabled(),
+			llms.WithExtraBody(map[string]any{"thinking_budget": 4096}))
+		if err != nil || body["enable_thinking"] != false || body["thinking_budget"] != 4096.0 {
+			t.Errorf("%s: a caller that switches thinking off is not asking to think by a budget, got %v, %v", at.model, body, err)
+		}
+
+		if _, err := callWithoutModel(t, at.baseURL, at.model, llms.WithExtraBody(map[string]any{"thinking_budget": nil})); err != nil {
+			t.Errorf("%s: a null budget asks for nothing, got %v", at.model, err)
 		}
 	}
 }

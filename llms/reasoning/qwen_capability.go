@@ -9,8 +9,6 @@ import (
 
 var qwenParameterCountName = regexp.MustCompile(`^qwen3-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
-var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.[568])?-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
-
 var qwenDefaultThinkingName = regexp.MustCompile(`^qwen3\.[567]-`)
 
 var qwenNextName = regexp.MustCompile(`^qwen3-next-.*-thinking$`)
@@ -23,26 +21,19 @@ func QwenThinkingOffByFlag(model string) bool {
 	return qwenDefaultThinkingName.MatchString(dashScopeSpelling(model))
 }
 
-// QwenThinkingRequiresStream reports whether Model Studio serves the model's
+// QwenThinkingRequiresStream reports whether DashScope serves the model's
 // thinking only on a streaming call.
 func QwenThinkingRequiresStream(model string) bool {
-	return qwenStreamOnlyThinkingName.MatchString(dashScopeSpelling(model))
+	return qwenParameterCountName.MatchString(dashScopeSpelling(model))
 }
 
 func DashScopeThinkingRequiresStream(model, host string) bool {
-	if ServedBy(model, host) != VendorDashScope {
-		return false
-	}
-	route := DashScopeRoute(model, host)
-	if servedByQwenCloud(model, host) {
-		return qwenParameterCountName.MatchString(dashScopeSpelling(route))
-	}
-	return QwenThinkingRequiresStream(route)
+	return ServedBy(model, host) == VendorDashScope && QwenThinkingRequiresStream(DashScopeRoute(model, host))
 }
 
 func DashScopeStreamsOnly(model, host string) bool {
 	route := DashScopeRoute(model, host)
-	if ServedBy(model, host) == VendorDashScope && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
+	if servedByQwenCloud(model, host) && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
 		return true
 	}
 	return qvqStreamsOnly(route)
@@ -222,7 +213,15 @@ func DashScopeTakesNoTopK(model string) bool {
 	rest, ok := cutDashScopeRoute(strings.ToLower(model))
 	name := rest[strings.LastIndex(rest, "/")+1:]
 	return ok && (strings.HasPrefix(name, "deepseek") || strings.HasPrefix(name, "kimi-") ||
-		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-"))
+		strings.HasPrefix(name, "moonshot-kimi") || strings.HasPrefix(name, "minimax-")) || dashScopeGLM53(model)
+}
+
+func DashScopeTakesNoRepetitionPenalty(model string) bool {
+	return dashScopeGLM53(model)
+}
+
+func dashScopeGLM53(model string) bool {
+	return hasGeneration(dashScopeGuestSpelling(model), "glm-5.3")
 }
 
 // DashScopeTakesThinkingBudget reports whether Model Studio caps the model's

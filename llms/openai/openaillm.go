@@ -386,11 +386,7 @@ func (o *LLM) createChatRequest(
 		if extraOn || (budgeted && !switchedOff) || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
-		if extraOff {
-			opts.Reasoning = nil
-		} else {
-			opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
-		}
+		opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
 	}
 
 	if (dashScope && reasoning.QwenThinkingEnabledByFlag(route) || reasoning.DashScopeGuestThinkingEnabledByFlag(route)) &&
@@ -571,6 +567,10 @@ func dropFieldsTheModelTakesNot(req *openaiclient.ChatRequest, model, host strin
 		addNonZeroChange(warn, "WithRepetitionPenalty", model, refusedByEndpoint, req.RepetitionPenalty, nil)
 		req.RepetitionPenalty = nil
 	}
+	if reasoning.DashScopeTakesNoRepetitionPenalty(reasoning.DashScopeRoute(model, host)) && req.RepetitionPenalty != nil {
+		addNonZeroChange(warn, "WithRepetitionPenalty", model, "the vendor does not take this field on the model", req.RepetitionPenalty, nil)
+		req.RepetitionPenalty = nil
+	}
 }
 
 // effectiveModel resolves the model the request runs on: a per-call model wins,
@@ -623,6 +623,9 @@ func (o *LLM) setReasoning(
 	askedEffort := string(opts.Reasoning.GetEffort(opts.GetMaxTokens()))
 	acceptsEffort, caps, effortsReported := o.effortsFor(model, rules)
 	effort := caps.ClampEffort(askedEffort)
+	if !responses {
+		effort = reasoning.OpenAIChatEffort(model, effort)
+	}
 	effort = reasoning.DashScopeGuestEffort(reasoning.DashScopeRoute(model, o.host), effort)
 	reasoningEffort := llms.ReasoningEffort(reasoning.ClaudeClampEffort(model, effort, reasoning.ProviderOpenAI))
 	reasoningTokens := opts.Reasoning.GetTokens(opts.GetMaxTokens())
@@ -957,13 +960,20 @@ func (o *LLM) applySamplingPolicy(
 	req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool, warn *llms.Warnings,
 ) {
 	model := o.effectiveModel(opts)
+	mistral := o.reachesMistral(model) &&
+		(reasoning.ServedBy(model, o.host) == reasoning.VendorMistral || reasoning.ServedByMistral(model))
 	if t := req.Temperature; t != nil {
 		switch {
 		case (*t < 0 || *t > 1) && reasoning.ServedByZAI(model, o.host):
-			clampTemperature(req, warn, model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
+			clampSampling(&req.Temperature, warn, "WithTemperature", model, min(max(*t, 0), 1), "Z.ai takes a temperature from 0 to 1")
+		case (*t < 0 || *t > 1.5) && mistral:
+			clampSampling(&req.Temperature, warn, "WithTemperature", model, min(max(*t, 0), 1.5), "Mistral takes a temperature from 0 to 1.5")
 		case !reasoning.ClaudeRejectsSampling(model) && !refusesSamplingWhileThinking(model, thinks):
 			req.Temperature = warn.ClampClaudeTemperature(model, req.Temperature)
 		}
+	}
+	if p := req.TopP; p != nil && (*p <= 0 || *p > 1) && mistral {
+		clampSampling(&req.TopP, warn, "WithTopP", model, min(max(*p, 0.01), 1), "Mistral takes a top_p above 0 and up to 1")
 	}
 	before := takeSamplingSnapshot(req, opts)
 	reason := samplingReason(model, o.host, thinks)
@@ -971,13 +981,13 @@ func (o *LLM) applySamplingPolicy(
 	before.report(req, model, reason, warn)
 }
 
-func clampTemperature(req *openaiclient.ChatRequest, warn *llms.Warnings, model string, sent float64, reason string) {
+func clampSampling(field **float64, warn *llms.Warnings, option, model string, sent float64, reason string) {
 	warn.Add(llms.Warning{
-		Kind: llms.WarningClamp, Option: "WithTemperature", Model: model,
-		Asked: strconv.FormatFloat(*req.Temperature, 'g', -1, 64), Sent: strconv.FormatFloat(sent, 'g', -1, 64),
+		Kind: llms.WarningClamp, Option: option, Model: model,
+		Asked: strconv.FormatFloat(**field, 'g', -1, 64), Sent: strconv.FormatFloat(sent, 'g', -1, 64),
 		Reason: reason,
 	})
-	req.Temperature = &sent
+	*field = &sent
 }
 
 func (o *LLM) enforceSamplingPolicy(req *openaiclient.ChatRequest, opts llms.CallOptions, thinks func() bool) {
