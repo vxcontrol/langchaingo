@@ -69,10 +69,11 @@ type ReplayTarget struct {
 	Model string
 	// Host is the lowercase host name of the endpoint, without a port; a LiteLLM
 	// pass-through to OpenAI's own API (/openai_passthrough) is api.openai.com.
-	Host  string
-	API   ReplayAPI
-	Tools bool
-	Mode  ThinkingMode
+	Host   string
+	API    ReplayAPI
+	Tools  bool
+	Mode   ThinkingMode
+	Effort string
 	// KeepsPastReasoning: the host keeps the reasoning of earlier turns because
 	// the caller asks it where the host makes it a switch (Z.ai's and
 	// DashScope's clear_thinking false or preserve_thinking true, Moonshot's
@@ -239,7 +240,7 @@ var (
 
 func vendorReplay(t ReplayTarget) Replay {
 	if OpenAIHost(t.Host) {
-		if OpenAITakesResponses(t.Model, t.Tools, t.Mode) && t.thinks() {
+		if OpenAITakesResponses(t.Model, t.Tools, t.Mode, t.Effort) && t.thinks() {
 			return Replay{Needs: PastReasoningOwnTurns, OwnLoop: LoopAsSent, ForeignLoop: LoopAsSent}
 		}
 		return asSent

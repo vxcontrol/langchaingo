@@ -189,13 +189,14 @@ func ChatToolsUnsupported(model string) bool {
 }
 
 // OpenAITakesResponses reports whether a call to OpenAI's own API goes to the
-// Responses API rather than Chat Completions.
-func OpenAITakesResponses(model string, tools bool, mode ThinkingMode) bool {
+// Responses API rather than Chat Completions; effort is the level the call asks
+// for, or "".
+func OpenAITakesResponses(model string, tools bool, mode ThinkingMode, effort string) bool {
 	switch {
 	case ChatCompletionsUnsupported(model):
 		return true
 	case !tools:
-		return false
+		return OpenAIChatEffort(model, effort) != effort
 	case ChatToolsUnsupported(model):
 		return true
 	case mode == ThinkingOff, EffortWithTools(model) == EffortToolsFree:
