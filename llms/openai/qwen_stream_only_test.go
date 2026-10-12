@@ -206,15 +206,18 @@ func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T
 					name, off, got)
 			}
 
-			body, err = callWithoutModel(t, at.baseURL, name, llms.WithReasoning(llms.ReasoningHigh, 0))
-			if !errors.As(err, &streamOnly) || body != nil {
-				t.Errorf("%s: thinking without a stream must be refused before the call, got %v", name, err)
+			for _, think := range []llms.CallOption{
+				llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithExtraBody(map[string]any{"enable_thinking": true}),
+			} {
+				body, err = callWithoutModel(t, at.baseURL, name, think)
+				if !errors.As(err, &streamOnly) || body != nil {
+					t.Errorf("%s: thinking without a stream must be refused before the call, got %v", name, err)
+				}
 			}
 
 			body, _ = callWithoutModel(t, at.baseURL, name, stream)
-			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; got != [2]any{} {
-				t.Errorf("%s: a streaming call must leave the model's thinking alone, got enable_thinking and reasoning_effort %v",
-					name, got)
+			if got := [2]any{body["enable_thinking"], body["reasoning_effort"]}; body["stream"] != true || got != [2]any{} {
+				t.Errorf("%s: a streaming call must go out and leave the model's thinking alone, got %v", name, body)
 			}
 		}
 
@@ -227,6 +230,12 @@ func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T
 		}
 		if body, _ := callWithoutModel(t, at.baseURL, name, stream); body["stream"] != true {
 			t.Errorf("%s: a streaming call must go out, got %v", name, body)
+		}
+
+		name = at.prefix + "qwen3.9-27b"
+		body, err := callWithoutModel(t, at.baseURL, name)
+		if err != nil || body == nil || [2]any{body["enable_thinking"], body["reasoning_effort"]} != [2]any{} {
+			t.Errorf("%s: a name outside the known lines must go out as asked, got %v, %v", name, body, err)
 		}
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 var qwenParameterCountName = regexp.MustCompile(`^qwen3-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
-var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.\d+)?-\d+(\.\d+)?[bt](-a\d+(\.\d+)?b)?$`)
+var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.[568])?-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
 var qwenDefaultThinkingName = regexp.MustCompile(`^qwen3\.[567]-`)
 
