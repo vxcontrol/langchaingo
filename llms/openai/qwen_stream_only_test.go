@@ -208,6 +208,7 @@ func TestModelStudioServesEveryOpenWeightQwensThinkingOnlyOnAStream(t *testing.T
 
 			for _, think := range []llms.CallOption{
 				llms.WithReasoning(llms.ReasoningHigh, 0), llms.WithExtraBody(map[string]any{"enable_thinking": true}),
+				llms.WithExtraBody(map[string]any{"thinking_budget": 8000}),
 			} {
 				body, err = callWithoutModel(t, at.baseURL, name, think)
 				if !errors.As(err, &streamOnly) || body != nil {

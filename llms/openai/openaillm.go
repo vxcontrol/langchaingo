@@ -379,8 +379,10 @@ func (o *LLM) createChatRequest(
 	dashScope := reasoning.ServedBy(model, o.host) == reasoning.VendorDashScope
 	route := reasoning.DashScopeRoute(model, o.host)
 	if reasoning.DashScopeThinkingRequiresStream(model, o.host) && opts.StreamingFunc == nil {
-		if extraOn, _ := llms.ExtraBodyThinking(model, o.host, llms.ExtraBody(opts)); extraOn ||
-			opts.Reasoning.ResolveMode() == llms.ReasoningOn {
+		extra := llms.ExtraBody(opts)
+		extraOn, _ := llms.ExtraBodyThinking(model, o.host, extra)
+		budget, _ := openaiclient.MergedValue(nil, extra["thinking_budget"]).(float64)
+		if extraOn || budget > 0 || opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
 		opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
