@@ -9,7 +9,7 @@ import (
 
 var qwenParameterCountName = regexp.MustCompile(`^qwen3-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
 
-var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.5)?-\d+(\.\d+)?b(-a\d+(\.\d+)?b)?$`)
+var qwenStreamOnlyThinkingName = regexp.MustCompile(`^qwen3(\.\d+)?-\d+(\.\d+)?[bt](-a\d+(\.\d+)?b)?$`)
 
 var qwenDefaultThinkingName = regexp.MustCompile(`^qwen3\.[567]-`)
 
@@ -42,7 +42,7 @@ func DashScopeThinkingRequiresStream(model, host string) bool {
 
 func DashScopeStreamsOnly(model, host string) bool {
 	route := DashScopeRoute(model, host)
-	if servedByQwenCloud(model, host) && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
+	if ServedBy(model, host) == VendorDashScope && hasGeneration(dashScopeSpelling(route), "qwen3.8-2.4t-a95b") {
 		return true
 	}
 	return qvqStreamsOnly(route)

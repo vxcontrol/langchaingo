@@ -382,8 +382,7 @@ func (o *LLM) createChatRequest(
 		if opts.Reasoning.ResolveMode() == llms.ReasoningOn {
 			return nil, &reasoning.ErrThinkingRequiresStream{Model: model}
 		}
-		thinkingOff := false
-		req.EnableThinking = &thinkingOff
+		opts.Reasoning = &llms.ReasoningConfig{Mode: llms.ReasoningOff}
 	}
 
 	if (dashScope && reasoning.QwenThinkingEnabledByFlag(route) || reasoning.DashScopeGuestThinkingEnabledByFlag(route)) &&
