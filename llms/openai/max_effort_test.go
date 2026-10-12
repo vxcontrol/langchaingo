@@ -58,3 +58,32 @@ func TestOpenAIsMaxGoesToTheResponsesAPIWhereverItCan(t *testing.T) {
 		})
 	}
 }
+
+func TestToolsOnlyInTheExtraBodyKeepTheChatShapeWhenMaxIsAsked(t *testing.T) {
+	t.Parallel()
+
+	toolsOnlyOnResponses := map[string]bool{"gpt-6-astra": true, "gpt-6.1-sol": true}
+	for _, model := range []string{
+		"gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna", "gpt-6.1-sol",
+	} {
+		t.Run(model, func(t *testing.T) {
+			t.Parallel()
+
+			doer := &bodyDoer{}
+			_, err := newUnitLLM(t, WithModel(model), WithHTTPClient(doer)).GenerateContent(context.Background(),
+				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "look it up")},
+				llms.WithExtraBody(map[string]any{"tools": []any{
+					map[string]any{"type": "function", "function": map[string]any{"name": "lookup"}},
+				}}),
+				llms.WithReasoning(llms.ReasoningMax, 0))
+			if toolsOnlyOnResponses[model] {
+				var unsupported *reasoning.ErrChatToolsUnsupported
+				require.ErrorAs(t, err, &unsupported)
+			} else {
+				var withTools *reasoning.ErrEffortWithTools
+				require.ErrorAs(t, err, &withTools)
+			}
+			assert.Nil(t, doer.body, "the refusal comes before the network")
+		})
+	}
+}
