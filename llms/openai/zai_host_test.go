@@ -114,6 +114,7 @@ func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
 		{"http://litellm.internal/v1", "mistral/mistral-small-latest"},
 		{"http://litellm.internal/mistral/v1", "mistral-small-latest"},
 		{"http://vllm.internal/v1", "mistral-small-latest"},
+		{"https://api.mistral.ai/v1", "ft:open-mistral-7b:org:20261012"},
 	} {
 		for _, tc := range []struct {
 			option      llms.CallOption
@@ -144,6 +145,7 @@ func TestMistralIsSentTheSamplingRangeItsSchemaNames(t *testing.T) {
 
 	for _, route := range []struct{ baseURL, model string }{
 		{"https://openrouter.ai/api/v1", "mistralai/mistral-small"},
+		{"https://openrouter.ai/api/v1", "mistral-small-latest"},
 		{"http://vllm.internal/v1", "llama-3.3-70b-instruct"},
 	} {
 		body, warnings := hostCall(t, route.baseURL, route.model, llms.WithTemperature(2), llms.WithTopP(0))
